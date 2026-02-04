@@ -143,6 +143,16 @@ export function RootLayout() {
                 마이페이지
               </Link>
 
+              {/* Admin Link (Dev only) */}
+              {import.meta.env.DEV && (
+                <Link
+                  to="/admin/dashboard"
+                  className="text-sm font-bold tracking-tight text-red-600 hover:text-red-800 transition-colors uppercase border border-red-200 px-2 py-1 rounded"
+                >
+                  Admin Panel
+                </Link>
+              )}
+
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
