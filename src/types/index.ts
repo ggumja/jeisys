@@ -5,6 +5,11 @@ export interface User {
   hospitalName: string;
   businessNumber: string;
   phone: string;
+  address?: string;
+  addressDetail?: string;
+  role?: 'admin' | 'user';
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt?: string;
 }
 
 export interface Equipment {
@@ -19,6 +24,7 @@ export interface Equipment {
 
 export interface Product {
   id: string;
+  displayNo?: number;
   sku: string;
   name: string;
   category: string;

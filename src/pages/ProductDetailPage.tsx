@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ShoppingCart, Check, FileText, Minus, Plus, Package } from 'lucide-react';
-import { mockProducts, mockEquipment } from '../lib/mockData';
-import { storage } from '../lib/storage';
+import { ShoppingCart, Check, FileText, Minus, Plus, Package, Loader2 } from 'lucide-react';
+import { productService } from '../services/productService';
+import { cartService } from '../services/cartService';
+import { equipmentService, EquipmentModel } from '../services/equipmentService';
+import { Product } from '../types';
 import {
   Dialog,
   DialogContent,
@@ -15,11 +17,75 @@ import {
 export function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = mockProducts.find(p => p.id === id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isSubscription, setIsSubscription] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const [showCartDialog, setShowCartDialog] = useState(false);
+
+  const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    if (id) {
+      loadProduct(id);
+    }
+  }, [id]);
+
+  const loadProduct = async (productId: string) => {
+    try {
+      setLoading(true);
+      const fetchedProduct = await productService.getProductById(productId);
+      setProduct(fetchedProduct);
+
+      if (fetchedProduct) {
+        // Load related data parallel
+        const [allProducts, allModels] = await Promise.all([
+          productService.getProducts(),
+          equipmentService.getEquipmentModels()
+        ]);
+
+        // Filter related products
+        const related = allProducts
+          .filter(p => p.category === fetchedProduct.category && p.id !== fetchedProduct.id)
+          .slice(0, 4);
+        setRelatedProducts(related);
+
+        // Filter compatible equipment
+        // Note: fetchedProduct.compatibleEquipment stores codes. equipmentService returns models with codes.
+        const compatible = allModels.filter(m =>
+          fetchedProduct.compatibleEquipment.includes(m.code)
+        );
+        setCompatibleModels(compatible);
+      }
+    } catch (error) {
+      console.error('Failed to load product details', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentTierPrice = product
+    ? [...product.tierPricing].reverse().find(tier => quantity >= tier.quantity)?.unitPrice || product.price
+    : 0;
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    try {
+      await cartService.addToCart(product.id, quantity, isSubscription);
+      setAddedToCart(true);
+      setTimeout(() => setAddedToCart(false), 2000);
+      setShowCartDialog(true);
+    } catch (error) {
+      console.error('Failed to add to cart', error);
+      alert('장바구니 담기에 실패했습니다. 로그인 상태를 확인해주세요.');
+    }
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   if (!product) {
     return (
@@ -31,40 +97,6 @@ export function ProductDetailPage() {
       </div>
     );
   }
-
-  const compatibleEquipment = mockEquipment.filter(eq =>
-    product.compatibleEquipment.includes(eq.serialNumber)
-  );
-
-  // 연관 상품 (같은 카테고리, 현재 상품 제외)
-  const relatedProducts = mockProducts.filter(
-    p => p.category === product.category && p.id !== product.id
-  ).slice(0, 4); // 최대 4개만 표시
-
-  const currentTierPrice = [...product.tierPricing]
-    .reverse()
-    .find(tier => quantity >= tier.quantity)?.unitPrice || product.price;
-
-  const handleAddToCart = () => {
-    const cart = storage.getCart();
-    const existingItem = cart.find(item => item.productId === product.id);
-
-    if (existingItem) {
-      existingItem.quantity += quantity;
-      existingItem.isSubscription = isSubscription;
-    } else {
-      cart.push({
-        productId: product.id,
-        quantity,
-        isSubscription,
-      });
-    }
-
-    storage.setCart(cart);
-    setAddedToCart(true);
-    setTimeout(() => setAddedToCart(false), 2000);
-    setShowCartDialog(true);
-  };
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
@@ -91,7 +123,7 @@ export function ProductDetailPage() {
         <div>
           <p className="text-xs text-neutral-500 mb-3 tracking-wide uppercase">{product.sku}</p>
           <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-6">{product.name}</h1>
-          
+
           <div className="bg-neutral-50 border border-neutral-200 p-8 mb-8">
             <p className="text-4xl tracking-tight text-neutral-900 mb-2">
               ₩{currentTierPrice.toLocaleString()}
@@ -108,7 +140,7 @@ export function ProductDetailPage() {
           </div>
 
           {/* Compatible Equipment */}
-          {compatibleEquipment.length > 0 && (
+          {compatibleModels.length > 0 && (
             <div className="bg-green-50 border border-green-200 p-6 mb-8">
               <div className="flex items-start gap-3">
                 <Check className="w-5 h-5 text-green-700 mt-0.5 flex-shrink-0" />
@@ -117,9 +149,9 @@ export function ProductDetailPage() {
                     보유 장비와 호환됩니다
                   </p>
                   <ul className="space-y-1">
-                    {compatibleEquipment.map(eq => (
-                      <li key={eq.id} className="text-sm text-green-700">
-                        • {eq.modelName} ({eq.serialNumber})
+                    {compatibleModels.map(model => (
+                      <li key={model.id} className="text-sm text-green-700">
+                        • {model.model_name} (Code: {model.code})
                       </li>
                     ))}
                   </ul>
@@ -193,8 +225,8 @@ export function ProductDetailPage() {
               {addedToCart ? '장바구니에 담김!' : '장바구니'}
             </button>
             <button
-              onClick={() => {
-                handleAddToCart();
+              onClick={async () => {
+                await handleAddToCart();
                 navigate('/cart');
               }}
               className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 py-4 font-medium transition-colors text-sm tracking-wide uppercase"
@@ -262,7 +294,7 @@ export function ProductDetailPage() {
               </tr>
               <tr>
                 <td className="bg-neutral-50 px-6 py-4 text-sm font-medium text-neutral-900 align-top">
-                  반품/교환 안내<br/>A/S안내
+                  반품/교환 안내<br />A/S안내
                 </td>
                 <td className="px-6 py-4 text-sm text-neutral-700">
                   <div className="space-y-1">
@@ -295,7 +327,7 @@ export function ProductDetailPage() {
               </tr>
               <tr>
                 <td className="bg-neutral-50 px-6 py-4 text-sm font-medium text-neutral-900 align-top">
-                  교환 및 반품이<br/>불가능한 경우
+                  교환 및 반품이<br />불가능한 경우
                 </td>
                 <td className="px-6 py-4 text-sm text-neutral-700">
                   <div className="space-y-1">

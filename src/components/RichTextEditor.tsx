@@ -7,10 +7,11 @@ import { Separator } from './ui/separator';
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
+  onImageUpload?: (file: File) => Promise<string>;
   placeholder?: string;
 }
 
-export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, onImageUpload, placeholder }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,16 +33,29 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
     handleInput();
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = `<img src="${reader.result}" alt="Uploaded image" style="max-width: 100%; height: auto; margin: 10px 0;" />`;
+      try {
+        let imageUrl = '';
+        if (onImageUpload) {
+          imageUrl = await onImageUpload(file);
+        } else {
+          // Fallback to Base64 if no upload handler provided
+          const reader = new FileReader();
+          imageUrl = await new Promise((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+        }
+
+        const img = `<img src="${imageUrl}" alt="Uploaded image" style="max-width: 100%; height: auto; margin: 10px 0;" />`;
         document.execCommand('insertHTML', false, img);
         handleInput();
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        alert('이미지 업로드에 실패했습니다.');
+      }
     }
     // Reset input
     if (fileInputRef.current) {

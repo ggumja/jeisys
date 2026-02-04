@@ -2,12 +2,33 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { authService } from '../services/authService';
+
 export function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
   const [isStatisticsOpen, setIsStatisticsOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check admin permission
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        if (!user || user.role !== 'admin') {
+          navigate('/', { replace: true });
+          return;
+        }
+      } catch (error) {
+        navigate('/', { replace: true });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkAdmin();
+  }, [navigate]);
 
   const menuItems = [
     { to: '/admin/dashboard', icon: BarChart3, label: '대시보드' },
@@ -66,6 +87,14 @@ export function AdminLayout() {
     }
   }, [location.pathname, navigate]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-900" />
+      </div>
+    );
+  }
+
   const handleBackToSite = () => {
     navigate('/');
   };
@@ -119,11 +148,10 @@ export function AdminLayout() {
                     <Link
                       key={item.to}
                       to={item.to}
-                      className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${
-                        isActive
-                          ? 'bg-neutral-900 text-white'
-                          : 'text-neutral-700 hover:bg-neutral-100'
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${isActive
+                        ? 'bg-neutral-900 text-white'
+                        : 'text-neutral-700 hover:bg-neutral-100'
+                        }`}
                     >
                       <item.icon className="w-5 h-5" />
                       <span>{item.label}</span>
@@ -134,11 +162,10 @@ export function AdminLayout() {
                 {/* Orders Menu - Accordion */}
                 <div>
                   <button
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${
-                      isOrdersActive
-                        ? 'bg-neutral-900 text-white'
-                        : 'text-neutral-700 hover:bg-neutral-100'
-                    }`}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isOrdersActive
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                      }`}
                     onClick={() => setIsOrdersOpen(!isOrdersOpen)}
                   >
                     <div className="flex items-center gap-3">
@@ -159,11 +186,10 @@ export function AdminLayout() {
                           <Link
                             key={item.to}
                             to={item.to}
-                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${
-                              isActive
-                                ? 'bg-neutral-900 text-white'
-                                : 'text-neutral-600 hover:bg-neutral-50'
-                            }`}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive
+                              ? 'bg-neutral-900 text-white'
+                              : 'text-neutral-600 hover:bg-neutral-50'
+                              }`}
                           >
                             <item.icon className="w-4 h-4" />
                             <span>{item.label}</span>
@@ -177,12 +203,11 @@ export function AdminLayout() {
                 {/* Subscription List - Same level as Order Management */}
                 <Link
                   to="/admin/subscriptions"
-                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${
-                    location.pathname === '/admin/subscriptions' ||
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${location.pathname === '/admin/subscriptions' ||
                     location.pathname.startsWith('/admin/subscriptions/')
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-700 hover:bg-neutral-100'
-                  }`}
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-700 hover:bg-neutral-100'
+                    }`}
                 >
                   <RefreshCw className="w-5 h-5" />
                   <span>정기배송목록</span>
@@ -191,11 +216,10 @@ export function AdminLayout() {
                 {/* Communication Menu - Accordion */}
                 <div>
                   <button
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${
-                      isCommunicationActive
-                        ? 'bg-neutral-900 text-white'
-                        : 'text-neutral-700 hover:bg-neutral-100'
-                    }`}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isCommunicationActive
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                      }`}
                     onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
                   >
                     <div className="flex items-center gap-3">
@@ -216,11 +240,10 @@ export function AdminLayout() {
                           <Link
                             key={item.to}
                             to={item.to}
-                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${
-                              isActive
-                                ? 'bg-neutral-900 text-white'
-                                : 'text-neutral-600 hover:bg-neutral-50'
-                            }`}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive
+                              ? 'bg-neutral-900 text-white'
+                              : 'text-neutral-600 hover:bg-neutral-50'
+                              }`}
                           >
                             <item.icon className="w-4 h-4" />
                             <span>{item.label}</span>
@@ -234,11 +257,10 @@ export function AdminLayout() {
                 {/* Statistics Menu - Accordion */}
                 <div>
                   <button
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${
-                      isStatisticsActive
-                        ? 'bg-neutral-900 text-white'
-                        : 'text-neutral-700 hover:bg-neutral-100'
-                    }`}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isStatisticsActive
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                      }`}
                     onClick={() => setIsStatisticsOpen(!isStatisticsOpen)}
                   >
                     <div className="flex items-center gap-3">
@@ -259,11 +281,10 @@ export function AdminLayout() {
                           <Link
                             key={item.to}
                             to={item.to}
-                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${
-                              isActive
-                                ? 'bg-neutral-900 text-white'
-                                : 'text-neutral-600 hover:bg-neutral-50'
-                            }`}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive
+                              ? 'bg-neutral-900 text-white'
+                              : 'text-neutral-600 hover:bg-neutral-50'
+                              }`}
                           >
                             <item.icon className="w-4 h-4" />
                             <span>{item.label}</span>
@@ -283,11 +304,10 @@ export function AdminLayout() {
                     <Link
                       key={item.to}
                       to={item.to}
-                      className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${
-                        isActive
-                          ? 'bg-neutral-900 text-white'
-                          : 'text-neutral-700 hover:bg-neutral-100'
-                      }`}
+                      className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${isActive
+                        ? 'bg-neutral-900 text-white'
+                        : 'text-neutral-700 hover:bg-neutral-100'
+                        }`}
                     >
                       <item.icon className="w-5 h-5" />
                       <span>{item.label}</span>
@@ -304,66 +324,60 @@ export function AdminLayout() {
               <div className="grid grid-cols-3 gap-2">
                 <Link
                   to="/admin/dashboard"
-                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                    location.pathname === '/admin/dashboard'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600'
-                  }`}
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname === '/admin/dashboard'
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
                 >
                   <BarChart3 className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">대시보드</span>
                 </Link>
                 <Link
                   to="/admin/orders"
-                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                    isOrdersActive
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600'
-                  }`}
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${isOrdersActive
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
                 >
                   <ShoppingCart className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">주문관리</span>
                 </Link>
                 <Link
                   to="/admin/subscriptions"
-                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                    location.pathname === '/admin/subscriptions'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600'
-                  }`}
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname === '/admin/subscriptions'
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
                 >
                   <RefreshCw className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">정기배송</span>
                 </Link>
                 <Link
                   to="/admin/products"
-                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                    location.pathname.startsWith('/admin/products')
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600'
-                  }`}
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname.startsWith('/admin/products')
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
                 >
                   <Package className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">상품관리</span>
                 </Link>
                 <Link
                   to="/admin/members"
-                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                    location.pathname === '/admin/members'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600'
-                  }`}
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname === '/admin/members'
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
                 >
                   <Users className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">회원관리</span>
                 </Link>
                 <Link
                   to="/admin/admins"
-                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${
-                    location.pathname === '/admin/admins'
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-600'
-                  }`}
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname === '/admin/admins'
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
                 >
                   <Shield className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">관리자</span>

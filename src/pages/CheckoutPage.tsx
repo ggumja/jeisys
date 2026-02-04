@@ -1,26 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router';
-import { CreditCard, Building2, Wallet, Plus, ChevronDown, ArrowLeft } from 'lucide-react';
-import { storage } from '../lib/storage';
-import { mockProducts } from '../lib/mockData';
+import { CreditCard, Building2, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2 } from 'lucide-react';
+import { cartService } from '../services/cartService';
+import { productService } from '../services/productService';
+import { orderService } from '../services/orderService';
+import { authService } from '../services/authService';
+import { CartItem, Product } from '../types';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const cart = storage.getCart();
-  const user = storage.getUser();
-  
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [productsMap, setProductsMap] = useState<Record<string, Product>>({});
+  const [loading, setLoading] = useState(true);
+  const [placingOrder, setPlacingOrder] = useState(false);
+
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'virtual' | 'loan'>('credit');
   const [selectedCard, setSelectedCard] = useState('신한 4402-****-****');
   const [deliveryMemo, setDeliveryMemo] = useState('');
+  const [address, setAddress] = useState({
+    recipient: '',
+    phone: '',
+    address: '',
+    detail: '',
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      // Load Cart & User Profile
+      const [items, user] = await Promise.all([
+        cartService.getCart(),
+        authService.getCurrentUser()
+      ]);
+
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      setCart(items);
+
+      // Pre-fill address if available
+      setAddress({
+        recipient: user.name,
+        phone: user.phone || '',
+        address: user.address || '',
+        detail: user.addressDetail || '',
+      });
+
+      if (items.length > 0) {
+        const productPromises = items.map(item => productService.getProductById(item.productId));
+        const products = await Promise.all(productPromises);
+
+        const map: Record<string, Product> = {};
+        products.forEach(p => {
+          if (p) map[p.id] = p;
+        });
+        setProductsMap(map);
+      } else {
+        navigate('/cart');
+      }
+    } catch (error) {
+      console.error('Failed to load checkout data', error);
+      navigate('/cart');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getTierPrice = (productId: string, quantity: number) => {
-    const product = mockProducts.find(p => p.id === productId);
+    const product = productsMap[productId];
     if (!product) return 0;
-    
+
     const tier = [...product.tierPricing]
-      .reverse()
+      .sort((a, b) => b.quantity - a.quantity)
       .find(t => quantity >= t.quantity);
-    
+
     return tier?.unitPrice || product.price;
   };
 
@@ -32,25 +92,47 @@ export function CheckoutPage() {
     }, 0);
   };
 
-  const handleOrder = () => {
-    // Create order
-    const orderId = 'ORD-' + Date.now();
-    
-    // Clear cart
-    storage.setCart([]);
-    
-    // Navigate to completion page
-    navigate(`/order-complete/${orderId}`);
+  const handleOrder = async () => {
+    if (!address.address || !address.recipient || !address.phone) {
+      alert('배송지 정보를 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      setPlacingOrder(true);
+      const user = await authService.getCurrentUser();
+
+      if (!user) {
+        throw new Error('User not logged in');
+      }
+
+      const fullAddress = `${address.address} ${address.detail} (수령인: ${address.recipient}, 연락처: ${address.phone}) ${deliveryMemo ? `[메모: ${deliveryMemo}]` : ''}`;
+
+      const order = await orderService.createOrder({
+        userId: user.id,
+        items: cart,
+        totalAmount: calculateTotal(),
+        paymentMethod: paymentMethod,
+        deliveryAddress: fullAddress,
+      });
+
+      // Navigate to completion page
+      navigate(`/order-complete/${order.id}`); // Assuming backend returns ID, or use order_number
+    } catch (error: any) {
+      console.error('Order failed', error);
+      alert('주문 처리에 실패했습니다: ' + (error.message || 'Error'));
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
-  if (cart.length === 0) {
-    navigate('/cart');
-    return null;
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
+  if (cart.length === 0) return null;
+
   const total = calculateTotal();
-  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const firstProduct = mockProducts.find(p => p.id === cart[0].productId);
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
@@ -68,15 +150,72 @@ export function CheckoutPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Payment Form */}
+        {/* Left Column: Form */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Order Items */}
+
+          {/* Delivery Address */}
+          <div className="bg-white border border-neutral-200 p-8">
+            <h2 className="text-xl tracking-tight text-neutral-900 mb-6 flex items-center gap-2">
+              <MapPin className="w-5 h-5" />
+              배송지 정보
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">수령인</label>
+                <input
+                  type="text"
+                  value={address.recipient}
+                  onChange={e => setAddress({ ...address, recipient: e.target.value })}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">연락처</label>
+                <input
+                  type="text"
+                  value={address.phone}
+                  onChange={e => setAddress({ ...address, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">주소</label>
+                <input
+                  type="text"
+                  value={address.address}
+                  onChange={e => setAddress({ ...address, address: e.target.value })}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm mb-2"
+                  placeholder="기본 주소"
+                />
+                <input
+                  type="text"
+                  value={address.detail}
+                  onChange={e => setAddress({ ...address, detail: e.target.value })}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm"
+                  placeholder="상세 주소"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">배송 메모</label>
+              <textarea
+                value={deliveryMemo}
+                onChange={(e) => setDeliveryMemo(e.target.value)}
+                placeholder="배송 시 요청사항을 입력해주세요 (선택)"
+                rows={2}
+                className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 resize-none text-sm"
+              />
+            </div>
+          </div>
+
+          {/* User Order Items */}
           <div className="bg-white border border-neutral-200 p-8">
             <h2 className="text-xl tracking-tight text-neutral-900 mb-6">주문 상품</h2>
-            
+
             <div className="space-y-4">
               {cart.map(item => {
-                const product = mockProducts.find(p => p.id === item.productId);
+                const product = productsMap[item.productId];
                 if (!product) return null;
 
                 const unitPrice = getTierPrice(item.productId, item.quantity);
@@ -102,7 +241,7 @@ export function CheckoutPage() {
                       <h3 className="text-sm font-medium tracking-tight text-neutral-900 mb-2">
                         {product.name}
                       </h3>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="text-xs text-neutral-600">
                           <span>수량: {item.quantity}개</span>
@@ -124,15 +263,14 @@ export function CheckoutPage() {
           {/* Payment Methods */}
           <div className="bg-white border border-neutral-200 p-8">
             <h2 className="text-xl tracking-tight text-neutral-900 mb-6">결제 수단</h2>
-            
+
             <div className="space-y-4">
               {/* Loan Payment */}
               <label
-                className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${
-                  paymentMethod === 'loan'
+                className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${paymentMethod === 'loan'
                     ? 'border-neutral-900 bg-neutral-50'
                     : 'border-neutral-200 bg-white'
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -155,11 +293,10 @@ export function CheckoutPage() {
 
               {/* Card Payment */}
               <div
-                className={`border-2 transition-all ${
-                  paymentMethod === 'credit'
+                className={`border-2 transition-all ${paymentMethod === 'credit'
                     ? 'border-neutral-900 bg-neutral-50'
                     : 'border-neutral-200 bg-white'
-                }`}
+                  }`}
               >
                 <label className="flex items-start gap-4 p-6 cursor-pointer">
                   <input
@@ -175,7 +312,7 @@ export function CheckoutPage() {
                       <CreditCard className="w-5 h-5 text-neutral-700" />
                       <span className="font-medium text-neutral-900">등록 법인카드</span>
                     </div>
-                    
+
                     {paymentMethod === 'credit' && (
                       <div className="mt-4 space-y-3">
                         <div className="relative">
@@ -190,7 +327,7 @@ export function CheckoutPage() {
                           </select>
                           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 pointer-events-none" />
                         </div>
-                        
+
                         <button className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-neutral-300 hover:border-neutral-900 hover:bg-neutral-50 transition-colors text-sm font-medium text-neutral-900">
                           <Plus className="w-4 h-4" />
                           카드 추가하기
@@ -203,11 +340,10 @@ export function CheckoutPage() {
 
               {/* Virtual Account */}
               <label
-                className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${
-                  paymentMethod === 'virtual'
+                className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${paymentMethod === 'virtual'
                     ? 'border-neutral-900 bg-neutral-50'
                     : 'border-neutral-200 bg-white'
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -228,18 +364,6 @@ export function CheckoutPage() {
                 </div>
               </label>
             </div>
-          </div>
-
-          {/* Delivery Memo */}
-          <div className="bg-white border border-neutral-200 p-8">
-            <h2 className="text-xl tracking-tight text-neutral-900 mb-6">배송 메모</h2>
-            <textarea
-              value={deliveryMemo}
-              onChange={(e) => setDeliveryMemo(e.target.value)}
-              placeholder="배송 시 요청사항을 입력해주세요 (선택)"
-              rows={4}
-              className="w-full px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-neutral-900 focus:border-transparent resize-none text-sm"
-            />
           </div>
         </div>
 
@@ -269,9 +393,10 @@ export function CheckoutPage() {
 
             <button
               onClick={handleOrder}
-              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-4 font-medium transition-colors text-sm tracking-wide uppercase mb-4"
+              disabled={placingOrder}
+              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-4 font-medium transition-colors text-sm tracking-wide uppercase mb-4 disabled:opacity-50"
             >
-              ₩{total.toLocaleString()} 즉시 결제
+              {placingOrder ? '결제 중...' : `₩${total.toLocaleString()} 즉시 결제`}
             </button>
 
             <div className="pt-6 border-t border-neutral-200">

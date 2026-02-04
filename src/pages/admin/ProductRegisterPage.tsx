@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
+import { useProduct, useCreateProduct, useUpdateProduct, useAddPricingTiers } from '../../hooks/useProducts';
+import { useCategories } from '../../hooks/useCategories';
+import { productService, ProductInput, PricingTierInput } from '../../services/productService';
 
 interface BulkDiscount {
   id: string;
@@ -22,75 +25,19 @@ interface FormData {
   bulkDiscounts: BulkDiscount[];
 }
 
-const categoryList = [
-  'Density',
-  'DLiv',
-  'POTENZA',
-  'INTRAcel',
-  'LinearZ',
-  'LinearFirm',
-  'ULTRAcel II',
-  'LIPOcel II',
-  'IntraGen',
-  '기타소모품',
-];
 
-// Mock data for editing
-const mockProducts = [
-  {
-    id: '1',
-    name: 'Density HIGH 스킨부스터',
-    category: 'Density',
-    productCode: 'DNS-001',
-    manufacturer: '제이시스메디칼',
-    price: '450000',
-    stock: '50',
-    status: 'active' as const,
-    description: 'Density HIGH는 피부 깊숙이 보습과 탄력을 제공하는 프리미엄 스킨부스터입니다.',
-    thumbnail: null,
-  },
-  {
-    id: '2',
-    name: 'POTENZA 니들 팁 16핀',
-    category: 'POTENZA',
-    productCode: 'POT-016',
-    manufacturer: '제이시스메디칼',
-    price: '500000',
-    stock: '100',
-    status: 'active' as const,
-    description: 'POTENZA 전용 16핀 니들 팁으로 정밀한 시술이 가능합니다.',
-    thumbnail: null,
-  },
-  {
-    id: '3',
-    name: 'ULTRAcel II 카트리지 3.0mm',
-    category: 'ULTRAcel II',
-    productCode: 'ULT-030',
-    manufacturer: '제이시스메디칼',
-    price: '250000',
-    stock: '80',
-    status: 'active' as const,
-    description: '3.0mm 깊이의 초음파 에너지를 전달하는 카트리지입니다.',
-    thumbnail: null,
-  },
-  {
-    id: '4',
-    name: 'LinearZ 앰플 세트',
-    category: 'LinearZ',
-    productCode: 'LNZ-AMP-SET',
-    manufacturer: '제이시스메디칼',
-    price: '400000',
-    stock: '30',
-    status: 'active' as const,
-    description: 'LinearZ 시술 후 사용하는 전용 앰플 세트입니다.',
-    thumbnail: null,
-  },
-];
 
 export function ProductRegisterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!id;
+
+  // React Query hooks
+  const { data: existingProduct, isLoading: isLoadingProduct } = useProduct(id || '');
+  const { data: categories = [] } = useCategories();
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const addPricingTiers = useAddPricingTiers();
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -107,29 +54,34 @@ export function ProductRegisterPage() {
 
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Load existing product data in edit mode
   useEffect(() => {
-    if (isEditMode) {
-      const product = mockProducts.find((p) => p.id === id);
-      if (product) {
-        setFormData({
-          name: product.name,
-          category: product.category,
-          productCode: product.productCode,
-          manufacturer: product.manufacturer,
-          price: product.price,
-          stock: product.stock,
-          status: product.status,
-          description: product.description,
-          subscriptionDiscount: '',
-          bulkDiscounts: [],
-        });
-        if (product.thumbnail) {
-          setThumbnailPreview(product.thumbnail);
-        }
+    if (isEditMode && existingProduct) {
+      setFormData({
+        name: existingProduct.name,
+        category: existingProduct.category,
+        productCode: existingProduct.sku,
+        manufacturer: '', // Not in Product type, will need to add if needed
+        price: existingProduct.price.toString(),
+        stock: existingProduct.stock.toString(),
+        status: 'active', // Assuming active, adjust based on your data
+        description: existingProduct.description || '',
+        subscriptionDiscount: '',
+        bulkDiscounts: existingProduct.tierPricing?.map((tier, index) => ({
+          id: index.toString(),
+          quantity: tier.quantity.toString(),
+          discountRate: ((1 - tier.unitPrice / existingProduct.price) * 100).toFixed(0),
+        })) || [],
+      });
+      if (existingProduct.imageUrl) {
+        setThumbnailPreview(existingProduct.imageUrl);
       }
     }
-  }, [id, isEditMode]);
+  }, [isEditMode, existingProduct]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -141,6 +93,7 @@ export function ProductRegisterPage() {
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setThumbnailFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setThumbnailPreview(reader.result as string);
@@ -152,14 +105,13 @@ export function ProductRegisterPage() {
   const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const newImages: string[] = [];
-      Array.from(files).forEach((file) => {
+      const fileList = Array.from(files);
+      setAdditionalFiles((prev) => [...prev, ...fileList]);
+
+      fileList.forEach((file) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          newImages.push(reader.result as string);
-          if (newImages.length === files.length) {
-            setAdditionalImages((prev) => [...prev, ...newImages]);
-          }
+          setAdditionalImages((prev) => [...prev, reader.result as string]);
         };
         reader.readAsDataURL(file);
       });
@@ -168,6 +120,7 @@ export function ProductRegisterPage() {
 
   const removeAdditionalImage = (index: number) => {
     setAdditionalImages((prev) => prev.filter((_, i) => i !== index));
+    setAdditionalFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const addBulkDiscount = () => {
@@ -198,19 +151,122 @@ export function ProductRegisterPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Helper function to render categories in a hierarchical select
+  const renderCategoryOptions = (parentId: string | null = null, level: number = 0): JSX.Element[] => {
+    return categories
+      .filter(cat => cat.parentId === parentId)
+      .sort((a, b) => a.order - b.order)
+      .flatMap(cat => [
+        <option key={cat.id} value={cat.name}>
+          {'\u00A0'.repeat(level * 4)}{level > 0 ? '└ ' : ''}{cat.name}
+        </option>,
+        ...renderCategoryOptions(cat.id, level + 1)
+      ]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!formData.name || !formData.category || !formData.price) {
       alert('필수 항목을 모두 입력해주세요.');
       return;
     }
 
-    console.log('Submit:', formData);
-    alert(isEditMode ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.');
-    navigate('/admin/products');
+    setIsSubmitting(true);
+    try {
+      // 1. Upload thumbnail image if changed
+      let finalImageUrl = thumbnailPreview || undefined;
+      if (thumbnailFile) {
+        finalImageUrl = await productService.uploadProductImage(thumbnailFile);
+      }
+
+      // Determine final category and subcategory based on hierarchy
+      const selectedCat = categories.find(c => c.name === formData.category);
+      let finalCategory = formData.category;
+      let finalSubcategory = undefined;
+
+      if (selectedCat && selectedCat.parentId) {
+        const parentCat = categories.find(c => c.id === selectedCat.parentId);
+        if (parentCat) {
+          finalCategory = parentCat.name;
+          finalSubcategory = selectedCat.name;
+        }
+      }
+
+      const productData: ProductInput = {
+        sku: formData.productCode || `PROD-${Date.now()}`,
+        name: formData.name,
+        category: finalCategory,
+        subcategory: finalSubcategory,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock) || 0,
+        description: formData.description,
+        image_url: finalImageUrl,
+        is_active: formData.status === 'active',
+      };
+
+      let productId: string;
+
+      if (isEditMode && id) {
+        // Update existing product
+        await updateProduct.mutateAsync({ id, data: productData });
+        productId = id;
+      } else {
+        // Create new product
+        const newProduct = await createProduct.mutateAsync(productData);
+        productId = newProduct.id;
+      }
+
+      // 2. Upload and save additional images
+      if (additionalFiles.length > 0) {
+        const uploadedUrls = await Promise.all(
+          additionalFiles.map(file => productService.uploadProductImage(file))
+        );
+
+        if (isEditMode) {
+          await productService.deleteProductImages(productId);
+        }
+        await productService.addProductImages(productId, uploadedUrls);
+      }
+
+      // 3. Update Pricing Tiers
+      if (formData.bulkDiscounts.length > 0) {
+        const tiers = formData.bulkDiscounts
+          .filter(d => d.quantity && d.discountRate)
+          .map(d => {
+            const basePrice = parseFloat(formData.price);
+            const discountRate = parseFloat(d.discountRate) / 100;
+            const discountedPrice = basePrice * (1 - discountRate);
+
+            return {
+              min_quantity: parseInt(d.quantity),
+              unit_price: discountedPrice,
+            };
+          });
+
+        if (tiers.length > 0) {
+          await addPricingTiers.mutateAsync({ productId, tiers });
+        }
+      }
+
+      alert(isEditMode ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.');
+      navigate('/admin/products');
+    } catch (error) {
+      console.error('Error saving product:', error);
+      alert('상품 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isEditMode && isLoadingProduct) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -353,11 +409,7 @@ export function ProductRegisterPage() {
                 required
               >
                 <option value="">카테고리 선택</option>
-                {categoryList.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
+                {renderCategoryOptions()}
               </select>
             </div>
 
@@ -438,7 +490,7 @@ export function ProductRegisterPage() {
         {/* Discount Settings */}
         <div className="bg-white border border-neutral-200 p-6">
           <h3 className="text-sm font-medium text-neutral-900 mb-6">할인 설정</h3>
-          
+
           {/* Subscription Discount */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-neutral-900 mb-2">
@@ -514,6 +566,7 @@ export function ProductRegisterPage() {
           <RichTextEditor
             value={formData.description}
             onChange={(value) => setFormData((prev) => ({ ...prev, description: value }))}
+            onImageUpload={(file) => productService.uploadProductImage(file)}
           />
         </div>
 
@@ -522,14 +575,17 @@ export function ProductRegisterPage() {
           <button
             type="button"
             onClick={() => navigate('/admin/products')}
-            className="px-6 py-3 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+            disabled={isSubmitting}
+            className="px-6 py-3 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             취소
           </button>
           <button
             type="submit"
-            className="px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+            disabled={isSubmitting}
+            className="px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
             {isEditMode ? '수정 완료' : '등록 완료'}
           </button>
         </div>

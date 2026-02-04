@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Search, Filter, ScanLine, ChevronDown, Menu, ChevronRight, Package, Loader2 } from 'lucide-react';
 import { mockEquipment } from '../lib/mockData';
-import { productService } from '../services/productService';
+import { useProducts } from '../hooks/useProducts';
+import { useCategories } from '../hooks/useCategories';
 import { Product } from '../types';
 
 export function ProductListPage() {
   const [searchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: products = [], isLoading: loading } = useProducts();
+  const { data: dbCategories = [] } = useCategories();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -18,25 +19,9 @@ export function ProductListPage() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      const data = await productService.getProducts();
-      setProducts(data);
-    } catch (error) {
-      console.error('Failed to load products', error);
-      // Fallback to empty or handled in UI
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // 모든 카테고리 추출 (중복 제거)
-  const allCategories = Array.from(new Set(products.map(p => p.category)));
+  // DB에서 카테고리 가져오기 (이름 목록)
+  const allCategories = dbCategories.map(cat => cat.name);
 
   // 선택된 카테고리의 중분류 추출
   const getSubcategories = (category: string) => {

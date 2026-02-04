@@ -1,56 +1,93 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Trash2, Plus, Minus, FileDown, ShoppingBag } from 'lucide-react';
-import { storage } from '../lib/storage';
-import { mockProducts } from '../lib/mockData';
-import { CartItem } from '../types';
+import { Trash2, Plus, Minus, FileDown, ShoppingBag, Loader2 } from 'lucide-react';
+import { cartService } from '../services/cartService';
+import { productService } from '../services/productService';
+import { CartItem, Product } from '../types';
 
 export function CartPage() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [productsMap, setProductsMap] = useState<Record<string, Product>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setCart(storage.getCart());
+    loadCart();
   }, []);
 
-  const updateQuantity = (productId: string, newQuantity: number) => {
-    const updatedCart = cart.map(item =>
-      item.productId === productId
-        ? { ...item, quantity: Math.max(1, newQuantity) }
-        : item
-    );
-    setCart(updatedCart);
-    storage.setCart(updatedCart);
+  const loadCart = async () => {
+    try {
+      setLoading(true);
+      const items = await cartService.getCart();
+      setCart(items);
+
+      if (items.length > 0) {
+        // Fetch product details for items in cart
+        // Optimization: In a real app we might want strict "getByIds" API. 
+        // For now, allow parallel fetching or if list is small.
+        const productPromises = items.map(item => productService.getProductById(item.productId));
+        const products = await Promise.all(productPromises);
+
+        const map: Record<string, Product> = {};
+        products.forEach(p => {
+          if (p) map[p.id] = p;
+        });
+        setProductsMap(map);
+      }
+    } catch (error) {
+      console.error('Failed to load cart', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleSubscription = (productId: string) => {
-    const updatedCart = cart.map(item =>
-      item.productId === productId
-        ? { ...item, isSubscription: !item.isSubscription }
-        : item
-    );
-    setCart(updatedCart);
-    storage.setCart(updatedCart);
+  const updateQuantity = async (productId: string, newQuantity: number) => {
+    try {
+      if (newQuantity < 1) return;
+      // Optimistic update
+      setCart(cart.map(item => item.productId === productId ? { ...item, quantity: newQuantity } : item));
+      await cartService.updateQuantity(productId, newQuantity);
+    } catch (error) {
+      console.error('Failed to update quantity', error);
+      loadCart(); // Revert on error
+    }
   };
 
-  const removeItem = (productId: string) => {
-    const updatedCart = cart.filter(item => item.productId !== productId);
-    setCart(updatedCart);
-    storage.setCart(updatedCart);
+  const toggleSubscription = async (productId: string) => {
+    const item = cart.find(c => c.productId === productId);
+    if (!item) return;
+
+    try {
+      const newState = !item.isSubscription;
+      // Optimistic update
+      setCart(cart.map(c => c.productId === productId ? { ...c, isSubscription: newState } : c));
+      await cartService.updateSubscription(productId, newState);
+    } catch (error) {
+      console.error('Failed to toggle subscription', error);
+      loadCart();
+    }
   };
 
-  const getProductDetails = (productId: string) => {
-    return mockProducts.find(p => p.id === productId);
+  const removeItem = async (productId: string) => {
+    try {
+      // Optimistic update
+      setCart(cart.filter(item => item.productId !== productId));
+      await cartService.removeItem(productId);
+    } catch (error) {
+      console.error('Failed to remove item', error);
+      loadCart();
+    }
   };
 
   const getTierPrice = (productId: string, quantity: number) => {
-    const product = getProductDetails(productId);
+    const product = productsMap[productId];
     if (!product) return 0;
-    
+
+    // Sort logic just in case, though productService handles it
     const tier = [...product.tierPricing]
-      .reverse()
+      .sort((a, b) => b.quantity - a.quantity)
       .find(t => quantity >= t.quantity);
-    
+
     return tier?.unitPrice || product.price;
   };
 
@@ -69,6 +106,10 @@ export function CartPage() {
   const exportQuote = () => {
     alert('견적서 PDF가 다운로드됩니다.');
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   if (cart.length === 0) {
     return (
@@ -105,8 +146,8 @@ export function CartPage() {
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.map(item => {
-            const product = getProductDetails(item.productId);
-            if (!product) return null;
+            const product = productsMap[item.productId];
+            if (!product) return null; // Should not happen if loaded correctly
 
             const unitPrice = getTierPrice(item.productId, item.quantity);
             const itemTotal = unitPrice * item.quantity * (item.isSubscription ? 0.95 : 1);

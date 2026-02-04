@@ -83,7 +83,11 @@ export const authService = {
             name: profile.name,
             hospitalName: profile.hospital_name,
             businessNumber: profile.business_number,
-            phone: profile.phone
+            phone: profile.phone,
+            address: profile.address,
+            addressDetail: profile.address_detail,
+            role: profile.role,
+            approvalStatus: profile.approval_status
         };
     }
 };

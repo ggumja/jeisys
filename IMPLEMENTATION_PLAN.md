@@ -122,10 +122,11 @@ export const useProducts = (filters) => {
 
 ### Week 3: Core Features
 - [x] Refactor `ProductListPage` to use asynchronous data fetching.
-- [ ] Implement "My Equipment" management in MyPage.
-- [ ] Implement Cart & Order placement logic (saving to `orders` table).
+- [x] Implement "My Equipment" management in MyPage.
+- [x] Implement Cart & Order placement logic (saving to `orders` table).
 
 ### Week 4: Admin & Polish
-- [ ] Connect Admin Dashboard to live data.
-- [ ] Implement Order Status management for Admins.
+- [x] Connect Admin Dashboard to live data.
+- [x] Implement Order Status management for Admins.
+- [x] Implement User Verification (Admin).
 - [ ] Final UI Polish & Deployment to Vercel.

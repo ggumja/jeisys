@@ -1,67 +1,58 @@
 import { useState } from 'react';
-import { X, Check, Minus, Plus, Package, FileText, ShoppingCart } from 'lucide-react';
-import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Checkbox } from './ui/checkbox';
-import { Label } from './ui/label';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  status: 'active' | 'inactive';
-  createdDate: string;
-  productCode?: string;
-  manufacturer?: string;
-  description?: string;
-  images?: string[];
-  regularDiscount?: number;
-  bulkDiscounts?: Array<{ quantity: number; discount: number }>;
-  imageUrl?: string;
-  sku?: string;
-  tierPricing?: Array<{ quantity: number; unitPrice: number }>;
-  additionalImages?: string[];
-  compatibleEquipment?: string[];
-}
+import { X, Minus, Plus, Package, FileText, ShoppingCart, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent } from './ui/dialog';
+import { useProduct } from '../hooks/useProducts';
+import { Product } from '../types';
 
 interface ProductPreviewModalProps {
-  product: Product;
+  product: { id: string };
   onClose: () => void;
   onEdit?: () => void;
 }
 
-export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreviewModalProps) {
+export function ProductPreviewModal({ product: initialProduct, onClose, onEdit }: ProductPreviewModalProps) {
+  const { data: product, isLoading } = useProduct(initialProduct.id);
   const [quantity, setQuantity] = useState(1);
   const [isSubscription, setIsSubscription] = useState(false);
 
-  const currentTierPrice = product.tierPricing
+  if (isLoading) {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent
+          className="bg-white !max-w-[1000px] w-full flex items-center justify-center py-20"
+          style={{ maxWidth: '1000px' }}
+        >
+          <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!product) return null;
+
+  const currentTierPrice = product.tierPricing && product.tierPricing.length > 0
     ? [...product.tierPricing]
-        .reverse()
-        .find(tier => quantity >= tier.quantity)?.unitPrice || product.price
+      .reverse()
+      .find(tier => quantity >= tier.quantity)?.unitPrice || product.price
     : product.price;
 
   // 연관 상품 (같은 카테고리, 현재 상품 제외) - 미리보기에서는 제외하거나 빈 배열
-  const relatedProducts: Product[] = [];
+  const relatedProducts: any[] = [];
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="bg-white w-full max-w-[1400px] max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="bg-white w-full !max-w-[1000px] max-h-[90vh] overflow-y-auto p-0"
+        style={{ maxWidth: '1000px' }}
+      >
         {/* Modal Header */}
-        <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 pr-16 flex items-center justify-between z-20">
           <div className="flex items-center gap-4">
             <h3 className="text-xl font-medium text-neutral-900">상품 미리보기</h3>
             <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium">
               관리자 전용
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
         </div>
 
         {/* Modal Body - 상품 상세와 동일한 구조 */}
@@ -94,12 +85,12 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
             {/* Product Info */}
             <div>
               <p className="text-xs text-neutral-500 mb-3 tracking-wide uppercase">
-                {product.sku || product.productCode}
+                {product.sku}
               </p>
               <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-6">
                 {product.name}
               </h1>
-              
+
               <div className="bg-neutral-50 border border-neutral-200 p-8 mb-8">
                 <p className="text-4xl tracking-tight text-neutral-900 mb-2">
                   ₩{currentTierPrice.toLocaleString()}
@@ -111,11 +102,7 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
                 )}
               </div>
 
-              <div className="mb-8">
-                <p className="text-base text-neutral-700 leading-relaxed">
-                  {product.description}
-                </p>
-              </div>
+
 
               {/* Quantity Selector */}
               <div className="mb-8">
@@ -159,7 +146,7 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
                   />
                   <div>
                     <p className="text-base font-medium text-neutral-900">
-                      정기 배송 ({product.regularDiscount || 5}% 추가 할인)
+                      정기 배송 (5% 추가 할인)
                     </p>
                     <p className="text-sm text-neutral-600 mt-1">매달 자동으로 배송받으세요</p>
                   </div>
@@ -167,14 +154,14 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
               </div>
 
               {/* Bulk Discounts */}
-              {product.bulkDiscounts && product.bulkDiscounts.length > 0 && (
+              {product.tierPricing && product.tierPricing.length > 0 && (
                 <div className="mb-8 bg-blue-50 border border-blue-200 p-4">
                   <h4 className="text-sm font-medium text-blue-900 mb-2">다량주문 할인</h4>
                   <div className="space-y-1">
-                    {product.bulkDiscounts.map((bulk, index) => (
+                    {product.tierPricing.map((tier, index) => (
                       <div key={index} className="flex items-center justify-between text-xs text-blue-700">
-                        <span>{bulk.quantity}개 이상 구매 시</span>
-                        <span className="font-medium">{bulk.discount}% 할인</span>
+                        <span>{tier.quantity}개 이상 구매 시</span>
+                        <span className="font-medium">₩{tier.unitPrice.toLocaleString()} / 개</span>
                       </div>
                     ))}
                   </div>
@@ -186,7 +173,7 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
                 <div className="flex items-center justify-between">
                   <span className="text-base font-medium text-neutral-700">총 금액</span>
                   <span className="text-3xl tracking-tight text-neutral-900">
-                    ₩{(currentTierPrice * quantity * (isSubscription ? (1 - (product.regularDiscount || 5) / 100) : 1)).toLocaleString()}
+                    ₩{(currentTierPrice * quantity * (isSubscription ? 0.95 : 1)).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -218,11 +205,27 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
             </div>
           </div>
 
-          {/* Product Description Section */}
+          {/* Product Detailed Description Section */}
+          <div className="mb-16">
+            <div className="border-t border-neutral-200 pt-12 mb-8">
+              <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">상품상세안내</h2>
+            </div>
+            <div className="prose prose-neutral max-w-none text-neutral-800 leading-relaxed min-h-[100px]">
+              {product.description ? (
+                <div dangerouslySetInnerHTML={{ __html: product.description }} />
+              ) : (
+                <p className="text-neutral-400 text-center py-12 px-4 bg-neutral-50 border border-dashed border-neutral-200">
+                  등록된 상세 정보가 없습니다. 상세 상품 정보는 관리자 페이지에서 수정할 수 있습니다.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Images Section */}
           {product.additionalImages && product.additionalImages.length > 0 && (
             <div className="mb-16">
               <div className="border-t border-neutral-200 pt-12 mb-8">
-                <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">상품설명</h2>
+                <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">상세 이미지</h2>
               </div>
               <div className="space-y-0">
                 {product.additionalImages.map((imgUrl, index) => (
@@ -267,7 +270,7 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
                   </tr>
                   <tr>
                     <td className="bg-neutral-50 px-6 py-4 text-sm font-medium text-neutral-900 align-top">
-                      반품/교환 안내<br/>A/S안내
+                      반품/교환 안내<br />A/S안내
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-700">
                       <div className="space-y-1">
@@ -300,7 +303,7 @@ export function ProductPreviewModal({ product, onClose, onEdit }: ProductPreview
                   </tr>
                   <tr>
                     <td className="bg-neutral-50 px-6 py-4 text-sm font-medium text-neutral-900 align-top">
-                      교환 및 반품이<br/>불가능한 경우
+                      교환 및 반품이<br />불가능한 경우
                     </td>
                     <td className="px-6 py-4 text-sm text-neutral-700">
                       <div className="space-y-1">

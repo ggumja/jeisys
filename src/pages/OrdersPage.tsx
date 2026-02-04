@@ -1,26 +1,32 @@
 import { Link } from 'react-router';
-import { Package, FileText, Copy } from 'lucide-react';
-import { mockOrders } from '../lib/mockData';
+import { Package, FileText, Copy, Loader2 } from 'lucide-react';
+import { useOrders } from '../hooks/useOrders';
 
 export function OrdersPage() {
+  const { data: orders = [], isLoading } = useOrders();
+
   const getStatusBadge = (status: string) => {
     const styles = {
       pending: 'bg-yellow-50 text-yellow-900 border border-yellow-200',
+      paid: 'bg-green-50 text-green-900 border border-green-200',
       processing: 'bg-blue-50 text-blue-900 border border-blue-200',
       shipped: 'bg-purple-50 text-purple-900 border border-purple-200',
       delivered: 'bg-green-50 text-green-900 border border-green-200',
+      cancelled: 'bg-red-50 text-red-900 border border-red-200',
     };
 
     const labels = {
       pending: '주문 확인 중',
+      paid: '결제 완료',
       processing: '상품 준비 중',
       shipped: '배송 중',
       delivered: '배송 완료',
+      cancelled: '주문 취소',
     };
 
     return (
-      <span className={`px-3 py-1 text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {labels[status as keyof typeof labels]}
+      <span className={`px-3 py-1 text-xs font-medium ${styles[status as keyof typeof styles] || styles.pending}`}>
+        {labels[status as keyof typeof labels] || status}
       </span>
     );
   };
@@ -28,6 +34,14 @@ export function OrdersPage() {
   const handleReorder = (orderId: string) => {
     alert(`주문 ${orderId}를 장바구니에 복사합니다.`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -37,7 +51,7 @@ export function OrdersPage() {
       </div>
 
       <div className="space-y-6">
-        {mockOrders.map(order => (
+        {orders.map(order => (
           <div key={order.id} className="bg-white border border-neutral-200 p-8">
             {/* Order Header */}
             <div className="flex flex-wrap items-start justify-between gap-4 mb-6 pb-6 border-b border-neutral-200">
@@ -80,7 +94,7 @@ export function OrdersPage() {
                 if (!item.product) {
                   return null;
                 }
-                
+
                 return (
                   <div key={index} className="flex items-center gap-6">
                     <div className="w-20 h-20 bg-neutral-100 overflow-hidden flex-shrink-0">
@@ -142,7 +156,7 @@ export function OrdersPage() {
       </div>
 
       {/* Empty State */}
-      {mockOrders.length === 0 && (
+      {orders.length === 0 && (
         <div className="bg-white border border-neutral-200 p-20 text-center">
           <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Package className="w-10 h-10 text-gray-400" />

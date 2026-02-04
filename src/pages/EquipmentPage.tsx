@@ -151,4 +151,118 @@ export function EquipmentPage() {
                         {warrantyActive ? `유효함` : '만료됨'}
                       </p>
                       {warrantyActive && (
-                        <p className=
+                        <p className="text-xs text-green-700 font-medium">
+                          (D-{daysLeft})
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <Link
+                    to={`/products?equipment=${equipment.serialNumber}`} // TODO: Filter by model code actually
+                    className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-3.5 px-4 text-sm font-medium text-center transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span>호환 소모품 주문</span>
+                    <TrendingUp className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {!loading && equipments.length === 0 && (
+        <div className="bg-white border border-neutral-200 p-20 text-center">
+          <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Shield className="w-12 h-12 text-neutral-400" />
+          </div>
+          <h3 className="text-xl tracking-tight text-neutral-900 mb-3 font-bold">
+            등록된 장비가 없습니다
+          </h3>
+          <p className="text-sm text-neutral-600 mb-8 max-w-md mx-auto">
+            보유하신 의료 기기를 등록하면 호환되는 정품 소모품을 쉽고 빠르게 주문하실 수 있습니다.
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-4 font-medium transition-colors text-sm tracking-wide uppercase"
+          >
+            첫 장비 등록하기
+          </button>
+        </div>
+      )}
+
+      {/* Registration Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md p-8 relative shadow-2xl">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <h3 className="text-2xl font-bold mb-6 tracking-tight text-neutral-900">장비 등록</h3>
+
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">장비 모델</label>
+                <select
+                  value={formData.equipmentId}
+                  onChange={(e) => setFormData({ ...formData, equipmentId: e.target.value })}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-neutral-900 focus:outline-none transition-shadow"
+                  required
+                >
+                  <option value="">모델을 선택하세요</option>
+                  {models.map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.model_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">시리얼 넘버 (S/N)</label>
+                <input
+                  type="text"
+                  value={formData.serialNumber}
+                  onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                  placeholder="예: PTZ-2024-001"
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-neutral-900 focus:outline-none transition-shadow"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">설치일자</label>
+                <input
+                  type="date"
+                  value={formData.installDate}
+                  onChange={(e) => setFormData({ ...formData, installDate: e.target.value })}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-neutral-900 focus:outline-none transition-shadow"
+                  required
+                />
+              </div>
+
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-4 font-bold tracking-wide transition-colors disabled:opacity-50"
+                >
+                  {submitting ? '등록 중...' : '등록하기'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

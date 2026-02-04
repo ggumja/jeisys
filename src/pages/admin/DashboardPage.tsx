@@ -1,56 +1,98 @@
-import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, DollarSign, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useEffect, useState } from 'react';
+import { adminService } from '../../services/adminService';
+
+// Mock chart data (to be replaced with real analytics later)
+const salesData = [
+  { month: '1월', sales: 45000000, orders: 89 },
+  { month: '2월', sales: 52000000, orders: 102 },
+  { month: '3월', sales: 48000000, orders: 95 },
+  { month: '4월', sales: 61000000, orders: 118 },
+  { month: '5월', sales: 55000000, orders: 107 },
+  { month: '6월', sales: 67000000, orders: 132 },
+];
+
+const categoryData = [
+  { name: 'Density', value: 28, color: '#3b82f6' },
+  { name: 'POTENZA', value: 22, color: '#8b5cf6' },
+  { name: 'ULTRAcel II', value: 18, color: '#ec4899' },
+  { name: 'LIPOcel II', value: 15, color: '#f59e0b' },
+  { name: '기타소모품', value: 17, color: '#10b981' },
+];
+
+const bestProducts = [
+  { name: 'Density 니들 (32G 9P)', sales: 145, revenue: 43500000 },
+  { name: 'POTENZA 니들팁 (25P)', sales: 128, revenue: 38400000 },
+  { name: 'ULTRAcel II 카트리지', sales: 98, revenue: 29400000 },
+  { name: 'LIPOcel II 카트리지', sales: 87, revenue: 26100000 },
+  { name: 'IntraGen 팁', sales: 76, revenue: 22800000 },
+];
+
+interface DashboardOrder {
+  id: string;
+  customerName: string;
+  hospitalName: string;
+  status: string;
+  orderNumber: string;
+  totalAmount: number;
+  orderDate: string;
+}
 
 export function DashboardPage() {
-  // 매출 추이 데이터
-  const salesData = [
-    { month: '1월', sales: 45000000, orders: 89 },
-    { month: '2월', sales: 52000000, orders: 102 },
-    { month: '3월', sales: 48000000, orders: 95 },
-    { month: '4월', sales: 61000000, orders: 118 },
-    { month: '5월', sales: 55000000, orders: 107 },
-    { month: '6월', sales: 67000000, orders: 132 },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    monthSales: 0,
+    monthOrderCount: 0,
+    totalUsers: 0,
+    newUsers: 0,
+    pendingUsers: 0,
+    lowStockProducts: 0,
+    totalProducts: 0
+  });
+  const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([]);
 
-  // 카테고리별 매출 데이터
-  const categoryData = [
-    { name: 'Density', value: 28, color: '#3b82f6' },
-    { name: 'POTENZA', value: 22, color: '#8b5cf6' },
-    { name: 'ULTRAcel II', value: 18, color: '#ec4899' },
-    { name: 'LIPOcel II', value: 15, color: '#f59e0b' },
-    { name: '기타소모품', value: 17, color: '#10b981' },
-  ];
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
-  // 최근 주문 목록
-  const recentOrders = [
-    { id: 'ORD-2024-1567', customer: '서울피부과', amount: 2850000, status: '배송완료', date: '2024-06-28' },
-    { id: 'ORD-2024-1566', customer: '강남성형외과', amount: 4200000, status: '배송중', date: '2024-06-27' },
-    { id: 'ORD-2024-1565', customer: '부산뷰티클리닉', amount: 1950000, status: '결제완료', date: '2024-06-27' },
-    { id: 'ORD-2024-1564', customer: '대구피부과', amount: 3100000, status: '배송완료', date: '2024-06-26' },
-    { id: 'ORD-2024-1563', customer: '인천메디컬센터', amount: 5600000, status: '배송완료', date: '2024-06-25' },
-  ];
-
-  // 베스트셀러 제품
-  const bestProducts = [
-    { name: 'Density 니들 (32G 9P)', sales: 145, revenue: 43500000 },
-    { name: 'POTENZA 니들팁 (25P)', sales: 128, revenue: 38400000 },
-    { name: 'ULTRAcel II 카트리지', sales: 98, revenue: 29400000 },
-    { name: 'LIPOcel II 카트리지', sales: 87, revenue: 26100000 },
-    { name: 'IntraGen 팁', sales: 76, revenue: 22800000 },
-  ];
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [dashboardStats, orders] = await Promise.all([
+        adminService.getDashboardStats(),
+        adminService.getOrders()
+      ]);
+      setStats(dashboardStats);
+      setRecentOrders(orders.slice(0, 5)); // Top 5
+    } catch (error) {
+      console.error('Failed to load dashboard data', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case '배송완료':
+      case 'delivered':
         return 'text-green-600 bg-green-50';
-      case '배송중':
+      case 'shipped':
         return 'text-blue-600 bg-blue-50';
-      case '결제완료':
+      case 'confirmed': // paid
+      case 'paid':
         return 'text-yellow-600 bg-yellow-50';
+      case 'pending':
+        return 'text-neutral-600 bg-neutral-50';
+      case 'cancelled':
+        return 'text-red-600 bg-red-50';
       default:
         return 'text-neutral-600 bg-neutral-50';
     }
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -67,14 +109,15 @@ export function DashboardPage() {
             <div className="p-3 bg-neutral-900 text-white rounded">
               <DollarSign className="w-5 h-5" />
             </div>
+            {/* Mock growth */}
             <div className="flex items-center gap-1 text-green-600 text-sm">
               <ArrowUpRight className="w-4 h-4" />
               <span>+12.3%</span>
             </div>
           </div>
           <p className="text-sm text-neutral-600 mb-1">이번 달 매출</p>
-          <p className="text-2xl font-medium">₩67,000,000</p>
-          <p className="text-xs text-neutral-500 mt-2">목표: ₩70,000,000 (95.7%)</p>
+          <p className="text-2xl font-medium">₩{stats.monthSales.toLocaleString()}</p>
+          <p className="text-xs text-neutral-500 mt-2">목표 달성률 분석 중...</p>
         </div>
 
         {/* 이번 달 주문 */}
@@ -89,8 +132,10 @@ export function DashboardPage() {
             </div>
           </div>
           <p className="text-sm text-neutral-600 mb-1">이번 달 주문</p>
-          <p className="text-2xl font-medium">132건</p>
-          <p className="text-xs text-neutral-500 mt-2">평균 주문액: ₩507,575</p>
+          <p className="text-2xl font-medium">{stats.monthOrderCount}건</p>
+          <p className="text-xs text-neutral-500 mt-2">
+            평균 주문액: ₩{stats.monthOrderCount > 0 ? (stats.monthSales / stats.monthOrderCount).toLocaleString() : '0'}
+          </p>
         </div>
 
         {/* 전체 회원 */}
@@ -99,14 +144,15 @@ export function DashboardPage() {
             <div className="p-3 bg-neutral-900 text-white rounded">
               <Users className="w-5 h-5" />
             </div>
-            <div className="flex items-center gap-1 text-green-600 text-sm">
-              <ArrowUpRight className="w-4 h-4" />
-              <span>+5.7%</span>
-            </div>
+            {stats.pendingUsers > 0 && (
+              <div className="flex items-center gap-1 text-yellow-600 text-sm">
+                <span>승인대기 {stats.pendingUsers}명</span>
+              </div>
+            )}
           </div>
           <p className="text-sm text-neutral-600 mb-1">전체 회원</p>
-          <p className="text-2xl font-medium">1,247명</p>
-          <p className="text-xs text-neutral-500 mt-2">이번 달 신규: 23명</p>
+          <p className="text-2xl font-medium">{stats.totalUsers.toLocaleString()}명</p>
+          <p className="text-xs text-neutral-500 mt-2">승인 대기: {stats.pendingUsers}명</p>
         </div>
 
         {/* 전체 상품 */}
@@ -115,14 +161,16 @@ export function DashboardPage() {
             <div className="p-3 bg-neutral-900 text-white rounded">
               <Package className="w-5 h-5" />
             </div>
-            <div className="flex items-center gap-1 text-red-600 text-sm">
-              <ArrowDownRight className="w-4 h-4" />
-              <span>재고부족 3개</span>
-            </div>
+            {stats.lowStockProducts > 0 && (
+              <div className="flex items-center gap-1 text-red-600 text-sm">
+                <ArrowDownRight className="w-4 h-4" />
+                <span>재고부족 {stats.lowStockProducts}개</span>
+              </div>
+            )}
           </div>
           <p className="text-sm text-neutral-600 mb-1">전체 상품</p>
-          <p className="text-2xl font-medium">156개</p>
-          <p className="text-xs text-neutral-500 mt-2">판매중: 148개</p>
+          <p className="text-2xl font-medium">{stats.totalProducts}개</p>
+          <p className="text-xs text-neutral-500 mt-2">판매중: {stats.totalProducts}개</p>
         </div>
       </div>
 
@@ -162,7 +210,7 @@ export function DashboardPage() {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) => `${name} ${value}%`}
+                label={({ name, value }: { name: string; value: number }) => `${name} ${value}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -204,21 +252,26 @@ export function DashboardPage() {
         <div className="bg-white border border-neutral-200 p-6">
           <h2 className="font-medium mb-4">최근 주문</h2>
           <div className="space-y-3">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="py-3 border-b border-neutral-100 last:border-0">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium">{order.customer}</p>
-                  <span className={`text-xs px-2 py-1 rounded ${getStatusColor(order.status)}`}>
-                    {order.status}
-                  </span>
+            {recentOrders.length === 0 ? (
+              <div className="text-center text-neutral-500 py-4">주문 내역이 없습니다.</div>
+            ) : (
+              recentOrders.map((order: DashboardOrder) => (
+                <div key={order.id} className="py-3 border-b border-neutral-100 last:border-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">{order.customerName} ({order.hospitalName})</p>
+                    <span className={`text-xs px-2 py-1 rounded ${getStatusColor(order.status)}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-neutral-600">
+                    <span>{order.orderNumber}</span>
+                    <span>₩{order.totalAmount.toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-1">{order.orderDate}</p>
                 </div>
-                <div className="flex items-center justify-between text-xs text-neutral-600">
-                  <span>{order.id}</span>
-                  <span>₩{order.amount.toLocaleString()}</span>
-                </div>
-                <p className="text-xs text-neutral-500 mt-1">{order.date}</p>
-              </div>
-            ))}
+              ))
+            )}
+
           </div>
         </div>
       </div>

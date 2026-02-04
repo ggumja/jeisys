@@ -1,21 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, Plus, Edit, Trash2, Eye, X, FolderTree } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CategoryManager } from '../../components/CategoryManager';
 import { ProductPreviewModal } from '../../components/ProductPreviewModal';
+import { useProducts, useDeleteProduct } from '../../hooks/useProducts';
+import { useCategories, useSaveCategories } from '../../hooks/useCategories';
+import { Category } from '../../services/categoryService';
 
-interface Category {
-  id: string;
-  name: string;
-  productCount: number;
-  parentId: string | null;
-  order: number;
-}
+
 
 interface Product {
   id: string;
+  displayNo?: number;
   name: string;
   category: string;
+  subcategory?: string;
   price: number;
   stock: number;
   status: 'active' | 'inactive';
@@ -28,113 +27,105 @@ interface Product {
   bulkDiscounts?: Array<{ quantity: number; discount: number }>;
 }
 
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'POTENZA 니들 팁 16핀',
-    category: 'POTENZA',
-    price: 85000,
-    stock: 45,
-    status: 'active',
-    createdDate: '2026-01-15',
-    productCode: 'POT-TIP-16',
-    manufacturer: '제이시스메디칼',
-    description: 'POTENZA 전용 니들 팁입니다. 16핀으로 구성되어 있으며, 정밀한 시술이 가능합니다.',
-    regularDiscount: 5,
-    bulkDiscounts: [
-      { quantity: 10, discount: 10 },
-      { quantity: 20, discount: 15 },
-    ],
-  },
-  {
-    id: '2',
-    name: 'ULTRAcel II 카트리지 3.0mm',
-    category: 'ULTRAcel II',
-    price: 120000,
-    stock: 28,
-    status: 'active',
-    createdDate: '2026-01-10',
-    productCode: 'ULT-CAR-30',
-    manufacturer: '제이시스메디칼',
-    description: 'ULTRAcel II 전용 3.0mm 카트리지입니다. 리프팅 시술에 최적화되어 있습니다.',
-    regularDiscount: 3,
-    bulkDiscounts: [
-      { quantity: 5, discount: 8 },
-      { quantity: 10, discount: 12 },
-    ],
-  },
-  {
-    id: '3',
-    name: 'LinearZ 앰플 세트',
-    category: 'LinearZ',
-    price: 65000,
-    stock: 0,
-    status: 'inactive',
-    createdDate: '2025-12-20',
-    productCode: 'LIN-AMP-SET',
-    manufacturer: '제이시스메디칼',
-    description: 'LinearZ 전용 앰플 세트입니다. 5개입으로 구성되어 있습니다.',
-  },
-  {
-    id: '4',
-    name: 'Density HIGH 스킨부스터',
-    category: 'Density',
-    price: 95000,
-    stock: 62,
-    status: 'active',
-    createdDate: '2026-01-05',
-    productCode: 'DEN-HIGH-01',
-    manufacturer: '제이시스메디칼',
-    description: 'Density HIGH 농도의 스킨부스터입니다. 피부 보습과 탄력 개선에 효과적입니다.',
-    regularDiscount: 7,
-    bulkDiscounts: [
-      { quantity: 10, discount: 12 },
-      { quantity: 30, discount: 18 },
-    ],
-  },
-];
-
 export function ProductManagementPage() {
   const navigate = useNavigate();
+  const { data: productsData = [], isLoading } = useProducts();
+  const deleteProduct = useDeleteProduct();
+
+  const { data: dbCategories = [] } = useCategories();
+  const saveCategories = useSaveCategories();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
-  const [categoryList, setCategoryList] = useState<Category[]>([
-    { id: '1', name: 'Density', productCount: 1, parentId: null, order: 1 },
-    { id: '2', name: 'DLiv', productCount: 0, parentId: null, order: 2 },
-    { id: '3', name: 'POTENZA', productCount: 1, parentId: null, order: 3 },
-    { id: '4', name: 'INTRAcel', productCount: 0, parentId: null, order: 4 },
-    { id: '5', name: 'LinearZ', productCount: 1, parentId: null, order: 5 },
-    { id: '6', name: 'LinearFirm', productCount: 0, parentId: null, order: 6 },
-    { id: '7', name: 'ULTRAcel II', productCount: 1, parentId: null, order: 7 },
-    { id: '8', name: 'LIPOcel II', productCount: 0, parentId: null, order: 8 },
-    { id: '9', name: 'IntraGen', productCount: 0, parentId: null, order: 9 },
-    { id: '10', name: '기타소모품', productCount: 0, parentId: null, order: 10 },
-  ]);
+  const [previewProduct, setPreviewProduct] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
   const [tempCategoryList, setTempCategoryList] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  const categories = ['all', ...categoryList.map(cat => cat.name)];
+  // Transform DB products to match UI Product interface
+  const products: Product[] = productsData.map(p => ({
+    id: p.id,
+    displayNo: p.displayNo,
+    name: p.name,
+    category: p.category,
+    subcategory: p.subcategory,
+    price: p.price,
+    stock: p.stock,
+    status: 'active' as const,
+    createdDate: new Date().toISOString().split('T')[0], // Placeholder
+    productCode: p.sku,
+    description: p.description,
+  }));
 
-  const filteredProducts = mockProducts.filter((product) => {
+  // Helper to get full category path (e.g., Parent > Child)
+  const getFullCategoryPath = (categoryName: string, subcategoryName?: string) => {
+    if (subcategoryName) {
+      return `${categoryName} > ${subcategoryName}`;
+    }
+
+    // Find if the category is actually a subcategory in our DB
+    const category = dbCategories.find(c => c.name === categoryName);
+    if (category && category.parentId) {
+      const parent = dbCategories.find(c => c.id === category.parentId);
+      if (parent) {
+        return `${parent.name} > ${category.name}`;
+      }
+    }
+
+    return categoryName;
+  };
+
+  const categories = ['all', ...dbCategories.map(cat => cat.name)];
+
+  const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.productCode && product.productCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       product.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
+  // Pagination Logic
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const currentProducts = filteredProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo(0, 0);
+  };
+
   const handleOpenCategoryModal = () => {
-    setTempCategoryList(JSON.parse(JSON.stringify(categoryList)));
+    // Calculate product counts for each category
+    const categoriesWithCounts = dbCategories.map(cat => ({
+      ...cat,
+      productCount: products.filter(p =>
+        p.category && cat.name &&
+        p.category.trim().toLowerCase() === cat.name.trim().toLowerCase()
+      ).length
+    }));
+    setTempCategoryList(JSON.parse(JSON.stringify(categoriesWithCounts)));
     setIsCategoryModalOpen(true);
   };
 
-  const handleSaveCategoryChanges = () => {
-    setCategoryList(tempCategoryList);
-    setIsCategoryModalOpen(false);
-    setNewCategoryName('');
+  const handleSaveCategoryChanges = async () => {
+    try {
+      await saveCategories.mutateAsync(tempCategoryList);
+      setIsCategoryModalOpen(false);
+      setNewCategoryName('');
+      alert('카테고리 정보가 저장되었습니다.');
+    } catch (err) {
+      console.error('Error saving categories:', err);
+      alert('카테고리 저장 중 오류가 발생했습니다.');
+    }
   };
 
   const handleCancelCategoryChanges = () => {
@@ -196,13 +187,19 @@ export function ProductManagementPage() {
               type="text"
               placeholder="상품명, SKU, 카테고리 검색"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full pl-10 pr-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
             />
           </div>
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
+            onChange={(e) => {
+              setCategoryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
           >
             {categories.map((cat) => (
@@ -216,90 +213,187 @@ export function ProductManagementPage() {
 
       {/* Product List */}
       <div className="bg-white border border-neutral-200">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-neutral-50 border-b border-neutral-200">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  상품명
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  카테고리
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  가격
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  재고
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  상태
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  관리
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-200">
-              {filteredProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-neutral-50">
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-neutral-900">
-                      {product.name}
-                    </div>
-                    <div className="text-xs text-neutral-500">
-                      등록일: {product.createdDate}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex px-3 py-1 bg-neutral-100 text-neutral-800 text-xs font-medium">
-                      {product.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
-                    {product.price.toLocaleString()}원
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${product.stock === 0 ? 'text-red-600' : 'text-neutral-900'}`}>
-                      {product.stock}개
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-3 py-1 text-xs font-medium ${
-                      product.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {product.status === 'active' ? '판매중' : '판매중지'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setPreviewProduct(product);
-                          setIsPreviewModalOpen(true);
-                        }}
-                        className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => navigate(`/admin/products/edit/${product.id}`)}
-                        className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50 border-b border-neutral-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-16">
+                      No.
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                      상품명
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-32">
+                      카테고리
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                      가격
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                      재고
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                      상태
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                      관리
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200">
+                  {currentProducts.map((product, index) => (
+                    <tr key={product.id} className="hover:bg-neutral-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 font-medium">
+                        {product.displayNo || '-'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-neutral-900">
+                          {product.name}
+                        </div>
+                        <div className="text-xs text-neutral-500">
+                          등록일: {product.createdDate}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 w-32 min-w-[128px]">
+                        <div className="flex flex-col gap-0.5">
+                          {getFullCategoryPath(product.category, product.subcategory).split(' > ').map((part, i) => (
+                            <span
+                              key={i}
+                              className={`block truncate text-xs leading-tight ${i === 0
+                                  ? 'text-neutral-400 font-normal mb-0.5'
+                                  : 'text-neutral-900 font-medium'
+                                }`}
+                              title={part}
+                            >
+                              {part}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
+                        {product.price.toLocaleString()}원
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-sm font-medium ${product.stock === 0 ? 'text-red-600' : 'text-neutral-900'}`}>
+                          {product.stock}개
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium ${product.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                          }`}>
+                          {product.status === 'active' ? '판매중' : '판매중지'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setPreviewProduct(product);
+                              setIsPreviewModalOpen(true);
+                            }}
+                            className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+                            title="미리보기"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/admin/products/edit/${product.id}`)}
+                            className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+                            title="수정"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`'${product.name}' 상품을 삭제하시겠습니까?`)) {
+                                try {
+                                  await deleteProduct.mutateAsync(product.id);
+                                  alert('상품이 삭제되었습니다.');
+                                } catch (err) {
+                                  console.error('Error deleting product:', err);
+                                  alert('상품 삭제 중 오류가 발생했습니다.');
+                                }
+                              }
+                            }}
+                            disabled={deleteProduct.isPending}
+                            className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            title="삭제"
+                          >
+                            {deleteProduct.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {filteredProducts.length === 0 && (
-          <div className="py-16 text-center">
+            {!isLoading && totalItems > 0 && (
+              <div className="px-6 py-4 border-t border-neutral-200 flex flex-col sm:flex-row items-center justify-between gap-4 bg-neutral-50">
+                <div className="text-sm text-neutral-600">
+                  전체 {totalItems}개 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)}개 표시
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="p-2 border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        return Math.abs(page - currentPage) <= 2 || page === 1 || page === totalPages;
+                      })
+                      .map((page, index, array) => (
+                        <div key={page} className="flex items-center">
+                          {index > 0 && array[index - 1] !== page - 1 && (
+                            <span className="px-2 text-neutral-400">...</span>
+                          )}
+                          <button
+                            onClick={() => handlePageChange(page)}
+                            className={`w-10 h-10 border text-sm font-medium transition-colors ${currentPage === page
+                              ? 'bg-neutral-900 border-neutral-900 text-white'
+                              : 'bg-white border-neutral-300 text-neutral-600 hover:bg-neutral-50'
+                              }`}
+                          >
+                            {page}
+                          </button>
+                        </div>
+                      ))
+                    }
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="p-2 border border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {!isLoading && filteredProducts.length === 0 && (
+          <div className="py-16 text-center border-t border-neutral-200">
             <p className="text-neutral-600">조회된 상품이 없습니다</p>
           </div>
         )}
@@ -309,24 +403,24 @@ export function ProductManagementPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">전체 상품</div>
-          <div className="text-2xl font-medium text-neutral-900">{mockProducts.length}</div>
+          <div className="text-2xl font-medium text-neutral-900">{products.length}</div>
         </div>
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">판매중</div>
           <div className="text-2xl font-medium text-green-600">
-            {mockProducts.filter((p) => p.status === 'active').length}
+            {products.filter((p) => p.status === 'active').length}
           </div>
         </div>
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">품절</div>
           <div className="text-2xl font-medium text-red-600">
-            {mockProducts.filter((p) => p.stock === 0).length}
+            {products.filter((p) => p.stock === 0).length}
           </div>
         </div>
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">전체 재고</div>
           <div className="text-2xl font-medium text-neutral-900">
-            {mockProducts.reduce((sum, p) => sum + p.stock, 0)}
+            {products.reduce((sum, p) => sum + p.stock, 0)}
           </div>
         </div>
       </div>
@@ -334,9 +428,8 @@ export function ProductManagementPage() {
       {/* Category Management Modal */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+            <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
               <h3 className="text-xl font-medium text-neutral-900">카테고리 관리</h3>
               <button
                 onClick={handleCancelCategoryChanges}
@@ -346,9 +439,7 @@ export function ProductManagementPage() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="p-6">
-              {/* Add Category Form */}
               <div className="bg-neutral-50 border border-neutral-200 p-4 mb-6">
                 <label className="block text-sm font-medium text-neutral-900 mb-2">
                   새 카테고리 추가
@@ -372,22 +463,15 @@ export function ProductManagementPage() {
                     추가
                   </button>
                 </div>
-                <p className="text-xs text-neutral-500 mt-2">
-                  각 카테고리에서 <Plus className="inline w-3 h-3" /> 버튼을 클릭하여 하위 카테고리를 추가할 수 있습니다.
-                  <br />
-                  카테고리를 드래그하여 순서를 변경할 수 있습니다.
-                </p>
               </div>
 
-              {/* Category List */}
               <CategoryManager
                 categories={tempCategoryList}
                 onUpdate={setTempCategoryList}
               />
             </div>
 
-            {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-4 flex items-center justify-end gap-3">
+            <div className="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-4 flex items-center justify-end gap-3 z-10">
               <button
                 onClick={handleCancelCategoryChanges}
                 className="px-6 py-3 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"

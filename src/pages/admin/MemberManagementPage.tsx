@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Search, UserCheck, UserX, Edit, Plus, Settings, X, Trash2, Clock, CheckCircle2, Eye, FileText, Building2, Mail, Phone, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, UserCheck, UserX, Edit, Plus, Settings, X, Trash2, Clock, CheckCircle2, Eye, FileText, Building2, Mail, Phone, Download, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { adminService } from '../../services/adminService';
 
 interface Member {
   id: string;
@@ -30,170 +31,6 @@ interface Member {
   equipments?: Array<{ name: string; serialNumber: string }>;
 }
 
-const mockMembers: Member[] = [
-  {
-    id: '1',
-    userId: 'kimdr2020',
-    name: '김민종 원장',
-    email: 'kim@hospital.com',
-    hospitalName: '서울피부과의원',
-    businessNumber: '123-45-67890',
-    grade: 'VIP',
-    status: 'active',
-    joinDate: '2025-06-15',
-    totalOrders: 42,
-    phone: '02-1234-5678',
-    mobile: '010-1234-5678',
-    zipCode: '06234',
-    address: '서울특별시 강남구 테헤란로 123',
-    addressDetail: '5층',
-    region: '주식회사 라이오닉월드시스트먼트 (수도권 대리점)',
-    hospitalEmail: 'kim@hospital.com',
-    taxEmail: 'tax@hospital.com',
-    businessCertificate: '사업자등록증_김민종.pdf',
-    holidayWeek: '매주',
-    holidayDay: '월요일',
-    isPublicHoliday: false,
-    equipments: [
-      { name: 'POTENZA', serialNumber: 'POT-2020-001' },
-      { name: 'ULTRAcel II', serialNumber: 'ULT-2021-045' },
-    ],
-  },
-  {
-    id: '2',
-    userId: 'leedr2021',
-    name: '이수진 원장',
-    email: 'lee@clinic.com',
-    hospitalName: '강남클리닉',
-    businessNumber: '234-56-78901',
-    grade: 'Gold',
-    status: 'active',
-    joinDate: '2025-08-20',
-    totalOrders: 28,
-    phone: '02-2345-6789',
-    mobile: '010-2345-6789',
-    zipCode: '06017',
-    address: '서울특별시 강남구 압구정로 456',
-    addressDetail: '3층',
-    region: '주식회사 라이오닉월드시스트먼트 (수도권 대리점)',
-    hospitalEmail: 'lee@clinic.com',
-    taxEmail: 'tax@clinic.com',
-    businessCertificate: '사업자등록증_이수진.pdf',
-    holidayWeek: '매주',
-    holidayDay: '일요일',
-    isPublicHoliday: true,
-    equipments: [
-      { name: 'INTRAcel', serialNumber: 'INT-2021-023' },
-    ],
-  },
-  {
-    id: '3',
-    userId: 'parkdr2026',
-    name: '박지훈 원장',
-    email: 'park@busan.com',
-    hospitalName: '부산성형외과',
-    businessNumber: '345-67-89012',
-    grade: 'Bronze',
-    status: 'pending',
-    joinDate: '2026-02-01',
-    totalOrders: 0,
-    phone: '051-3456-7890',
-    mobile: '010-3456-7890',
-    zipCode: '48058',
-    address: '부산광역시 해운대구 해운대로 789',
-    addressDetail: '2층 201호',
-    region: '기타 지역',
-    hospitalEmail: 'park@busan.com',
-    taxEmail: 'tax@busan.com',
-    businessCertificate: '사업자등록증_박지훈.pdf',
-    holidayWeek: '매주',
-    holidayDay: '일요일',
-    isPublicHoliday: false,
-    equipments: [
-      { name: 'POTENZA', serialNumber: 'POT-2026-101' },
-      { name: 'LinearZ', serialNumber: 'LNZ-2026-055' },
-    ],
-  },
-  {
-    id: '4',
-    userId: 'choidr2025',
-    name: '최영희 원장',
-    email: 'choi@incheon.com',
-    hospitalName: '인천피부과',
-    businessNumber: '456-78-90123',
-    grade: 'Bronze',
-    status: 'active',
-    joinDate: '2025-11-10',
-    totalOrders: 8,
-    phone: '032-4567-8901',
-    mobile: '010-4567-8901',
-    zipCode: '21990',
-    address: '인천광역시 연수구 송도대로 321',
-    addressDetail: '1층',
-    region: '주식회사 라이오닉월드시스트먼트 (수도권 대리점)',
-    hospitalEmail: 'choi@incheon.com',
-    taxEmail: 'tax@incheon.com',
-    businessCertificate: '사업자등록증_최영희.pdf',
-    holidayWeek: '매주',
-    holidayDay: '수요일',
-    isPublicHoliday: true,
-  },
-  {
-    id: '5',
-    userId: 'jungdr2026',
-    name: '정우성 원장',
-    email: 'jung@gangnam.com',
-    hospitalName: '강남더마클리닉',
-    businessNumber: '567-89-01234',
-    grade: 'Bronze',
-    status: 'pending',
-    joinDate: '2026-02-02',
-    totalOrders: 0,
-    phone: '02-5678-9012',
-    mobile: '010-5678-9012',
-    zipCode: '06028',
-    address: '서울특별시 강남구 도산대로 654',
-    addressDetail: '7층',
-    region: '주식회사 라이오닉월드시스트먼트 (수도권 대리점)',
-    hospitalEmail: 'jung@gangnam.com',
-    taxEmail: 'tax@gangnam.com',
-    businessCertificate: '사업자등록증_정우성.pdf',
-    holidayWeek: '매주',
-    holidayDay: '월요일',
-    isPublicHoliday: true,
-    equipments: [
-      { name: 'ULTRAcel II', serialNumber: 'ULT-2026-089' },
-      { name: 'LIPOcel', serialNumber: 'LIP-2026-012' },
-      { name: 'IntraGen', serialNumber: 'ITG-2026-034' },
-    ],
-  },
-  {
-    id: '6',
-    userId: 'handr2026',
-    name: '한지민 원장',
-    email: 'han@seoul.com',
-    hospitalName: '서울미용의원',
-    businessNumber: '678-90-12345',
-    grade: 'Bronze',
-    status: 'pending',
-    joinDate: '2026-02-03',
-    totalOrders: 0,
-    phone: '02-6789-0123',
-    mobile: '010-6789-0123',
-    zipCode: '06591',
-    address: '서울특별시 서초구 서초대로 987',
-    addressDetail: '3층 305호',
-    region: '주식회사 라이오닉월드시스트먼트 (수도권 대리점)',
-    hospitalEmail: 'han@seoul.com',
-    taxEmail: 'tax@seoul.com',
-    businessCertificate: '사업자등록증_한지민.pdf',
-    holidayWeek: '첫째 주',
-    holidayDay: '화요일',
-    isPublicHoliday: false,
-    equipments: [],
-  },
-];
-
 interface GradeSettings {
   id: string;
   name: string;
@@ -217,11 +54,35 @@ export function MemberManagementPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const pendingMembers = mockMembers.filter(m => m.status === 'pending');
-  const activeMembers = mockMembers.filter(m => m.status === 'active');
+  const [members, setMembers] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
+
+  const loadMembers = async () => {
+    try {
+      setLoading(true);
+      const data = await adminService.getUsers();
+      // map adminService user to Member interface if slightly different types or enums
+      const mappedMembers: Member[] = data.map((u: any) => ({
+        ...u,
+        status: u.status as Member['status']
+      }));
+      setMembers(mappedMembers);
+    } catch (error) {
+      console.error('Failed to load members', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pendingMembers = members.filter(m => m.status === 'pending');
+  const activeMembers = members.filter(m => m.status === 'active');
 
   const getFilteredMembers = (status?: 'pending' | 'active') => {
-    return mockMembers.filter((member) => {
+    return members.filter((member) => {
       const matchesSearch =
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -272,15 +133,31 @@ export function MemberManagementPage() {
     );
   };
 
-  const handleApprove = (memberId: string) => {
-    console.log('Approve member:', memberId);
-    alert('회원 승인이 완료되었습니다.');
+  const handleApprove = async (memberId: string) => {
+    try {
+      if (confirm('회원을 승인하시겠습니까?')) {
+        await adminService.updateUserStatus(memberId, 'APPROVED');
+        alert('회원 승인이 완료되었습니다.');
+        loadMembers();
+        setIsDetailModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Failed to approve member', error);
+      alert('회원 승인에 실패했습니다.');
+    }
   };
 
-  const handleReject = (memberId: string) => {
-    if (confirm('회원 가입을 거절하시겠습니까?')) {
-      console.log('Reject member:', memberId);
-      alert('회원 가입이 거절되었습니다.');
+  const handleReject = async (memberId: string) => {
+    try {
+      if (confirm('회원 가입을 거절하시겠습니까?')) {
+        await adminService.updateUserStatus(memberId, 'REJECTED');
+        alert('회원 가입이 거절되었습니다.');
+        loadMembers();
+        setIsDetailModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Failed to reject member', error);
+      alert('회원 거절에 실패했습니다.');
     }
   };
 
@@ -395,6 +272,10 @@ export function MemberManagementPage() {
     </div>
   );
 
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -411,10 +292,6 @@ export function MemberManagementPage() {
             <Settings className="w-5 h-5 mr-2" />
             회원등급 설정
           </Button>
-          <Button>
-            <Plus className="w-5 h-5 mr-2" />
-            회원 등록
-          </Button>
         </div>
       </div>
 
@@ -422,7 +299,7 @@ export function MemberManagementPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">전체 회원</div>
-          <div className="text-2xl font-medium text-neutral-900">{mockMembers.length}</div>
+          <div className="text-2xl font-medium text-neutral-900">{members.length}</div>
         </div>
         <div className="bg-white border border-neutral-200 p-4 cursor-pointer hover:bg-yellow-50 transition-colors" onClick={() => setActiveTab('pending')}>
           <div className="text-xs text-neutral-600 mb-1">승인대기</div>
@@ -444,13 +321,13 @@ export function MemberManagementPage() {
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">VIP 회원</div>
           <div className="text-2xl font-medium text-purple-600">
-            {mockMembers.filter((m) => m.grade === 'VIP').length}
+            {members.filter((m) => m.grade === 'VIP').length}
           </div>
         </div>
         <div className="bg-white border border-neutral-200 p-4">
           <div className="text-xs text-neutral-600 mb-1">정지회원</div>
           <div className="text-2xl font-medium text-red-600">
-            {mockMembers.filter((m) => m.status === 'suspended').length}
+            {members.filter((m) => m.status === 'suspended').length}
           </div>
         </div>
       </div>
@@ -544,15 +421,14 @@ export function MemberManagementPage() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <span
-                          className={`inline-flex px-4 py-2 text-sm font-medium ${
-                            grade.name === 'VIP'
+                          className={`inline-flex px-4 py-2 text-sm font-medium ${grade.name === 'VIP'
                               ? 'bg-purple-100 text-purple-800'
                               : grade.name === 'Gold'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : grade.name === 'Silver'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-orange-100 text-orange-800'
-                          }`}
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : grade.name === 'Silver'
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : 'bg-orange-100 text-orange-800'
+                            }`}
                         >
                           {grade.name}
                         </span>
@@ -668,14 +544,20 @@ export function MemberManagementPage() {
             <div className="p-6 space-y-6">
               {selectedMember.status === 'pending' && (
                 <>
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      <strong>승인 대기 중인 회원입니다.</strong> 회원 정보를 확인 후 승인 또는 거절해 주세요.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-neutral-600">
-                    <Clock className="w-4 h-4" />
-                    <span>신청일시: <strong className="text-neutral-900">{selectedMember.joinDate}</strong></span>
+                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-yellow-800 mb-1">
+                        <strong>승인 대기 중인 회원입니다.</strong> 회원 정보를 확인 후 승인 또는 거절해 주세요.
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-neutral-600">
+                        <Clock className="w-4 h-4" />
+                        <span>신청일시: <strong className="text-neutral-900">{selectedMember.joinDate}</strong></span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleReject(selectedMember.id)}>거절</Button>
+                      <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(selectedMember.id)}>승인</Button>
+                    </div>
                   </div>
                 </>
               )}
@@ -799,19 +681,14 @@ export function MemberManagementPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      기본주소
+                      주소
                     </label>
                     <input
                       type="text"
                       value={selectedMember.address || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
+                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50 mb-2"
                       disabled
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      상세주소
-                    </label>
                     <input
                       type="text"
                       value={selectedMember.addressDetail || ''}
@@ -821,126 +698,10 @@ export function MemberManagementPage() {
                   </div>
                 </div>
               </div>
-
-              {/* 사업자등록증 섹션 */}
-              <div className="border-t border-neutral-200 pt-4">
-                <h4 className="text-lg font-medium text-neutral-900 mb-4">첨부 서류</h4>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-900 mb-2">
-                    사업자등록증
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 px-4 py-3 border border-neutral-300 bg-neutral-50">
-                      <span className="text-neutral-700 text-sm">
-                        {selectedMember.businessCertificate || '파일 없음'}
-                      </span>
-                    </div>
-                    {selectedMember.businessCertificate && (
-                      <Button size="sm" variant="outline">
-                        <Download className="w-4 h-4 mr-1" />
-                        다운로드
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 휴무일 설정 섹션 */}
-              <div className="border-t border-neutral-200 pt-4">
-                <h4 className="text-lg font-medium text-neutral-900 mb-4">휴무일 설정</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      주기
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.holidayWeek || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      요일
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.holidayDay || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      공휴일
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.isPublicHoliday ? '휴무' : '영업'}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 보유 장비 정보 섹션 */}
-              {selectedMember.equipments && selectedMember.equipments.length > 0 && (
-                <div className="border-t border-neutral-200 pt-4">
-                  <h4 className="text-lg font-medium text-neutral-900 mb-4">보유 장비 정보</h4>
-                  <div className="space-y-2">
-                    {selectedMember.equipments.map((equipment, index) => (
-                      <div key={index} className="flex items-center gap-4 p-3 bg-neutral-50 border border-neutral-200">
-                        <div className="flex-1">
-                          <span className="font-medium text-neutral-900">{equipment.name}</span>
-                        </div>
-                        <div className="text-sm text-neutral-600">
-                          시리얼번호: {equipment.serialNumber}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
-                {selectedMember.status === 'pending' ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        handleReject(selectedMember.id);
-                        setIsDetailModalOpen(false);
-                      }}
-                      className="border-red-300 text-red-700 hover:bg-red-50"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      가입 거절
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        handleApprove(selectedMember.id);
-                        setIsDetailModalOpen(false);
-                      }}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
-                      가입 승인
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsDetailModalOpen(false)}
-                    >
-                      닫기
-                    </Button>
-                  </>
-                )}
-              </div>
+            </div>
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-4 flex items-center justify-end z-10">
+              <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>닫기</Button>
             </div>
           </div>
         </div>
