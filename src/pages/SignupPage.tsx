@@ -23,6 +23,12 @@ export function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
+  // Password validation helper
+  const validatePassword = (password: string) => {
+    const regex = /^(?=.*[a-zA-Z])(?=.*[0-9]).{8,}$/;
+    return regex.test(password);
+  };
+
   // Step 1: Terms Agreement
   const [termsAgreed, setTermsAgreed] = useState({
     all: false,
@@ -57,6 +63,8 @@ export function SignupPage() {
     isPublicHoliday: false,
   });
 
+  const [isIdChecked, setIsIdChecked] = useState(false);
+
   // Phone verification (본인인증)
   const [phoneVerification, setPhoneVerification] = useState({
     phone: '',
@@ -83,6 +91,20 @@ export function SignupPage() {
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step < 3) {
+      if (step === 2) {
+        if (!isIdChecked) {
+          alert('아이디 중복확인을 해주세요.');
+          return;
+        }
+        if (formData.password !== formData.passwordConfirm) {
+          alert('비밀번호가 일치하지 않습니다.');
+          return;
+        }
+        if (!validatePassword(formData.password)) {
+          alert('비밀번호는 영문, 숫자를 포함하여 8자 이상이어야 합니다.');
+          return;
+        }
+      }
       setStep(step + 1);
       window.scrollTo(0, 0);
     } else {
@@ -92,8 +114,19 @@ export function SignupPage() {
           name: formData.userId,
           hospitalName: formData.hospitalName,
           businessNumber: formData.businessNumber,
-          phone: formData.phone
-        });
+          phone: formData.phone,
+          mobile: formData.mobile,
+          zipCode: formData.zipCode,
+          region: formData.region,
+          hospitalEmail: formData.hospitalEmail,
+          taxEmail: formData.taxEmail,
+          address: formData.address,
+          addressDetail: formData.addressDetail,
+          emailNotification: formData.emailNotification,
+          holidayWeek: formData.holidayWeek,
+          holidayDay: formData.holidayDay,
+          isPublicHoliday: formData.isPublicHoliday
+        }, equipmentList, formData.businessCertificate);
         alert('회원가입이 완료되었습니다. 로그인해주세요.');
         navigate('/login');
       } catch (error: any) {
@@ -166,6 +199,26 @@ export function SignupPage() {
         });
       },
     }).open();
+  };
+
+  const handleCheckDuplicateId = async () => {
+    if (!formData.userId) {
+      alert('아이디를 입력해주세요.');
+      return;
+    }
+    try {
+      const isAvailable = await authService.checkLoginIdAvailability(formData.userId);
+      if (isAvailable) {
+        alert('사용 가능한 아이디입니다.');
+        setIsIdChecked(true);
+      } else {
+        alert('이미 사용 중인 아이디입니다.');
+        setIsIdChecked(false);
+      }
+    } catch (error) {
+      console.error('ID check failed:', error);
+      alert('중복 확인 중 오류가 발생했습니다.');
+    }
   };
 
   return (
@@ -366,12 +419,16 @@ export function SignupPage() {
                     <input
                       type="text"
                       value={formData.userId}
-                      onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, userId: e.target.value });
+                        setIsIdChecked(false);
+                      }}
                       className="flex-1 px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent"
                       placeholder="아이디를 입력하세요."
                     />
                     <button
                       type="button"
+                      onClick={handleCheckDuplicateId}
                       className="bg-[#1e3a8a] text-white px-6 py-3 font-medium hover:bg-[#1e40af] transition-colors whitespace-nowrap"
                     >
                       중복확인
@@ -421,6 +478,9 @@ export function SignupPage() {
                       className="w-full px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent"
                       placeholder="비밀번호를 입력하세요."
                     />
+                    <p className="text-xs text-neutral-500 mt-1">
+                      영문, 숫자 포함 8자 이상
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm text-neutral-900 mb-2">

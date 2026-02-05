@@ -6,8 +6,18 @@ export interface User {
   hospitalName: string;
   businessNumber: string;
   phone: string;
+  mobile?: string;
+  hospitalEmail?: string;
+  taxEmail?: string;
   address?: string;
   addressDetail?: string;
+  zipCode?: string;
+  region?: string;
+  businessCertificateUrl?: string;
+  emailNotification?: boolean;
+  holidayWeek?: string;
+  holidayDay?: string;
+  isPublicHoliday?: boolean;
   role?: 'admin' | 'user';
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: string;
@@ -21,6 +31,12 @@ export interface Equipment {
   installDate: string;
   warrantyEndDate: string;
   imageUrl: string;
+}
+
+export interface SignupEquipment {
+  name: string;
+  selected: boolean;
+  serialNumber: string;
 }
 
 export interface Product {

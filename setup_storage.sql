@@ -1,34 +1,23 @@
--- ============================================
--- Setup Supabase Storage for Products
--- ============================================
-
--- Create 'products' bucket if it doesn't exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('products', 'products', true)
+-- Create a storage bucket for business certificates
+INSERT INTO storage.buckets (id, name, public) VALUES ('business-certificates', 'business-certificates', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Set up RLS for Storage
--- Allow anyone to read (public bucket)
-CREATE POLICY "Public Read Access"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'products');
+-- Policy: Allow authenticated users to upload their own certificates
+-- Actually, during signup, the user is created in auth.users, but might not be fully logged in session-wise in some flows,
+-- but authService uses the client which holds the session after signUp (if auto-confirm is on).
+-- If email confirm is off (as per previous step), they are logged in.
 
--- Allow authenticated users (admins) to upload
-CREATE POLICY "Authenticated Upload"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (bucket_id = 'products');
+-- Allow public access to read (or restrict to auth users)
+CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING ( bucket_id = 'business-certificates' );
 
--- Allow authenticated users (admins) to update/delete
-CREATE POLICY "Authenticated Manage"
-ON storage.objects FOR UPDATE
-TO authenticated
-USING (bucket_id = 'products');
+-- Allow authenticated users to upload
+CREATE POLICY "Authenticated users can upload" ON storage.objects FOR INSERT WITH CHECK (
+    bucket_id = 'business-certificates' 
+    AND auth.role() = 'authenticated'
+);
 
-CREATE POLICY "Authenticated Delete"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (bucket_id = 'products');
-
-SELECT '✅ Storage bucket setup complete!' as result;
+-- Allow users to update/delete their own files (optional)
+CREATE POLICY "Users can update own files" ON storage.objects FOR UPDATE USING (
+    bucket_id = 'business-certificates' 
+    AND owner = auth.uid()
+);
