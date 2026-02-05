@@ -31,6 +31,8 @@ jobs:
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Build
+        env:
+          NODE_ENV: production
         run: npm run build
 
       - name: Copy index.html to 404.html
