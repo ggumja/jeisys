@@ -5,6 +5,7 @@ import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
+import { BASE_PATH } from '../constants/paths';
 import { CartItem, Product } from '../types';
 
 export function CheckoutPage() {
@@ -39,7 +40,7 @@ export function CheckoutPage() {
       ]);
 
       if (!user) {
-        navigate('/login');
+        navigate(`${BASE_PATH}/login`);
         return;
       }
 
@@ -268,8 +269,8 @@ export function CheckoutPage() {
               {/* Loan Payment */}
               <label
                 className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${paymentMethod === 'loan'
-                    ? 'border-neutral-900 bg-neutral-50'
-                    : 'border-neutral-200 bg-white'
+                  ? 'border-neutral-900 bg-neutral-50'
+                  : 'border-neutral-200 bg-white'
                   }`}
               >
                 <input
@@ -294,8 +295,8 @@ export function CheckoutPage() {
               {/* Card Payment */}
               <div
                 className={`border-2 transition-all ${paymentMethod === 'credit'
-                    ? 'border-neutral-900 bg-neutral-50'
-                    : 'border-neutral-200 bg-white'
+                  ? 'border-neutral-900 bg-neutral-50'
+                  : 'border-neutral-200 bg-white'
                   }`}
               >
                 <label className="flex items-start gap-4 p-6 cursor-pointer">
@@ -341,8 +342,8 @@ export function CheckoutPage() {
               {/* Virtual Account */}
               <label
                 className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${paymentMethod === 'virtual'
-                    ? 'border-neutral-900 bg-neutral-50'
-                    : 'border-neutral-200 bg-white'
+                  ? 'border-neutral-900 bg-neutral-50'
+                  : 'border-neutral-200 bg-white'
                   }`}
               >
                 <input

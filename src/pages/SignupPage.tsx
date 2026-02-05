@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Check, ChevronRight, ChevronDown } from 'lucide-react';
 import { productImages } from '../lib/productImages';
+import { BASE_PATH } from '../constants/paths';
 
 interface EquipmentSelection {
   name: string;
@@ -88,7 +89,7 @@ export function SignupPage() {
           phone: formData.phone
         });
         alert('회원가입이 완료되었습니다. 로그인해주세요.');
-        navigate('/login');
+        navigate(`${BASE_PATH}/login`);
       } catch (error: any) {
         console.error('Signup failed:', error);
         alert('회원가입 실패: ' + (error.message || '알 수 없는 오류'));

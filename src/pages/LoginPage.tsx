@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router';
 import { storage } from '../lib/storage';
 import { User } from '../types';
 import { authService } from '../services/authService';
+import { BASE_PATH } from '../constants/paths';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
 import { HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, ChevronLeft, ChevronRight } from 'lucide-react';
 import bannerImage1 from "@/assets/64532cd4dc417352b5d7e0c9ba765b439636e04f.png";
@@ -35,7 +36,7 @@ export function LoginPage() {
         if (profile) {
           storage.setUser(profile);
           storage.setAuthToken(session.access_token);
-          navigate('/');
+          navigate(`${BASE_PATH}/`);
         }
       }
     } catch (error: any) {

@@ -3,6 +3,7 @@ import { Home, ShoppingCart, Package, User, Menu, X, Zap, Youtube, MessageSquare
 import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { FloatingButtons } from './FloatingButtons';
+import { BASE_PATH } from '../constants/paths';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
 import brandsImage from '@/assets/b5662c9e081b390cfd4a0ad2846686cabac40eaf.png';
 
@@ -16,7 +17,7 @@ export function RootLayout() {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate(`${BASE_PATH}/login`);
       return;
     }
 
@@ -26,7 +27,7 @@ export function RootLayout() {
 
   const handleLogout = () => {
     storage.clearAll();
-    navigate('/login');
+    navigate(`${BASE_PATH}/login`);
   };
 
   const navItems = [

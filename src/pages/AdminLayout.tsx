@@ -3,6 +3,7 @@ import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, Chev
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
+import { BASE_PATH } from '../constants/paths';
 
 export function AdminLayout() {
   const location = useLocation();
@@ -96,11 +97,11 @@ export function AdminLayout() {
   }
 
   const handleBackToSite = () => {
-    navigate('/');
+    navigate(`${BASE_PATH}/`);
   };
 
   const handleLogout = () => {
-    navigate('/login');
+    navigate(`${BASE_PATH}/login`);
   };
 
   return (
