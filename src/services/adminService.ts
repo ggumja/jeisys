@@ -23,6 +23,38 @@ export const adminService = {
         const { count: lowStockCount } = await supabase.from('products').select('*', { count: 'exact', head: true }).lt('stock', 10);
         const { count: totalProducts } = await supabase.from('products').select('*', { count: 'exact', head: true });
 
+        // 3. Member Grade Distribution
+        const { data: allUsers } = await supabase.from('users').select('id');
+        const { data: allOrders } = await supabase.from('orders').select('user_id, total_amount').neq('status', 'cancelled');
+
+        const salesMap = (allOrders || []).reduce((acc: any, order) => {
+            acc[order.user_id] = (acc[order.user_id] || 0) + Number(order.total_amount);
+            return acc;
+        }, {});
+
+        const distribution = {
+            VIP: 0,
+            Gold: 0,
+            Silver: 0,
+            Bronze: 0
+        };
+
+        (allUsers || []).forEach((user) => {
+            const totalSales = salesMap[user.id] || 0;
+            if (totalSales >= 50000000) distribution.VIP++;
+            else if (totalSales >= 30000000) distribution.Gold++;
+            else if (totalSales >= 10000000) distribution.Silver++;
+            else distribution.Bronze++;
+        });
+
+        const totalU = allUsers?.length || 1;
+        const gradeStats = {
+            VIP: { count: distribution.VIP, percentage: Number(((distribution.VIP / totalU) * 100).toFixed(1)) },
+            Gold: { count: distribution.Gold, percentage: Number(((distribution.Gold / totalU) * 100).toFixed(1)) },
+            Silver: { count: distribution.Silver, percentage: Number(((distribution.Silver / totalU) * 100).toFixed(1)) },
+            Bronze: { count: distribution.Bronze, percentage: Number(((distribution.Bronze / totalU) * 100).toFixed(1)) },
+        };
+
         return {
             monthSales,
             monthOrderCount,
@@ -30,7 +62,8 @@ export const adminService = {
             newUsers: 0,
             pendingUsers: pendingUserCount || 0,
             lowStockProducts: lowStockCount || 0,
-            totalProducts: totalProducts || 0
+            totalProducts: totalProducts || 0,
+            gradeStats
         };
     },
 
@@ -95,7 +128,10 @@ export const adminService = {
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (usersError) throw usersError;
+        if (usersError) {
+            console.error('Supabase getUsers error:', usersError);
+            throw usersError;
+        }
 
         // Fetch cumulative sales for all users
         const { data: orders, error: ordersError } = await supabase
@@ -123,7 +159,7 @@ export const adminService = {
             return acc;
         }, {});
 
-        return users.map((user: any) => {
+        const result = users.map((user: any) => {
             const totalSales = salesMap[user.id] || 0;
 
             // Grading Logic
@@ -139,8 +175,8 @@ export const adminService = {
                 email: user.email,
                 hospitalName: user.hospital_name,
                 businessNumber: user.business_number,
-                grade: grade,
-                status: user.approval_status === 'APPROVED' ? 'active' : (user.approval_status === 'PENDING' ? 'pending' : 'suspended'),
+                grade: grade as 'VIP' | 'Gold' | 'Silver' | 'Bronze',
+                status: (user.approval_status === 'APPROVED' ? 'active' : (user.approval_status === 'PENDING' ? 'pending' : 'suspended')) as 'active' | 'pending' | 'suspended',
                 joinDate: new Date(user.created_at).toISOString().split('T')[0],
                 totalOrders: countMap[user.id] || 0,
                 totalSales: totalSales,
@@ -155,6 +191,8 @@ export const adminService = {
                 taxEmail: user.tax_email
             };
         });
+
+        return result;
     },
 
     async getUserEquipments(userId: string) {

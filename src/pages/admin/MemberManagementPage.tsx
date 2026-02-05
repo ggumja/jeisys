@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Search, UserCheck, UserX, Settings, X, Clock, Eye, Building2, Loader2 } from 'lucide-react';
+import { useSearchParams } from 'react-router';
+import { Search, UserCheck, UserX, Settings, X, Clock, Eye, Building2, Loader2, RefreshCw } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -70,26 +72,48 @@ function UserEquipmentsList({ userId }: { userId: string }) {
 }
 
 export function MemberManagementPage() {
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const gradeFilter = searchParams.get('grade') || 'all';
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [gradeFilter, setGradeFilter] = useState<string>('all');
   const [isGradeSettingsOpen, setIsGradeSettingsOpen] = useState(false);
   const [gradeSettings, setGradeSettings] = useState<GradeSettings[]>(initialGradeSettings);
   const [activeTab, setActiveTab] = useState('all');
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: members = [], isLoading } = useAdminUsers();
+  const { data: members = [], isLoading, refetch } = useAdminUsers();
   const updateStatusMutation = useUpdateUserStatus();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    await refetch();
+    setIsRefreshing(false);
+  };
+
+  const setGradeFilter = (grade: string) => {
+    if (grade === 'all') {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('grade');
+      setSearchParams(newParams);
+    } else {
+      setSearchParams({ grade });
+    }
+  };
 
   const pendingMembers = members.filter(m => m.status === 'pending');
   const activeMembers = members.filter(m => m.status === 'active');
 
   const getFilteredMembers = (status?: 'pending' | 'active') => {
     return members.filter((member) => {
+      const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
-        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.hospitalName.toLowerCase().includes(searchTerm.toLowerCase());
+        (member.name?.toLowerCase() || '').includes(searchLower) ||
+        (member.email?.toLowerCase() || '').includes(searchLower) ||
+        (member.hospitalName?.toLowerCase() || '').includes(searchLower);
       const matchesGrade = gradeFilter === 'all' || member.grade === gradeFilter;
       const matchesStatus = status ? member.status === status : true;
       return matchesSearch && matchesGrade && matchesStatus;
@@ -284,9 +308,17 @@ export function MemberManagementPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
           <Button variant="outline" onClick={() => setIsGradeSettingsOpen(true)}>
-            <Settings className="w-5 h-5 mr-2" />
-            회원등급 설정
+            등급 기준 설정
           </Button>
         </div>
       </div>

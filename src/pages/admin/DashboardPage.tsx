@@ -1,6 +1,7 @@
-import { TrendingUp, TrendingDown, ShoppingCart, Users, Package, DollarSign, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ShoppingCart, Users, Package, DollarSign, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { adminService } from '../../services/adminService';
 
 // Mock chart data (to be replaced with real analytics later)
@@ -40,6 +41,7 @@ interface DashboardOrder {
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     monthSales: 0,
@@ -48,7 +50,13 @@ export function DashboardPage() {
     newUsers: 0,
     pendingUsers: 0,
     lowStockProducts: 0,
-    totalProducts: 0
+    totalProducts: 0,
+    gradeStats: {
+      VIP: { count: 0, percentage: 0 },
+      Gold: { count: 0, percentage: 0 },
+      Silver: { count: 0, percentage: 0 },
+      Bronze: { count: 0, percentage: 0 }
+    }
   });
   const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([]);
 
@@ -70,6 +78,10 @@ export function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGradeClick = (grade: string) => {
+    navigate(`/admin/members?grade=${grade}`);
   };
 
   const getStatusColor = (status: string) => {
@@ -139,7 +151,7 @@ export function DashboardPage() {
         </div>
 
         {/* 전체 회원 */}
-        <div className="bg-white border border-neutral-200 p-6">
+        <div className="bg-white border border-neutral-200 p-6 cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => navigate('/admin/members')}>
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-neutral-900 text-white rounded">
               <Users className="w-5 h-5" />
@@ -156,7 +168,7 @@ export function DashboardPage() {
         </div>
 
         {/* 전체 상품 */}
-        <div className="bg-white border border-neutral-200 p-6">
+        <div className="bg-white border border-neutral-200 p-6 cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => navigate('/admin/products')}>
           <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-neutral-900 text-white rounded">
               <Package className="w-5 h-5" />
@@ -280,37 +292,37 @@ export function DashboardPage() {
       <div className="bg-white border border-neutral-200 p-6">
         <h2 className="font-medium mb-4">회원 등급별 현황</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="p-4 border border-neutral-200 rounded">
+          <div className="p-4 border border-neutral-200 rounded cursor-pointer hover:border-neutral-900 transition-all hover:shadow-sm" onClick={() => handleGradeClick('VIP')}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-600">VIP 등급</span>
               <div className="w-3 h-3 rounded-full bg-purple-600"></div>
             </div>
-            <p className="text-2xl font-medium mb-1">48명</p>
-            <p className="text-xs text-neutral-500">전체의 3.8%</p>
+            <p className="text-2xl font-medium mb-1 font-mono">{stats.gradeStats.VIP.count}명</p>
+            <p className="text-xs text-neutral-500">전체의 {stats.gradeStats.VIP.percentage}%</p>
           </div>
-          <div className="p-4 border border-neutral-200 rounded">
+          <div className="p-4 border border-neutral-200 rounded cursor-pointer hover:border-neutral-900 transition-all hover:shadow-sm" onClick={() => handleGradeClick('Gold')}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-600">Gold 등급</span>
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
             </div>
-            <p className="text-2xl font-medium mb-1">156명</p>
-            <p className="text-xs text-neutral-500">전체의 12.5%</p>
+            <p className="text-2xl font-medium mb-1 font-mono">{stats.gradeStats.Gold.count}명</p>
+            <p className="text-xs text-neutral-500">전체의 {stats.gradeStats.Gold.percentage}%</p>
           </div>
-          <div className="p-4 border border-neutral-200 rounded">
+          <div className="p-4 border border-neutral-200 rounded cursor-pointer hover:border-neutral-900 transition-all hover:shadow-sm" onClick={() => handleGradeClick('Silver')}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-600">Silver 등급</span>
               <div className="w-3 h-3 rounded-full bg-neutral-400"></div>
             </div>
-            <p className="text-2xl font-medium mb-1">387명</p>
-            <p className="text-xs text-neutral-500">전체의 31.0%</p>
+            <p className="text-2xl font-medium mb-1 font-mono">{stats.gradeStats.Silver.count}명</p>
+            <p className="text-xs text-neutral-500">전체의 {stats.gradeStats.Silver.percentage}%</p>
           </div>
-          <div className="p-4 border border-neutral-200 rounded">
+          <div className="p-4 border border-neutral-200 rounded cursor-pointer hover:border-neutral-900 transition-all hover:shadow-sm" onClick={() => handleGradeClick('Bronze')}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-600">Bronze 등급</span>
               <div className="w-3 h-3 rounded-full bg-orange-600"></div>
             </div>
-            <p className="text-2xl font-medium mb-1">656명</p>
-            <p className="text-xs text-neutral-500">전체의 52.7%</p>
+            <p className="text-2xl font-medium mb-1 font-mono">{stats.gradeStats.Bronze.count}명</p>
+            <p className="text-xs text-neutral-500">전체의 {stats.gradeStats.Bronze.percentage}%</p>
           </div>
         </div>
       </div>
