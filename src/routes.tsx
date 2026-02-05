@@ -144,4 +144,6 @@ export const router = createBrowserRouter([
             { path: "admins", Component: AdminManagementPage },
         ],
     },
-]);
+], {
+    basename: import.meta.env.BASE_URL
+});
