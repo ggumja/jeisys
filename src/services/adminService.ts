@@ -55,11 +55,16 @@ export const adminService = {
             Bronze: { count: distribution.Bronze, percentage: Number(((distribution.Bronze / totalU) * 100).toFixed(1)) },
         };
 
+        const { count: newUserCount } = await supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', startOfMonth);
+
         return {
             monthSales,
             monthOrderCount,
             totalUsers: userCount || 0,
-            newUsers: 0,
+            newUsers: newUserCount || 0,
             pendingUsers: pendingUserCount || 0,
             lowStockProducts: lowStockCount || 0,
             totalProducts: totalProducts || 0,
