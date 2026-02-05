@@ -145,5 +145,5 @@ export const router = createBrowserRouter([
         ],
     },
 ], {
-    basename: import.meta.env.DEV ? '/' : '/jeisys/'
+    basename: import.meta.env.MODE === 'production' ? '/jeisys/' : '/'
 });
