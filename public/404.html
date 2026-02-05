@@ -7,14 +7,20 @@
     <title>제이시스메디컬_New</title>
     <script>
         // GitHub Pages SPA redirect hack
-        // Store the path and redirect to index.html
-        sessionStorage.setItem('redirect', location.pathname + location.search + location.hash);
-        location.replace(location.origin + '/jeisys/');
+        // Redirect to index.html with path info in query string
+        var pathSegmentsToKeep = 1; // Keep '/jeisys/'
+        var l = window.location;
+        l.replace(
+            l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+            l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+            l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+            (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+            l.hash
+        );
     </script>
 </head>
 
 <body>
-    <div id="root"></div>
 </body>
 
 </html>
