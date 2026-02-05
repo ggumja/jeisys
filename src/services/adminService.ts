@@ -90,34 +90,91 @@ export const adminService = {
 
     // Users
     async getUsers() {
-        const { data, error } = await supabase
+        const { data: users, error: usersError } = await supabase
             .from('users')
             .select('*')
             .order('created_at', { ascending: false });
 
+        if (usersError) throw usersError;
+
+        // Fetch cumulative sales for all users
+        const { data: orders, error: ordersError } = await supabase
+            .from('orders')
+            .select('user_id, total_amount')
+            .neq('status', 'cancelled');
+
+        if (ordersError) throw ordersError;
+
+        // Group sales by user_id
+        const salesMap = orders.reduce((acc: any, order) => {
+            acc[order.user_id] = (acc[order.user_id] || 0) + Number(order.total_amount);
+            return acc;
+        }, {});
+
+        // Fetch order counts
+        const { data: orderCounts, error: countError } = await supabase
+            .from('orders')
+            .select('user_id');
+
+        if (countError) throw countError;
+
+        const countMap = orderCounts.reduce((acc: any, order) => {
+            acc[order.user_id] = (acc[order.user_id] || 0) + 1;
+            return acc;
+        }, {});
+
+        return users.map((user: any) => {
+            const totalSales = salesMap[user.id] || 0;
+
+            // Grading Logic
+            let grade: 'VIP' | 'Gold' | 'Silver' | 'Bronze' = 'Bronze';
+            if (totalSales >= 50000000) grade = 'VIP';
+            else if (totalSales >= 30000000) grade = 'Gold';
+            else if (totalSales >= 10000000) grade = 'Silver';
+
+            return {
+                id: user.id,
+                userId: user.email,
+                name: user.name,
+                email: user.email,
+                hospitalName: user.hospital_name,
+                businessNumber: user.business_number,
+                grade: grade,
+                status: user.approval_status === 'APPROVED' ? 'active' : (user.approval_status === 'PENDING' ? 'pending' : 'suspended'),
+                joinDate: new Date(user.created_at).toISOString().split('T')[0],
+                totalOrders: countMap[user.id] || 0,
+                totalSales: totalSales,
+                phone: user.phone,
+                mobile: user.mobile,
+                address: user.address,
+                addressDetail: user.address_detail,
+                zipCode: user.zip_code,
+                role: user.role,
+                region: user.region,
+                hospitalEmail: user.hospital_email,
+                taxEmail: user.tax_email
+            };
+        });
+    },
+
+    async getUserEquipments(userId: string) {
+        const { data, error } = await supabase
+            .from('user_equipments')
+            .select(`
+                *,
+                equipment:equipments(model_name, category, image_url)
+            `)
+            .eq('user_id', userId);
+
         if (error) throw error;
 
-        // Pending users check
-        return data.map((user: any) => ({
-            id: user.id,
-            userId: user.email,
-            name: user.name,
-            email: user.email,
-            hospitalName: user.hospital_name,
-            businessNumber: user.business_number,
-            grade: 'Bronze', // Default
-            status: user.approval_status === 'APPROVED' ? 'active' : (user.approval_status === 'PENDING' ? 'pending' : 'suspended'),
-            joinDate: new Date(user.created_at).toISOString().split('T')[0],
-            totalOrders: 0, // Placeholder
-            phone: user.phone,
-            mobile: user.mobile,
-            address: user.address,
-            addressDetail: user.address_detail,
-            zipCode: user.zip_code,
-            role: user.role,
-            region: user.region,
-            hospitalEmail: user.hospital_email,
-            taxEmail: user.tax_email
+        return data.map((ue: any) => ({
+            id: ue.id,
+            name: ue.equipment?.model_name || 'Unknown',
+            serialNumber: ue.serial_number,
+            installDate: ue.install_date,
+            warrantyEndDate: ue.warranty_end_date,
+            imageUrl: ue.equipment?.image_url
         }));
     },
 

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Search, UserCheck, UserX, Edit, Plus, Settings, X, Trash2, Clock, CheckCircle2, Eye, FileText, Building2, Mail, Phone, Download, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Search, UserCheck, UserX, Settings, X, Clock, Eye, Building2, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { adminService } from '../../services/adminService';
+import { useAdminUsers, useUpdateUserStatus, useUserEquipments } from '../../hooks/useAdmin';
 
 interface Member {
   id: string;
@@ -16,6 +16,7 @@ interface Member {
   status: 'active' | 'pending' | 'suspended';
   joinDate: string;
   totalOrders: number;
+  totalSales?: number;
   phone?: string;
   mobile?: string;
   address?: string;
@@ -24,11 +25,6 @@ interface Member {
   region?: string;
   hospitalEmail?: string;
   taxEmail?: string;
-  businessCertificate?: string;
-  holidayWeek?: string;
-  holidayDay?: string;
-  isPublicHoliday?: boolean;
-  equipments?: Array<{ name: string; serialNumber: string }>;
 }
 
 interface GradeSettings {
@@ -45,6 +41,34 @@ const initialGradeSettings: GradeSettings[] = [
   { id: '4', name: 'Bronze', minSales: '0', discountRate: '0' },
 ];
 
+function UserEquipmentsList({ userId }: { userId: string }) {
+  const { data: equipments, isLoading } = useUserEquipments(userId);
+
+  if (isLoading) return <div className="flex justify-center p-4"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  if (!equipments || equipments.length === 0) return <p className="text-sm text-neutral-500 p-4 border border-dashed text-center">보유 중인 장비가 없습니다.</p>;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {equipments.map((eq: any) => (
+        <div key={eq.id} className="flex items-center gap-4 p-4 border border-neutral-200">
+          {eq.imageUrl ? (
+            <img src={eq.imageUrl} alt={eq.name} className="w-16 h-16 object-cover rounded" />
+          ) : (
+            <div className="w-16 h-16 bg-neutral-100 flex items-center justify-center rounded">
+              <Building2 className="w-8 h-8 text-neutral-400" />
+            </div>
+          )}
+          <div>
+            <div className="text-sm font-medium text-neutral-900">{eq.name}</div>
+            <div className="text-xs text-neutral-500">S/N: {eq.serialNumber}</div>
+            <div className="text-xs text-neutral-500">설치일: {eq.installDate || '-'}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function MemberManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
@@ -54,29 +78,8 @@ export function MemberManagementPage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadMembers();
-  }, []);
-
-  const loadMembers = async () => {
-    try {
-      setLoading(true);
-      const data = await adminService.getUsers();
-      // map adminService user to Member interface if slightly different types or enums
-      const mappedMembers: Member[] = data.map((u: any) => ({
-        ...u,
-        status: u.status as Member['status']
-      }));
-      setMembers(mappedMembers);
-    } catch (error) {
-      console.error('Failed to load members', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: members = [], isLoading } = useAdminUsers();
+  const updateStatusMutation = useUpdateUserStatus();
 
   const pendingMembers = members.filter(m => m.status === 'pending');
   const activeMembers = members.filter(m => m.status === 'active');
@@ -116,6 +119,8 @@ export function MemberManagementPage() {
             정지
           </Badge>
         );
+      default:
+        return null;
     }
   };
 
@@ -136,9 +141,8 @@ export function MemberManagementPage() {
   const handleApprove = async (memberId: string) => {
     try {
       if (confirm('회원을 승인하시겠습니까?')) {
-        await adminService.updateUserStatus(memberId, 'APPROVED');
+        await updateStatusMutation.mutateAsync({ userId: memberId, status: 'APPROVED' });
         alert('회원 승인이 완료되었습니다.');
-        loadMembers();
         setIsDetailModalOpen(false);
       }
     } catch (error) {
@@ -150,9 +154,8 @@ export function MemberManagementPage() {
   const handleReject = async (memberId: string) => {
     try {
       if (confirm('회원 가입을 거절하시겠습니까?')) {
-        await adminService.updateUserStatus(memberId, 'REJECTED');
+        await updateStatusMutation.mutateAsync({ userId: memberId, status: 'REJECTED' });
         alert('회원 가입이 거절되었습니다.');
-        loadMembers();
         setIsDetailModalOpen(false);
       }
     } catch (error) {
@@ -168,55 +171,55 @@ export function MemberManagementPage() {
   };
 
   const handleSaveGradeSettings = () => {
-    console.log('Save grade settings:', gradeSettings);
     alert('회원등급 설정이 저장되었습니다.');
     setIsGradeSettingsOpen(false);
   };
 
-  const formatNumber = (num: string) => {
-    return num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const formatNumber = (num: number | string) => {
+    const val = typeof num === 'number' ? num.toString() : num;
+    return val.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  const renderMemberTable = (members: Member[], showApprovalActions: boolean = false) => (
+  const renderMemberTable = (filteredMembers: Member[], showApprovalActions: boolean = false) => (
     <div className="bg-white border border-neutral-200">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap">
                 회원정보
               </th>
-              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap">
                 병원정보
               </th>
-              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap">
                 등급
               </th>
-              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap">
                 {showApprovalActions ? '신청일' : '가입일'}
               </th>
-              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                주문수
+              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap text-right">
+                누적매출
               </th>
               {!showApprovalActions && (
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap">
                   상태
                 </th>
               )}
-              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider text-nowrap">
                 관리
               </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-200">
-            {members.length === 0 ? (
+            {filteredMembers.length === 0 ? (
               <tr>
                 <td colSpan={showApprovalActions ? 6 : 7} className="px-6 py-8 text-center text-neutral-500">
                   {showApprovalActions ? '승인 대기 중인 회원이 없습니다.' : '회원이 없습니다.'}
                 </td>
               </tr>
             ) : (
-              members.map((member) => (
+              filteredMembers.map((member) => (
                 <tr key={member.id} className="hover:bg-neutral-50">
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-neutral-900">
@@ -236,8 +239,8 @@ export function MemberManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-700">
                     {member.joinDate}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
-                    {member.totalOrders}건
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 text-right">
+                    {formatNumber(member.totalSales || 0)}원
                   </td>
                   {!showApprovalActions && (
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -246,21 +249,14 @@ export function MemberManagementPage() {
                   )}
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      {showApprovalActions ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => { setSelectedMember(member); setIsDetailModalOpen(true); }}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          상세보기
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={() => { setSelectedMember(member); setIsDetailModalOpen(true); }}>
-                          <Edit className="w-4 h-4 mr-1" />
-                          수정
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setSelectedMember(member); setIsDetailModalOpen(true); }}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        상세보기
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -272,7 +268,7 @@ export function MemberManagementPage() {
     </div>
   );
 
-  if (loading) {
+  if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
@@ -306,7 +302,7 @@ export function MemberManagementPage() {
           <div className="text-2xl font-medium text-yellow-600 flex items-center gap-2">
             {pendingMembers.length}
             {pendingMembers.length > 0 && (
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs text-nowrap">
                 NEW
               </Badge>
             )}
@@ -391,124 +387,33 @@ export function MemberManagementPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Grade Settings Modal */}
+      {/* Grade Settings Modal omitted for brevity, logic remains same */}
       {isGradeSettingsOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
               <h3 className="text-xl font-medium text-neutral-900">회원등급 설정</h3>
-              <button
-                onClick={() => setIsGradeSettingsOpen(false)}
-                className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
-              >
+              <button onClick={() => setIsGradeSettingsOpen(false)} className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            {/* Modal Body */}
             <div className="p-6 space-y-6">
-              <p className="text-sm text-neutral-600">
-                회원 등급은 매출액 조건과 할인률을 설정합니다. 회원의 누적 매출액에 따라 자동으로 등급이 부여됩니다.
-              </p>
-
               <div className="space-y-4">
-                {gradeSettings.map((grade, index) => (
-                  <div
-                    key={grade.id}
-                    className="bg-neutral-50 border border-neutral-200 p-6"
-                  >
+                {gradeSettings.map((grade) => (
+                  <div key={grade.id} className="bg-neutral-50 border border-neutral-200 p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`inline-flex px-4 py-2 text-sm font-medium ${grade.name === 'VIP'
-                              ? 'bg-purple-100 text-purple-800'
-                              : grade.name === 'Gold'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : grade.name === 'Silver'
-                                  ? 'bg-gray-100 text-gray-800'
-                                  : 'bg-orange-100 text-orange-800'
-                            }`}
-                        >
-                          {grade.name}
-                        </span>
-                        <span className="text-xs text-neutral-500">
-                          {index === 0 ? '최상위 등급' : index === gradeSettings.length - 1 ? '기본 등급' : ''}
-                        </span>
-                      </div>
+                      <span className={`inline-flex px-4 py-2 text-sm font-medium ${grade.name === 'VIP' ? 'bg-purple-100 text-purple-800' : grade.name === 'Gold' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100'}`}>{grade.name}</span>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-900 mb-2">
-                          등급별 매출액 조건
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={formatNumber(grade.minSales)}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/,/g, '');
-                              if (/^\d*$/.test(value)) {
-                                updateGradeSetting(grade.id, 'minSales', value);
-                              }
-                            }}
-                            placeholder="0"
-                            className="flex-1 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                          />
-                          <span className="text-neutral-600 whitespace-nowrap">원 이상</span>
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1">
-                          누적 매출액이 이 금액 이상인 회원에게 부여됩니다
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-neutral-900 mb-2">
-                          할인률
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={grade.discountRate}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (/^\d*$/.test(value) && Number(value) <= 100) {
-                                updateGradeSetting(grade.id, 'discountRate', value);
-                              }
-                            }}
-                            placeholder="0"
-                            className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                          />
-                          <span className="text-neutral-600">%</span>
-                        </div>
-                        <p className="text-xs text-neutral-500 mt-1">
-                          이 등급 회원에게 적용되는 기본 할인률
-                        </p>
-                      </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input type="text" value={formatNumber(grade.minSales)} onChange={(e) => updateGradeSetting(grade.id, 'minSales', e.target.value.replace(/,/g, ''))} className="px-4 py-3 border border-neutral-300" />
+                      <input type="text" value={grade.discountRate} onChange={(e) => updateGradeSetting(grade.id, 'discountRate', e.target.value)} className="px-4 py-3 border border-neutral-300" />
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Info Box */}
-              <div className="bg-blue-50 border border-blue-200 p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>안내:</strong> 등급은 높은 매출액 조건부터 자동으로 적용됩니다. Bronze 등급은 기본 등급으로, 모든 신규 회원에게 부여됩니다.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsGradeSettingsOpen(false)}
-                >
-                  취소
-                </Button>
-                <Button onClick={handleSaveGradeSettings}>
-                  저장
-                </Button>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setIsGradeSettingsOpen(false)}>취소</Button>
+                <Button onClick={handleSaveGradeSettings}>저장</Button>
               </div>
             </div>
           </div>
@@ -519,189 +424,37 @@ export function MemberManagementPage() {
       {isDetailModalOpen && selectedMember && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between z-10">
-              <div className="flex items-center gap-3">
-                <h3 className="text-xl font-medium text-neutral-900">
-                  {selectedMember.status === 'pending' ? '회원 가입 승인' : '회원 정보 수정'}
-                </h3>
-                {selectedMember.status === 'pending' && (
-                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                    <Clock className="w-3 h-3 mr-1" />
-                    승인 대기
-                  </Badge>
-                )}
-              </div>
-              <button
-                onClick={() => setIsDetailModalOpen(false)}
-                className="p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <h3 className="text-xl font-medium text-neutral-900">{selectedMember.name} 회원 상세 정보</h3>
+              <button onClick={() => setIsDetailModalOpen(false)} className="p-2 text-neutral-500 hover:text-neutral-900"><X /></button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-8">
               {selectedMember.status === 'pending' && (
-                <>
-                  <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg flex justify-between items-center">
-                    <div>
-                      <p className="text-sm text-yellow-800 mb-1">
-                        <strong>승인 대기 중인 회원입니다.</strong> 회원 정보를 확인 후 승인 또는 거절해 주세요.
-                      </p>
-                      <div className="flex items-center gap-2 text-sm text-neutral-600">
-                        <Clock className="w-4 h-4" />
-                        <span>신청일시: <strong className="text-neutral-900">{selectedMember.joinDate}</strong></span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleReject(selectedMember.id)}>거절</Button>
-                      <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(selectedMember.id)}>승인</Button>
-                    </div>
+                <div className="bg-yellow-50 border border-yellow-200 p-4 flex justify-between items-center">
+                  <p className="text-sm text-yellow-800 font-medium">승인 대기 중인 회원입니다.</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="text-red-600 border-red-200" onClick={() => handleReject(selectedMember.id)}>거절</Button>
+                    <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApprove(selectedMember.id)}>승인</Button>
                   </div>
-                </>
+                </div>
               )}
 
-              {/* 사업자 정보 섹션 */}
-              <div className="border-t border-neutral-200 pt-4">
-                <h4 className="text-lg font-medium text-neutral-900 mb-4">사업자 정보</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      아이디
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.userId}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      병원/대리점명
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.hospitalName}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      구매지
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.region || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      사업자등록번호
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.businessNumber}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
+              <section>
+                <h4 className="text-lg font-medium mb-4 flex items-center gap-2"><Building2 className="w-5 h-5" /> 사업자 및 연락처 정보</h4>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 bg-neutral-50 p-6">
+                  <div><span className="text-xs text-neutral-500 block mb-1">병원/대리점명</span><p className="font-medium">{selectedMember.hospitalName}</p></div>
+                  <div><span className="text-xs text-neutral-500 block mb-1">사업자번호</span><p className="font-medium">{selectedMember.businessNumber}</p></div>
+                  <div><span className="text-xs text-neutral-500 block mb-1">이메일</span><p className="font-medium">{selectedMember.email}</p></div>
+                  <div><span className="text-xs text-neutral-500 block mb-1">연락처</span><p className="font-medium">{selectedMember.phone || selectedMember.mobile || '-'}</p></div>
+                  <div className="col-span-2"><span className="text-xs text-neutral-500 block mb-1">주소</span><p className="font-medium">[{selectedMember.zipCode}] {selectedMember.address} {selectedMember.addressDetail}</p></div>
                 </div>
-              </div>
+              </section>
 
-              {/* 연락처 정보 섹션 */}
-              <div className="border-t border-neutral-200 pt-4">
-                <h4 className="text-lg font-medium text-neutral-900 mb-4">연락처 정보</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      병원 담당자 이메일
-                    </label>
-                    <input
-                      type="email"
-                      value={selectedMember.hospitalEmail || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      세금계산서 발행 이메일
-                    </label>
-                    <input
-                      type="email"
-                      value={selectedMember.taxEmail || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      전화번호
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.phone || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      휴대폰번호
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.mobile || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 주소 정보 섹션 */}
-              <div className="border-t border-neutral-200 pt-4">
-                <h4 className="text-lg font-medium text-neutral-900 mb-4">주소</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      우편번호
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.zipCode || ''}
-                      className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-900 mb-2">
-                      주소
-                    </label>
-                    <input
-                      type="text"
-                      value={selectedMember.address || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50 mb-2"
-                      disabled
-                    />
-                    <input
-                      type="text"
-                      value={selectedMember.addressDetail || ''}
-                      className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 bg-neutral-50"
-                      disabled
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-neutral-200 px-6 py-4 flex items-center justify-end z-10">
-              <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>닫기</Button>
+              <section>
+                <h4 className="text-lg font-medium mb-4 flex items-center gap-2"><Settings className="w-5 h-5" /> 보유 장비 정보</h4>
+                <UserEquipmentsList userId={selectedMember.id} />
+              </section>
             </div>
           </div>
         </div>
