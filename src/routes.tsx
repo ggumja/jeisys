@@ -144,6 +144,4 @@ export const router = createBrowserRouter([
             { path: "admins", Component: AdminManagementPage },
         ],
     },
-], {
-    basename: import.meta.env.MODE === 'production' ? '/jeisys/' : '/'
-});
+]);
