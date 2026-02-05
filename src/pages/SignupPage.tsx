@@ -89,7 +89,7 @@ export function SignupPage() {
           phone: formData.phone
         });
         alert('회원가입이 완료되었습니다. 로그인해주세요.');
-        navigate(`${BASE_PATH}/login`);
+        navigate('/login');
       } catch (error: any) {
         console.error('Signup failed:', error);
         alert('회원가입 실패: ' + (error.message || '알 수 없는 오류'));

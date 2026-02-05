@@ -40,7 +40,7 @@ export function CheckoutPage() {
       ]);
 
       if (!user) {
-        navigate(`${BASE_PATH}/login`);
+        navigate('/login');
         return;
       }
 

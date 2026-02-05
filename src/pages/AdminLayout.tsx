@@ -97,11 +97,11 @@ export function AdminLayout() {
   }
 
   const handleBackToSite = () => {
-    navigate(`${BASE_PATH}/`);
+    navigate('/');
   };
 
   const handleLogout = () => {
-    navigate(`${BASE_PATH}/login`);
+    navigate('/login');
   };
 
   return (

@@ -36,7 +36,7 @@ export function LoginPage() {
         if (profile) {
           storage.setUser(profile);
           storage.setAuthToken(session.access_token);
-          navigate(`${BASE_PATH}/`);
+          navigate('/');
         }
       }
     } catch (error: any) {

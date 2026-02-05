@@ -17,7 +17,7 @@ export function RootLayout() {
 
   useEffect(() => {
     if (!user) {
-      navigate(`${BASE_PATH}/login`);
+      navigate('/login');
       return;
     }
 
@@ -27,7 +27,7 @@ export function RootLayout() {
 
   const handleLogout = () => {
     storage.clearAll();
-    navigate(`${BASE_PATH}/login`);
+    navigate('/login');
   };
 
   const navItems = [
