@@ -1,5 +1,6 @@
 export interface User {
   id: string;
+  loginId?: string;
   email: string;
   name: string;
   hospitalName: string;

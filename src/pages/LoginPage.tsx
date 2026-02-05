@@ -1,18 +1,16 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { storage } from '../lib/storage';
-import { User } from '../types';
 import { authService } from '../services/authService';
-import { BASE_PATH } from '../constants/paths';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
-import { HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, ChevronLeft, ChevronRight } from 'lucide-react';
+import { HelpCircle, FileText, Newspaper, Video, ChevronLeft, ChevronRight } from 'lucide-react';
 import bannerImage1 from "@/assets/64532cd4dc417352b5d7e0c9ba765b439636e04f.png";
 import bannerImage2 from "@/assets/0b54070218d9e3fce2c717fa5151d3a1cd8da40e.png";
 import bannerImage3 from "@/assets/7e526b8f5a164c84b13d3608733c8a229ef8f255.png";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -28,7 +26,7 @@ export function LoginPage() {
     e.preventDefault();
 
     try {
-      const { user, session } = await authService.signIn(email, password);
+      const { user, session } = await authService.signIn(loginId, password);
 
       if (user && session) {
         // Get rich user profile
@@ -40,7 +38,7 @@ export function LoginPage() {
         }
       }
     } catch (error: any) {
-      alert('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
+      alert('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
       console.error('Login failed:', error);
     }
   };
@@ -134,16 +132,16 @@ export function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="email" className="block text-xs tracking-wide text-neutral-700 mb-2 uppercase font-medium">
-                    이메일
+                  <label htmlFor="loginId" className="block text-xs tracking-wide text-neutral-700 mb-2 uppercase font-medium">
+                    아이디
                   </label>
                   <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="loginId"
+                    type="text"
+                    value={loginId}
+                    onChange={(e) => setLoginId(e.target.value)}
                     className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 text-sm"
-                    placeholder="example@hospital.com"
+                    placeholder="아이디를 입력하세요"
                     required
                   />
                 </div>

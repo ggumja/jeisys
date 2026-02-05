@@ -2,7 +2,15 @@ import { supabase } from '../lib/supabaseClient';
 import { User } from '../types';
 
 export const authService = {
-    async signUp(email: string, password: string, userData: Omit<User, 'id' | 'email'>) {
+    // Helper to generate virtual email from loginId
+    getVirtualEmail(loginId: string) {
+        if (loginId.includes('@')) return loginId; // Handle case where email is provided
+        return `${loginId}@jeisys.com`;
+    },
+
+    async signUp(loginId: string, password: string, userData: Omit<User, 'id' | 'email' | 'loginId'>) {
+        const email = this.getVirtualEmail(loginId);
+
         // 1. Sign up with Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
@@ -11,6 +19,7 @@ export const authService = {
                 data: {
                     name: userData.name,
                     hospital_name: userData.hospitalName,
+                    login_id: loginId
                 }
             }
         });
@@ -18,11 +27,12 @@ export const authService = {
         if (authError) throw authError;
         if (!authData.user) throw new Error('User creation failed');
 
-        // 2. Insert into public.users table (assuming RLS allows insert for authenticated user matching ID)
+        // 2. Insert into public.users table
         const { error: profileError } = await supabase
             .from('users')
             .insert({
                 id: authData.user.id,
+                login_id: loginId,
                 email: email,
                 name: userData.name,
                 hospital_name: userData.hospitalName,
@@ -32,14 +42,15 @@ export const authService = {
 
         if (profileError) {
             console.error('Error creating user profile:', profileError);
-            // Optional: Cleanup auth user if profile creation fails
             throw profileError;
         }
 
         return authData;
     },
 
-    async signIn(email: string, password: string) {
+    async signIn(loginId: string, password: string) {
+        const email = this.getVirtualEmail(loginId);
+
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -66,9 +77,9 @@ export const authService = {
 
         if (error) {
             console.error('Error fetching user profile:', error);
-            // Fallback to auth metadata if profile fetch fails
             return {
                 id: user.id,
+                loginId: user.user_metadata?.login_id || '',
                 email: user.email || '',
                 name: user.user_metadata?.name || '',
                 hospitalName: user.user_metadata?.hospital_name || '',
@@ -79,6 +90,7 @@ export const authService = {
 
         return {
             id: profile.id,
+            loginId: profile.login_id,
             email: profile.email || user.email || '',
             name: profile.name,
             hospitalName: profile.hospital_name,

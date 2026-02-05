@@ -11,6 +11,12 @@ interface EquipmentSelection {
   imageUrl?: string;
 }
 
+declare global {
+  interface Window {
+    daum: any;
+  }
+}
+
 import { authService } from '../services/authService';
 
 export function SignupPage() {
@@ -82,8 +88,8 @@ export function SignupPage() {
     } else {
       // Complete signup
       try {
-        await authService.signUp(formData.hospitalEmail, formData.password, {
-          name: formData.userId, // Using userId as name proxy or add name field
+        await authService.signUp(formData.userId, formData.password, {
+          name: formData.userId,
           hospitalName: formData.hospitalName,
           businessNumber: formData.businessNumber,
           phone: formData.phone
@@ -134,6 +140,32 @@ export function SignupPage() {
     const newList = [...equipmentList];
     newList[index].serialNumber = value;
     setEquipmentList(newList);
+  };
+
+  const handleAddressSearch = () => {
+    new window.daum.Postcode({
+      oncomplete: (data: any) => {
+        let fullAddress = data.roadAddress;
+        let extraAddress = '';
+
+        if (data.addressType === 'R') {
+          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) {
+            extraAddress += data.bname;
+          }
+          if (data.buildingName !== '') {
+            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
+          }
+          fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+        }
+
+        setFormData({
+          ...formData,
+          zipCode: data.zonecode,
+          address: fullAddress,
+          addressDetail: '',
+        });
+      },
+    }).open();
   };
 
   return (
@@ -482,6 +514,7 @@ export function SignupPage() {
                       />
                       <button
                         type="button"
+                        onClick={handleAddressSearch}
                         className="bg-neutral-100 text-neutral-900 px-6 py-3 font-medium hover:bg-neutral-200 transition-colors"
                       >
                         주소검색
