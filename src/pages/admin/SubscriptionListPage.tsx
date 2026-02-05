@@ -192,19 +192,19 @@ export function SubscriptionListPage() {
   const totalMonthlyRevenue = activeSubscriptions.reduce((sum, sub) => {
     // 매월 결제 금액 계산
     const cycle = sub.subscriptionCycle;
-    
+
     // 주별 계산 (1주, 2주, 3주, 4주)
     if (cycle.includes('주')) {
       const weeks = parseInt(cycle);
       return sum + (sub.totalAmount * (4 / weeks)); // 한달 = 4주 기준
     }
-    
+
     // 월별 계산 (1개월, 2개월, 3개월, 6개월, 12개월)
     if (cycle.includes('개월')) {
       const months = parseInt(cycle);
       return sum + (sub.totalAmount / months);
     }
-    
+
     return sum;
   }, 0);
 
@@ -212,7 +212,7 @@ export function SubscriptionListPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
-          정기��송목록
+          정기배송 목록
         </h2>
         <p className="text-sm text-neutral-600">
           전체 정기배송 구독 현황을 조회하고 관리합니다
@@ -320,8 +320,8 @@ export function SubscriptionListPage() {
                   <td colSpan={8} className="px-6 py-16 text-center">
                     <RefreshCw className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
                     <p className="text-neutral-600">
-                      {searchTerm || statusFilter !== 'all' 
-                        ? '검색 결과가 없습니다' 
+                      {searchTerm || statusFilter !== 'all'
+                        ? '검색 결과가 없습니다'
                         : '등록된 정기배송이 없습니다'}
                     </p>
                   </td>
@@ -417,8 +417,8 @@ export function SubscriptionListPage() {
             })
             .sort((a, b) => new Date(a.nextDeliveryDate).getTime() - new Date(b.nextDeliveryDate).getTime())
             .map((sub) => (
-              <div 
-                key={sub.id} 
+              <div
+                key={sub.id}
                 className="flex items-center justify-between text-sm py-3 px-4 border border-neutral-200 hover:bg-neutral-50 transition-colors"
               >
                 <div className="flex items-center gap-4">
@@ -446,10 +446,10 @@ export function SubscriptionListPage() {
             weekLater.setDate(weekLater.getDate() + 7);
             return nextDate >= today && nextDate <= weekLater;
           }).length === 0 && (
-            <p className="text-sm text-neutral-500 text-center py-4">
-              이번 주 배송 예정인 정기배송이 없습니다
-            </p>
-          )}
+              <p className="text-sm text-neutral-500 text-center py-4">
+                이번 주 배송 예정인 정기배송이 없습니다
+              </p>
+            )}
         </div>
       </div>
     </div>
