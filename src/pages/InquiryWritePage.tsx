@@ -1,35 +1,79 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Check } from 'lucide-react';
+import { inquiryService } from '../services/inquiryService';
+import { authService } from '../services/authService';
+
+const INQUIRY_TYPES = [
+  '제품 문의',
+  '배송 문의',
+  '결제/환불 문의',
+  'A/S 문의',
+  '기타',
+];
 
 export function InquiryWritePage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
+    type: INQUIRY_TYPES[0],
     title: '',
     content: '',
+    isSecret: true,
   });
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    fetchUser();
+  }, []);
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+
     setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: val,
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
 
-    // Show success message
-    setShowSuccessMessage(true);
+    try {
+      setIsSubmitting(true);
+      await inquiryService.createInquiry({
+        type: formData.type,
+        title: formData.title,
+        content: formData.content,
+        is_secret: formData.isSecret,
+        user_id: userId || undefined,
+      });
 
-    // Navigate back after 2 seconds
-    setTimeout(() => {
-      setShowSuccessMessage(false);
-      navigate('/communication/inquiry');
-    }, 2000);
+      // Show success message
+      setShowSuccessMessage(true);
+
+      // Navigate back after 2 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        navigate('/communication/inquiry');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to submit inquiry:', error);
+      alert('문의 등록 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -45,6 +89,39 @@ export function InquiryWritePage() {
 
       <form onSubmit={handleSubmit} className="bg-white border border-neutral-200 p-6 lg:p-8">
         <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm text-neutral-700 mb-2">
+                문의 유형 <span className="text-red-600">*</span>
+              </label>
+              <select
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+                required
+              >
+                {INQUIRY_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end pb-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="isSecret"
+                  checked={formData.isSecret}
+                  onChange={handleChange}
+                  className="w-4 h-4 border-neutral-300 rounded text-neutral-900 focus:ring-neutral-900"
+                />
+                <span className="text-sm text-neutral-700">비밀글로 문의하기</span>
+              </label>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm text-neutral-700 mb-2">
               제목 <span className="text-red-600">*</span>
@@ -79,16 +156,19 @@ export function InquiryWritePage() {
         <div className="mt-8 flex gap-3">
           <button
             type="button"
-            onClick={() => navigate('/inquiry')}
+            onClick={() => navigate('/communication/inquiry')}
             className="flex-1 px-6 py-4 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
           >
             취소
           </button>
           <button
             type="submit"
-            className="flex-1 px-6 py-4 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+            disabled={isSubmitting}
+            className={`flex-1 px-6 py-4 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors ${
+              isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
-            문의 등록
+            {isSubmitting ? '등록 중...' : '문의 등록'}
           </button>
         </div>
       </form>

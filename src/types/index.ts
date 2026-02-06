@@ -71,3 +71,33 @@ export interface Order {
   paymentMethod: string;
   deliveryTrackingNumber?: string;
 }
+
+export interface Inquiry {
+  id: string;
+  userId: string | null;
+  type: string;
+  title: string;
+  content: string;
+  isSecret: boolean;
+  status: 'waiting' | 'answered';
+  answerContent?: string | null;
+  answeredAt?: string | null;
+  createdAt: string;
+  user?: {
+    name: string;
+    hospitalName?: string | null;
+  } | null;
+}
+
+export interface Post {
+  id: string;
+  type: 'notice' | 'faq' | 'news' | 'media' | 'manual';
+  title: string;
+  content: string | null;
+  viewCount: number;
+  isVisible: boolean;
+  imageUrl: string | null;
+  createdAt: string;
+  platform?: 'youtube' | 'instagram' | 'blog' | 'facebook'; // Added for Media
+  category?: string; // Added for FAQ/Manual
+}

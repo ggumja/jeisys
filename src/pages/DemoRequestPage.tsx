@@ -1,14 +1,8 @@
-import { useState } from 'react';
-import { Calendar, CheckCircle, Clock, Plus } from 'lucide-react';
-
-interface DemoRequest {
-  id: string;
-  equipment: string;
-  requestDate: string;
-  status: 'pending' | 'scheduled' | 'completed';
-  scheduledDate?: string;
-  content: string;
-}
+import { useState, useEffect } from 'react';
+import { Calendar, CheckCircle, Clock, Plus, X } from 'lucide-react';
+import { demoService, DemoRequest } from '../services/demoService';
+import { authService } from '../services/authService';
+import { formatDate } from '../lib/utils';
 
 const equipmentOptions = [
   'Density',
@@ -24,6 +18,11 @@ const equipmentOptions = [
 
 export function DemoRequestPage() {
   const [showForm, setShowForm] = useState(false);
+  const [requests, setRequests] = useState<DemoRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     equipment: '',
     preferredDate: '',
@@ -32,31 +31,32 @@ export function DemoRequestPage() {
     contactNumber: '',
   });
 
-  const [requests] = useState<DemoRequest[]>([
-    {
-      id: '1',
-      equipment: 'ULTRAcel II',
-      requestDate: '2026-01-26',
-      status: 'scheduled',
-      scheduledDate: '2026-02-10',
-      content: 'ULTRAcel II 장비 도입 전 데모를 신청합니다. 실제 시술 시연을 보고 싶습니다.',
-    },
-    {
-      id: '2',
-      equipment: 'POTENZA',
-      requestDate: '2026-01-20',
-      status: 'completed',
-      scheduledDate: '2026-01-27',
-      content: 'POTENZA 장비의 니들 RF 시술 데모 요청드립니다.',
-    },
-    {
-      id: '3',
-      equipment: 'LinearZ',
-      requestDate: '2026-01-18',
-      status: 'pending',
-      content: 'LinearZ 레이저 장비 성능 확인을 위한 데모 신청합니다.',
-    },
-  ]);
+  useEffect(() => {
+    fetchUserAndRequests();
+  }, []);
+
+  const fetchUserAndRequests = async () => {
+    try {
+      setIsLoading(true);
+      const user = await authService.getCurrentUser();
+      if (user) {
+        setUserId(user.id);
+        const data = await demoService.getUserDemoRequests(user.id);
+        setRequests(data);
+        
+        // Pre-fill
+        setFormData(prev => ({
+          ...prev,
+          hospitalName: user.hospitalName || '',
+          contactNumber: user.mobile || user.phone || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch user or demo requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -69,18 +69,34 @@ export function DemoRequestPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Submit logic here
-    alert('데모 신청이 완료되었습니다. 담당자가 확인 후 연락드리겠습니다.');
-    setShowForm(false);
-    setFormData({ 
-      equipment: '', 
-      preferredDate: '', 
-      content: '',
-      hospitalName: '',
-      contactNumber: '',
-    });
+    try {
+      setIsSubmitting(true);
+      await demoService.createDemoRequest({
+        user_id: userId || undefined,
+        hospital_name: formData.hospitalName,
+        contact_number: formData.contactNumber,
+        equipment: formData.equipment,
+        preferred_date: formData.preferredDate,
+        content: formData.content,
+      });
+
+      alert('데모 신청이 완료되었습니다. 담당자가 확인 후 연락드리겠습니다.');
+      setShowForm(false);
+      setFormData(prev => ({ 
+        ...prev,
+        equipment: '', 
+        preferredDate: '', 
+        content: '',
+      }));
+      fetchUserAndRequests();
+    } catch (error) {
+      console.error('Failed to submit demo request:', error);
+      alert('신청 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status: DemoRequest['status']) => {
@@ -247,7 +263,9 @@ export function DemoRequestPage() {
         </div>
 
         <div className="divide-y divide-neutral-200">
-          {requests.length === 0 ? (
+          {isLoading ? (
+            <div className="py-16 text-center text-neutral-500">로딩 중...</div>
+          ) : requests.length === 0 ? (
             <div className="py-16 text-center">
               <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-600 mb-6">
@@ -272,10 +290,10 @@ export function DemoRequestPage() {
                     {getStatusBadge(request.status)}
                   </div>
                   <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 text-sm text-neutral-600">
-                    <span>신청일: {request.requestDate}</span>
+                    <span>신청일: {formatDate(request.createdAt)}</span>
                     {request.scheduledDate && (
                       <span className="font-medium text-blue-600">
-                        데모일: {request.scheduledDate}
+                        데모일: {formatDate(request.scheduledDate)}
                       </span>
                     )}
                   </div>

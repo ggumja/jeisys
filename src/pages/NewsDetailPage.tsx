@@ -1,53 +1,47 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Calendar, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { postService, Post } from '../services/postService';
+import { formatDate } from '../lib/utils';
 
 export function NewsDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [newsItem, setNewsItem] = useState<Post | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data - in real app, fetch based on id
-  const newsItem = {
-    id: id,
-    title: '[공지] 2026년 설날 연휴 배송 안내',
-    category: '공지사항' as const,
-    date: '2026-01-28',
-    views: 245,
-    content: `안녕하세요, 제이시스메디칼입니다.
+  useEffect(() => {
+    if (id) {
+      fetchNewsDetail(id);
+    }
+  }, [id]);
 
-2026년 설날 연휴 기간 동안의 주문 및 배송 일정을 안내드립니다.
-
-■ 연휴 기간
-- 2026년 1월 28일(화) ~ 2월 1일(토)
-
-■ 주문 및 배송 안내
-1. 1월 27일(월) 오후 3시까지 주문 건: 당일 출고
-2. 1월 27일(월) 오후 3시 이후 주문 건: 2월 3일(월) 순차 출고
-3. 연휴 기간 중 주문 건: 2월 3일(월)부터 순차 출고
-
-■ 고객센터 운영
-- 연휴 기간 중에는 고객센터 운영이 중단됩니다.
-- 긴급 문의사항은 1:1 문의게시판을 이용해 주시면 연휴 이후 순차적으로 답변드리겠습니다.
-
-■ 카카오톡 채널 문의
-- 연휴 기간 중에도 카카오톡 채널을 통한 문의는 가능하나, 답변은 2월 3일(월)부터 순차적으로 진행됩니다.
-
-미리 필요하신 소모품이 있으시다면 서둘러 주문해 주시기 바랍니다.
-
-새해 복 많이 받으시고, 항상 건강하시기 바랍니다.
-
-감사합니다.`,
+  const fetchNewsDetail = async (newsId: string) => {
+    try {
+      setIsLoading(true);
+      const data = await postService.getPostById(newsId);
+      if (data && data.type === 'news') {
+        setNewsItem(data);
+        postService.incrementViewCount(newsId);
+      } else {
+        navigate('/communication/news');
+      }
+    } catch (error) {
+      console.error('Failed to fetch news detail:', error);
+      navigate('/communication/news');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const [prevPost] = useState({
-    id: '4',
-    title: '제이시스메디칼 2026년 상반기 교육 일정 안내',
-  });
+  const [prevPost] = useState<{ id: string; title: string } | null>(null);
+  const [nextPost] = useState<{ id: string; title: string } | null>(null);
 
-  const [nextPost] = useState({
-    id: '2',
-    title: '[공지] 신규 회원 가입 이벤트 안내',
-  });
+  if (isLoading) {
+    return <div className="py-20 text-center text-neutral-500">로딩 중...</div>;
+  }
+
+  if (!newsItem) return null;
 
   return (
     <div className="space-y-6">
@@ -64,15 +58,9 @@ export function NewsDetailPage() {
         <div className="px-6 lg:px-8 py-6 border-b border-neutral-200 bg-neutral-50">
           <div className="mb-3">
             <span
-              className={`inline-block px-3 py-1 text-xs font-medium ${
-                newsItem.category === '공지사항'
-                  ? 'bg-red-100 text-red-700'
-                  : newsItem.category === '이벤트'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-blue-100 text-blue-700'
-              }`}
+              className="inline-block px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700"
             >
-              {newsItem.category}
+              뉴스
             </span>
           </div>
           <h1 className="text-2xl lg:text-3xl tracking-tight text-neutral-900 mb-4">
@@ -81,11 +69,11 @@ export function NewsDetailPage() {
           <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600">
             <span className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
-              {newsItem.date}
+              {formatDate(newsItem.createdAt)}
             </span>
             <span className="flex items-center gap-1.5">
               <Eye className="w-4 h-4" />
-              조회 {newsItem.views}
+              조회 {newsItem.viewCount}
             </span>
           </div>
         </div>

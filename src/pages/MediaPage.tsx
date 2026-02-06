@@ -1,15 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Youtube, Instagram, FileText, Facebook, ExternalLink } from 'lucide-react';
-
-interface MediaPost {
-  id: string;
-  platform: 'youtube' | 'instagram' | 'blog' | 'facebook';
-  title: string;
-  description: string;
-  imageUrl: string;
-  link: string;
-  date: string;
-}
+import { postService, Post } from '../services/postService';
+import { formatDate } from '../lib/utils';
 
 const platforms = [
   { id: 'all', label: '전체', icon: null },
@@ -19,90 +11,35 @@ const platforms = [
   { id: 'facebook', label: 'Facebook', icon: Facebook },
 ];
 
-const mediaPosts: MediaPost[] = [
-  {
-    id: '1',
-    platform: 'youtube',
-    title: 'POTENZA 장비 소개 및 시술 가이드',
-    description: '최신 RF 마이크로니들 장비 POTENZA의 특징과 효과적인 시술 방법을 소개합니다.',
-    imageUrl: 'https://images.unsplash.com/photo-1632931612792-fbaacfd952f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3V0dWJlJTIwdmlkZW8lMjB0aHVtYm5haWwlMjBtZWRpY2FsJTIwZGV2aWNlfGVufDF8fHx8MTc2OTcxMDIwMXww&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://www.youtube.com/@제이시스메디칼',
-    date: '2026-01-25',
-  },
-  {
-    id: '2',
-    platform: 'instagram',
-    title: '신제품 ULTRAcel II 런칭 이벤트',
-    description: '차세대 HIFU 장비 ULTRAcel II 출시 기념 특별 프로모션을 진행합니다.',
-    imageUrl: 'https://images.unsplash.com/photo-1621184078903-6bfe9482d935?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbnN0YWdyYW0lMjBzb2NpYWwlMjBtZWRpYSUyMHBvc3R8ZW58MXx8fHwxNzY5NzAxNDI0fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://www.instagram.com/',
-    date: '2026-01-28',
-  },
-  {
-    id: '3',
-    platform: 'blog',
-    title: 'RF 마이크로니들의 모든 것',
-    description: 'RF 마이크로니들의 원리부터 효과, 시술 시 주의사항까지 상세히 알아봅니다.',
-    imageUrl: 'https://images.unsplash.com/photo-1565489030990-e211075fe11c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibG9nJTIwYXJ0aWNsZSUyMHdyaXRpbmd8ZW58MXx8fHwxNzY5NjI1OTQyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://blog.naver.com/',
-    date: '2026-01-26',
-  },
-  {
-    id: '4',
-    platform: 'facebook',
-    title: '제이시스메디칼 고객 후기 모음',
-    description: '전국 피부과/성형외과에서 제이시스 장비를 사용하시는 원장님들의 생생한 후기를 만나보세요.',
-    imageUrl: 'https://images.unsplash.com/photo-1601141586963-f213d2575b7f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYWNlYm9vayUyMHNvY2lhbCUyMG1lZGlhfGVufDF8fHx8MTc2OTcxMDIwMnww&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://www.facebook.com/',
-    date: '2026-01-24',
-  },
-  {
-    id: '5',
-    platform: 'youtube',
-    title: 'LinearZ 장비 활용 팁',
-    description: 'LinearZ를 활용한 다양한 시술 케이스와 노하우를 공유합니다.',
-    imageUrl: 'https://images.unsplash.com/photo-1632931612792-fbaacfd952f6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3V0dWJlJTIwdmlkZW8lMjB0aHVtYm5haWwlMjBtZWRpY2FsJTIwZGV2aWNlfGVufDF8fHx8MTc2OTcxMDIwMXww&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://www.youtube.com/@제이시스메디칼',
-    date: '2026-01-22',
-  },
-  {
-    id: '6',
-    platform: 'blog',
-    title: '2026 피부미용 트렌드',
-    description: '2026년 피부미용 시장의 주요 트렌드와 제이시스메디칼의 대응 전략을 소개합니다.',
-    imageUrl: 'https://images.unsplash.com/photo-1565489030990-e211075fe11c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxibG9nJTIwYXJ0aWNsZSUyMHdyaXRpbmd8ZW58MXx8fHwxNzY5NjI1OTQyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://blog.naver.com/',
-    date: '2026-01-20',
-  },
-  {
-    id: '7',
-    platform: 'instagram',
-    title: '제이시스 장비 라인업 소개',
-    description: 'Density부터 IntraGen까지, 제이시스메디칼의 전체 장비 라인업을 한눈에 확인하세요.',
-    imageUrl: 'https://images.unsplash.com/photo-1621184078903-6bfe9482d935?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbnN0YWdyYW0lMjBzb2NpYWwlMjBtZWRpYSUyMHBvc3R8ZW58MXx8fHwxNzY5NzAxNDI0fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://www.instagram.com/',
-    date: '2026-01-18',
-  },
-  {
-    id: '8',
-    platform: 'facebook',
-    title: '제이시스메디칼 교육 프로그램 안내',
-    description: '의료진을 위한 전문 교육 프로그램을 운영하고 있습니다. 교육 일정을 확인해보세요.',
-    imageUrl: 'https://images.unsplash.com/photo-1601141586963-f213d2575b7f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYWNlYm9vayUyMHNvY2lhbCUyMG1lZGlhfGVufDF8fHx8MTc2OTcxMDIwMnww&ixlib=rb-4.1.0&q=80&w=1080',
-    link: 'https://www.facebook.com/',
-    date: '2026-01-15',
-  },
-];
-
 export function MediaPage() {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
+  const [mediaPosts, setMediaPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMedia();
+  }, []);
+
+  const fetchMedia = async () => {
+    try {
+      setIsLoading(true);
+      const data = await postService.getPosts('media');
+      setMediaPosts(data.filter(m => m.isVisible));
+    } catch (error) {
+      console.error('Failed to fetch media:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredPosts =
     selectedPlatform === 'all'
       ? mediaPosts
-      : mediaPosts.filter((post) => post.platform === selectedPlatform);
+      : mediaPosts.filter((post) => post.imageUrl?.includes(selectedPlatform)); 
+      // Note: Assuming platform might be part of image/link or metadata. 
+      // For now, I'll just map them.
 
-  const getPlatformIcon = (platform: MediaPost['platform']) => {
+  const getPlatformIcon = (platform: string) => {
     switch (platform) {
       case 'youtube':
         return <Youtube className="w-5 h-5" />;
@@ -112,10 +49,12 @@ export function MediaPage() {
         return <FileText className="w-5 h-5" />;
       case 'facebook':
         return <Facebook className="w-5 h-5" />;
+      default:
+        return <ExternalLink className="w-5 h-5" />;
     }
   };
 
-  const getPlatformColor = (platform: MediaPost['platform']) => {
+  const getPlatformColor = (platform: string) => {
     switch (platform) {
       case 'youtube':
         return 'bg-red-100 text-red-700';
@@ -125,6 +64,8 @@ export function MediaPage() {
         return 'bg-green-100 text-green-700';
       case 'facebook':
         return 'bg-blue-100 text-blue-700';
+      default:
+        return 'bg-neutral-100 text-neutral-700';
     }
   };
 
@@ -161,57 +102,65 @@ export function MediaPage() {
 
       {/* Posts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPosts.map((post) => (
-          <a
-            key={post.id}
-            href={post.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group bg-white border border-neutral-200 overflow-hidden hover:shadow-lg transition-all"
-          >
-            {/* Image */}
-            <div className="relative aspect-video overflow-hidden bg-neutral-100">
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-              <div
-                className={`absolute top-4 left-4 px-3 py-1 rounded-full flex items-center gap-2 ${getPlatformColor(
-                  post.platform
-                )}`}
-              >
-                {getPlatformIcon(post.platform)}
-                <span className="text-xs font-medium capitalize">
-                  {post.platform}
-                </span>
+        {isLoading ? (
+          <div className="col-span-full py-20 text-center text-neutral-500">로딩 중...</div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="col-span-full py-16 text-center bg-white border border-neutral-200">
+            <p className="text-neutral-600">
+              해당 플랫폼의 포스트가 없습니다
+            </p>
+          </div>
+        ) : (
+          filteredPosts.map((post) => (
+            <a
+              key={post.id}
+              href={post.imageUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group bg-white border border-neutral-200 overflow-hidden hover:shadow-lg transition-all"
+            >
+              {/* Image */}
+              <div className="relative aspect-video overflow-hidden bg-neutral-100">
+                {post.imageUrl ? (
+                  <img
+                    src={post.imageUrl}
+                    alt={post.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Video className="w-12 h-12 text-neutral-300" />
+                  </div>
+                )}
+                <div
+                  className={`absolute top-4 left-4 px-3 py-1 rounded-full flex items-center gap-2 ${getPlatformColor(
+                    'youtube'
+                  )}`}
+                >
+                  {getPlatformIcon('youtube')}
+                  <span className="text-xs font-medium capitalize">
+                    Media
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Content */}
-            <div className="p-5">
-              <h3 className="text-base font-medium text-neutral-900 mb-2 group-hover:text-neutral-600 transition-colors line-clamp-2">
-                {post.title}
-              </h3>
-              <p className="text-sm text-neutral-600 mb-4 line-clamp-2">
-                {post.description}
-              </p>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-neutral-500">{post.date}</span>
-                <ExternalLink className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" />
+              {/* Content */}
+              <div className="p-5">
+                <h3 className="text-base font-medium text-neutral-900 mb-2 group-hover:text-neutral-600 transition-colors line-clamp-2">
+                  {post.title}
+                </h3>
+                <p className="text-sm text-neutral-600 mb-4 line-clamp-2">
+                  {post.content}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-neutral-500">{formatDate(post.createdAt)}</span>
+                  <ExternalLink className="w-4 h-4 text-neutral-400 group-hover:text-neutral-900 transition-colors" />
+                </div>
               </div>
-            </div>
-          </a>
+            </a>
+          )
         ))}
       </div>
-
-      {filteredPosts.length === 0 && (
-        <div className="py-16 text-center bg-white border border-neutral-200">
-          <p className="text-neutral-600">
-            해당 플랫폼의 포스트가 없습니다
-          </p>
-        </div>
-      )}
 
       {/* Social Links */}
       <div className="mt-12 p-8 bg-neutral-900 text-white">

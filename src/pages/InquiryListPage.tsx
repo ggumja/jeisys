@@ -1,45 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { MessageCircle, CheckCircle, Clock, Plus } from 'lucide-react';
-
-interface Inquiry {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  status: 'pending' | 'answered';
-  answer?: string;
-  answerDate?: string;
-}
+import { inquiryService } from '../services/inquiryService';
+import { Inquiry } from '../types';
+import { formatDate } from '../lib/utils';
 
 export function InquiryListPage() {
-  const [inquiries] = useState<Inquiry[]>([
-    {
-      id: '1',
-      title: '제품 배송 관련 문의드립니다',
-      content: '주문한 제품이 언제쯤 도착할까요?',
-      date: '2026-01-28',
-      status: 'answered',
-      answer: '안녕하세요. 주문하신 제품은 오늘 출고 예정이며, 내일 오전 중 도착 예정입니다. 감사합니다.',
-      answerDate: '2026-01-28',
-    },
-    {
-      id: '2',
-      title: 'POTENZA 소모품 재입고 일정',
-      content: 'POTENZA 니들팁 25p 재입고 일정이 궁금합니다.',
-      date: '2026-01-27',
-      status: 'pending',
-    },
-    {
-      id: '3',
-      title: '대량 구매 할인 문의',
-      content: '소모품을 대량으로 구매하려고 하는데, 추가 할인이 가능한가요?',
-      date: '2026-01-25',
-      status: 'answered',
-      answer: '안녕하세요. 대량 구매 시 별도 할인이 가능합니다. 구매 희망 수량과 품목을 말씀해 주시면 견적서를 보내드리겠습니다.',
-      answerDate: '2026-01-26',
-    },
-  ]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchInquiries();
+  }, []);
+
+  const fetchInquiries = async () => {
+    try {
+      setIsLoading(true);
+      const data = await inquiryService.getInquiries();
+      setInquiries(data);
+    } catch (error) {
+      console.error('Failed to fetch inquiries:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -72,7 +56,9 @@ export function InquiryListPage() {
 
         {/* List */}
         <div className="divide-y divide-neutral-200">
-          {inquiries.length === 0 ? (
+          {isLoading ? (
+            <div className="py-16 text-center text-neutral-500">로딩 중...</div>
+          ) : inquiries.length === 0 ? (
             <div className="py-16 text-center">
               <MessageCircle className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-600 mb-6">등록된 문의가 없습니다</p>
@@ -106,10 +92,10 @@ export function InquiryListPage() {
                     </p>
                   </div>
                   <div className="col-span-2 text-center text-sm text-neutral-600">
-                    {inquiry.date}
+                    {formatDate(inquiry.createdAt)}
                   </div>
                   <div className="col-span-2 text-center text-sm text-neutral-600">
-                    {inquiry.answerDate || '-'}
+                    {inquiry.answeredAt ? formatDate(inquiry.answeredAt) : '-'}
                   </div>
                 </div>
 
@@ -126,8 +112,8 @@ export function InquiryListPage() {
                         {inquiry.title}
                       </p>
                       <p className="text-sm text-neutral-600">
-                        등록: {inquiry.date}
-                        {inquiry.answerDate && ` | 답변: ${inquiry.answerDate}`}
+                        등록: {formatDate(inquiry.createdAt)}
+                        {inquiry.answeredAt && ` | 답변: ${formatDate(inquiry.answeredAt)}`}
                       </p>
                     </div>
                   </div>

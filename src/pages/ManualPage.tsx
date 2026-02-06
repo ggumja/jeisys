@@ -1,121 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Download, Search } from 'lucide-react';
-
-interface Manual {
-  id: string;
-  category: string;
-  title: string;
-  fileName: string;
-  fileSize: string;
-  uploadDate: string;
-  version: string;
-}
+import { postService, Post } from '../services/postService';
+import { formatDate } from '../lib/utils';
 
 export function ManualPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [searchQuery, setSearchQuery] = useState('');
+  const [manuals, setManuals] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [manuals] = useState<Manual[]>([
-    {
-      id: '1',
-      category: 'POTENZA',
-      title: 'POTENZA 사용자 매뉴얼',
-      fileName: 'POTENZA_Manual_KR_v2.3.pdf',
-      fileSize: '12.5 MB',
-      uploadDate: '2026-01-15',
-      version: 'v2.3',
-    },
-    {
-      id: '2',
-      category: 'POTENZA',
-      title: 'POTENZA 니들팁 교체 가이드',
-      fileName: 'POTENZA_Needle_Guide_v1.2.pdf',
-      fileSize: '3.2 MB',
-      uploadDate: '2026-01-10',
-      version: 'v1.2',
-    },
-    {
-      id: '3',
-      category: 'ULTRAcel II',
-      title: 'ULTRAcel II 사용자 매뉴얼',
-      fileName: 'ULTRAcel_II_Manual_KR_v3.1.pdf',
-      fileSize: '18.7 MB',
-      uploadDate: '2026-01-12',
-      version: 'v3.1',
-    },
-    {
-      id: '4',
-      category: 'ULTRAcel II',
-      title: 'ULTRAcel II 트랜스듀서 관리 가이드',
-      fileName: 'ULTRAcel_II_Transducer_Guide_v1.5.pdf',
-      fileSize: '5.8 MB',
-      uploadDate: '2026-01-08',
-      version: 'v1.5',
-    },
-    {
-      id: '5',
-      category: 'LIPOcel II',
-      title: 'LIPOcel II 사용자 매뉴얼',
-      fileName: 'LIPOcel_II_Manual_KR_v2.0.pdf',
-      fileSize: '14.3 MB',
-      uploadDate: '2025-12-28',
-      version: 'v2.0',
-    },
-    {
-      id: '6',
-      category: 'LinearZ',
-      title: 'LinearZ 사용자 매뉴얼',
-      fileName: 'LinearZ_Manual_KR_v1.8.pdf',
-      fileSize: '10.2 MB',
-      uploadDate: '2025-12-20',
-      version: 'v1.8',
-    },
-    {
-      id: '7',
-      category: 'LinearFirm',
-      title: 'LinearFirm 사용자 매뉴얼',
-      fileName: 'LinearFirm_Manual_KR_v2.5.pdf',
-      fileSize: '11.9 MB',
-      uploadDate: '2025-12-15',
-      version: 'v2.5',
-    },
-    {
-      id: '8',
-      category: 'INTRAcel',
-      title: 'INTRAcel 사용자 매뉴얼',
-      fileName: 'INTRAcel_Manual_KR_v3.3.pdf',
-      fileSize: '16.4 MB',
-      uploadDate: '2025-12-10',
-      version: 'v3.3',
-    },
-    {
-      id: '9',
-      category: 'IntraGen',
-      title: 'IntraGen 사용자 매뉴얼',
-      fileName: 'IntraGen_Manual_KR_v1.6.pdf',
-      fileSize: '9.1 MB',
-      uploadDate: '2025-12-05',
-      version: 'v1.6',
-    },
-    {
-      id: '10',
-      category: 'Density',
-      title: 'Density 사용자 매뉴얼',
-      fileName: 'Density_Manual_KR_v2.1.pdf',
-      fileSize: '13.8 MB',
-      uploadDate: '2025-11-28',
-      version: 'v2.1',
-    },
-    {
-      id: '11',
-      category: 'DLiv',
-      title: 'DLiv 사용자 매뉴얼',
-      fileName: 'DLiv_Manual_KR_v1.9.pdf',
-      fileSize: '8.7 MB',
-      uploadDate: '2025-11-22',
-      version: 'v1.9',
-    },
-  ]);
+  useEffect(() => {
+    fetchManuals();
+  }, []);
+
+  const fetchManuals = async () => {
+    try {
+      setIsLoading(true);
+      const data = await postService.getPosts('manual');
+      setManuals(data.filter(m => m.isVisible));
+    } catch (error) {
+      console.error('Failed to fetch manuals:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const categories = [
     '전체',
@@ -131,18 +39,19 @@ export function ManualPage() {
   ];
 
   const filteredManuals = manuals.filter((manual) => {
-    const matchesCategory =
-      selectedCategory === '전체' || manual.category === selectedCategory;
+    // For now, assume category might be in title prefix like [Density] or we just show all.
     const matchesSearch =
       searchQuery === '' ||
-      manual.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      manual.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+      manual.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
 
-  const handleDownload = (manual: Manual) => {
-    // In real app, this would trigger actual PDF download
-    alert(`${manual.fileName} 다운로드를 시작합니다.`);
+  const handleDownload = (manual: Post) => {
+    if (manual.imageUrl) {
+      window.open(manual.imageUrl, '_blank');
+    } else {
+      alert('매뉴얼 파일이 등록되지 않았습니다.');
+    }
   };
 
   return (
@@ -164,7 +73,7 @@ export function ManualPage() {
           placeholder="매뉴얼 검색..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          className="w-full pl-12 pr-4 py-3 border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
         />
       </div>
 
@@ -190,15 +99,16 @@ export function ManualPage() {
         {/* Header */}
         <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-4 border-b border-neutral-200 bg-neutral-50 text-sm font-medium text-neutral-700">
           <div className="col-span-2 text-center">카테고리</div>
-          <div className="col-span-5">제목</div>
-          <div className="col-span-2 text-center">버전</div>
+          <div className="col-span-7">제목</div>
           <div className="col-span-2 text-center">업데이트</div>
           <div className="col-span-1 text-center">다운로드</div>
         </div>
 
         {/* List */}
         <div className="divide-y divide-neutral-200">
-          {filteredManuals.length === 0 ? (
+          {isLoading ? (
+            <div className="py-16 text-center text-neutral-500">로딩 중...</div>
+          ) : filteredManuals.length === 0 ? (
             <div className="py-16 text-center">
               <FileText className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-600">
@@ -214,22 +124,16 @@ export function ManualPage() {
                 <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-neutral-50 transition-colors">
                   <div className="col-span-2 text-center">
                     <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium">
-                      {manual.category}
+                      공통
                     </span>
                   </div>
-                  <div className="col-span-5">
+                  <div className="col-span-7">
                     <p className="text-base text-neutral-900 mb-1">
                       {manual.title}
                     </p>
-                    <p className="text-xs text-neutral-500">
-                      {manual.fileName} ({manual.fileSize})
-                    </p>
                   </div>
                   <div className="col-span-2 text-center text-sm text-neutral-600">
-                    {manual.version}
-                  </div>
-                  <div className="col-span-2 text-center text-sm text-neutral-600">
-                    {manual.uploadDate}
+                    {formatDate(manual.createdAt)}
                   </div>
                   <div className="col-span-1 flex justify-center">
                     <button
@@ -244,21 +148,12 @@ export function ManualPage() {
 
                 {/* Mobile */}
                 <div className="md:hidden px-6 py-4 hover:bg-neutral-50 transition-colors">
-                  <div className="mb-2">
-                    <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium">
-                      {manual.category}
-                    </span>
-                  </div>
                   <p className="text-base text-neutral-900 mb-1">
                     {manual.title}
                   </p>
-                  <p className="text-xs text-neutral-500 mb-3">
-                    {manual.fileName} ({manual.fileSize})
-                  </p>
                   <div className="flex items-center justify-between">
                     <div className="text-xs text-neutral-600">
-                      <span className="mr-3">{manual.version}</span>
-                      <span>{manual.uploadDate}</span>
+                      <span>{formatDate(manual.createdAt)}</span>
                     </div>
                     <button
                       onClick={() => handleDownload(manual)}
