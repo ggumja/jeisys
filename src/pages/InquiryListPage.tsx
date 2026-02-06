@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { MessageCircle, CheckCircle, Clock, Plus } from 'lucide-react';
+import { MessageCircle, CheckCircle, Clock, Plus, Lock } from 'lucide-react';
 import { inquiryService } from '../services/inquiryService';
 import { Inquiry } from '../types';
 import { formatDate } from '../lib/utils';
@@ -17,6 +17,7 @@ export function InquiryListPage() {
     try {
       setIsLoading(true);
       const data = await inquiryService.getInquiries();
+      console.log('Fetched inquiries:', data);
       setInquiries(data);
     } catch (error) {
       console.error('Failed to fetch inquiries:', error);
@@ -87,9 +88,15 @@ export function InquiryListPage() {
                     )}
                   </div>
                   <div className="col-span-7">
-                    <p className="text-base text-neutral-900 hover:text-neutral-600">
-                      {inquiry.title}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded">
+                        {inquiry.type}
+                      </span>
+                      <p className="text-base text-neutral-900 hover:text-neutral-600 flex items-center gap-1">
+                        {inquiry.title}
+                        {inquiry.isSecret && <Lock className="w-3 h-3 text-neutral-400" />}
+                      </p>
+                    </div>
                   </div>
                   <div className="col-span-2 text-center text-sm text-neutral-600">
                     {formatDate(inquiry.createdAt)}
@@ -108,9 +115,15 @@ export function InquiryListPage() {
                       <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
-                      <p className="text-base text-neutral-900 mb-1">
-                        {inquiry.title}
-                      </p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded">
+                          {inquiry.type}
+                        </span>
+                        <p className="text-base text-neutral-900 flex items-center gap-1">
+                          {inquiry.title}
+                          {inquiry.isSecret && <Lock className="w-3 h-3 text-neutral-400" />}
+                        </p>
+                      </div>
                       <p className="text-sm text-neutral-600">
                         등록: {formatDate(inquiry.createdAt)}
                         {inquiry.answeredAt && ` | 답변: ${formatDate(inquiry.answeredAt)}`}

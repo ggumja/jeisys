@@ -11,16 +11,41 @@ export interface InquiryInput {
 
 export const inquiryService = {
   async getInquiries(): Promise<Inquiry[]> {
-    const { data, error } = await supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    let query = supabase
       .from('inquiries')
       .select(`
         *,
         user:users (
           name,
-          hospital_name
+          hospital_name,
+          role,
+          phone,
+          mobile
         )
-      `)
-      .order('created_at', { ascending: false });
+      `);
+
+    // If not admin, only show own inquiries
+    // Note: RLS will also enforce this, but client-side filter is clearer
+    if (user) {
+      // Check if user is admin
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.role !== 'admin') {
+        query = query.eq('user_id', user.id);
+      }
+    } else {
+      // If not logged in, show nothing or only public ones? 
+      // Usually 1:1 requires login.
+      return [];
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching inquiries:', error);
@@ -41,6 +66,8 @@ export const inquiryService = {
       user: item.user ? {
         name: item.user.name,
         hospitalName: item.user.hospital_name,
+        phone: item.user.phone,
+        mobile: item.user.mobile,
       } : null,
     }));
   },
@@ -77,6 +104,8 @@ export const inquiryService = {
       user: data.user ? {
         name: data.user.name,
         hospitalName: data.user.hospital_name,
+        phone: data.user.phone,
+        mobile: data.user.mobile,
       } : null,
     };
   },
@@ -92,15 +121,14 @@ export const inquiryService = {
         user_id: input.user_id,
         status: 'waiting',
       })
-      .select()
-      .single();
+      .select();
 
     if (error) {
       console.error('Error creating inquiry:', error);
       throw error;
     }
 
-    return data;
+    return data ? data[0] : null;
   },
 
   async updateInquiry(id: string, input: Partial<InquiryInput>): Promise<any> {
@@ -108,15 +136,14 @@ export const inquiryService = {
       .from('inquiries')
       .update(input)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
     if (error) {
       console.error('Error updating inquiry:', error);
       throw error;
     }
 
-    return data;
+    return data ? data[0] : null;
   },
 
   async deleteInquiry(id: string): Promise<void> {
@@ -132,12 +159,14 @@ export const inquiryService = {
   },
 
   async answerInquiry(id: string, answerContent: string): Promise<void> {
+    const now = new Date().toISOString();
+    console.log('Setting answered_at to:', now);
     const { error } = await supabase
       .from('inquiries')
       .update({
         answer_content: answerContent,
         status: 'answered',
-        answered_at: new Date().toISOString(),
+        answered_at: now,
       })
       .eq('id', id);
 

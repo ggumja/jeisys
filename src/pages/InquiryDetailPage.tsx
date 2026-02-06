@@ -83,11 +83,17 @@ export function InquiryDetailPage() {
               <Clock className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" />
             )}
             <div className="flex-1">
-              <h1 className="text-2xl tracking-tight text-neutral-900 mb-2 flex items-center gap-2">
-                {inquiry.title}
-                {inquiry.isSecret && <Lock className="w-4 h-4 text-neutral-400" />}
-              </h1>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs px-2 py-0.5 bg-neutral-200 text-neutral-700 rounded">
+                  {inquiry.type}
+                </span>
+                <h1 className="text-2xl tracking-tight text-neutral-900 flex items-center gap-2">
+                  {inquiry.title}
+                  {inquiry.isSecret && <Lock className="w-4 h-4 text-neutral-400" />}
+                </h1>
+              </div>
               <div className="flex flex-wrap gap-4 text-sm text-neutral-600">
+                <span>작성자: {inquiry.user?.name || '익명'} {inquiry.user?.hospitalName && `(${inquiry.user.hospitalName})`}</span>
                 <span>등록일: {formatDate(inquiry.createdAt)}</span>
                 {inquiry.answeredAt && (
                   <span>답변일: {formatDate(inquiry.answeredAt)}</span>

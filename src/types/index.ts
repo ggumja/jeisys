@@ -86,6 +86,8 @@ export interface Inquiry {
   user?: {
     name: string;
     hospitalName?: string | null;
+    phone?: string | null;
+    mobile?: string | null;
   } | null;
 }
 

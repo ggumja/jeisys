@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return '-';
+  if (!dateString || dateString === '') return '-';
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '-';
@@ -17,7 +17,7 @@ export function formatDate(dateString: string | null | undefined): string {
     
     return `${year}-${month}-${day}`;
   } catch (e) {
-    console.error('Error formatting date:', e);
+    console.error('Error formatting date:', e, 'Input:', dateString);
     return '-';
   }
 }

@@ -67,13 +67,18 @@ export function InquiryManagementPage() {
 
     try {
       setIsSubmitting(true);
+      console.log('Answering inquiry:', selectedInquiry.id, 'with content:', answerContent);
       await inquiryService.answerInquiry(selectedInquiry.id, answerContent);
+      
+      // Add a small delay to ensure DB propagation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await fetchInquiries(); // Refresh list
       handleCloseModal();
-      alert('답변이 등록되었습니다.');
+      alert('답변이 성공적으로 등록되었습니다.');
     } catch (error) {
       console.error('Failed to submit answer:', error);
-      alert('답변 등록 중 오류가 발생했습니다.');
+      alert('답변 등록 중 오류가 발생했습니다. 권한 설정(RLS)을 확인해 주세요.');
     } finally {
       setIsSubmitting(false);
     }
@@ -101,22 +106,19 @@ export function InquiryManagementPage() {
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-full">
                   제목
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                   고객정보
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  카테고리
+                <th className="px-6 py-4 text-center text-xs font-medium text-neutral-700 uppercase tracking-wider whitespace-nowrap">
+                  등록일 / 답변일
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                  등록일
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                   상태
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider whitespace-nowrap">
                   관리
                 </th>
               </tr>
@@ -133,23 +135,24 @@ export function InquiryManagementPage() {
               ) : (
                 filteredInquiries.map((inquiry) => (
                   <tr key={inquiry.id} className="hover:bg-neutral-50">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-neutral-900 flex items-center gap-1.5">
+                    <td className="px-6 py-4 min-w-[300px]">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[9px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded-sm leading-none border border-neutral-200">
+                          {inquiry.type}
+                        </span>
+                        {inquiry.isSecret && <Lock className="w-3 h-3 text-neutral-400 flex-shrink-0" />}
+                      </div>
+                      <div className="text-sm font-medium text-neutral-900">
                         {inquiry.title}
-                        {inquiry.isSecret && <Lock className="w-3 h-3 text-neutral-400" />}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-neutral-900">{inquiry.user?.name || '익명'}</div>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-neutral-900">{inquiry.user?.name || '익명'}</div>
                       <div className="text-xs text-neutral-500">{inquiry.user?.hospitalName || '-'}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex px-3 py-1 bg-neutral-100 text-neutral-800 text-xs font-medium">
-                        {inquiry.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-700">
-                      {formatDate(inquiry.createdAt)}
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <div className="text-xs text-neutral-600 font-medium">{formatDate(inquiry.createdAt)}</div>
+                      <div className="text-xs text-neutral-400 mt-1">{inquiry.answeredAt ? formatDate(inquiry.answeredAt) : '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(inquiry.status)}
@@ -218,6 +221,10 @@ export function InquiryManagementPage() {
                   작성자: {selectedInquiry.user?.name || '익명'} | {selectedInquiry.user?.hospitalName || '정보없음'}
                 </div>
                 <div className="text-neutral-800 whitespace-pre-wrap leading-relaxed text-sm bg-neutral-50 p-4 border border-neutral-100 italic">
+                  <div className="mb-3 pb-3 border-b border-neutral-200/50 not-italic flex gap-4 text-xs text-neutral-500">
+                    <span className="flex items-center gap-1">📱 휴대폰: {selectedInquiry.user?.mobile || '-'}</span>
+                    <span className="flex items-center gap-1">📞 전화번호: {selectedInquiry.user?.phone || '-'}</span>
+                  </div>
                   {selectedInquiry.content}
                 </div>
               </div>
