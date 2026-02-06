@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Youtube, Instagram, FileText, Facebook, ExternalLink } from 'lucide-react';
+import { Youtube, Instagram, FileText, Facebook, ExternalLink, Video } from 'lucide-react';
 import { postService, Post } from '../services/postService';
 import { formatDate } from '../lib/utils';
 
@@ -35,9 +35,9 @@ export function MediaPage() {
   const filteredPosts =
     selectedPlatform === 'all'
       ? mediaPosts
-      : mediaPosts.filter((post) => post.imageUrl?.includes(selectedPlatform)); 
-      // Note: Assuming platform might be part of image/link or metadata. 
-      // For now, I'll just map them.
+      : mediaPosts.filter((post) => post.imageUrl?.includes(selectedPlatform));
+  // Note: Assuming platform might be part of image/link or metadata. 
+  // For now, I'll just map them.
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -87,11 +87,10 @@ export function MediaPage() {
             <button
               key={platform.id}
               onClick={() => setSelectedPlatform(platform.id)}
-              className={`flex items-center gap-2 px-5 py-3 border transition-colors ${
-                selectedPlatform === platform.id
+              className={`flex items-center gap-2 px-5 py-3 border transition-colors ${selectedPlatform === platform.id
                   ? 'border-neutral-900 bg-neutral-900 text-white'
                   : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
-              }`}
+                }`}
             >
               {platform.icon && <platform.icon className="w-4 h-4" />}
               <span className="text-sm font-medium">{platform.label}</span>
@@ -159,7 +158,7 @@ export function MediaPage() {
               </div>
             </a>
           )
-        ))}
+          ))}
       </div>
 
       {/* Social Links */}

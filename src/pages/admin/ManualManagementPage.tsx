@@ -101,7 +101,7 @@ export function ManualManagementPage() {
         <h3 className="text-xl tracking-tight text-neutral-900">
           메뉴얼 관리
         </h3>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
         >
@@ -225,7 +225,7 @@ export function ManualManagementPage() {
                     type="text"
                     value={formData.image_url}
                     onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    className="w-full pl-9 pr-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm"
+                    className="w-full pl-12 pr-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm"
                     placeholder="https://..."
                   />
                 </div>

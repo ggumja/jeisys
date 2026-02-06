@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, Eye, EyeOff, X, Save, Link as LinkIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, Eye, EyeOff, X, Save, Link as LinkIcon, Youtube, Instagram, FileText, Facebook, ExternalLink } from 'lucide-react';
 import { postService, Post } from '../../services/postService';
 import { formatDate } from '../../lib/utils';
+
+const platforms = [
+  { id: 'youtube', label: 'YouTube', icon: Youtube },
+  { id: 'instagram', label: 'Instagram', icon: Instagram },
+  { id: 'blog', label: 'Blog', icon: FileText },
+  { id: 'facebook', label: 'Facebook', icon: Facebook },
+];
 
 export function MediaManagementPage() {
   const [mediaList, setMediaList] = useState<Post[]>([]);
@@ -14,6 +21,7 @@ export function MediaManagementPage() {
     title: '',
     image_url: '',
     isVisible: true,
+    platform: 'youtube', // Default
   });
 
   useEffect(() => {
@@ -39,6 +47,7 @@ export function MediaManagementPage() {
         title: media.title,
         image_url: media.imageUrl || '',
         isVisible: media.isVisible,
+        platform: media.platform || 'youtube',
       });
     } else {
       setEditingMedia(null);
@@ -46,6 +55,7 @@ export function MediaManagementPage() {
         title: '',
         image_url: '',
         isVisible: true,
+        platform: 'youtube',
       });
     }
     setIsModalOpen(true);
@@ -64,6 +74,7 @@ export function MediaManagementPage() {
           title: formData.title,
           image_url: formData.image_url,
           isVisible: formData.isVisible,
+          platform: formData.platform,
         });
       } else {
         await postService.createPost({
@@ -71,6 +82,7 @@ export function MediaManagementPage() {
           title: formData.title,
           image_url: formData.image_url,
           isVisible: formData.isVisible,
+          platform: formData.platform,
         });
       }
       fetchMedia();
@@ -90,13 +102,21 @@ export function MediaManagementPage() {
       console.error('Failed to delete media:', error);
     }
   };
+
+  const getPlatformIcon = (platformId: string) => {
+    const platform = platforms.find(p => p.id === platformId);
+    if (!platform) return <ExternalLink className="w-4 h-4 text-neutral-400" />;
+    const Icon = platform.icon;
+    return <Icon className="w-4 h-4" />;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-xl tracking-tight text-neutral-900">
           제이시스 미디어 관리
         </h3>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
         >
@@ -110,6 +130,9 @@ export function MediaManagementPage() {
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                  분류
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
                   제목
                 </th>
@@ -129,12 +152,18 @@ export function MediaManagementPage() {
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {isLoading ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-neutral-500 text-sm">로딩 중...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-neutral-500 text-sm">로딩 중...</td></tr>
               ) : mediaList.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-neutral-500 text-sm">등록된 미디어가 없습니다.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-neutral-500 text-sm">등록된 미디어가 없습니다.</td></tr>
               ) : (
                 mediaList.map((media) => (
                   <tr key={media.id} className="hover:bg-neutral-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2 text-neutral-600">
+                        {getPlatformIcon(media.platform || 'youtube')}
+                        <span className="text-sm capitalize">{media.platform || 'youtube'}</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-neutral-100 rounded flex items-center justify-center overflow-hidden">
@@ -156,23 +185,22 @@ export function MediaManagementPage() {
                       {media.viewCount}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium ${
-                        media.isVisible
+                      <span className={`inline-flex px-3 py-1 text-xs font-medium ${media.isVisible
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
-                      }`}>
+                        }`}>
                         {media.isVisible ? '게시중' : '비공개'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenModal(media)}
                           className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(media.id)}
                           className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors"
                         >
@@ -219,6 +247,18 @@ export function MediaManagementPage() {
             </div>
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
               <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">미디어 종류</label>
+                <select
+                  value={formData.platform}
+                  onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
+                  className="w-full px-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm bg-white"
+                >
+                  {platforms.map(p => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">미디어 제목</label>
                 <input
                   type="text"
@@ -236,7 +276,7 @@ export function MediaManagementPage() {
                     type="text"
                     value={formData.image_url}
                     onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                    className="w-full pl-9 pr-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm"
+                    className="w-full pl-12 pr-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm"
                     placeholder="https://..."
                   />
                 </div>
