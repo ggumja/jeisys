@@ -11,6 +11,8 @@ export interface Post {
   isVisible: boolean;
   imageUrl: string | null;
   createdAt: string;
+  category?: string;
+  platform?: string;
 }
 
 export interface PostInput {
@@ -19,6 +21,8 @@ export interface PostInput {
   content?: string;
   isVisible?: boolean;
   image_url?: string;
+  category?: string;
+  platform?: string;
 }
 
 export const postService = {
@@ -111,7 +115,7 @@ export const postService = {
     if (input.content !== undefined) updateData.content = input.content;
     if (input.isVisible !== undefined) updateData.is_visible = input.isVisible;
     if (input.imageUrl !== undefined) updateData.image_url = input.imageUrl;
-    
+
     // category and platform might not exist yet if schema update wasn't run
     if (input.category !== undefined) updateData.category = input.category;
     if (input.platform !== undefined) updateData.platform = input.platform;
@@ -153,5 +157,86 @@ export const postService = {
         await supabase.from('posts').update({ view_count: (post.view_count || 0) + 1 }).eq('id', id);
       }
     }
+  }
+};
+
+export interface FaqCategory {
+  id: string;
+  label: string;
+  displayOrder: number;
+}
+
+export const faqCategoryService = {
+  async getCategories(): Promise<FaqCategory[]> {
+    const { data, error } = await supabase
+      .from('faq_categories')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching FAQ categories:', error);
+      return [];
+    }
+
+    return data.map((item: any) => ({
+      id: item.id,
+      label: item.label,
+      displayOrder: item.display_order,
+    }));
+  },
+
+  async createCategory(id: string, label: string): Promise<FaqCategory | null> {
+    // Get max order
+    const { data: maxOrderData } = await supabase
+      .from('faq_categories')
+      .select('display_order')
+      .order('display_order', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextOrder = (maxOrderData?.display_order || 0) + 1;
+
+    const { data, error } = await supabase
+      .from('faq_categories')
+      .insert({
+        id,
+        label,
+        display_order: nextOrder
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating FAQ category:', error);
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      label: data.label,
+      displayOrder: data.display_order
+    };
+  },
+
+  async updateCategory(id: string, updates: Partial<FaqCategory>): Promise<void> {
+    const dbUpdates: any = {};
+    if (updates.label !== undefined) dbUpdates.label = updates.label;
+    if (updates.displayOrder !== undefined) dbUpdates.display_order = updates.displayOrder;
+
+    const { error } = await supabase
+      .from('faq_categories')
+      .update(dbUpdates)
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  async deleteCategory(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('faq_categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 };
