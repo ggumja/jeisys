@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, List } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -57,7 +57,7 @@ export function AdminLayout() {
   ];
 
   const adsSubMenus = [
-    { to: '/admin/ads', icon: List, label: '광고 목록' },
+    { to: '/admin/ads', icon: LayoutList, label: '광고 목록' },
     { to: '/admin/ads/stats', icon: BarChart3, label: '노출/클릭 통계' },
   ];
 

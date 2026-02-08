@@ -229,7 +229,7 @@ export function AdManagementPage() {
                     <div className="px-6 py-4 border-b border-neutral-200">
                         <h4 className="font-medium text-neutral-900">지면별 성과 요약</h4>
                     </div>
-                    <div className="overflow-x_auto">
+                    <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead className="bg-neutral-50 border-b border-neutral-200">
                                 <tr>
