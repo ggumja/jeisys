@@ -8,10 +8,7 @@ import {
   mockPurchaseHistory,
 } from "../lib/mockData";
 import heroBackground from "@/assets/ad843824065901ed0a4fc63f6a56c44c7c4ad85d.png";
-import bannerImage1 from "@/assets/64532cd4dc417352b5d7e0c9ba765b439636e04f.png";
-import bannerImage2 from "@/assets/0b54070218d9e3fce2c717fa5151d3a1cd8da40e.png";
-import bannerImage3 from "@/assets/7e526b8f5a164c84b13d3608733c8a229ef8f255.png";
-import popupBannerImage from "@/assets/efe1d8d44ac9022d8e466d2dcc2cf0cfe1631c97.png";
+import { adService, Ad } from "../services/adService";
 
 export function HomePage() {
   const user = storage.getUser();
@@ -19,6 +16,8 @@ export function HomePage() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [activeBanners, setActiveBanners] = useState<Ad[]>([]);
+  const [activePopup, setActivePopup] = useState<Ad | null>(null);
 
   const recommendedProducts = mockProducts
     .filter((p) =>
@@ -28,39 +27,61 @@ export function HomePage() {
     )
     .slice(0, 4);
 
-  const bannerSlides = [
-    { id: 1, image: bannerImage1, alt: "DENSITY HIGH 배너" },
-    { id: 2, image: bannerImage2, alt: "LINEARZ 배너" },
-    { id: 3, image: bannerImage3, alt: "POTENZA 배너" },
-  ];
-
-  // Check popup visibility on mount
+  // Fetch active ads
   useEffect(() => {
-    const hidePopup = localStorage.getItem('hideHomePopup');
-    if (!hidePopup) {
-      setShowPopup(true);
-    }
+    const fetchAds = async () => {
+      try {
+        const banners = await adService.getActiveAds('main_banner');
+        console.log('Fetched Main Banners:', banners);
+        setActiveBanners(banners);
+
+        const popups = await adService.getActiveAds('popup');
+        console.log('Fetched Popups:', popups);
+        if (popups.length > 0) {
+          const hidePopup = localStorage.getItem(`hideHomePopup_${popups[0].id}`);
+          if (!hidePopup) {
+            setActivePopup(popups[0]);
+            setShowPopup(true);
+            adService.trackEvent(popups[0].id, 'impression');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch home ads:', error);
+      }
+    };
+    fetchAds();
   }, []);
 
+  // Track banner impression
   useEffect(() => {
-    const timer = setInterval(() => {
-      handleNextSlide();
-    }, 5000);
+    if (activeBanners.length > 0) {
+      const currentAd = activeBanners[currentSlide];
+      if (currentAd) {
+        adService.trackEvent(currentAd.id, 'impression');
+      }
+    }
+  }, [currentSlide, activeBanners]);
 
-    return () => clearInterval(timer);
-  }, [currentSlide]);
+  useEffect(() => {
+    if (activeBanners.length > 0) {
+      const timer = setInterval(() => {
+        handleNextSlide();
+      }, 5000);
+      return () => clearInterval(timer);
+    }
+  }, [currentSlide, activeBanners.length]);
 
   const handleNextSlide = () => {
-    if (isTransitioning) return;
+    if (isTransitioning || activeBanners.length <= 1) return;
     setIsTransitioning(true);
-    setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
+    setCurrentSlide((prev) => (prev + 1) % activeBanners.length);
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
   const handlePrevSlide = () => {
-    if (isTransitioning) return;
+    if (isTransitioning || activeBanners.length <= 1) return;
     setIsTransitioning(true);
-    setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length);
+    setCurrentSlide((prev) => (prev - 1 + activeBanners.length) % activeBanners.length);
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
@@ -71,65 +92,85 @@ export function HomePage() {
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
+  const handleAdClick = (ad: Ad) => {
+    adService.trackEvent(ad.id, 'click');
+  };
+
   const handlePopupClose = () => {
     setShowPopup(false);
-    if (dontShowAgain) {
-      localStorage.setItem('hideHomePopup', 'true');
+    if (dontShowAgain && activePopup) {
+      localStorage.setItem(`hideHomePopup_${activePopup.id}`, 'true');
     }
   };
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       {/* Banner Carousel */}
-      <div className="mb-12 rounded-sm overflow-hidden">
-        <div className="relative bg-neutral-300">
-          <div className="relative overflow-hidden aspect-[2.8/1]">
-            <div
-              className="flex transition-transform duration-500 ease-in-out h-full"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-            >
-              {bannerSlides.map((slide, index) => (
-                <div key={slide.id} className="min-w-full h-full flex-shrink-0 relative">
-                  <img
-                    src={slide.image}
-                    alt={slide.alt}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ))}
+      {activeBanners.length > 0 && (
+        <div className="mb-12 rounded-sm overflow-hidden">
+          <div className="relative bg-neutral-300">
+            <div className="relative overflow-hidden aspect-[2.8/1]">
+              <div
+                className="flex transition-transform duration-500 ease-in-out h-full"
+                style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+              >
+                {activeBanners.map((ad, index) => (
+                  <a
+                    key={ad.id}
+                    href={ad.linkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => handleAdClick(ad)}
+                    className="min-w-full h-full flex-shrink-0 relative"
+                  >
+                    <picture>
+                      <source media="(max-width: 768px)" srcSet={ad.imageMobileUrl || ad.imagePcUrl || ''} />
+                      <img
+                        src={ad.imagePcUrl || ''}
+                        alt={ad.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </picture>
+                  </a>
+                ))}
+              </div>
             </div>
-          </div>
-          <button
-            onClick={handlePrevSlide}
-            disabled={isTransitioning}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-50"
-          >
-            <ChevronLeft className="w-6 h-6 text-neutral-900" />
-          </button>
-          <button
-            onClick={handleNextSlide}
-            disabled={isTransitioning}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-50"
-          >
-            <ChevronRight className="w-6 h-6 text-neutral-900" />
-          </button>
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
-            <ul className="flex items-center justify-center gap-2">
-              {bannerSlides.map((slide, index) => (
-                <li key={slide.id}>
-                  <button
-                    onClick={() => goToSlide(index)}
-                    disabled={isTransitioning}
-                    className={`w-2 h-2 rounded-full transition-all ${index === currentSlide ? "bg-white w-6" : "bg-white/50 hover:bg-white/80"
-                      }`}
-                    aria-label={`배너 ${index + 1}로 이동`}
-                  />
-                </li>
-              ))}
-            </ul>
+            {activeBanners.length > 1 && (
+              <>
+                <button
+                  onClick={handlePrevSlide}
+                  disabled={isTransitioning}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-6 h-6 text-neutral-900" />
+                </button>
+                <button
+                  onClick={handleNextSlide}
+                  disabled={isTransitioning}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all shadow-lg disabled:opacity-50"
+                >
+                  <ChevronRight className="w-6 h-6 text-neutral-900" />
+                </button>
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center z-10">
+                  <ul className="flex items-center justify-center gap-2">
+                    {activeBanners.map((ad, index) => (
+                      <li key={ad.id}>
+                        <button
+                          onClick={() => goToSlide(index)}
+                          disabled={isTransitioning}
+                          className={`w-2 h-2 rounded-full transition-all ${index === currentSlide ? "bg-white w-6" : "bg-white/50 hover:bg-white/80"
+                            }`}
+                          aria-label={`배너 ${index + 1}로 이동`}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Hero Section */}
       <div
@@ -262,7 +303,7 @@ export function HomePage() {
       </div>
 
       {/* Popup Banner */}
-      {showPopup && (
+      {showPopup && activePopup && (
         <div className="fixed top-0 left-0 right-0 bottom-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-sm max-w-[500px] w-full relative flex flex-col" style={{ maxHeight: '90vh' }}>
             <button
@@ -272,11 +313,18 @@ export function HomePage() {
               <X className="w-5 h-5" />
             </button>
             <div className="overflow-hidden" style={{ maxHeight: 'calc(90vh - 88px)' }}>
-              <img
-                src={popupBannerImage}
-                alt="팝업 배너"
-                className="w-full h-full object-contain"
-              />
+              <a
+                href={activePopup.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => handleAdClick(activePopup)}
+              >
+                <img
+                  src={activePopup.imagePcUrl || ''}
+                  alt={activePopup.title}
+                  className="w-full h-full object-contain"
+                />
+              </a>
             </div>
             <div className="p-6 flex items-center justify-between border-t border-neutral-200 flex-shrink-0">
               <label className="flex items-center cursor-pointer">

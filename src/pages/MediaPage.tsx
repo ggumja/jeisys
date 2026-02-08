@@ -35,9 +35,7 @@ export function MediaPage() {
   const filteredPosts =
     selectedPlatform === 'all'
       ? mediaPosts
-      : mediaPosts.filter((post) => post.imageUrl?.includes(selectedPlatform));
-  // Note: Assuming platform might be part of image/link or metadata. 
-  // For now, I'll just map them.
+      : mediaPosts.filter((post) => (post.platform || 'youtube') === selectedPlatform);
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -88,8 +86,8 @@ export function MediaPage() {
               key={platform.id}
               onClick={() => setSelectedPlatform(platform.id)}
               className={`flex items-center gap-2 px-5 py-3 border transition-colors ${selectedPlatform === platform.id
-                  ? 'border-neutral-900 bg-neutral-900 text-white'
-                  : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
+                ? 'border-neutral-900 bg-neutral-900 text-white'
+                : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
                 }`}
             >
               {platform.icon && <platform.icon className="w-4 h-4" />}
@@ -133,12 +131,12 @@ export function MediaPage() {
                 )}
                 <div
                   className={`absolute top-4 left-4 px-3 py-1 rounded-full flex items-center gap-2 ${getPlatformColor(
-                    'youtube'
+                    post.platform || 'youtube'
                   )}`}
                 >
-                  {getPlatformIcon('youtube')}
+                  {getPlatformIcon(post.platform || 'youtube')}
                   <span className="text-xs font-medium capitalize">
-                    Media
+                    {post.platform || 'Media'}
                   </span>
                 </div>
               </div>

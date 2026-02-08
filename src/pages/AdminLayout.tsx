@@ -1,9 +1,8 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, List } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
-import { BASE_PATH } from '../constants/paths';
 
 export function AdminLayout() {
   const location = useLocation();
@@ -11,6 +10,7 @@ export function AdminLayout() {
   const [isCommunicationOpen, setIsCommunicationOpen] = useState(false);
   const [isStatisticsOpen, setIsStatisticsOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const [isAdsOpen, setIsAdsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Check admin permission
@@ -56,6 +56,11 @@ export function AdminLayout() {
     { to: '/admin/communication/media', icon: Video, label: '제이시스 미디어' },
   ];
 
+  const adsSubMenus = [
+    { to: '/admin/ads', icon: List, label: '광고 목록' },
+    { to: '/admin/ads/stats', icon: BarChart3, label: '노출/클릭 통계' },
+  ];
+
   const bottomMenuItems = [
     { to: '/admin/products', icon: Package, label: '상품관리' },
     { to: '/admin/sales-offices', icon: Building2, label: '판매영업점 관리' },
@@ -67,6 +72,7 @@ export function AdminLayout() {
   const isOrdersActive = location.pathname.startsWith('/admin/orders') || location.pathname.startsWith('/admin/order-history');
   const isCommunicationActive = location.pathname.startsWith('/admin/communication');
   const isStatisticsActive = location.pathname.startsWith('/admin/statistics');
+  const isAdsActive = location.pathname.startsWith('/admin/ads');
 
   // Auto-expand menus if active
   useEffect(() => {
@@ -79,7 +85,10 @@ export function AdminLayout() {
     if (isStatisticsActive) {
       setIsStatisticsOpen(true);
     }
-  }, [isOrdersActive, isCommunicationActive, isStatisticsActive]);
+    if (isAdsActive) {
+      setIsAdsOpen(true);
+    }
+  }, [isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive]);
 
   // Redirect to dashboard if at base admin path
   useEffect(() => {
@@ -277,6 +286,47 @@ export function AdminLayout() {
                   {isStatisticsOpen && (
                     <div className="bg-white">
                       {statisticsSubMenus.map((item) => {
+                        const isActive = location.pathname === item.to;
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive
+                              ? 'bg-neutral-900 text-white'
+                              : 'text-neutral-600 hover:bg-neutral-50'
+                              }`}
+                          >
+                            <item.icon className="w-4 h-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Ads Menu - Accordion */}
+                <div>
+                  <button
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isAdsActive
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                      }`}
+                    onClick={() => setIsAdsOpen(!isAdsOpen)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Megaphone className="w-5 h-5" />
+                      <span>광고/배너 관리</span>
+                    </div>
+                    {isAdsOpen ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  {isAdsOpen && (
+                    <div className="bg-white">
+                      {adsSubMenus.map((item) => {
                         const isActive = location.pathname === item.to;
                         return (
                           <Link
