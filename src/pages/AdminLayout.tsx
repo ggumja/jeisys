@@ -58,7 +58,7 @@ export function AdminLayout() {
 
   const adsSubMenus = [
     { to: '/admin/ads', icon: LayoutList, label: '광고 목록' },
-    { to: '/admin/ads/stats', icon: BarChart3, label: '노출/클릭 통계' },
+    { to: '/admin/adstats', icon: BarChart3, label: '노출/클릭 통계' },
   ];
 
   const bottomMenuItems = [

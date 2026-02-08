@@ -46,7 +46,7 @@ BEGIN
     DO UPDATE SET clicks = ad_stats.clicks + 1;
   END IF;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 함수 실행 권한 추가 (프론트엔드 통계 수집용)
 GRANT EXECUTE ON FUNCTION track_ad_event(UUID, TEXT) TO anon;

@@ -124,7 +124,7 @@ export const adService = {
     async getStats(startDate: string, endDate: string, adId?: string): Promise<AdStats[]> {
         let query = supabase
             .from('ad_stats')
-            .select('*, ads(title, placement)')
+            .select('*, ads(title, placement, is_active)')
             .gte('stat_date', startDate)
             .lte('stat_date', endDate)
             .order('stat_date', { ascending: true });
@@ -144,6 +144,7 @@ export const adService = {
             ctr: item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0,
             adTitle: item.ads?.title,
             adPlacement: item.ads?.placement,
+            isActive: item.ads?.is_active ?? false,
         }));
     },
 

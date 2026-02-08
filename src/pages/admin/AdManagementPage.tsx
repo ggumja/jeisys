@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router';
 import { Plus, Edit, Trash2, X, Save, Link as LinkIcon, Megaphone, Layout, Mail, Maximize, Sidebar, Upload, Loader2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { adService, Ad, AdPlacement } from '../../services/adService';
 import { formatDate } from '../../lib/utils';
 
@@ -19,7 +19,12 @@ export function AdManagementPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [selectedPlacement, setSelectedPlacement] = useState<AdPlacement | 'all'>('all');
 
-    const viewMode = location.pathname.endsWith('/stats') ? 'stats' : 'list';
+    const viewMode = location.pathname.includes('adstats') ? 'stats' : 'list';
+
+    // Date range state for statistics
+    const [dateRange, setDateRange] = useState<'7days' | '30days' | '90days' | 'custom'>('7days');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
 
     const [rawStats, setRawStats] = useState<any[]>([]);
     const [statsData, setStatsData] = useState<any[]>([]);
@@ -48,7 +53,7 @@ export function AdManagementPage() {
         } else {
             fetchStats();
         }
-    }, [selectedPlacement, viewMode]);
+    }, [selectedPlacement, viewMode, dateRange, customStartDate, customEndDate]);
 
     const fetchAds = async () => {
         try {
@@ -65,8 +70,18 @@ export function AdManagementPage() {
     const fetchStats = async () => {
         try {
             setIsLoading(true);
-            const endDate = new Date().toISOString().split('T')[0];
-            const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            let startDate: string;
+            let endDate: string = new Date().toISOString().split('T')[0];
+
+            if (dateRange === 'custom') {
+                startDate = customStartDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                endDate = customEndDate || endDate;
+            } else {
+                const days = dateRange === '7days' ? 7 : dateRange === '30days' ? 30 : 90;
+                startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            }
+
             const data = await adService.getStats(startDate, endDate);
             setRawStats(data);
 
@@ -79,7 +94,13 @@ export function AdManagementPage() {
                 return acc;
             }, {});
 
-            setStatsData(Object.values(grouped));
+            const chartData = Object.values(grouped)
+                .sort((a: any, b: any) => a.date.localeCompare(b.date))
+                .map((item: any) => ({
+                    ...item,
+                    date: new Date(item.date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })
+                }));
+            setStatsData(chartData);
         } catch (error) {
             console.error('Failed to fetch stats:', error);
         } finally {
@@ -185,16 +206,88 @@ export function AdManagementPage() {
         const totalClicks = statsData.reduce((sum, d) => sum + d.clicks, 0);
         const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
+        const getDaysLabel = () => {
+            if (dateRange === 'custom') return '사용자 지정';
+            return dateRange === '7days' ? '7일' : dateRange === '30days' ? '30일' : '90일';
+        };
+
         return (
             <div className="space-y-8 animate-in fade-in duration-500">
+                {/* Date Range Selector */}
+                <div className="bg-white p-6 border border-neutral-200">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <h4 className="font-medium text-neutral-900">조회 기간</h4>
+                        <div className="flex flex-col md:flex-row gap-4">
+                            {/* Preset Buttons */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setDateRange('7days')}
+                                    className={`px-4 py-2 text-sm font-medium rounded transition-colors ${dateRange === '7days'
+                                        ? 'bg-[#1e3a8a] text-white'
+                                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                        }`}
+                                >
+                                    최근 7일
+                                </button>
+                                <button
+                                    onClick={() => setDateRange('30days')}
+                                    className={`px-4 py-2 text-sm font-medium rounded transition-colors ${dateRange === '30days'
+                                        ? 'bg-[#1e3a8a] text-white'
+                                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                        }`}
+                                >
+                                    최근 30일
+                                </button>
+                                <button
+                                    onClick={() => setDateRange('90days')}
+                                    className={`px-4 py-2 text-sm font-medium rounded transition-colors ${dateRange === '90days'
+                                        ? 'bg-[#1e3a8a] text-white'
+                                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                        }`}
+                                >
+                                    최근 90일
+                                </button>
+                                <button
+                                    onClick={() => setDateRange('custom')}
+                                    className={`px-4 py-2 text-sm font-medium rounded transition-colors ${dateRange === 'custom'
+                                        ? 'bg-[#1e3a8a] text-white'
+                                        : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+                                        }`}
+                                >
+                                    사용자 지정
+                                </button>
+                            </div>
+
+                            {/* Custom Date Inputs */}
+                            {dateRange === 'custom' && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="date"
+                                        value={customStartDate}
+                                        onChange={(e) => setCustomStartDate(e.target.value)}
+                                        className="px-3 py-2 text-sm border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+                                    />
+                                    <span className="text-neutral-500">~</span>
+                                    <input
+                                        type="date"
+                                        value={customEndDate}
+                                        onChange={(e) => setCustomEndDate(e.target.value)}
+                                        className="px-3 py-2 text-sm border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 border border-neutral-200">
-                        <div className="text-sm text-neutral-500 mb-1">총 노출수 (7일)</div>
+                        <div className="text-sm text-neutral-500 mb-1">총 노출수 ({getDaysLabel()})</div>
                         <div className="text-3xl font-bold text-neutral-900">{totalImpressions.toLocaleString()}</div>
                     </div>
                     <div className="bg-white p-6 border border-neutral-200">
-                        <div className="text-sm text-neutral-500 mb-1">총 클릭수 (7일)</div>
+                        <div className="text-sm text-neutral-500 mb-1">총 클릭수 ({getDaysLabel()})</div>
                         <div className="text-3xl font-bold text-neutral-900">{totalClicks.toLocaleString()}</div>
                     </div>
                     <div className="bg-white p-6 border border-neutral-200">
@@ -206,22 +299,28 @@ export function AdManagementPage() {
                 {/* Chart Area */}
                 <div className="bg-white p-8 border border-neutral-200">
                     <h4 className="text-lg font-medium text-neutral-900 mb-8">일별 노출 및 클릭 추이</h4>
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={statsData}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="date" fontSize={12} tickMargin={10} />
-                                <YAxis fontSize={12} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5' }}
-                                    itemStyle={{ fontSize: '12px' }}
-                                />
-                                <Legend />
-                                <Bar dataKey="impressions" name="노출수" fill="#e5e5e5" radius={[4, 4, 0, 0]} />
-                                <Bar dataKey="clicks" name="클릭수" fill="#1e3a8a" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+                    {statsData.length > 0 ? (
+                        <div className="h-[400px] w-full overflow-x-auto">
+                            <div style={{ minWidth: '600px', width: '100%', height: '400px' }}>
+                                <LineChart width={1000} height={400} data={statsData}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="date" fontSize={12} tickMargin={10} />
+                                    <YAxis fontSize={12} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5' }}
+                                        itemStyle={{ fontSize: '12px' }}
+                                    />
+                                    <Legend />
+                                    <Line type="monotone" dataKey="impressions" name="노출수" stroke="#60a5fa" strokeWidth={2} />
+                                    <Line type="monotone" dataKey="clicks" name="클릭수" stroke="#1e3a8a" strokeWidth={2} />
+                                </LineChart>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-[400px] w-full flex items-center justify-center text-neutral-500">
+                            데이터가 없습니다.
+                        </div>
+                    )}
                 </div>
 
                 {/* Placement Summary */}
@@ -255,6 +354,88 @@ export function AdManagementPage() {
                                         </tr>
                                     );
                                 })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* Individual Ad Statistics */}
+                <div className="bg-white border border-neutral-200">
+                    <div className="px-6 py-4 border-b border-neutral-200">
+                        <h4 className="font-medium text-neutral-900">개별 광고 성과</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-neutral-50 border-b border-neutral-200">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">광고 제목</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">지면</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">상태</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase">노출수</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase">클릭수</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-neutral-500 uppercase">클릭률 (CTR)</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-200">
+                                {rawStats.length > 0 ? (
+                                    // Group stats by ad_id
+                                    Object.entries(
+                                        rawStats.reduce((acc, stat) => {
+                                            if (!acc[stat.adId]) {
+                                                acc[stat.adId] = {
+                                                    adId: stat.adId,
+                                                    adTitle: stat.adTitle,
+                                                    adPlacement: stat.adPlacement,
+                                                    isActive: stat.isActive,
+                                                    impressions: 0,
+                                                    clicks: 0,
+                                                };
+                                            }
+                                            acc[stat.adId].impressions += stat.impressions;
+                                            acc[stat.adId].clicks += stat.clicks;
+                                            return acc;
+                                        }, {} as Record<string, { adId: string; adTitle: string; adPlacement: string; isActive: boolean; impressions: number; clicks: number; }>)
+                                    )
+                                        .sort(([, a], [, b]) => (b as any).impressions - (a as any).impressions) // Sort by impressions desc
+                                        .map(([adId, adStat]: [string, any]) => {
+                                            const ctr = adStat.impressions > 0 ? (adStat.clicks / adStat.impressions) * 100 : 0;
+                                            const placement = placements.find(p => p.id === adStat.adPlacement);
+
+                                            return (
+                                                <tr key={adId}>
+                                                    <td className="px-6 py-4 text-sm text-neutral-900 font-medium">
+                                                        {adStat.adTitle}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-600">
+                                                        {placement?.label || adStat.adPlacement}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm">
+                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${adStat.isActive
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-gray-100 text-gray-800'
+                                                            }`}>
+                                                            {adStat.isActive ? '활성' : '비활성'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-600 text-right">
+                                                        {adStat.impressions.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-600 text-right">
+                                                        {adStat.clicks.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-neutral-600 text-right font-medium">
+                                                        {ctr.toFixed(2)}%
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-neutral-500">
+                                            통계 데이터가 없습니다.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
