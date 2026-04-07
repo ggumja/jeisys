@@ -17,6 +17,7 @@ interface PackageFormData {
   stock: string;
   status: 'active' | 'inactive';
   selectableCount: string;
+  itemInputType: 'select' | 'input';
   creditAvailable: boolean;
   description: string;
 }
@@ -43,6 +44,7 @@ export function PackageRegisterPage() {
     stock: '',
     status: 'active',
     selectableCount: '1',
+    itemInputType: 'select',
     creditAvailable: true,
     description: '',
   });
@@ -77,6 +79,7 @@ export function PackageRegisterPage() {
         stock: existingProduct.stock.toString(),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
         selectableCount: existingProduct.selectableCount?.toString() || '1',
+        itemInputType: existingProduct.itemInputType || 'select',
         creditAvailable: existingProduct.creditAvailable ?? true,
         description: existingProduct.description || '',
       });
@@ -88,7 +91,8 @@ export function PackageRegisterPage() {
             id: item.id,
             productId: item.productId,
             product: item.product,
-            priceOverride: item.priceOverride
+            priceOverride: item.priceOverride,
+            maxQuantity: item.maxQuantity || 0,
           })));
         } catch (err) {
           console.error('Error fetching package items:', err);
@@ -129,7 +133,8 @@ export function PackageRegisterPage() {
       {
         productId: product.id,
         product: product,
-        priceOverride: product.price
+        priceOverride: product.price,
+        maxQuantity: 1,
       }
     ]);
     setSearchTerm('');
@@ -144,6 +149,13 @@ export function PackageRegisterPage() {
     const numericPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
     setSelectedItems(prev => prev.map(item => 
       item.productId === productId ? { ...item, priceOverride: numericPrice } : item
+    ));
+  };
+
+  const updateItemMaxQuantity = (productId: string, qty: string) => {
+    const numericQty = parseInt(qty.replace(/[^0-9]/g, '')) || 1;
+    setSelectedItems(prev => prev.map(item => 
+      item.productId === productId ? { ...item, maxQuantity: numericQty } : item
     ));
   };
 
@@ -172,6 +184,7 @@ export function PackageRegisterPage() {
         is_active: formData.status === 'active',
         is_package: true,
         selectable_count: parseInt(formData.selectableCount) || 1,
+        item_input_type: formData.itemInputType,
         credit_available: formData.creditAvailable,
       };
 
@@ -189,7 +202,8 @@ export function PackageRegisterPage() {
         packageId, 
         selectedItems.map(item => ({
           productId: item.productId!,
-          priceOverride: item.priceOverride
+          priceOverride: item.priceOverride,
+          maxQuantity: item.maxQuantity
         }))
       );
 
@@ -371,6 +385,20 @@ export function PackageRegisterPage() {
               </div>
 
               <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">상품갯수 입력방법</label>
+                <select
+                  name="itemInputType"
+                  value={formData.itemInputType}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent bg-white transition-all"
+                >
+                  <option value="select">옵션리스트 선택</option>
+                  <option value="input">상품갯수 직접입력</option>
+                </select>
+                <p className="text-xs text-neutral-400 mt-1">사용자가 상품 상세보기에서 상품을 선택하는 방식을 결정합니다</p>
+              </div>
+
+              <div className="space-y-2">
                 <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
                 <select
                   name="creditAvailable"
@@ -446,7 +474,8 @@ export function PackageRegisterPage() {
                   <thead className="bg-neutral-50 border-b border-neutral-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">상품 정보</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider w-40">금액</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider">금액</th>
+                      <th className="px-6 py-3 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider w-32">최대구매갯수</th>
                       <th className="px-6 py-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider w-20">관리</th>
                     </tr>
                   </thead>
@@ -475,9 +504,20 @@ export function PackageRegisterPage() {
                                 type="text"
                                 value={item.priceOverride}
                                 onChange={(e) => updateItemPrice(item.productId!, e.target.value)}
-                                className="w-full text-right pr-8 py-2 border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none transition-all text-sm font-semibold"
+                                className="w-full text-right pr-6 py-2 border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none transition-all text-sm font-semibold"
                               />
                               <span className="absolute right-0 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-normal">원</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="relative inline-block w-20">
+                              <input
+                                type="text"
+                                value={item.maxQuantity}
+                                onChange={(e) => updateItemMaxQuantity(item.productId!, e.target.value)}
+                                className="w-full text-right pr-4 py-2 border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none transition-all text-sm font-semibold"
+                              />
+                              <span className="absolute right-0 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-normal">개</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">

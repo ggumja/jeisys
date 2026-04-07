@@ -55,6 +55,7 @@ export interface Product {
   stock: number;
   isPackage?: boolean;
   selectableCount?: number;
+  itemInputType?: 'select' | 'input';
   creditAvailable?: boolean;
   isActive?: boolean;
 }
@@ -65,6 +66,7 @@ export interface PackageItem {
   productId: string;
   product?: Product;
   priceOverride?: number;
+  maxQuantity?: number;
 }
 
 export interface CartItem {

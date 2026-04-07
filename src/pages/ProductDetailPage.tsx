@@ -26,6 +26,7 @@ export function ProductDetailPage() {
   const [showCartDialog, setShowCartDialog] = useState(false);
   const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
   const [selections, setSelections] = useState<string[]>([]);
+  const [inputQuantities, setInputQuantities] = useState<Record<string, number>>({});
 
   const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -66,8 +67,16 @@ export function ProductDetailPage() {
         if (fetchedProduct.isPackage) {
           const items = await productService.getPackageItems(productId);
           setPackageItems(items);
-          // Initialize selections with empty strings for each slot
-          setSelections(Array(fetchedProduct.selectableCount || 1).fill(''));
+          if (fetchedProduct.itemInputType === 'input') {
+            const initQtys: Record<string, number> = {};
+            items.forEach(item => {
+              initQtys[item.productId] = 0;
+            });
+            setInputQuantities(initQtys);
+          } else {
+            // Initialize selections with empty strings for each slot
+            setSelections(Array(fetchedProduct.selectableCount || 1).fill(''));
+          }
         }
       }
     } catch (error) {
@@ -86,14 +95,35 @@ export function ProductDetailPage() {
 
     // Validation for package products
     if (product.isPackage) {
-      if (selections.some(s => !s)) {
-        alert('모든 상품 옵션을 선택해주세요.');
-        return;
+      if (product.itemInputType === 'input') {
+        const totalSelected = Object.values(inputQuantities).reduce((a, b) => a + b, 0);
+        if (totalSelected === 0) {
+          alert('최소 하나 이상의 상품을 선택해주세요.');
+          return;
+        }
+        if (totalSelected !== product.selectableCount) {
+           alert(`총 ${product.selectableCount}개의 상품을 선택해야 합니다. (현재: ${totalSelected}개)`);
+           return;
+        }
+      } else {
+        if (selections.some(s => !s)) {
+          alert('모든 상품 옵션을 선택해주세요.');
+          return;
+        }
       }
     }
 
     try {
-      await cartService.addToCart(product.id, quantity, isSubscription, product.isPackage ? selections : undefined);
+      let finalSelections = undefined;
+      if (product.isPackage) {
+        if (product.itemInputType === 'input') {
+          // Flatten inputQuantities to array of IDs: {A:2, B:1} -> [A, A, B]
+          finalSelections = Object.entries(inputQuantities).flatMap(([id, qty]) => Array(qty).fill(id));
+        } else {
+          finalSelections = selections;
+        }
+      }
+      await cartService.addToCart(product.id, quantity, isSubscription, finalSelections);
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
       setShowCartDialog(true);
@@ -179,37 +209,101 @@ export function ProductDetailPage() {
           )}
 
           {/* Package Selections */}
-          {product.isPackage && selections.length > 0 && (
+          {product.isPackage && (
             <div className="mb-8 space-y-6">
-              <div className="border-b border-neutral-200 pb-4">
-                <h3 className="text-base font-medium text-neutral-900 mb-1">패키지 구성 선택</h3>
-                <p className="text-sm text-neutral-500">지정된 수량만큼 상품을 선택해 주세요 ({product.selectableCount}개)</p>
-              </div>
-              <div className="space-y-4">
-                {selections.map((selectedId, index) => (
-                  <div key={index} className="space-y-2">
-                    <label className="block text-xs tracking-wide text-neutral-700 uppercase font-medium">
-                      옵션 {index + 1}
-                    </label>
-                    <select
-                      value={selectedId}
-                      onChange={(e) => {
-                        const newSelections = [...selections];
-                        newSelections[index] = e.target.value;
-                        setSelections(newSelections);
-                      }}
-                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                    >
-                      <option value="">상품을 선택하세요</option>
-                      {packageItems.map((item) => (
-                        <option key={item.productId} value={item.productId}>
-                          {item.product?.name}
-                        </option>
-                      ))}
-                    </select>
+              <div className="border-b border-neutral-200 pb-4 flex justify-between items-end">
+                <div>
+                  <h3 className="text-base font-medium text-neutral-900 mb-1">패키지 구성 선택</h3>
+                  <p className="text-sm text-neutral-500">지정된 수량만큼 상품을 선택해 주세요 ({product.selectableCount}개)</p>
+                </div>
+                {product.itemInputType === 'input' && (
+                  <div className="text-sm font-semibold">
+                    선택됨: <span className={Object.values(inputQuantities).reduce((a, b) => a + b, 0) === product.selectableCount ? 'text-green-600' : 'text-blue-600'}>
+                      {Object.values(inputQuantities).reduce((a, b) => a + b, 0)}
+                    </span> / {product.selectableCount}
                   </div>
-                ))}
+                )}
               </div>
+
+              {product.itemInputType === 'input' ? (
+                /* Direct Quantity Input Mode */
+                <div className="space-y-3">
+                  {packageItems.map((item) => (
+                    <div key={item.productId} className="flex items-center justify-between p-4 border border-neutral-200 hover:border-neutral-300 transition-colors bg-white">
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-neutral-900">{item.product?.name}</div>
+                        <div className="text-xs text-neutral-500 mt-1">최대 {item.maxQuantity || '제한없음'}개 선택 가능</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = inputQuantities[item.productId] || 0;
+                            if (current > 0) {
+                              setInputQuantities(prev => ({ ...prev, [item.productId]: current - 1 }));
+                            }
+                          }}
+                          className="w-8 h-8 border border-neutral-300 flex items-center justify-center hover:bg-neutral-50"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <div className="w-8 text-center text-sm font-medium">{inputQuantities[item.productId] || 0}</div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = inputQuantities[item.productId] || 0;
+                            const total = Object.values(inputQuantities).reduce((a, b) => a + b, 0);
+                            
+                            // Check item max quantity
+                            if (item.maxQuantity && current >= item.maxQuantity) {
+                              alert(`이 상품은 최대 ${item.maxQuantity}개까지 선택 가능합니다.`);
+                              return;
+                            }
+                            
+                            // Check package total selectable count
+                            if (total >= (product.selectableCount || 0)) {
+                              alert(`총 ${product.selectableCount}개까지만 선택 가능합니다.`);
+                              return;
+                            }
+                            
+                            setInputQuantities(prev => ({ ...prev, [item.productId]: current + 1 }));
+                          }}
+                          className="w-8 h-8 bg-neutral-100 flex items-center justify-center hover:bg-neutral-200"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Option List Selection Mode (Original) */
+                <div className="space-y-4">
+                  {selections.map((selectedId, index) => (
+                    <div key={index} className="space-y-2">
+                      <label className="block text-xs tracking-wide text-neutral-700 uppercase font-medium">
+                        옵션 {index + 1}
+                      </label>
+                      <select
+                        value={selectedId}
+                        onChange={(e) => {
+                          const newSelections = [...selections];
+                          newSelections[index] = e.target.value;
+                          setSelections(newSelections);
+                        }}
+                        className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                      >
+                        <option value="">상품을 선택하세요</option>
+                        {packageItems.map((item) => (
+                          <option key={item.productId} value={item.productId}>
+                            {item.product?.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

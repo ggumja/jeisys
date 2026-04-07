@@ -137,11 +137,19 @@ export function OrderDetailPage() {
   };
 
   const handleUpdateStatus = async (status: string, manualTracking?: string) => {
+    const targetStatus = status as Order['status'];
     try {
       setIsUpdating(true);
       await adminService.updateOrderStatus(id!, status, manualTracking || trackingNumber);
+      
+      // ✅ DB 업데이트 성공 즉시 로컬 상태 반영 (UI 지연 방지)
+      setOrder(prev => prev ? { ...prev, status: targetStatus, trackingNumber: manualTracking || trackingNumber } : prev);
+      
       toast.success('주문 상태가 변경되었습니다.');
+      
+      // 리로드 후에도 확정 상태가 캐시로 인해 뒤집히지 않도록 재적용
       await loadOrder();
+      setOrder(prev => prev ? { ...prev, status: targetStatus } : prev);
     } catch (error) {
       console.error('Failed to update status:', error);
       toast.error('상태 변경에 실패했습니다.');

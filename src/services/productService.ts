@@ -13,6 +13,7 @@ export interface ProductInput {
   is_active?: boolean;
   is_package?: boolean;
   selectable_count?: number;
+  item_input_type?: 'select' | 'input';
   credit_available?: boolean;
 }
 
@@ -94,6 +95,7 @@ export const productService = {
         is_active: productData.is_active ?? true,
         is_package: productData.is_package ?? false,
         selectable_count: productData.selectable_count ?? 1,
+        item_input_type: productData.item_input_type ?? 'select',
         credit_available: productData.credit_available ?? true,
       })
       .select()
@@ -122,6 +124,7 @@ export const productService = {
         ...(productData.is_active !== undefined && { is_active: productData.is_active }),
         ...(productData.is_package !== undefined && { is_package: productData.is_package }),
         ...(productData.selectable_count !== undefined && { selectable_count: productData.selectable_count }),
+        ...(productData.item_input_type !== undefined && { item_input_type: productData.item_input_type }),
         ...(productData.credit_available !== undefined && { credit_available: productData.credit_available }),
       })
       .eq('id', id)
@@ -246,6 +249,7 @@ export const productService = {
       packageId: item.package_id,
       productId: item.product_id,
       priceOverride: item.price_override,
+      maxQuantity: item.max_quantity,
       product: item.product ? this.mapProduct(item.product) : undefined
     }));
   },
@@ -270,12 +274,13 @@ export const productService = {
       stock: item.stock,
       isPackage: item.is_package,
       selectableCount: item.selectable_count,
+      itemInputType: item.item_input_type,
       creditAvailable: item.credit_available,
       isActive: item.is_active,
     };
   },
 
-  async addPackageItems(packageId: string, items: { productId: string; priceOverride?: number }[]): Promise<void> {
+  async addPackageItems(packageId: string, items: { productId: string; priceOverride?: number; maxQuantity?: number }[]): Promise<void> {
     // Delete existing
     await supabase.from('package_items').delete().eq('package_id', packageId);
 
@@ -288,6 +293,7 @@ export const productService = {
           package_id: packageId,
           product_id: item.productId,
           price_override: item.priceOverride,
+          max_quantity: item.maxQuantity || 0,
           display_order: index,
         }))
       );
