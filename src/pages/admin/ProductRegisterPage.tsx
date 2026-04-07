@@ -31,6 +31,8 @@ interface FormData {
   price: string;
   stock: string;
   status: 'active' | 'inactive';
+  itemInputType: 'select' | 'input';
+  selectableCount: string;
   creditAvailable: boolean;
   description: string;
   useSubscriptionDiscount: boolean;
@@ -64,6 +66,8 @@ export function ProductRegisterPage() {
     price: '',
     stock: '',
     status: 'active',
+    itemInputType: 'input',
+    selectableCount: '1',
     creditAvailable: true,
     description: '',
     useSubscriptionDiscount: false,
@@ -95,6 +99,8 @@ export function ProductRegisterPage() {
         price: (existingProduct.price || 0).toString(),
         stock: (existingProduct.stock || 0).toString(),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
+        itemInputType: existingProduct.itemInputType || 'input',
+        selectableCount: (existingProduct.selectableCount || 1).toString(),
         creditAvailable: existingProduct.creditAvailable ?? true,
         description: existingProduct.description || '',
         useSubscriptionDiscount: (existingProduct.subscriptionDiscount ?? 0) > 0,
@@ -300,6 +306,8 @@ export function ProductRegisterPage() {
         description: formData.description,
         image_url: finalImageUrl,
         is_active: formData.status === 'active',
+        item_input_type: formData.itemInputType,
+        selectable_count: parseInt(formData.selectableCount) || 1,
         credit_available: formData.creditAvailable,
         subscription_discount: formData.useSubscriptionDiscount ? parseFloat(formData.subscriptionDiscount) || 0 : 0,
         min_order_quantity: minQty,
@@ -581,7 +589,7 @@ export function ProductRegisterPage() {
               />
             </div>
 
-            <div>
+             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-3">
                 판매 상태
               </label>
@@ -595,53 +603,72 @@ export function ProductRegisterPage() {
                 <option value="inactive">판매중지</option>
               </select>
             </div>
+          </div>
+        </div>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-neutral-500 tracking-wider uppercase flex items-center gap-1">
-                    최소 주문 수량 <span className="text-red-500 text-[10px]">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="minOrderQuantity"
-                    value={formData.minOrderQuantity}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                    min="1"
-                    required
-                  />
-                  <p className="text-[10px] text-neutral-400">기본: 1</p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-neutral-500 tracking-wider uppercase">최대 주문 수량</label>
-                  <input
-                    type="number"
-                    name="maxOrderQuantity"
-                    value={formData.maxOrderQuantity}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                    min="0"
-                    placeholder="제한 없음: 0"
-                  />
-                  <p className="text-[10px] text-neutral-400">제한 없을 경우 0 입력</p>
-                </div>
+        {/* Order Options */}
+        <div className="bg-white border border-neutral-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
+            <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">주문 옵션</h3>
+          </div>
+          <div className="p-8 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">상품갯수 입력방법</label>
+                <select
+                  name="itemInputType"
+                  value={formData.itemInputType}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                >
+                  <option value="input">상품갯수 직접입력</option>
+                  <option value="select">리스트 선택방식</option>
+                </select>
+                <p className="text-xs text-neutral-400">사용자가 상품 상세보기에서 상품을 선택하는 방식을 결정합니다</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
+                <select
+                  name="creditAvailable"
+                  value={formData.creditAvailable.toString()}
+                  onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                >
+                  <option value="true">사용가능</option>
+                  <option value="false">사용불가능</option>
+                </select>
+                <p className="text-xs text-neutral-400">해당 상품 구매 시 크레딧 사용 가능 여부를 설정합니다</p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-3">
-                크레딧 사용 가능 여부
-              </label>
-              <select
-                name="creditAvailable"
-                value={formData.creditAvailable.toString()}
-                onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
-              >
-                <option value="true">사용가능</option>
-                <option value="false">사용불가능</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">최소 주문 수량</label>
+                <input
+                  type="number"
+                  name="minOrderQuantity"
+                  value={formData.minOrderQuantity}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                  min="1"
+                />
+                <p className="text-xs text-neutral-400">주문 시 필요한 최소 수량을 설정하세요</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">최대 주문 수량</label>
+                <input
+                  type="number"
+                  name="maxOrderQuantity"
+                  value={formData.maxOrderQuantity}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                  min="0"
+                  placeholder="제한 없음"
+                />
+                <p className="text-xs text-neutral-400">주문 시 허용되는 최대 수량을 설정하세요 (비워두면 제한 없음)</p>
+              </div>
             </div>
           </div>
         </div>
