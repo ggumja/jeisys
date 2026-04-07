@@ -137,11 +137,12 @@ export function ProductRegisterPage() {
       p.id !== id && // Exclude current product
       (
         (p.name || '').toLowerCase().includes(searchLower) || 
-        (p.sku || '').toLowerCase().includes(searchLower)
+        (p.sku || '').toLowerCase().includes(searchLower) ||
+        (p.category || '').toLowerCase().includes(searchLower)
       ) &&
       !formData.bonusProducts.some(bp => bp.productId === p.id) // Exclude already added
     );
-  }).slice(0, 10);
+  }).slice(0, 20);
 
   const addBonusProduct = (product: Product) => {
     const newBonus: BonusProductData = {
@@ -805,7 +806,7 @@ export function ProductRegisterPage() {
               </div>
 
               {isSearchDropdownOpen && searchTerm.trim() && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 shadow-xl max-h-60 overflow-y-auto rounded-sm">
+                <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 shadow-2xl max-h-[500px] overflow-y-auto rounded-sm">
                   {isLoadingProducts ? (
                     <div className="px-4 py-8 text-center text-neutral-500">
                       <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
@@ -817,23 +818,14 @@ export function ProductRegisterPage() {
                         key={product.id}
                         type="button"
                         onClick={() => addBonusProduct(product)}
-                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
+                        className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
                       >
-                        <div className="w-10 h-10 border border-neutral-200 flex-shrink-0 group-hover:border-neutral-400 transition-colors">
-                          {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400">
-                              <ImageIcon className="w-5 h-5" />
-                            </div>
-                          )}
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
+                          <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-neutral-900 truncate">{product.name}</p>
-                          <p className="text-xs text-neutral-500 truncate">{product.sku}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</p>
+                        <div className="text-right flex-shrink-0 ml-4">
+                          <span className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</span>
                         </div>
                       </button>
                     ))

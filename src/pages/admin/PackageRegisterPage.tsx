@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
-import { ProductImage } from '../../components/ui/ProductImage';
+
 import { useProduct, useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
@@ -153,7 +153,7 @@ export function PackageRegisterPage() {
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
         p.category.toLowerCase().includes(searchTerm.toLowerCase())
-      ).slice(0, 5);
+      ).slice(0, 20);
       setSearchResults(results);
     } else {
       setSearchResults([]);
@@ -162,10 +162,12 @@ export function PackageRegisterPage() {
 
   useEffect(() => {
     if (bonusSearchTerm.trim().length > 0) {
+      const termLower = bonusSearchTerm.toLowerCase();
       const results = productsList.filter(p => 
-        p.name.toLowerCase().includes(bonusSearchTerm.toLowerCase()) ||
-        p.sku.toLowerCase().includes(bonusSearchTerm.toLowerCase())
-      ).slice(0, 5);
+        p.name.toLowerCase().includes(termLower) ||
+        p.sku.toLowerCase().includes(termLower) ||
+        p.category.toLowerCase().includes(termLower)
+      ).slice(0, 20);
       setBonusSearchResults(results);
       setIsBonusDropdownOpen(true);
     } else {
@@ -718,7 +720,7 @@ export function PackageRegisterPage() {
         </div>
 
         {/* Package Components Section */}
-        <div className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="bg-white border border-neutral-200 overflow-visible">
           <div className="px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
             <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">패키지 구성 상품 <span className="text-red-500">*</span></h3>
           </div>
@@ -737,28 +739,21 @@ export function PackageRegisterPage() {
                 
                 {/* Search Results Dropdown */}
                 {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-20 overflow-hidden">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 overflow-hidden max-h-[500px] overflow-y-auto">
                     {searchResults.map((product) => (
                       <button
                         key={product.id}
                         type="button"
                         onClick={() => addItemToPackage(product)}
-                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-neutral-50 text-left transition-colors border-b border-neutral-100 last:border-0"
+                        className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
                       >
-                        <div className="flex gap-4 items-center">
-                          <div className="w-10 h-10 bg-neutral-100 flex items-center justify-center overflow-hidden">
-                            <ProductImage
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div>
-                            <div className="text-sm font-bold text-neutral-900">{product.name}</div>
-                            <div className="text-xs text-neutral-500">{product.category} | {product.sku}</div>
-                          </div>
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
+                          <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
                         </div>
-                        <div className="text-sm font-semibold text-neutral-900">{product.price.toLocaleString()}원</div>
+                        <div className="text-right flex-shrink-0 ml-4">
+                          <span className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</span>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -844,7 +839,7 @@ export function PackageRegisterPage() {
         </div>
 
         {/* Bonus Products Section */}
-        <div className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="bg-white border border-neutral-200 overflow-visible">
           <div className="px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
             <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">추가 증정 상품</h3>
           </div>
@@ -861,30 +856,22 @@ export function PackageRegisterPage() {
                   className="w-full pl-12 pr-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
                 />
                 
-                {/* Bonus Search Results Dropdown */}
                 {isBonusDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-20 overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 overflow-hidden max-h-[500px] overflow-y-auto">
                     {bonusSearchResults.length > 0 ? (
                       bonusSearchResults.map((product) => (
                         <button
                           key={product.id}
                           type="button"
                           onClick={() => addBonusProduct(product)}
-                          className="w-full px-4 py-3 flex items-center gap-3 hover:bg-neutral-50 text-left transition-colors border-b border-neutral-100 last:border-0"
+                          className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
                         >
-                          <div className="w-10 h-10 bg-neutral-100 flex items-center justify-center overflow-hidden">
-                            <ProductImage
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
+                          <div className="flex-1 min-w-0 flex items-center gap-2">
+                            <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
+                            <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-neutral-900 truncate">{product.name}</p>
-                            <p className="text-xs text-neutral-500 truncate">{product.sku}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</p>
+                          <div className="text-right flex-shrink-0 ml-4">
+                            <span className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</span>
                           </div>
                         </button>
                       ))
