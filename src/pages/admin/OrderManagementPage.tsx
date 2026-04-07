@@ -242,6 +242,7 @@ export function OrderManagementPage() {
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">주문 관리</h2>
           <p className="text-sm text-neutral-600">결제 및 입금이 완료된 발송 대상 주문을 관리합니다.</p>
         </div>
+        {/* 
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => handlePrintInternalOrders()}>
             <Printer className="w-4 h-4 mr-2" />
@@ -252,6 +253,7 @@ export function OrderManagementPage() {
             배송 일괄처리
           </Button>
         </div>
+        */}
       </div>
 
       {/* Tabs */}
