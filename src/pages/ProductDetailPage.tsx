@@ -30,6 +30,11 @@ export function ProductDetailPage() {
 
   const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [alertDialog, setAlertDialog] = useState<{isOpen: boolean; title: string; description: string}>({
+    isOpen: false,
+    title: '',
+    description: ''
+  });
 
   useEffect(() => {
     if (id) {
@@ -98,16 +103,28 @@ export function ProductDetailPage() {
       if (product.itemInputType === 'input') {
         const totalSelected = Object.values(inputQuantities).reduce((a, b) => a + b, 0);
         if (totalSelected === 0) {
-          alert('최소 하나 이상의 상품을 선택해주세요.');
+          setAlertDialog({
+            isOpen: true,
+            title: '상품 선택 필요',
+            description: '최소 하나 이상의 상품을 선택해주세요.'
+          });
           return;
         }
         if (totalSelected !== product.selectableCount) {
-           alert(`총 ${product.selectableCount}개의 상품을 선택해야 합니다. (현재: ${totalSelected}개)`);
-           return;
+          setAlertDialog({
+            isOpen: true,
+            title: '선택 수량 확인',
+            description: `총 ${product.selectableCount}개의 상품을 선택해야 합니다. (현재: ${totalSelected}개)`
+          });
+          return;
         }
       } else {
         if (selections.some(s => !s)) {
-          alert('모든 상품 옵션을 선택해주세요.');
+          setAlertDialog({
+            isOpen: true,
+            title: '상품 옵션 선택',
+            description: '모든 상품 옵션을 선택해주세요.'
+          });
           return;
         }
       }
@@ -129,7 +146,11 @@ export function ProductDetailPage() {
       setShowCartDialog(true);
     } catch (error) {
       console.error('Failed to add to cart', error);
-      alert('장바구니 담기에 실패했습니다. 로그인 상태를 확인해주세요.');
+      setAlertDialog({
+        isOpen: true,
+        title: '장바구니 담기 실패',
+        description: '장바구니 담기에 실패했습니다. 로그인 상태를 확인해주세요.'
+      });
     }
   };
 
@@ -256,13 +277,21 @@ export function ProductDetailPage() {
                             
                             // Check item max quantity
                             if (item.maxQuantity && current >= item.maxQuantity) {
-                              alert(`이 상품은 최대 ${item.maxQuantity}개까지 선택 가능합니다.`);
+                              setAlertDialog({
+                                isOpen: true,
+                                title: '최대 수량 초과',
+                                description: `이 상품은 최대 ${item.maxQuantity}개까지 선택 가능합니다.`
+                              });
                               return;
                             }
                             
                             // Check package total selectable count
                             if (total >= (product.selectableCount || 0)) {
-                              alert(`총 ${product.selectableCount}개까지만 선택 가능합니다.`);
+                              setAlertDialog({
+                                isOpen: true,
+                                title: '선택 가능 개수 초과',
+                                description: `총 ${product.selectableCount}개까지만 선택 가능합니다.`
+                              });
                               return;
                             }
                             
@@ -563,6 +592,26 @@ export function ProductDetailPage() {
               className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white py-3 px-6 font-medium transition-colors text-sm tracking-wide uppercase"
             >
               장바구니 보기
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alert Dialog */}
+      <Dialog open={alertDialog.isOpen} onOpenChange={(open) => setAlertDialog(prev => ({...prev, isOpen: open}))}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-neutral-900">{alertDialog.title}</DialogTitle>
+            <DialogDescription className="text-base text-neutral-600">
+              {alertDialog.description}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setAlertDialog(prev => ({...prev, isOpen: false}))}
+              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-3 px-6 font-medium transition-colors text-sm tracking-wide uppercase"
+            >
+              확인
             </button>
           </DialogFooter>
         </DialogContent>
