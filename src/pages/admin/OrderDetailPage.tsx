@@ -570,9 +570,14 @@ export function OrderDetailPage() {
                     });
                     
                     toast.success(result.status === 'shipped' ? '전체 발송 처리가 완료되었습니다.' : '부분 발송 처리가 완료되었습니다.');
+                    // DB 업데이트 성공 즉시 로컬 상태도 반영 (UI 지연 방지)
+                    const confirmedStatus = result.status as 'shipped' | 'partially_shipped';
+                    setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
                     setTrackingNumber('');
                     setBoxCount(1);
+                    // loadOrder 후에도 확정 상태 재적용 (Supabase 캐시로 stale 데이터 방지)
                     await loadOrder();
+                    setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
                   } catch (e) {
                     toast.error('발송 처리에 실패했습니다.');
                   } finally {
@@ -619,7 +624,9 @@ export function OrderDetailPage() {
                       <td className="py-4 text-sm text-neutral-900">
                         {item.productName}
                         {shippedQty > 0 && (
-                          <span className="ml-2 text-xs text-purple-600">({shippedQty}개 발송완료)</span>
+                          <span className="ml-2 text-xs text-purple-600">
+                            {shippedQty >= item.quantity ? '(전체 발송완료)' : `(${shippedQty}개 발송완료)`}
+                          </span>
                         )}
                       </td>
                       <td className="py-4">

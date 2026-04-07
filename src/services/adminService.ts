@@ -405,13 +405,28 @@ export const adminService = {
                 .eq('id', shipment.id);
         }
 
-        await supabase
+        const { data: updatedRows, error: orderUpdateError } = await supabase
             .from('orders')
             .update({ 
                 status: newStatus,
-                tracking_number: trackingNumber
+                tracking_number: trackingNumber,
+                ...(allShipped ? { shipped_at: new Date().toISOString() } : {})
             })
-            .eq('id', orderId);
+            .eq('id', orderId)
+            .select('id, status');
+
+        if (orderUpdateError) {
+            console.error('[partialShipOrder] orders 상태 업데이트 실패 (에러):', orderUpdateError);
+            throw new Error(`주문 상태 업데이트 실패: ${orderUpdateError.message}`);
+        }
+        
+        // 실제로 업데이트된 행이 있는지 확인
+        if (!updatedRows || updatedRows.length === 0) {
+            console.error('[partialShipOrder] ⚠️ orderId와 매칭되는 행 없음 - RLS 정책 또는 잘못된 ID:', orderId);
+            throw new Error('주문 상태 업데이트 실패: 해당 주문을 찾을 수 없거나 권한이 없습니다.');
+        }
+        
+        console.log('[partialShipOrder] orders 상태 업데이트 성공:', newStatus, '/ 업데이트된 row:', updatedRows[0]);
 
         // 4. 고객 알림 생성
         if (userId) {
