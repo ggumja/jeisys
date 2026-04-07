@@ -46,6 +46,8 @@ export function ProductManagementPage() {
   const [previewProduct, setPreviewProduct] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   const [tempCategoryList, setTempCategoryList] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -155,6 +157,40 @@ export function ProductManagementPage() {
     }
   };
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedProductIds(currentProducts.map(p => p.id));
+    } else {
+      setSelectedProductIds([]);
+    }
+  };
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedProductIds(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleDeleteBulk = async () => {
+    if (selectedProductIds.length === 0) return;
+
+    if (window.confirm(`선택한 ${selectedProductIds.length}개의 상품을 정말로 삭제하시겠습니까?`)) {
+      setIsDeletingBulk(true);
+      try {
+        await Promise.all(selectedProductIds.map(id => deleteProduct.mutateAsync(id)));
+        setSelectedProductIds([]);
+        alert('선택한 상품들이 삭제되었습니다.');
+      } catch (err) {
+        console.error('Error deleting products:', err);
+        alert('일부 상품 삭제 중 오류가 발생했습니다.');
+      } finally {
+        setIsDeletingBulk(false);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -183,6 +219,28 @@ export function ProductManagementPage() {
           </button>
         </div>
       </div>
+
+      {selectedProductIds.length > 0 && (
+        <div className="bg-red-50 border border-red-200 p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-red-900">
+              {selectedProductIds.length}개의 상품이 선택되었습니다
+            </span>
+          </div>
+          <button
+            onClick={handleDeleteBulk}
+            disabled={isDeletingBulk}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 font-medium text-sm"
+          >
+            {isDeletingBulk ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            <span>선택 삭제</span>
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white border border-neutral-200 p-6">
@@ -229,6 +287,14 @@ export function ProductManagementPage() {
               <table className="w-full">
                 <thead className="bg-neutral-50 border-b border-neutral-200">
                   <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.length === currentProducts.length && currentProducts.length > 0}
+                        onChange={handleSelectAll}
+                        className="w-4 h-4 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
+                      />
+                    </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-16">
                       No.
                     </th>
@@ -256,9 +322,17 @@ export function ProductManagementPage() {
                   {currentProducts.map((product) => (
                     <tr 
                       key={product.id} 
-                      className="hover:bg-neutral-50 cursor-pointer"
+                      className={`hover:bg-neutral-50 cursor-pointer ${selectedProductIds.includes(product.id) ? 'bg-neutral-50' : ''}`}
                       onClick={() => navigate(isPackageView ? `/admin/products/package-edit/${product.id}` : `/admin/products/edit/${product.id}`)}
                     >
+                      <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedProductIds.includes(product.id)}
+                          onChange={() => handleSelectProduct(product.id)}
+                          className="w-4 h-4 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 font-medium">
                         {product.displayNo || '-'}
                       </td>
@@ -325,31 +399,29 @@ export function ProductManagementPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          {isPackageView && (
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (window.confirm(`'${product.name}' 상품을 삭제하시겠습니까?`)) {
-                                  try {
-                                    await deleteProduct.mutateAsync(product.id);
-                                    alert('상품이 삭제되었습니다.');
-                                  } catch (err) {
-                                    console.error('Error deleting product:', err);
-                                    alert('상품 삭제 중 오류가 발생했습니다.');
-                                  }
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`'${product.name}' 상품을 삭제하시겠습니까?`)) {
+                                try {
+                                  await deleteProduct.mutateAsync(product.id);
+                                  alert('상품이 삭제되었습니다.');
+                                } catch (err) {
+                                  console.error('Error deleting product:', err);
+                                  alert('상품 삭제 중 오류가 발생했습니다.');
                                 }
-                              }}
-                              disabled={deleteProduct.isPending}
-                              className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                              title="삭제"
-                            >
-                              {deleteProduct.isPending ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-4 h-4" />
-                              )}
-                            </button>
-                          )}
+                              }
+                            }}
+                            disabled={deleteProduct.isPending}
+                            className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            title="삭제"
+                          >
+                            {deleteProduct.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
                         </div>
                       </td>
                     </tr>

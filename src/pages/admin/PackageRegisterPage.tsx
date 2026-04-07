@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X, Plus } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { ProductImage } from '../../components/ui/ProductImage';
 import { useProduct, useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
