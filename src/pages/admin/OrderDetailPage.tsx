@@ -496,19 +496,8 @@ export function OrderDetailPage() {
                   className="w-16 border border-neutral-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-neutral-900"
                 />
               </div>
-              <div className="relative">
-                <Truck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="송장번호 (비워두면 로젠택배 자동발급)"
-                  value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value)}
-                  className="pl-9 pr-4 py-2 border border-neutral-300 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 w-64"
-                />
-              </div>
               <Button
                 variant="default"
-                disabled={isUpdating}
                 onClick={async () => {
                   const itemsToShip = order.orderItems?.filter(item => {
                     const qty = shipQtyMap[item.id] ?? 0;
@@ -517,24 +506,39 @@ export function OrderDetailPage() {
                     orderItemId: item.id,
                     productId: item.productId!,
                     shipQty: shipQtyMap[item.id] ?? 0,
+                    stock: item.stock,
+                    productName: item.productName
                   })) || [];
+
+                  if (itemsToShip.length === 0) {
+                    toast.error('발송 처리할 상품과 수량을 선택해주세요.');
+                    return;
+                  }
+
+                  // 재고 부족 체크
+                  const outOfStockItems = itemsToShip.filter(item => {
+                    const currentStock = item.stock ?? 0;
+                    return currentStock < item.shipQty;
+                  });
+
+                  if (outOfStockItems.length > 0) {
+                    const itemNames = outOfStockItems.map(i => i.productName).join(', ');
+                    toast.error(`재고가 부족한 상품이 포함되어 있습니다 (현재 재고 확인 필요): ${itemNames}`);
+                    return;
+                  }
                   
                   if (itemsToShip.length === 0) { 
                       toast.error('발송할 수량을 확인해 주세요.'); 
                       return; 
                   }
 
-                  try {
-                    setIsUpdating(true);
-                    
-                    // 송장번호가 비워져 있다면 로젠 API를 통해 다중 발급(박스수량만큼)
-                    let finalTrackingNumber = trackingNumber.trim();
-                    if (!finalTrackingNumber) {
-                        toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
-                        finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
-                        // 발급 시 입력란에 세팅해주되, 다중인 경우 쉼표로 연결되어 들어감
-                        setTrackingNumber(finalTrackingNumber);
-                    }
+                    try {
+                      setIsUpdating(true);
+                      
+                      // 송장번호 자동 발급 (박스수량만큼)
+                      toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
+                      const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
+                      setTrackingNumber(finalTrackingNumber);
 
                     const result = await adminService.partialShipOrder({
                       orderId: order.id,
@@ -611,17 +615,25 @@ export function OrderDetailPage() {
                       </td>
                       <td className="py-4 text-right">
                         {canEdit && remaining > 0 ? (
-                          <input
-                            type="number"
-                            min={0}
-                            max={remaining}
-                            value={shipQtyMap[item.id] ?? remaining}
-                            onChange={(e) => {
-                              const v = Math.min(Number(e.target.value), remaining);
-                              setShipQtyMap(prev => ({ ...prev, [item.id]: v }));
-                            }}
-                            className="w-16 text-right border border-neutral-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                          />
+                          <div className="flex flex-col items-end gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              max={remaining}
+                              disabled={isOutOfStock}
+                              value={shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remaining)}
+                              onChange={(e) => {
+                                const v = Math.min(Number(e.target.value), remaining);
+                                setShipQtyMap(prev => ({ ...prev, [item.id]: v }));
+                              }}
+                              className={`w-16 text-right border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 ${
+                                isOutOfStock ? 'bg-neutral-100 border-neutral-200 text-neutral-400' : 'border-neutral-300'
+                              }`}
+                            />
+                            {stock !== null && stock !== undefined && stock < (shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remaining)) && (
+                              <span className="text-[10px] text-red-500 font-bold animate-pulse">재고 부족</span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-sm text-neutral-500">{remaining === 0 ? '완료' : `${remaining}개`}</span>
                         )}

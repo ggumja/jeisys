@@ -397,6 +397,14 @@ export const adminService = {
         const allShipped = allItems?.every(i => (i.shipped_quantity || 0) >= i.quantity);
         const newStatus = allShipped ? 'shipped' : 'partially_shipped';
 
+        // 이번 배송 이력의 is_partial 상태 업데이트 (전체 발급인 경우 false로)
+        if (allShipped && shipment.id) {
+            await supabase
+                .from('shipments')
+                .update({ is_partial: false })
+                .eq('id', shipment.id);
+        }
+
         await supabase
             .from('orders')
             .update({ 

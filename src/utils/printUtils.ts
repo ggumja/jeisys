@@ -4,18 +4,91 @@ export const printInvoice = (order: any, shipment: any) => {
   let html = `
     <html>
       <head>
-        <title>송장 출력</title>
+        <title>로젠택배 송장 출력</title>
         <style>
-          body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #fff; }
-          .page { page-break-after: always; max-width: 500px; margin: 0 auto 20px; border: 3px solid #000; padding: 20px; }
-          .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-          .header h1 { margin: 0; font-size: 28px; letter-spacing: 2px; }
-          .barcode { text-align: center; margin: 20px 0; font-family: monospace; font-size: 24px; font-weight: bold; background: #f0f0f0; padding: 10px; }
-          .info-table { w-full; border-collapse: collapse; margin-bottom: 10px; width: 100%; }
-          .info-table th { text-align: left; padding: 8px; border: 1px solid #000; width: 100px; background: #f9f9f9; }
-          .info-table td { padding: 8px; border: 1px solid #000; }
-          .footer { margin-top: 20px; font-size: 12px; text-align: center; color: #666; }
-          @media print { body { padding: 0; } .page { border: none; margin: 0; } }
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+          
+          body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background: #f4f4f4; 
+          }
+          
+          .page { 
+            width: 100mm; 
+            height: 180mm; 
+            margin: 10mm auto; 
+            background: #fff; 
+            box-sizing: border-box;
+            padding: 5mm;
+            border: 1px solid #ddd;
+            position: relative;
+            overflow: hidden;
+            page-break-after: always;
+          }
+
+          /* Header / Logo */
+          .logen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ed1c24;
+            padding-bottom: 2mm;
+            margin-bottom: 3mm;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: #ed1c24;
+            font-style: italic;
+          }
+          .ship-mode {
+            background: #ed1c24;
+            color: #fff;
+            padding: 1mm 3mm;
+            font-weight: bold;
+            font-size: 14px;
+          }
+
+          /* Receiver Section */
+          .section-receiver {
+            border: 1px solid #000;
+            padding: 2mm;
+            margin-bottom: 3mm;
+          }
+          .label { font-size: 10px; color: #666; margin-bottom: 1mm; }
+          .receiver-name { font-size: 20px; font-weight: bold; margin-bottom: 1mm; }
+          .receiver-phone { font-size: 14px; margin-bottom: 2mm; }
+          .receiver-addr { font-size: 14px; line-height: 1.4; font-weight: 500; }
+
+          /* Sender / Info */
+          .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2mm;
+            margin-bottom: 3mm;
+          }
+          .info-box { border: 1px solid #ccc; padding: 2mm; font-size: 12px; }
+
+          /* Tracking / Barcode Area */
+          .tracking-area {
+            text-align: center;
+            border: 2px dashed #000;
+            padding: 4mm 0;
+            margin: 3mm 0;
+            background: #fafafa;
+          }
+          .tracking-number { font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+          .barcode-line { height: 12mm; background: #000; margin: 2mm 5mm; }
+
+          /* Footer / Notes */
+          .notes { font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 2mm; margin-top: 3mm; }
+          
+          @media print {
+            body { background: none; }
+            .page { margin: 0; border: none; }
+          }
         </style>
       </head>
       <body>
@@ -24,50 +97,55 @@ export const printInvoice = (order: any, shipment: any) => {
   trackingNumbers.forEach((tn: string, index: number) => {
     html += `
         <div class="page">
-          <div class="header">
-            <h1>로젠택배</h1>
-            <p style="margin: 5px 0 0;">신용 (선불)</p>
+          <div class="logen-header">
+            <div class="logo">iLOGEN</div>
+            <div class="ship-mode">신용 (선불)</div>
           </div>
           
-          <table class="info-table">
-            <tr>
-              <th>받는 분</th>
-              <td style="font-size: 18px; font-weight: bold;">${order.customerName || '고객명'} 귀하</td>
-            </tr>
-            <tr>
-              <th>연락처</th>
-              <td>${order.shippingInfo?.phone || order.user?.phone || ''}</td>
-            </tr>
-            <tr>
-              <th>도착지</th>
-              <td>${order.shippingInfo?.address || order.user?.address || ''} ${order.shippingInfo?.addressDetail || order.user?.address_detail || ''}</td>
-            </tr>
-            <tr>
-              <th>주문번호</th>
-              <td>${order.orderNumber} ${trackingNumbers.length > 1 ? `(박스 ${index + 1}/${trackingNumbers.length})` : ''}</td>
-            </tr>
-            <tr>
-              <th>내품명</th>
-              <td>${shipment.items[0]?.productName} ${shipment.items.length > 1 ? `외 ${shipment.items.length - 1}건` : ''}</td>
-            </tr>
-          </table>
-
-          <div class="barcode">
-            *${tn}*<br/>
-            ${tn}
+          <div class="section-receiver">
+            <div class="label">받는 분 (TO)</div>
+            <div class="receiver-name">${order.customerName || '고객명'} 고객님</div>
+            <div class="receiver-phone">${order.shippingInfo?.phone || order.user?.phone || '010-0000-0000'}</div>
+            <div class="receiver-addr">
+              ${order.shippingInfo?.address || order.user?.address || '주소 정보 없음'}<br/>
+              <strong>${order.shippingInfo?.addressDetail || order.user?.address_detail || ''}</strong>
+            </div>
           </div>
 
-          <table class="info-table">
-            <tr>
-              <th>보내는 분</th>
-              <td>제이시스메디칼</td>
-            </tr>
-            <tr>
-              <th>연락처</th>
-              <td>02-1234-5678</td>
-            </tr>
-          </table>
-          <div class="footer">본 송장은 시스템 테스트 출력용입니다.</div>
+          <div class="section-grid">
+            <div class="info-box">
+              <div class="label">보내는 분 (FROM)</div>
+              <strong>제이시스메디칼</strong><br/>
+              02-1234-5678<br/>
+              서울 특별시 강남구 테헤란로 123
+            </div>
+            <div class="info-box" style="text-align: right;">
+              <div class="label">주문 정보</div>
+              ${order.orderNumber}<br/>
+              박스: ${index + 1} / ${trackingNumbers.length}<br/>
+              ${new Date(shipment.shippedAt).toLocaleDateString()}
+            </div>
+          </div>
+
+          <div class="tracking-area">
+            <div class="label">운송장 번호 (TRACKING NO.)</div>
+            <div class="tracking-number">${tn}</div>
+            <div class="barcode-line"></div>
+            <div style="font-size: 10px; font-family: monospace;">* ${tn} *</div>
+          </div>
+
+          <div class="info-box" style="margin-bottom: 3mm;">
+            <div class="label">내품명 / 메모</div>
+            <div style="font-size: 13px; font-weight: bold;">
+              ${shipment.items[0]?.productName} ${shipment.items.length > 1 ? `외 ${shipment.items.length - 1}건` : ''}
+            </div>
+            <div style="font-size: 11px; margin-top: 1mm;">${order.shippingInfo?.memo || ''}</div>
+          </div>
+
+          <div class="notes">
+            * 본 송장은 시스템 연동 테스트용으로 출력되었습니다.<br/>
+            * 배송 문의: 로젠택배 고객센터 1588-9988
+          </div>
         </div>
     `;
   });
