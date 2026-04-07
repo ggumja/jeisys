@@ -239,7 +239,7 @@ export function OrderManagementPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">오늘 발송 대상 리스트</h2>
+          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">주문 관리</h2>
           <p className="text-sm text-neutral-600">결제 및 입금이 완료된 발송 대상 주문을 관리합니다.</p>
         </div>
         <div className="flex items-center gap-3">

@@ -36,10 +36,7 @@ export function AdminLayout() {
     { to: '/admin/dashboard', icon: BarChart3, label: '대시보드' },
   ];
 
-  const orderSubMenus = [
-    { to: '/admin/orders', icon: Truck, label: '오늘 발송 대상' },
-    { to: '/admin/order-history', icon: FileStack, label: '주문내역' },
-  ];
+  const orderSubMenus = [];
 
   const statisticsSubMenus = [
     { to: '/admin/statistics/period-sales', icon: Calendar, label: '기간별 매출현황' },
@@ -178,46 +175,17 @@ export function AdminLayout() {
                   );
                 })}
 
-                {/* Orders Menu - Accordion */}
-                <div>
-                  <button
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isOrdersActive
-                      ? 'bg-neutral-900 text-white'
-                      : 'text-neutral-700 hover:bg-neutral-100'
-                      }`}
-                    onClick={() => setIsOrdersOpen(!isOrdersOpen)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <ShoppingCart className="w-5 h-5" />
-                      <span>주문관리</span>
-                    </div>
-                    {isOrdersOpen ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-                  {isOrdersOpen && (
-                    <div className="bg-white">
-                      {orderSubMenus.map((item) => {
-                        const isActive = location.pathname === item.to;
-                        return (
-                          <Link
-                            key={item.to}
-                            to={item.to}
-                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive
-                              ? 'bg-neutral-900 text-white'
-                              : 'text-neutral-600 hover:bg-neutral-50'
-                              }`}
-                          >
-                            <item.icon className="w-4 h-4" />
-                            <span>{item.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                {/* Orders Menu - Direct Link instead of Accordion */}
+                <Link
+                  to="/admin/orders"
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${isOrdersActive
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-700 hover:bg-neutral-100'
+                    }`}
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  <span>주문관리</span>
+                </Link>
 
                 {/* Subscription List - Same level as Order Management */}
                 <Link
