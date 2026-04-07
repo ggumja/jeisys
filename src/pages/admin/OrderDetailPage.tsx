@@ -106,6 +106,21 @@ export function OrderDetailPage() {
           initMap[item.id] = remaining > 0 ? remaining : 0;
         });
         setShipQtyMap(initMap);
+
+        // 🔄 자동 상태 보정: 전체 발송 완료인데 status가 paid/partially_shipped인 경우 shipped로 업데이트
+        const allFullyShipped = data.orderItems.every(
+          (item: OrderItem) => (item.shippedQuantity || 0) >= item.quantity
+        );
+        if (allFullyShipped && (data.status === 'paid' || data.status === 'partially_shipped')) {
+          try {
+            await adminService.updateOrderStatus(data.id, 'shipped', data.trackingNumber);
+            // 상태 보정 후 데이터 다시 로드
+            const refreshed = await adminService.getOrderById(id!);
+            setOrder(refreshed);
+          } catch (e) {
+            console.error('상태 자동 보정 실패:', e);
+          }
+        }
       }
       if (data.trackingNumber) {
         setTrackingNumber(data.trackingNumber);
@@ -486,7 +501,7 @@ export function OrderDetailPage() {
           {order.status === 'paid' || order.status === 'partially_shipped' ? (
             <div className="flex items-center gap-3">
               {(() => {
-                const isAllShipped = !order.orderItems?.some(item => (item.quantity - (item.shippedQuantity || 0)) > 0);
+                const isAllShipped = !order.orderItems?.some(item => (item.quantity - (item.shippedQuantity || (item as any).shipped_quantity || 0)) > 0);
                 return (
                   <>
                     <div className="flex items-center gap-2 mr-1">
@@ -592,8 +607,9 @@ export function OrderDetailPage() {
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {order.orderItems && order.orderItems.length > 0 ? (
-                order.orderItems.map((item: OrderItem) => {
-                  const remaining = item.quantity - (item.shippedQuantity || 0);
+                order.orderItems.map((item: any) => {
+                  const shippedQty = item.shippedQuantity || item.shipped_quantity || 0;
+                  const remaining = item.quantity - shippedQty;
                   const stock = item.stock;
                   const isOutOfStock = stock !== null && stock !== undefined && stock === 0;
                   const isLowStock = stock !== null && stock !== undefined && stock > 0 && stock < remaining;
@@ -602,8 +618,8 @@ export function OrderDetailPage() {
                     <tr key={item.id}>
                       <td className="py-4 text-sm text-neutral-900">
                         {item.productName}
-                        {(item.shippedQuantity || 0) > 0 && (
-                          <span className="ml-2 text-xs text-purple-600">({item.shippedQuantity}개 발송완료)</span>
+                        {shippedQty > 0 && (
+                          <span className="ml-2 text-xs text-purple-600">({shippedQty}개 발송완료)</span>
                         )}
                       </td>
                       <td className="py-4">
