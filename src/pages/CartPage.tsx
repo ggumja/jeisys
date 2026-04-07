@@ -192,10 +192,24 @@ export function CartPage() {
                         {item.selectedProductIds && item.selectedProductIds.length > 0 && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs font-semibold text-neutral-900">패키지 구성:</p>
-                            <ul className="text-xs text-neutral-600 list-disc list-inside">
-                              {item.selectedProductIds.map((id, idx) => (
-                                <li key={idx}>{productsMap[id]?.name || '로딩 중...'}</li>
-                              ))}
+                            <ul className="text-xs text-neutral-600 space-y-0.5">
+                              {(() => {
+                                // Group product IDs and count them
+                                const counts: Record<string, number> = {};
+                                item.selectedProductIds.forEach(id => {
+                                  counts[id] = (counts[id] || 0) + 1;
+                                });
+                                
+                                return Object.entries(counts).map(([id, count], idx) => {
+                                  const name = productsMap[id]?.name || '로딩 중...';
+                                  return (
+                                    <li key={idx} className="flex items-center gap-1">
+                                      <span>• {name}</span>
+                                      <span className="font-bold text-neutral-900">x {count} ea</span>
+                                    </li>
+                                  );
+                                });
+                              })()}
                             </ul>
                           </div>
                         )}
