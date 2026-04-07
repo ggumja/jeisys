@@ -155,9 +155,7 @@ export function ProductDetailPage() {
             )}
           </div>
 
-          <div className="mb-8">
-            <p className="text-base text-neutral-700 leading-relaxed">{product.description}</p>
-          </div>
+
 
           {/* Compatible Equipment */}
           {compatibleModels.length > 0 && (
@@ -301,11 +299,21 @@ export function ProductDetailPage() {
       </div>
 
       {/* Product Description Section */}
-      {product.additionalImages && product.additionalImages.length > 0 && (
-        <div className="mb-16">
-          <div className="border-t border-neutral-200 pt-12 mb-8">
-            <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">상품설명</h2>
-          </div>
+      <div className="mb-16">
+        <div className="border-t border-neutral-200 pt-12 mb-8">
+          <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">상품설명</h2>
+        </div>
+        
+        {/* Text Description (Rendered as HTML) */}
+        <div className="mb-12">
+          <div 
+            className="prose prose-neutral max-w-none text-lg text-neutral-800 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: product.description }} 
+          />
+        </div>
+
+        {/* Additional Images */}
+        {product.additionalImages && product.additionalImages.length > 0 && (
           <div className="space-y-0">
             {product.additionalImages.map((imgUrl, index) => (
               <div key={index} className="w-full">
@@ -317,8 +325,8 @@ export function ProductDetailPage() {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Shipping & Return Policy */}
       <div className="mb-16">
