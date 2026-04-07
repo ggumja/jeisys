@@ -271,7 +271,7 @@ export function PackageRegisterPage() {
       }
 
       alert(isEditMode ? '패키지가 수정되었습니다.' : '패키지가 등록되었습니다.');
-      navigate('/admin/products');
+      navigate('/admin/products/package');
     } catch (error) {
       console.error('Error saving package:', error);
       alert('패키지 저장 중 오류가 발생했습니다.');
@@ -306,7 +306,7 @@ export function PackageRegisterPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/admin/products')}
+          onClick={() => navigate('/admin/products/package')}
           className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -711,7 +711,7 @@ export function PackageRegisterPage() {
         <div className="flex items-center justify-end gap-4 sticky bottom-6 z-10">
           <button
             type="button"
-            onClick={() => navigate('/admin/products')}
+            onClick={() => navigate('/admin/products/package')}
             disabled={isSubmitting}
             className="px-8 py-4 bg-white border border-neutral-300 text-neutral-900 hover:bg-neutral-50 font-medium transition-all shadow-lg active:scale-95 disabled:opacity-50"
           >
