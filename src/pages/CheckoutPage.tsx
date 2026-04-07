@@ -8,6 +8,12 @@ import { authService } from '../services/authService';
 import { CartItem, Product } from '../types';
 import { ProductImage } from '../components/ui/ProductImage';
 
+declare global {
+  interface Window {
+    daum: any;
+  }
+}
+
 export function CheckoutPage() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -21,6 +27,7 @@ export function CheckoutPage() {
   const [address, setAddress] = useState({
     recipient: '',
     phone: '',
+    zipCode: '',
     address: '',
     detail: '',
   });
@@ -50,6 +57,7 @@ export function CheckoutPage() {
       setAddress({
         recipient: user.name,
         phone: user.phone || '',
+        zipCode: user.zipCode || '',
         address: user.address || '',
         detail: user.addressDetail || '',
       });
@@ -72,6 +80,32 @@ export function CheckoutPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddressSearch = () => {
+    new window.daum.Postcode({
+      oncomplete: (data: any) => {
+        let fullAddress = data.roadAddress;
+        let extraAddress = '';
+
+        if (data.addressType === 'R') {
+          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) {
+            extraAddress += data.bname;
+          }
+          if (data.buildingName !== '') {
+            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
+          }
+          fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+        }
+
+        setAddress(prev => ({
+          ...prev,
+          zipCode: data.zonecode,
+          address: fullAddress,
+          detail: '',
+        }));
+      },
+    }).open();
   };
 
   const getTierPrice = (productId: string, quantity: number) => {
@@ -107,7 +141,7 @@ export function CheckoutPage() {
         throw new Error('User not logged in');
       }
 
-      const fullAddress = `${address.address} ${address.detail} (수령인: ${address.recipient}, 연락처: ${address.phone}) ${deliveryMemo ? `[메모: ${deliveryMemo}]` : ''}`;
+      const fullAddress = `(${address.zipCode}) ${address.address} ${address.detail} (수령인: ${address.recipient}, 연락처: ${address.phone}) ${deliveryMemo ? `[메모: ${deliveryMemo}]` : ''}`;
 
       const order = await orderService.createOrder({
         userId: user.id,
@@ -179,13 +213,29 @@ export function CheckoutPage() {
                   className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm"
                 />
               </div>
-              <div className="md:col-span-2">
+              <div className="md:col-span-2 space-y-2">
                 <label className="block text-sm font-medium text-neutral-700 mb-1">주소</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={address.zipCode}
+                    onChange={e => setAddress({ ...address, zipCode: e.target.value })}
+                    className="w-32 px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm"
+                    placeholder="우편번호"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddressSearch}
+                    className="bg-neutral-100 text-neutral-900 px-6 py-3 font-medium hover:bg-neutral-200 transition-colors text-sm"
+                  >
+                    주소검색
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={address.address}
                   onChange={e => setAddress({ ...address, address: e.target.value })}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm mb-2"
+                  className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 text-sm"
                   placeholder="기본 주소"
                 />
                 <input

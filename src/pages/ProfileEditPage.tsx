@@ -4,6 +4,12 @@ import { storage } from "../lib/storage";
 import { User } from "../types";
 import { Check } from "lucide-react";
 
+declare global {
+  interface Window {
+    daum: any;
+  }
+}
+
 export function ProfileEditPage() {
   const navigate = useNavigate();
   const currentUser = storage.getUser();
@@ -12,7 +18,9 @@ export function ProfileEditPage() {
     businessNumber: currentUser?.businessNumber || "",
     hospitalName: currentUser?.hospitalName || "",
     representativeName: currentUser?.name || "",
-    businessAddress: "",
+    zipCode: currentUser?.zipCode || "",
+    businessAddress: currentUser?.address || "",
+    businessAddressDetail: currentUser?.addressDetail || "",
     managerName: currentUser?.name || "",
     phone: currentUser?.phone || "",
     email: currentUser?.email || "",
@@ -32,6 +40,32 @@ export function ProfileEditPage() {
     }));
   };
 
+  const handleAddressSearch = () => {
+    new window.daum.Postcode({
+      oncomplete: (data: any) => {
+        let fullAddress = data.roadAddress;
+        let extraAddress = '';
+
+        if (data.addressType === 'R') {
+          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) {
+            extraAddress += data.bname;
+          }
+          if (data.buildingName !== '') {
+            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
+          }
+          fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          zipCode: data.zonecode,
+          businessAddress: fullAddress,
+          businessAddressDetail: '',
+        }));
+      },
+    }).open();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -43,6 +77,9 @@ export function ProfileEditPage() {
       hospitalName: formData.hospitalName,
       businessNumber: formData.businessNumber,
       phone: formData.phone,
+      zipCode: formData.zipCode,
+      address: formData.businessAddress,
+      addressDetail: formData.businessAddressDetail,
     };
 
     storage.setUser(updatedUser);
@@ -130,20 +167,39 @@ export function ProfileEditPage() {
               <label className="block text-sm text-neutral-700 mb-2">
                 사업장 주소 <span className="text-red-600">*</span>
               </label>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  name="zipCode"
+                  value={formData.zipCode}
+                  onChange={handleChange}
+                  placeholder="우편번호"
+                  className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddressSearch}
+                  className="bg-neutral-100 text-neutral-900 px-6 py-3 font-medium hover:bg-neutral-200 transition-colors"
+                >
+                  주소검색
+                </button>
+              </div>
               <input
                 type="text"
                 name="businessAddress"
                 value={formData.businessAddress}
                 onChange={handleChange}
-                placeholder="사업장 주소를 입력하세요"
+                placeholder="기본 주소"
                 className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 mb-3"
                 required
               />
-              <textarea
+              <input
+                type="text"
                 name="businessAddressDetail"
+                value={formData.businessAddressDetail}
+                onChange={handleChange}
                 placeholder="상세 주소를 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-none"
-                rows={2}
+                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               />
             </div>
           </div>
