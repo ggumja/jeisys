@@ -796,26 +796,26 @@ export function PackageRegisterPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="relative inline-block w-full">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
                               <input
                                 type="text"
                                 value={item.priceOverride}
                                 onChange={(e) => updateItemPrice(item.productId!, e.target.value)}
-                                className="w-full text-right pr-6 py-2 border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none transition-all text-sm font-semibold"
+                                className="w-32 text-right px-3 py-1.5 border border-neutral-300 rounded-sm focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 focus:outline-none text-sm transition-colors"
                               />
-                              <span className="absolute right-0 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-normal">원</span>
+                              <span className="text-neutral-600 text-sm font-medium whitespace-nowrap">원</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="relative inline-block w-20">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-2">
                               <input
                                 type="text"
                                 value={item.maxQuantity}
                                 onChange={(e) => updateItemMaxQuantity(item.productId!, e.target.value)}
-                                className="w-full text-right pr-4 py-2 border-b border-transparent hover:border-neutral-300 focus:border-neutral-900 focus:outline-none transition-all text-sm font-semibold"
+                                className="w-20 text-right px-3 py-1.5 border border-neutral-300 rounded-sm focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 focus:outline-none text-sm transition-colors"
                               />
-                              <span className="absolute right-0 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-normal">개</span>
+                              <span className="text-neutral-600 text-sm font-medium whitespace-nowrap">개</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
