@@ -141,12 +141,12 @@ export function OrderDetailPage() {
     try {
       setIsUpdating(true);
       await adminService.updateOrderStatus(id!, status, manualTracking || trackingNumber);
-      
+
       // ✅ DB 업데이트 성공 즉시 로컬 상태 반영 (UI 지연 방지)
       setOrder(prev => prev ? { ...prev, status: targetStatus, trackingNumber: manualTracking || trackingNumber } : prev);
-      
+
       toast.success('주문 상태가 변경되었습니다.');
-      
+
       // 리로드 후에도 확정 상태가 캐시로 인해 뒤집히지 않도록 재적용
       await loadOrder();
       setOrder(prev => prev ? { ...prev, status: targetStatus } : prev);
@@ -331,17 +331,14 @@ export function OrderDetailPage() {
               )}
               {getStatusBadge(order.status)}
             </div>
-            <p className="text-sm text-neutral-600">
-              주문번호: {order.orderNumber}
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {order.status === 'pending' && (
-            <Button 
-                variant="default" 
-                onClick={() => handleUpdateStatus('paid')}
-                disabled={isUpdating}
+            <Button
+              variant="default"
+              onClick={() => handleUpdateStatus('paid')}
+              disabled={isUpdating}
             >
               {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
               입금 확인 처리
@@ -365,7 +362,7 @@ export function OrderDetailPage() {
             </div>
             {getSubscriptionStatusBadge(subscriptionStatus as 'active' | 'paused' | 'cancelled')}
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <dt className="text-xs font-medium text-purple-700 mb-1">배송 주기</dt>
@@ -402,8 +399,8 @@ export function OrderDetailPage() {
           <div className="flex items-center gap-3 pt-4 border-t border-purple-200">
             {subscriptionStatus === 'active' && (
               <>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handlePauseSubscription}
                   className="border-purple-300 text-purple-700 hover:bg-purple-100"
@@ -411,16 +408,16 @@ export function OrderDetailPage() {
                   <Pause className="w-4 h-4 mr-1" />
                   일시정지
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="border-purple-300 text-purple-700 hover:bg-purple-100"
                 >
                   <Edit2 className="w-4 h-4 mr-1" />
                   배송주기 변경
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="border-purple-300 text-purple-700 hover:bg-purple-100"
                 >
@@ -430,8 +427,8 @@ export function OrderDetailPage() {
               </>
             )}
             {subscriptionStatus === 'paused' && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={handleResumeSubscription}
                 className="border-green-300 text-green-700 hover:bg-green-100"
@@ -441,8 +438,8 @@ export function OrderDetailPage() {
               </Button>
             )}
             {subscriptionStatus !== 'cancelled' && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={handleCancelSubscription}
                 className="border-red-300 text-red-700 hover:bg-red-100 ml-auto"
@@ -514,10 +511,10 @@ export function OrderDetailPage() {
                   <>
                     <div className="flex items-center gap-2 mr-1">
                       <span className="text-sm font-medium text-neutral-600">박스 수량:</span>
-                      <input 
-                        type="number" 
-                        min={1} 
-                        max={20} 
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
                         value={boxCount}
                         disabled={isAllShipped}
                         onChange={(e) => setBoxCount(Math.max(1, parseInt(e.target.value) || 1))}
@@ -529,76 +526,76 @@ export function OrderDetailPage() {
                       disabled={isAllShipped || isUpdating}
                       title={isAllShipped ? '모든 상품 발송 완료' : ''}
                       onClick={async () => {
-                  const itemsToShip = order.orderItems?.filter(item => {
-                    const qty = shipQtyMap[item.id] ?? 0;
-                    return qty > 0 && item.productId;
-                  }).map(item => ({
-                    orderItemId: item.id,
-                    productId: item.productId!,
-                    shipQty: shipQtyMap[item.id] ?? 0,
-                    stock: item.stock,
-                    productName: item.productName
-                  })) || [];
+                        const itemsToShip = order.orderItems?.filter(item => {
+                          const qty = shipQtyMap[item.id] ?? 0;
+                          return qty > 0 && item.productId;
+                        }).map(item => ({
+                          orderItemId: item.id,
+                          productId: item.productId!,
+                          shipQty: shipQtyMap[item.id] ?? 0,
+                          stock: item.stock,
+                          productName: item.productName
+                        })) || [];
 
-                  if (itemsToShip.length === 0) {
-                    toast.error('발송 처리할 상품과 수량을 선택해주세요.');
-                    return;
-                  }
+                        if (itemsToShip.length === 0) {
+                          toast.error('발송 처리할 상품과 수량을 선택해주세요.');
+                          return;
+                        }
 
-                  // 재고 부족 체크
-                  const outOfStockItems = itemsToShip.filter(item => {
-                    const currentStock = item.stock ?? 0;
-                    return currentStock < item.shipQty;
-                  });
+                        // 재고 부족 체크
+                        const outOfStockItems = itemsToShip.filter(item => {
+                          const currentStock = item.stock ?? 0;
+                          return currentStock < item.shipQty;
+                        });
 
-                  if (outOfStockItems.length > 0) {
-                    const itemNames = outOfStockItems.map(i => i.productName).join(', ');
-                    toast.error(`재고가 부족한 상품이 포함되어 있습니다 (현재 재고 확인 필요): ${itemNames}`);
-                    return;
-                  }
-                  
-                  if (itemsToShip.length === 0) { 
-                      toast.error('발송할 수량을 확인해 주세요.'); 
-                      return; 
-                  }
+                        if (outOfStockItems.length > 0) {
+                          const itemNames = outOfStockItems.map(i => i.productName).join(', ');
+                          toast.error(`재고가 부족한 상품이 포함되어 있습니다 (현재 재고 확인 필요): ${itemNames}`);
+                          return;
+                        }
 
-                    try {
-                      setIsUpdating(true);
-                      
-                      // 송장번호 자동 발급 (박스수량만큼)
-                      toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
-                      const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
-                      setTrackingNumber(finalTrackingNumber);
+                        if (itemsToShip.length === 0) {
+                          toast.error('발송할 수량을 확인해 주세요.');
+                          return;
+                        }
 
-                    const result = await adminService.partialShipOrder({
-                      orderId: order.id,
-                      trackingNumber: finalTrackingNumber,
-                      orderNumber: order.orderNumber,
-                      items: itemsToShip,
-                    });
-                    
-                    toast.success(result.status === 'shipped' ? '전체 발송 처리가 완료되었습니다.' : '부분 발송 처리가 완료되었습니다.');
-                    // DB 업데이트 성공 즉시 로컬 상태도 반영 (UI 지연 방지)
-                    const confirmedStatus = result.status as 'shipped' | 'partially_shipped';
-                    setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
-                    setTrackingNumber('');
-                    setBoxCount(1);
-                    // loadOrder 후에도 확정 상태 재적용 (Supabase 캐시로 stale 데이터 방지)
-                    await loadOrder();
-                    setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
-                  } catch (e) {
-                    toast.error('발송 처리에 실패했습니다.');
-                  } finally {
-                    setIsUpdating(false);
-                  }
-                }}
-                className=""
-              >
-                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
-                {order.orderItems?.some(item => (shipQtyMap[item.id] ?? 0) < item.quantity - (item.shippedQuantity || 0))
-                  ? '부분 발송 처리'
-                  : '전체 발송 처리'}
-              </Button>
+                        try {
+                          setIsUpdating(true);
+
+                          // 송장번호 자동 발급 (박스수량만큼)
+                          toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
+                          const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
+                          setTrackingNumber(finalTrackingNumber);
+
+                          const result = await adminService.partialShipOrder({
+                            orderId: order.id,
+                            trackingNumber: finalTrackingNumber,
+                            orderNumber: order.orderNumber,
+                            items: itemsToShip,
+                          });
+
+                          toast.success(result.status === 'shipped' ? '전체 발송 처리가 완료되었습니다.' : '부분 발송 처리가 완료되었습니다.');
+                          // DB 업데이트 성공 즉시 로컬 상태도 반영 (UI 지연 방지)
+                          const confirmedStatus = result.status as 'shipped' | 'partially_shipped';
+                          setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
+                          setTrackingNumber('');
+                          setBoxCount(1);
+                          // loadOrder 후에도 확정 상태 재적용 (Supabase 캐시로 stale 데이터 방지)
+                          await loadOrder();
+                          setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
+                        } catch (e) {
+                          toast.error('발송 처리에 실패했습니다.');
+                        } finally {
+                          setIsUpdating(false);
+                        }
+                      }}
+                      className=""
+                    >
+                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
+                      {order.orderItems?.some(item => (shipQtyMap[item.id] ?? 0) < item.quantity - (item.shippedQuantity || 0))
+                        ? '부분 발송 처리'
+                        : '전체 발송 처리'}
+                    </Button>
                   </>
                 );
               })()}
@@ -667,9 +664,8 @@ export function OrderDetailPage() {
                                 const v = Math.min(Number(e.target.value), remaining);
                                 setShipQtyMap(prev => ({ ...prev, [item.id]: v }));
                               }}
-                              className={`w-16 text-right border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 ${
-                                isOutOfStock ? 'bg-neutral-100 border-neutral-200 text-neutral-400' : 'border-neutral-300'
-                              }`}
+                              className={`w-16 text-right border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 ${isOutOfStock ? 'bg-neutral-100 border-neutral-200 text-neutral-400' : 'border-neutral-300'
+                                }`}
                             />
                             {stock !== null && stock !== undefined && stock < (shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remaining)) && (
                               <span className="text-[10px] text-red-500 font-bold animate-pulse">재고 부족</span>
@@ -727,18 +723,18 @@ export function OrderDetailPage() {
                           {shipment.isPartial ? '부분발송' : '전체발송'}
                         </span>
                         <div className="flex flex-wrap gap-2">
-                            {shipment.trackingNumber?.split(',').map((tn, idx) => (
-                                <span key={idx} className="font-bold text-neutral-900 text-sm bg-white border border-neutral-300 px-2 py-1 rounded shadow-sm">
-                                  📦 로젠택배 <span className="text-blue-600 underline cursor-pointer">{tn.trim()}</span>
-                                </span>
-                            ))}
+                          {shipment.trackingNumber?.split(',').map((tn, idx) => (
+                            <span key={idx} className="font-bold text-neutral-900 text-sm bg-white border border-neutral-300 px-2 py-1 rounded shadow-sm">
+                              📦 로젠택배 <span className="text-blue-600 underline cursor-pointer">{tn.trim()}</span>
+                            </span>
+                          ))}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 mt-2 md:mt-0">
                         <span className="text-xs text-neutral-500 mr-2">
                           {new Date(shipment.shippedAt).toLocaleString()}
                         </span>
-                        
+
                         <Button
                           type="button"
                           variant="outline"
@@ -758,23 +754,23 @@ export function OrderDetailPage() {
                           <FileText className="w-3 h-3" /> 패킹리스트
                         </Button>
 
-                        <button 
-                            onClick={async () => {
-                                try {
-                                    setIsUpdating(true);
-                                    await adminService.cancelShipment(shipment.id, order.id);
-                                    toast.success('발송 내역이 정상적으로 취소되었습니다.');
-                                    await loadOrder();
-                                } catch (e) {
-                                    toast.error('발송 취소 중 오류가 발생했습니다.');
-                                } finally {
-                                    setIsUpdating(false);
-                                }
-                            }}
-                            disabled={isUpdating}
-                            className="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded"
+                        <button
+                          onClick={async () => {
+                            try {
+                              setIsUpdating(true);
+                              await adminService.cancelShipment(shipment.id, order.id);
+                              toast.success('발송 내역이 정상적으로 취소되었습니다.');
+                              await loadOrder();
+                            } catch (e) {
+                              toast.error('발송 취소 중 오류가 발생했습니다.');
+                            } finally {
+                              setIsUpdating(false);
+                            }
+                          }}
+                          disabled={isUpdating}
+                          className="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded"
                         >
-                            발송 취소
+                          발송 취소
                         </button>
                       </div>
                     </div>
