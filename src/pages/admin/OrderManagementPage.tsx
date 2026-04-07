@@ -139,7 +139,7 @@ export function OrderManagementPage() {
       order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.hospitalName.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
 
     return matchesSearch && matchesStatus;
@@ -212,7 +212,7 @@ export function OrderManagementPage() {
   const confirmBulkShipping = async () => {
     try {
       if (!shippingDialog.ordersToProcess) return;
-      
+
       const promises = shippingDialog.ordersToProcess
         .filter((o: Order) => o.status === 'paid')
         .map((o: Order) => adminService.updateOrderStatus(o.id, 'shipped', o.trackingNumber));
@@ -261,8 +261,8 @@ export function OrderManagementPage() {
         {[
           { id: 'all', label: '전체', count: stats.all },
           { id: 'pending', label: '입금대기', count: stats.pending },
-          { id: 'paid', label: '발송대상(신규)', count: stats.paid },
-          { id: 'partially_shipped', label: '발송대상(부분)', count: stats.partially_shipped },
+          { id: 'paid', label: '발송대기', count: stats.paid },
+          { id: 'partially_shipped', label: '부분발송', count: stats.partially_shipped },
           { id: 'shipped', label: '배송중', count: stats.shipped },
           { id: 'delivered', label: '배송완료', count: stats.delivered },
           { id: 'cancelled', label: '취소됨', count: stats.cancelled },
@@ -270,11 +270,10 @@ export function OrderManagementPage() {
           <button
             key={tab.id}
             onClick={() => setSelectedStatus(tab.id)}
-            className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              selectedStatus === tab.id
+            className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${selectedStatus === tab.id
                 ? 'border-neutral-900 text-neutral-900'
                 : 'border-transparent text-neutral-500 hover:text-neutral-700'
-            }`}
+              }`}
           >
             {tab.label} <span className="ml-1 text-xs opacity-60">({tab.count})</span>
           </button>
@@ -297,131 +296,130 @@ export function OrderManagementPage() {
 
       {/* Order List */}
       <div className="bg-white border border-neutral-200 divide-y divide-neutral-200">
-      {/* Order Table */}
-      <div className="bg-white border border-neutral-200 overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="bg-neutral-50 border-b border-neutral-200">
-            <tr>
-              <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">주문번호</th>
-              <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">고객정보</th>
-              <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">주문금액</th>
-              <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">주문일시</th>
-              <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">상태</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-200">
-            {paginatedOrders.length === 0 ? (
+        {/* Order Table */}
+        <div className="bg-white border border-neutral-200 overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-neutral-500">
-                  <Package className="w-12 h-12 mx-auto mb-4 text-neutral-300 opacity-20" />
-                  조건에 맞는 주문이 없습니다.
-                </td>
+                <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">주문번호</th>
+                <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">고객정보</th>
+                <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">주문금액</th>
+                <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">주문일시</th>
+                <th className="px-6 py-4 text-xs font-semibold text-neutral-700 uppercase tracking-tighter">상태</th>
               </tr>
-            ) : (
-              paginatedOrders.map((order: Order) => (
-                <tr 
-                  key={order.id} 
-                  className="hover:bg-neutral-50 transition-colors cursor-pointer group"
-                  onClick={() => navigate(`/admin/orders/${order.id}`)}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-bold text-neutral-900 group-hover:text-blue-600 transition-colors uppercase tracking-wider">{order.orderNumber}</div>
-                    <div className="text-xs text-neutral-500 mt-0.5 line-clamp-1">{order.itemsSummary}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-neutral-900">{order.hospitalName}</div>
-                    <div className="text-xs text-neutral-500">{order.customerName}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-neutral-900">₩{order.totalAmount.toLocaleString()}</div>
-                    <div className="text-xs text-neutral-500">{order.paymentInfo?.method}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-neutral-600">{order.orderDate}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(order.status)}
-                    {order.isSubscription && (
-                      <div className="mt-1">
-                        <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-100">정기배송</Badge>
-                      </div>
-                    )}
+            </thead>
+            <tbody className="divide-y divide-neutral-200">
+              {paginatedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-neutral-500">
+                    <Package className="w-12 h-12 mx-auto mb-4 text-neutral-300 opacity-20" />
+                    조건에 맞는 주문이 없습니다.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                paginatedOrders.map((order: Order) => (
+                  <tr
+                    key={order.id}
+                    className="hover:bg-neutral-50 transition-colors cursor-pointer group"
+                    onClick={() => navigate(`/admin/orders/${order.id}`)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-neutral-900 group-hover:text-blue-600 transition-colors uppercase tracking-wider">{order.orderNumber}</div>
+                      <div className="text-xs text-neutral-500 mt-0.5 line-clamp-1">{order.itemsSummary}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-neutral-900">{order.hospitalName}</div>
+                      <div className="text-xs text-neutral-500">{order.customerName}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-neutral-900">₩{order.totalAmount.toLocaleString()}</div>
+                      <div className="text-xs text-neutral-500">{order.paymentInfo?.method}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-neutral-600">{order.orderDate}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(order.status)}
+                      {order.isSubscription && (
+                        <div className="mt-1">
+                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-100">정기배송</Badge>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      {/* Pagination */}
-      {!loading && filteredOrders.length > 0 && (
-        <div className="bg-white border border-neutral-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-neutral-600">
-              전체 <span className="font-medium text-neutral-900">{filteredOrders.length}</span>건 중{' '}
-              <span className="font-medium text-neutral-900">{startIndex + 1}</span>-
-              <span className="font-medium text-neutral-900">{Math.min(endIndex, filteredOrders.length)}</span>건
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-2"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
-                  if (
-                    page === 1 ||
-                    page === totalPages ||
-                    (page >= currentPage - 2 && page <= currentPage + 2)
-                  ) {
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-2 text-sm border transition-colors ${
-                          currentPage === page
-                            ? 'bg-neutral-900 text-white border-neutral-900'
-                            : 'bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  } else if (
-                    page === currentPage - 3 ||
-                    page === currentPage + 3
-                  ) {
-                    return (
-                      <span key={page} className="px-2 text-neutral-500">
-                        ...
-                      </span>
-                    );
-                  }
-                  return null;
-                })}
+        {/* Pagination */}
+        {!loading && filteredOrders.length > 0 && (
+          <div className="bg-white border border-neutral-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-neutral-600">
+                전체 <span className="font-medium text-neutral-900">{filteredOrders.length}</span>건 중{' '}
+                <span className="font-medium text-neutral-900">{startIndex + 1}</span>-
+                <span className="font-medium text-neutral-900">{Math.min(endIndex, filteredOrders.length)}</span>건
               </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 2 && page <= currentPage + 2)
+                    ) {
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-2 text-sm border transition-colors ${currentPage === page
+                              ? 'bg-neutral-900 text-white border-neutral-900'
+                              : 'bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50'
+                            }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    } else if (
+                      page === currentPage - 3 ||
+                      page === currentPage + 3
+                    ) {
+                      return (
+                        <span key={page} className="px-2 text-neutral-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
 
       {/* Shipping Confirmation Dialog */}
