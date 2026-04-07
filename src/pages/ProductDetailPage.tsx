@@ -303,12 +303,12 @@ export function ProductDetailPage() {
         <div className="border-t border-neutral-200 pt-12 mb-8">
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">상품설명</h2>
         </div>
-        
+
         {/* Text Description (Rendered as HTML) */}
         <div className="mb-12">
-          <div 
+          <div
             className="prose prose-neutral max-w-none text-lg text-neutral-800 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: product.description }} 
+            dangerouslySetInnerHTML={{ __html: product.description }}
           />
         </div>
 
@@ -444,27 +444,6 @@ export function ProductDetailPage() {
           </div>
         </div>
       )}
-
-      {/* Clinical Materials */}
-      <div>
-        <h2 className="text-2xl tracking-tight text-neutral-900 mb-8">제품 자료</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {[
-            { title: '제품 사용 가이드', pages: 12 },
-            { title: '제품 연구 결과', pages: 24 },
-            { title: '안전 사용 매뉴얼', pages: 8 },
-          ].map((doc, index) => (
-            <button
-              key={index}
-              className="bg-white border border-neutral-200 p-6 hover:border-neutral-900 transition-all text-left"
-            >
-              <FileText className="w-10 h-10 text-neutral-900 mb-4" />
-              <h3 className="text-base font-medium text-neutral-900 mb-1">{doc.title}</h3>
-              <p className="text-sm text-neutral-600">{doc.pages} pages • PDF</p>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Cart Dialog */}
       <Dialog open={showCartDialog} onOpenChange={setShowCartDialog}>
