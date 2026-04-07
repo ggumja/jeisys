@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2 } from 'lucide-react';
+import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText } from 'lucide-react';
+import { printInvoice, printPackingList } from '../../utils/printUtils';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import { adminService } from '../../services/adminService';
+import { toast } from 'sonner';
 
 interface OrderItem {
   id: string;
+  productId?: string;
   productName: string;
   category: string;
   quantity: number;
+  shippedQuantity?: number;
+  stock?: number | null;
   price: number;
   thumbnail?: string;
 }
@@ -34,7 +40,7 @@ interface DeliveryHistory {
   id: string;
   deliveryNumber: number;
   deliveryDate: string;
-  status: 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled';
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
   amount: number;
   trackingNumber?: string;
 }
@@ -46,7 +52,7 @@ interface Order {
   hospitalName: string;
   orderDate: string;
   totalAmount: number;
-  status: 'pending' | 'confirmed' | 'shipping' | 'delivered' | 'cancelled';
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped';
   items: number;
   orderItems?: OrderItem[];
   shippingInfo?: ShippingInfo;
@@ -58,342 +64,93 @@ interface Order {
   subscriptionStartDate?: string;
   deliveryCount?: number;
   deliveryHistory?: DeliveryHistory[];
+  trackingNumber?: string;
+  shipments?: Array<{
+    id: string;
+    trackingNumber: string;
+    shippedAt: string;
+    isPartial: boolean;
+    items: Array<{ productName: string; quantity: number }>;
+  }>;
 }
 
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    orderNumber: 'ORD-2026-0001',
-    customerName: '김민종 원장',
-    hospitalName: '서울피부과의원',
-    orderDate: '2026-02-02',
-    totalAmount: 1250000,
-    status: 'confirmed',
-    items: 3,
-    orderItems: [
-      {
-        id: '1-1',
-        productName: 'POTENZA 니들 팁 16핀',
-        category: 'POTENZA',
-        quantity: 2,
-        price: 500000,
-      },
-      {
-        id: '1-2',
-        productName: 'ULTRAcel II 카트리지 3.0mm',
-        category: 'ULTRAcel II',
-        quantity: 1,
-        price: 250000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '김민종 원장',
-      phone: '010-1234-5678',
-      address: '서울특별시 강남구 논현동 123-456',
-      addressDetail: '서울피부과의원 1층',
-      zipCode: '06234',
-      memo: '부재 시 경비실에 맡겨주세요',
-    },
-    paymentInfo: {
-      method: '무통장 입금',
-      bankName: '신한은행',
-      accountNumber: '110-123-456789',
-      depositor: '김민종',
-      paidAt: '2026-02-02 14:30',
-    },
-  },
-  {
-    id: '2',
-    orderNumber: 'ORD-2026-0002',
-    customerName: '이수진 원장',
-    hospitalName: '강남클리닉',
-    orderDate: '2026-02-01',
-    totalAmount: 850000,
-    status: 'shipping',
-    items: 2,
-    orderItems: [
-      {
-        id: '2-1',
-        productName: 'LinearZ 앰플 세트',
-        category: 'LinearZ',
-        quantity: 1,
-        price: 400000,
-      },
-      {
-        id: '2-2',
-        productName: 'Density HIGH 스킨부스터',
-        category: 'Density',
-        quantity: 1,
-        price: 450000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '이수진 원장',
-      phone: '010-8765-4321',
-      address: '서울특별시 강남구 역삼동 654-321',
-      addressDetail: '강남클리닉 2층',
-      zipCode: '06543',
-      memo: '배송 전 연락 부탁드립니다',
-    },
-    paymentInfo: {
-      method: '무통장 입금',
-      bankName: '기업은행',
-      accountNumber: '220-456-789123',
-      depositor: '이수진',
-      paidAt: '2026-02-01 11:15',
-    },
-  },
-  {
-    id: '3',
-    orderNumber: 'ORD-2026-0003',
-    customerName: '박지훈 원장',
-    hospitalName: '부산성형외과',
-    orderDate: '2026-01-31',
-    totalAmount: 3200000,
-    status: 'delivered',
-    items: 5,
-    orderItems: [
-      {
-        id: '3-1',
-        productName: 'POTENZA 니들 팁 16핀',
-        category: 'POTENZA',
-        quantity: 2,
-        price: 1000000,
-      },
-      {
-        id: '3-2',
-        productName: 'ULTRAcel II 카트리지 3.0mm',
-        category: 'ULTRAcel II',
-        quantity: 1,
-        price: 600000,
-      },
-      {
-        id: '3-3',
-        productName: 'LinearZ 앰플 세트',
-        category: 'LinearZ',
-        quantity: 2,
-        price: 800000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '박지훈 원장',
-      phone: '010-5555-5555',
-      address: '부산광역시 해운대구 센텀중앙로 123',
-      addressDetail: '부산성형외과 3층',
-      zipCode: '48059',
-      memo: '오전 배송 희망',
-    },
-    paymentInfo: {
-      method: '무통장 입금',
-      bankName: '우리은행',
-      accountNumber: '1002-345-678901',
-      depositor: '박지훈',
-      paidAt: '2026-01-31 09:20',
-    },
-  },
-  {
-    id: '4',
-    orderNumber: 'ORD-2026-0004',
-    customerName: '최영희 원장',
-    hospitalName: '인천피부과',
-    orderDate: '2026-01-30',
-    totalAmount: 420000,
-    status: 'pending',
-    items: 1,
-    orderItems: [
-      {
-        id: '4-1',
-        productName: 'Density HIGH 스킨부스터',
-        category: 'Density',
-        quantity: 1,
-        price: 420000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '최영희 원장',
-      phone: '010-9999-9999',
-      address: '인천광역시 남동구 예술로 456',
-      addressDetail: '인천피부과 1층',
-      zipCode: '21562',
-      memo: '문 앞에 놓아주세요',
-    },
-    paymentInfo: {
-      method: '무통장 입금',
-      bankName: '국민은행',
-      accountNumber: '123-01-0123-456',
-      depositor: '최영희',
-    },
-  },
-  // 정기배송 주문
-  {
-    id: 'SUB-1',
-    orderNumber: 'SUB-2026-0001',
-    customerName: '김민종 원장',
-    hospitalName: '서울피부과의원',
-    orderDate: '2026-01-15',
-    totalAmount: 500000,
-    status: 'delivered',
-    items: 2,
-    isSubscription: true,
-    subscriptionCycle: '매월',
-    nextDeliveryDate: '2026-03-15',
-    subscriptionStatus: 'active',
-    subscriptionStartDate: '2026-01-15',
-    deliveryCount: 2,
-    orderItems: [
-      {
-        id: 'sub-1-1',
-        productName: 'POTENZA 니들 팁 16핀',
-        category: 'POTENZA',
-        quantity: 2,
-        price: 500000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '김민종 원장',
-      phone: '010-1234-5678',
-      address: '서울특별시 강남구 논현동 123-456',
-      addressDetail: '서울피부과의원 1층',
-      zipCode: '06234',
-    },
-    paymentInfo: {
-      method: '자동결제 (신용카드)',
-      paidAt: '매월 15일 자동결제',
-    },
-    deliveryHistory: [
-      {
-        id: 'h1',
-        deliveryNumber: 2,
-        deliveryDate: '2026-02-15',
-        status: 'delivered',
-        amount: 500000,
-        trackingNumber: '1234567890',
-      },
-      {
-        id: 'h2',
-        deliveryNumber: 1,
-        deliveryDate: '2026-01-15',
-        status: 'delivered',
-        amount: 500000,
-        trackingNumber: '0987654321',
-      },
-    ],
-  },
-  {
-    id: 'SUB-2',
-    orderNumber: 'SUB-2026-0002',
-    customerName: '이수진 원장',
-    hospitalName: '강남클리닉',
-    orderDate: '2026-01-20',
-    totalAmount: 450000,
-    status: 'confirmed',
-    items: 1,
-    isSubscription: true,
-    subscriptionCycle: '2주마다',
-    nextDeliveryDate: '2026-02-17',
-    subscriptionStatus: 'active',
-    subscriptionStartDate: '2026-01-20',
-    deliveryCount: 3,
-    orderItems: [
-      {
-        id: 'sub-2-1',
-        productName: 'Density HIGH 스킨부스터',
-        category: 'Density',
-        quantity: 1,
-        price: 450000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '이수진 원장',
-      phone: '010-8765-4321',
-      address: '서울특별시 강남구 역삼동 654-321',
-      addressDetail: '강남클리닉 2층',
-      zipCode: '06543',
-    },
-    paymentInfo: {
-      method: '자동결제 (신용카드)',
-      paidAt: '2주마다 자동결제',
-    },
-    deliveryHistory: [
-      {
-        id: 'h3',
-        deliveryNumber: 3,
-        deliveryDate: '2026-02-03',
-        status: 'delivered',
-        amount: 450000,
-        trackingNumber: '1122334455',
-      },
-      {
-        id: 'h4',
-        deliveryNumber: 2,
-        deliveryDate: '2026-01-27',
-        status: 'delivered',
-        amount: 450000,
-        trackingNumber: '5544332211',
-      },
-      {
-        id: 'h5',
-        deliveryNumber: 1,
-        deliveryDate: '2026-01-20',
-        status: 'delivered',
-        amount: 450000,
-        trackingNumber: '9988776655',
-      },
-    ],
-  },
-  {
-    id: 'SUB-3',
-    orderNumber: 'SUB-2026-0003',
-    customerName: '박지훈 원장',
-    hospitalName: '부산성형외과',
-    orderDate: '2025-12-01',
-    totalAmount: 800000,
-    status: 'delivered',
-    items: 2,
-    isSubscription: true,
-    subscriptionCycle: '3개월마다',
-    nextDeliveryDate: '2026-03-01',
-    subscriptionStatus: 'paused',
-    subscriptionStartDate: '2025-12-01',
-    deliveryCount: 1,
-    orderItems: [
-      {
-        id: 'sub-3-1',
-        productName: 'LinearZ 앰플 세트',
-        category: 'LinearZ',
-        quantity: 2,
-        price: 800000,
-      },
-    ],
-    shippingInfo: {
-      recipient: '박지훈 원장',
-      phone: '010-5555-5555',
-      address: '부산광역시 해운대구 센텀중앙로 123',
-      addressDetail: '부산성형외과 3층',
-      zipCode: '48059',
-    },
-    paymentInfo: {
-      method: '자동결제 (신용카드)',
-      paidAt: '3개월마다 자동결제',
-    },
-    deliveryHistory: [
-      {
-        id: 'h6',
-        deliveryNumber: 1,
-        deliveryDate: '2025-12-01',
-        status: 'delivered',
-        amount: 800000,
-        trackingNumber: '6677889900',
-      },
-    ],
-  },
-];
 
 export function OrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const order = mockOrders.find((o) => o.id === id);
-  const [subscriptionStatus, setSubscriptionStatus] = useState(order?.subscriptionStatus || 'active');
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [boxCount, setBoxCount] = useState(1);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
+  // 발송 수량 상태: { [orderItemId]: shipQty }
+  const [shipQtyMap, setShipQtyMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (id) {
+      loadOrder();
+    }
+  }, [id]);
+
+  const loadOrder = async () => {
+    try {
+      setLoading(true);
+      const data = await adminService.getOrderById(id!);
+      setOrder(data);
+      // 발송수량 초기값: 미발송 수량으로 세팅
+      if (data.orderItems) {
+        const initMap: Record<string, number> = {};
+        data.orderItems.forEach((item: OrderItem) => {
+          const remaining = item.quantity - (item.shippedQuantity || 0);
+          initMap[item.id] = remaining > 0 ? remaining : 0;
+        });
+        setShipQtyMap(initMap);
+      }
+      if (data.trackingNumber) {
+        setTrackingNumber(data.trackingNumber);
+      }
+      if (data.subscriptionStatus) {
+        setSubscriptionStatus(data.subscriptionStatus);
+      }
+    } catch (error) {
+      console.error('Failed to load order:', error);
+      toast.error('주문 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (status: string, manualTracking?: string) => {
+    try {
+      setIsUpdating(true);
+      await adminService.updateOrderStatus(id!, status, manualTracking || trackingNumber);
+      toast.success('주문 상태가 변경되었습니다.');
+      await loadOrder();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      toast.error('상태 변경에 실패했습니다.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleStartShipping = async () => {
+    if (!trackingNumber.trim()) {
+      toast.error('송장 번호를 입력해 주세요.');
+      return;
+    }
+    await handleUpdateStatus('shipped');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+        <p className="text-sm text-neutral-500">주문 정보를 불러오는 중...</p>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -422,14 +179,14 @@ export function OrderDetailPage() {
             입금대기
           </Badge>
         );
-      case 'confirmed':
+      case 'paid':
         return (
           <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
             <CheckCircle className="w-3 h-3 mr-1" />
-            주문확정
+            결제완료
           </Badge>
         );
-      case 'shipping':
+      case 'shipped':
         return (
           <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
             <Package className="w-3 h-3 mr-1" />
@@ -448,6 +205,13 @@ export function OrderDetailPage() {
           <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
             <XCircle className="w-3 h-3 mr-1" />
             취소
+          </Badge>
+        );
+      case 'partially_shipped':
+        return (
+          <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+            <Truck className="w-3 h-3 mr-1" />
+            부분발송
           </Badge>
         );
     }
@@ -482,8 +246,8 @@ export function OrderDetailPage() {
   const getStatusText = (status: Order['status']) => {
     switch (status) {
       case 'pending': return '입금대기';
-      case 'confirmed': return '주문확정';
-      case 'shipping': return '배송중';
+      case 'paid': return '결제완료';
+      case 'shipped': return '배송중';
       case 'delivered': return '배송완료';
       case 'cancelled': return '취소';
     }
@@ -521,6 +285,16 @@ export function OrderDetailPage() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadOrder}
+            disabled={loading}
+            className="flex items-center gap-2 border-neutral-300 text-neutral-600 hover:bg-neutral-50 px-3 h-10"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="text-sm font-medium">새로고침</span>
+          </Button>
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h2 className="text-2xl tracking-tight text-neutral-900">
@@ -540,14 +314,19 @@ export function OrderDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {!order.isSubscription && order.status === 'pending' && (
-            <Button variant="default">
-              입금 확인
+          {order.status === 'pending' && (
+            <Button 
+                variant="default" 
+                onClick={() => handleUpdateStatus('paid')}
+                disabled={isUpdating}
+            >
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+              입금 확인 처리
             </Button>
           )}
-          {!order.isSubscription && order.status === 'confirmed' && (
-            <Button variant="default">
-              배송 시작
+          {order.status === 'shipped' && (
+            <Button variant="outline" onClick={() => handleUpdateStatus('delivered')}>
+              배송 완료 처리
             </Button>
           )}
         </div>
@@ -702,8 +481,87 @@ export function OrderDetailPage() {
 
       {/* Order Items */}
       <div className="bg-white border border-neutral-200">
-        <div className="px-6 py-4 border-b border-neutral-200">
+        <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
           <h4 className="text-sm font-medium text-neutral-900">주문 상품</h4>
+          {order.status === 'paid' || order.status === 'partially_shipped' ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 mr-1">
+                <span className="text-sm font-medium text-neutral-600">박스 수량:</span>
+                <input 
+                  type="number" 
+                  min={1} 
+                  max={20} 
+                  value={boxCount}
+                  onChange={(e) => setBoxCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 border border-neutral-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                />
+              </div>
+              <div className="relative">
+                <Truck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input
+                  type="text"
+                  placeholder="송장번호 (비워두면 로젠택배 자동발급)"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-neutral-300 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 w-64"
+                />
+              </div>
+              <Button
+                variant="default"
+                disabled={isUpdating}
+                onClick={async () => {
+                  const itemsToShip = order.orderItems?.filter(item => {
+                    const qty = shipQtyMap[item.id] ?? 0;
+                    return qty > 0 && item.productId;
+                  }).map(item => ({
+                    orderItemId: item.id,
+                    productId: item.productId!,
+                    shipQty: shipQtyMap[item.id] ?? 0,
+                  })) || [];
+                  
+                  if (itemsToShip.length === 0) { 
+                      toast.error('발송할 수량을 확인해 주세요.'); 
+                      return; 
+                  }
+
+                  try {
+                    setIsUpdating(true);
+                    
+                    // 송장번호가 비워져 있다면 로젠 API를 통해 다중 발급(박스수량만큼)
+                    let finalTrackingNumber = trackingNumber.trim();
+                    if (!finalTrackingNumber) {
+                        toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
+                        finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
+                        // 발급 시 입력란에 세팅해주되, 다중인 경우 쉼표로 연결되어 들어감
+                        setTrackingNumber(finalTrackingNumber);
+                    }
+
+                    const result = await adminService.partialShipOrder({
+                      orderId: order.id,
+                      trackingNumber: finalTrackingNumber,
+                      orderNumber: order.orderNumber,
+                      items: itemsToShip,
+                    });
+                    
+                    toast.success(result.status === 'shipped' ? '전체 발송 처리가 완료되었습니다.' : '부분 발송 처리가 완료되었습니다.');
+                    setTrackingNumber('');
+                    setBoxCount(1);
+                    await loadOrder();
+                  } catch (e) {
+                    toast.error('발송 처리에 실패했습니다.');
+                  } finally {
+                    setIsUpdating(false);
+                  }
+                }}
+                className=""
+              >
+                {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
+                {order.orderItems?.some(item => (shipQtyMap[item.id] ?? 0) < item.quantity - (item.shippedQuantity || 0))
+                  ? '부분 발송 처리'
+                  : '전체 발송 처리'}
+              </Button>
+            </div>
+          ) : null}
         </div>
         <div className="p-6">
           <table className="w-full">
@@ -711,31 +569,81 @@ export function OrderDetailPage() {
               <tr>
                 <th className="pb-3 text-left text-xs font-medium text-neutral-700">상품명</th>
                 <th className="pb-3 text-left text-xs font-medium text-neutral-700">카테고리</th>
-                <th className="pb-3 text-right text-xs font-medium text-neutral-700">수량</th>
+                <th className="pb-3 text-right text-xs font-medium text-neutral-700">주문수량</th>
+                <th className="pb-3 text-right text-xs font-medium text-neutral-700">재고</th>
+                <th className="pb-3 text-right text-xs font-medium text-neutral-700">발송수량</th>
                 <th className="pb-3 text-right text-xs font-medium text-neutral-700">단가</th>
                 <th className="pb-3 text-right text-xs font-medium text-neutral-700">합계</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
-              {order.orderItems?.map((item) => (
-                <tr key={item.id}>
-                  <td className="py-4 text-sm text-neutral-900">{item.productName}</td>
-                  <td className="py-4">
-                    <span className="inline-flex px-2 py-1 bg-neutral-100 text-neutral-800 text-xs">
-                      {item.category}
-                    </span>
-                  </td>
-                  <td className="py-4 text-sm text-neutral-900 text-right">{item.quantity}개</td>
-                  <td className="py-4 text-sm text-neutral-900 text-right">{item.price.toLocaleString()}원</td>
-                  <td className="py-4 text-sm font-medium text-neutral-900 text-right">
-                    {(item.quantity * item.price).toLocaleString()}원
+              {order.orderItems && order.orderItems.length > 0 ? (
+                order.orderItems.map((item: OrderItem) => {
+                  const remaining = item.quantity - (item.shippedQuantity || 0);
+                  const stock = item.stock;
+                  const isOutOfStock = stock !== null && stock !== undefined && stock === 0;
+                  const isLowStock = stock !== null && stock !== undefined && stock > 0 && stock < remaining;
+                  const canEdit = order.status === 'paid' || order.status === 'partially_shipped';
+                  return (
+                    <tr key={item.id}>
+                      <td className="py-4 text-sm text-neutral-900">
+                        {item.productName}
+                        {(item.shippedQuantity || 0) > 0 && (
+                          <span className="ml-2 text-xs text-purple-600">({item.shippedQuantity}개 발송완료)</span>
+                        )}
+                      </td>
+                      <td className="py-4">
+                        <span className="inline-flex px-2 py-1 bg-neutral-100 text-neutral-800 text-xs">
+                          {item.category}
+                        </span>
+                      </td>
+                      <td className="py-4 text-sm text-neutral-900 text-right">{item.quantity}개</td>
+                      <td className="py-4 text-right">
+                        {stock === null || stock === undefined ? (
+                          <span className="text-xs text-neutral-400">-</span>
+                        ) : isOutOfStock ? (
+                          <span className="inline-flex px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">품절</span>
+                        ) : isLowStock ? (
+                          <span className="inline-flex px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">⚠ {stock}개</span>
+                        ) : (
+                          <span className="inline-flex px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">✓ {stock}개</span>
+                        )}
+                      </td>
+                      <td className="py-4 text-right">
+                        {canEdit && remaining > 0 ? (
+                          <input
+                            type="number"
+                            min={0}
+                            max={remaining}
+                            value={shipQtyMap[item.id] ?? remaining}
+                            onChange={(e) => {
+                              const v = Math.min(Number(e.target.value), remaining);
+                              setShipQtyMap(prev => ({ ...prev, [item.id]: v }));
+                            }}
+                            className="w-16 text-right border border-neutral-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                          />
+                        ) : (
+                          <span className="text-sm text-neutral-500">{remaining === 0 ? '완료' : `${remaining}개`}</span>
+                        )}
+                      </td>
+                      <td className="py-4 text-sm text-neutral-900 text-right">{item.price.toLocaleString()}원</td>
+                      <td className="py-4 text-sm font-medium text-neutral-900 text-right">
+                        {(item.quantity * item.price).toLocaleString()}원
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-neutral-500">
+                    등록된 주문 상품 내역이 없습니다.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
             <tfoot className="border-t-2 border-neutral-900">
               <tr>
-                <td colSpan={4} className="pt-4 text-right text-sm font-medium text-neutral-900">
+                <td colSpan={6} className="pt-4 text-right text-sm font-medium text-neutral-900">
                   {order.isSubscription ? '회당 주문금액' : '총 주문금액'}
                 </td>
                 <td className="pt-4 text-right text-lg font-bold text-neutral-900">
@@ -746,7 +654,90 @@ export function OrderDetailPage() {
           </table>
         </div>
       </div>
+      {/* Shipment History */}
+      {order.shipments && order.shipments.length > 0 && (
+        <div className="bg-white border border-neutral-200 mt-6">
+          <div className="px-6 py-4 border-b border-neutral-200">
+            <h4 className="text-sm font-medium text-neutral-900 flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              배송(송장) 추적 이력
+            </h4>
+          </div>
+          <div className="p-6">
+            <ul className="space-y-4">
+              {order.shipments.map((shipment) => (
+                <li key={shipment.id} className="p-4 border border-neutral-100 bg-neutral-50 flex items-start gap-4">
+                  <div className="flex-1">
+                    <div className="flex flex-col md:flex-row justify-between md:items-center mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded ${shipment.isPartial ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
+                          {shipment.isPartial ? '부분발송' : '전체발송'}
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                            {shipment.trackingNumber?.split(',').map((tn, idx) => (
+                                <span key={idx} className="font-bold text-neutral-900 text-sm bg-white border border-neutral-300 px-2 py-1 rounded shadow-sm">
+                                  📦 로젠택배 <span className="text-blue-600 underline cursor-pointer">{tn.trim()}</span>
+                                </span>
+                            ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2 md:mt-0">
+                        <span className="text-xs text-neutral-500 mr-2">
+                          {new Date(shipment.shippedAt).toLocaleString()}
+                        </span>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2 gap-1"
+                          onClick={() => printInvoice(order, shipment)}
+                        >
+                          <Printer className="w-3 h-3" /> 송장 출력
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs px-2 gap-1"
+                          onClick={() => printPackingList(order, shipment)}
+                        >
+                          <FileText className="w-3 h-3" /> 패킹리스트
+                        </Button>
 
+                        <button 
+                            onClick={async () => {
+                                try {
+                                    setIsUpdating(true);
+                                    await adminService.cancelShipment(shipment.id, order.id);
+                                    toast.success('발송 내역이 정상적으로 취소되었습니다.');
+                                    await loadOrder();
+                                } catch (e) {
+                                    toast.error('발송 취소 중 오류가 발생했습니다.');
+                                } finally {
+                                    setIsUpdating(false);
+                                }
+                            }}
+                            disabled={isUpdating}
+                            className="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded"
+                        >
+                            발송 취소
+                        </button>
+                      </div>
+                    </div>
+                    {/* 발송된 상품 목록 요약 */}
+                    <div className="text-sm text-neutral-600 border-l-2 border-neutral-300 pl-3 py-1">
+                      {shipment.items.map((it, idx) => (
+                        <div key={idx}>- {it.productName} <span className="font-medium text-neutral-900">{it.quantity}개</span></div>
+                      ))}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       {/* Delivery History - 정기배송인 경우만 표시 */}
       {order.isSubscription && order.deliveryHistory && order.deliveryHistory.length > 0 && (
         <div className="bg-white border border-neutral-200">
@@ -768,7 +759,7 @@ export function OrderDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
-                {order.deliveryHistory.map((history) => (
+                {order.deliveryHistory.map((history: DeliveryHistory) => (
                   <tr key={history.id} className="hover:bg-neutral-50">
                     <td className="px-6 py-4 text-sm font-medium text-neutral-900">
                       {history.deliveryNumber}회차

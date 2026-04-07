@@ -4,7 +4,7 @@ import { ShoppingCart, Check, FileText, Minus, Plus, Package, Loader2 } from 'lu
 import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { equipmentService, EquipmentModel } from '../services/equipmentService';
-import { Product } from '../types';
+import { Product, PackageItem } from '../types';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import { ProductImage } from '../components/ui/ProductImage';
 
 export function ProductDetailPage() {
   const { id } = useParams();
@@ -23,6 +24,8 @@ export function ProductDetailPage() {
   const [isSubscription, setIsSubscription] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
   const [showCartDialog, setShowCartDialog] = useState(false);
+  const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
+  const [selections, setSelections] = useState<string[]>([]);
 
   const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -58,6 +61,14 @@ export function ProductDetailPage() {
           fetchedProduct.compatibleEquipment.includes(m.code)
         );
         setCompatibleModels(compatible);
+
+        // Load package items if this is a package
+        if (fetchedProduct.isPackage) {
+          const items = await productService.getPackageItems(productId);
+          setPackageItems(items);
+          // Initialize selections with empty strings for each slot
+          setSelections(Array(fetchedProduct.selectableCount || 1).fill(''));
+        }
       }
     } catch (error) {
       console.error('Failed to load product details', error);
@@ -72,8 +83,17 @@ export function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product) return;
+
+    // Validation for package products
+    if (product.isPackage) {
+      if (selections.some(s => !s)) {
+        alert('모든 상품 옵션을 선택해주세요.');
+        return;
+      }
+    }
+
     try {
-      await cartService.addToCart(product.id, quantity, isSubscription);
+      await cartService.addToCart(product.id, quantity, isSubscription, product.isPackage ? selections : undefined);
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
       setShowCartDialog(true);
@@ -112,7 +132,7 @@ export function ProductDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
         {/* Product Image */}
         <div className="bg-neutral-100 overflow-hidden aspect-square">
-          <img
+          <ProductImage
             src={product.imageUrl}
             alt={product.name}
             className="w-full h-full object-cover"
@@ -156,6 +176,41 @@ export function ProductDetailPage() {
                     ))}
                   </ul>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Package Selections */}
+          {product.isPackage && selections.length > 0 && (
+            <div className="mb-8 space-y-6">
+              <div className="border-b border-neutral-200 pb-4">
+                <h3 className="text-base font-medium text-neutral-900 mb-1">패키지 구성 선택</h3>
+                <p className="text-sm text-neutral-500">지정된 수량만큼 상품을 선택해 주세요 ({product.selectableCount}개)</p>
+              </div>
+              <div className="space-y-4">
+                {selections.map((selectedId, index) => (
+                  <div key={index} className="space-y-2">
+                    <label className="block text-xs tracking-wide text-neutral-700 uppercase font-medium">
+                      옵션 {index + 1}
+                    </label>
+                    <select
+                      value={selectedId}
+                      onChange={(e) => {
+                        const newSelections = [...selections];
+                        newSelections[index] = e.target.value;
+                        setSelections(newSelections);
+                      }}
+                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                    >
+                      <option value="">상품을 선택하세요</option>
+                      {packageItems.map((item) => (
+                        <option key={item.productId} value={item.productId}>
+                          {item.product?.name} {item.priceOverride ? `(+₩${item.priceOverride.toLocaleString()})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -363,7 +418,7 @@ export function ProductDetailPage() {
                 className="bg-white border border-neutral-200 overflow-hidden group hover:border-neutral-900 transition-all"
               >
                 <div className="aspect-square bg-neutral-100 overflow-hidden">
-                  <img
+                  <ProductImage
                     src={p.imageUrl}
                     alt={p.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

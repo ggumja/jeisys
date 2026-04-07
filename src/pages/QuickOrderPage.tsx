@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Clock, TrendingUp, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { mockProducts, mockPurchaseHistory } from '../lib/mockData';
+import { ProductImage } from '../components/ui/ProductImage';
 import { storage } from '../lib/storage';
 
 export function QuickOrderPage() {
@@ -50,14 +51,14 @@ export function QuickOrderPage() {
   return (
     <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       <div className="mb-8 lg:mb-12">
-        <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">반복 구매 상품</h1>
+        <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">최근 구매 상품</h1>
         <p className="text-base text-neutral-600">
-          자주 구매하시는 소모품을 빠르게 재주문하세요
+          최근 구매하신 소모품을 빠르게 재주문하세요
         </p>
       </div>
 
       {/* Quick Add Section */}
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {frequentProducts.map(product => (
           <div
             key={product.id}
@@ -66,7 +67,7 @@ export function QuickOrderPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               {/* Product Image */}
               <div className="w-full sm:w-24 aspect-square sm:aspect-auto sm:h-24 bg-neutral-100 overflow-hidden flex-shrink-0">
-                <img
+                <ProductImage
                   src={product.imageUrl}
                   alt={product.name}
                   className="w-full h-full object-cover"

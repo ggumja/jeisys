@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { Package, FileText, Copy, Loader2 } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
+import { ProductImage } from '../components/ui/ProductImage';
 
 export function OrdersPage() {
   const { data: orders = [], isLoading } = useOrders();
@@ -97,8 +98,8 @@ export function OrdersPage() {
 
                 return (
                   <div key={index} className="flex items-center gap-6">
-                    <div className="w-20 h-20 bg-neutral-100 overflow-hidden flex-shrink-0">
-                      <img
+                    <div className="w-20 h-20 bg-neutral-100 overflow-hidden flex-shrink-0 border border-neutral-200">
+                      <ProductImage
                         src={item.product.imageUrl}
                         alt={item.product.name}
                         className="w-full h-full object-cover"

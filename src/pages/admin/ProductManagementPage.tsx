@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router';
+import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { CategoryManager } from '../../components/CategoryManager';
 import { ProductPreviewModal } from '../../components/ProductPreviewModal';
 import { useProducts, useDeleteProduct } from '../../hooks/useProducts';
@@ -25,11 +25,15 @@ interface Product {
   images?: string[];
   regularDiscount?: number;
   bulkDiscounts?: Array<{ quantity: number; discount: number }>;
+  isPackage?: boolean;
 }
 
 export function ProductManagementPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: productsData = [], isLoading } = useProducts();
+  
+  const isPackageView = location.pathname.includes('/admin/products/package');
   const deleteProduct = useDeleteProduct();
 
   const { data: dbCategories = [] } = useCategories();
@@ -59,6 +63,7 @@ export function ProductManagementPage() {
     createdDate: new Date().toISOString().split('T')[0], // Placeholder
     productCode: p.sku,
     description: p.description,
+    isPackage: p.isPackage,
   }));
 
   // Helper to get full category path (e.g., Parent > Child)
@@ -87,7 +92,8 @@ export function ProductManagementPage() {
       (product.productCode && product.productCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       product.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesType = isPackageView ? product.isPackage : !product.isPackage;
+    return matchesSearch && matchesCategory && matchesType;
   });
 
   // Pagination Logic
@@ -154,10 +160,10 @@ export function ProductManagementPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
-            상품관리
+            {isPackageView ? '패키지상품관리' : '단일상품관리'}
           </h2>
           <p className="text-sm text-neutral-600">
-            판매 상품을 등록하고 관리합니다
+            {isPackageView ? '패키지 상품 구성을 등록하고 관리합니다' : '개별 상품을 등록하고 관리합니다'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -169,11 +175,11 @@ export function ProductManagementPage() {
             <span>카테고리 관리</span>
           </button>
           <button
-            onClick={() => navigate('/admin/products/register')}
+            onClick={() => navigate(isPackageView ? '/admin/products/package-register' : '/admin/products/register')}
             className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
           >
-            <Plus className="w-5 h-5" />
-            <span>상품 등록</span>
+            {isPackageView ? <Package className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+            <span>{isPackageView ? '패키지 상품 등록' : '단일 상품 등록'}</span>
           </button>
         </div>
       </div>
@@ -247,8 +253,12 @@ export function ProductManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {currentProducts.map((product, index) => (
-                    <tr key={product.id} className="hover:bg-neutral-50">
+                  {currentProducts.map((product) => (
+                    <tr 
+                      key={product.id} 
+                      className="hover:bg-neutral-50 cursor-pointer"
+                      onClick={() => navigate(isPackageView ? `/admin/products/package-edit/${product.id}` : `/admin/products/edit/${product.id}`)}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 font-medium">
                         {product.displayNo || '-'}
                       </td>
@@ -295,7 +305,8 @@ export function ProductManagementPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setPreviewProduct(product);
                               setIsPreviewModalOpen(true);
                             }}
@@ -305,34 +316,40 @@ export function ProductManagementPage() {
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => navigate(`/admin/products/edit/${product.id}`)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(isPackageView ? `/admin/products/package-edit/${product.id}` : `/admin/products/edit/${product.id}`);
+                            }}
                             className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
                             title="수정"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm(`'${product.name}' 상품을 삭제하시겠습니까?`)) {
-                                try {
-                                  await deleteProduct.mutateAsync(product.id);
-                                  alert('상품이 삭제되었습니다.');
-                                } catch (err) {
-                                  console.error('Error deleting product:', err);
-                                  alert('상품 삭제 중 오류가 발생했습니다.');
+                          {isPackageView && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`'${product.name}' 상품을 삭제하시겠습니까?`)) {
+                                  try {
+                                    await deleteProduct.mutateAsync(product.id);
+                                    alert('상품이 삭제되었습니다.');
+                                  } catch (err) {
+                                    console.error('Error deleting product:', err);
+                                    alert('상품 삭제 중 오류가 발생했습니다.');
+                                  }
                                 }
-                              }
-                            }}
-                            disabled={deleteProduct.isPending}
-                            className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                            title="삭제"
-                          >
-                            {deleteProduct.isPending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </button>
+                              }}
+                              disabled={deleteProduct.isPending}
+                              className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                              title="삭제"
+                            >
+                              {deleteProduct.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -496,7 +513,7 @@ export function ProductManagementPage() {
           onClose={() => setIsPreviewModalOpen(false)}
           onEdit={() => {
             setIsPreviewModalOpen(false);
-            navigate(`/admin/products/edit/${previewProduct.id}`);
+            navigate(isPackageView ? `/admin/products/package-edit/${previewProduct.id}` : `/admin/products/edit/${previewProduct.id}`);
           }}
         />
       )}

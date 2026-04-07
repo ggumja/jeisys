@@ -11,6 +11,7 @@ export function AdminLayout() {
   const [isStatisticsOpen, setIsStatisticsOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isAdsOpen, setIsAdsOpen] = useState(false);
+  const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Check admin permission
@@ -60,9 +61,13 @@ export function AdminLayout() {
     { to: '/admin/ads', icon: LayoutList, label: '광고 목록' },
     { to: '/admin/adstats', icon: BarChart3, label: '노출/클릭 통계' },
   ];
+  
+  const productSubMenus = [
+    { to: '/admin/products/single', icon: LayoutList, label: '단일상품관리' },
+    { to: '/admin/products/package', icon: Package, label: '패키지상품관리' },
+  ];
 
   const bottomMenuItems = [
-    { to: '/admin/products', icon: Package, label: '상품관리' },
     { to: '/admin/sales-offices', icon: Building2, label: '판매영업점 관리' },
     { to: '/admin/members', icon: Users, label: '회원관리' },
     { to: '/admin/admins', icon: Shield, label: '관리자 계정관리' },
@@ -73,6 +78,7 @@ export function AdminLayout() {
   const isCommunicationActive = location.pathname.startsWith('/admin/communication');
   const isStatisticsActive = location.pathname.startsWith('/admin/statistics');
   const isAdsActive = location.pathname.startsWith('/admin/ads');
+  const isProductsActive = location.pathname.startsWith('/admin/products');
 
   // Auto-expand menus if active
   useEffect(() => {
@@ -88,7 +94,10 @@ export function AdminLayout() {
     if (isAdsActive) {
       setIsAdsOpen(true);
     }
-  }, [isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive]);
+    if (isProductsActive) {
+      setIsProductsOpen(true);
+    }
+  }, [isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive]);
 
   // Redirect to dashboard if at base admin path
   useEffect(() => {
@@ -346,6 +355,47 @@ export function AdminLayout() {
                   )}
                 </div>
 
+                {/* Products Menu - Accordion */}
+                <div>
+                  <button
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isProductsActive
+                      ? 'bg-neutral-900 text-white'
+                      : 'text-neutral-700 hover:bg-neutral-100'
+                      }`}
+                    onClick={() => setIsProductsOpen(!isProductsOpen)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Package className="w-5 h-5" />
+                      <span>상품관리</span>
+                    </div>
+                    {isProductsOpen ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                  {isProductsOpen && (
+                    <div className="bg-white">
+                      {productSubMenus.map((item) => {
+                        const isActive = location.pathname === item.to;
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive
+                              ? 'bg-neutral-900 text-white'
+                              : 'text-neutral-600 hover:bg-neutral-50'
+                              }`}
+                          >
+                            <item.icon className="w-4 h-4" />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 {/* Bottom Menu Items */}
                 {bottomMenuItems.map((item) => {
                   const isActive =
@@ -404,7 +454,7 @@ export function AdminLayout() {
                   <span className="text-xs font-medium text-center">정기배송</span>
                 </Link>
                 <Link
-                  to="/admin/products"
+                  to="/admin/products/single"
                   className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname.startsWith('/admin/products')
                     ? 'bg-neutral-900 text-white'
                     : 'text-neutral-600'

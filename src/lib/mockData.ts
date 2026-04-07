@@ -38,7 +38,7 @@ export const mockEquipment: Equipment[] = [
 export const mockProducts: Product[] = [
   // 소모품 - Density 카테고리 (ULTRAcel Q+ 전용)
   {
-    id: "101",
+    id: "8a4a163d-5ae7-43d4-83c7-affc100a6113",
     sku: "CART-ULTRA-1.5MM",
     name: "ULTRAcel 카트리지 1.5mm",
     category: "Density",
@@ -334,7 +334,7 @@ export const mockOrders: Order[] = [
 // Purchase history for "quick order" feature
 export const mockPurchaseHistory = [
   {
-    productId: "101",
+    productId: "8a4a163d-5ae7-43d4-83c7-affc100a6113",
     lastPurchaseDate: "2025-01-20",
     frequency: 8,
   },

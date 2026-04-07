@@ -24,6 +24,12 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:3001',
           changeOrigin: true,
         },
+        '/logenApi': {
+          target: 'https://topenapi.ilogen.com/lrm02b-edi',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/logenApi/, ''),
+        },
       },
     },
   };

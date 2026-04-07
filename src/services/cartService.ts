@@ -5,38 +5,49 @@ export const cartService = {
     // Get cart items for current user
     async getCart(): Promise<CartItem[]> {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return []; // Or generic empty if not logged in
+        if (!user) return [];
 
         const { data, error } = await supabase
             .from('cart_items')
             .select(`
-        product_id,
-        quantity,
-        is_subscription
-      `)
+                id,
+                product_id,
+                quantity,
+                is_subscription,
+                selected_product_ids
+            `)
             .eq('user_id', user.id);
 
         if (error) throw error;
 
         return data.map(item => ({
+            id: item.id,
             productId: item.product_id,
             quantity: item.quantity,
             isSubscription: item.is_subscription,
+            selectedProductIds: item.selected_product_ids,
         }));
     },
 
     // Add item to cart
-    async addToCart(productId: string, quantity: number, isSubscription: boolean = false) {
+    async addToCart(productId: string, quantity: number, isSubscription: boolean = false, selectedProductIds?: string[]) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
-        // Check if item exists
-        const { data: existing } = await supabase
+        // Check if identical item exists (same product AND same selections)
+        let query = supabase
             .from('cart_items')
             .select('id, quantity')
             .eq('user_id', user.id)
-            .eq('product_id', productId)
-            .single();
+            .eq('product_id', productId);
+
+        if (selectedProductIds && selectedProductIds.length > 0) {
+            query = query.eq('selected_product_ids', selectedProductIds);
+        } else {
+            query = query.is('selected_product_ids', null);
+        }
+
+        const { data: existing } = await query.single();
 
         if (existing) {
             // Update quantity
@@ -44,7 +55,7 @@ export const cartService = {
                 .from('cart_items')
                 .update({
                     quantity: existing.quantity + quantity,
-                    is_subscription: isSubscription // Update subscription status if needed
+                    is_subscription: isSubscription
                 })
                 .eq('id', existing.id);
             if (error) throw error;
@@ -56,50 +67,51 @@ export const cartService = {
                     user_id: user.id,
                     product_id: productId,
                     quantity,
-                    is_subscription: isSubscription
+                    is_subscription: isSubscription,
+                    selected_product_ids: selectedProductIds || null
                 });
             if (error) throw error;
         }
     },
 
     // Update item quantity
-    async updateQuantity(productId: string, quantity: number) {
+    async updateQuantity(cartItemId: string, quantity: number) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
         const { error } = await supabase
             .from('cart_items')
             .update({ quantity })
-            .eq('user_id', user.id)
-            .eq('product_id', productId);
+            .eq('id', cartItemId)
+            .eq('user_id', user.id);
 
         if (error) throw error;
     },
 
     // Toggle subscription (using update)
-    async updateSubscription(productId: string, isSubscription: boolean) {
+    async updateSubscription(cartItemId: string, isSubscription: boolean) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
         const { error } = await supabase
             .from('cart_items')
             .update({ is_subscription: isSubscription })
-            .eq('user_id', user.id)
-            .eq('product_id', productId);
+            .eq('id', cartItemId)
+            .eq('user_id', user.id);
 
         if (error) throw error;
     },
 
     // Remove item
-    async removeItem(productId: string) {
+    async removeItem(cartItemId: string) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
         const { error } = await supabase
             .from('cart_items')
             .delete()
-            .eq('user_id', user.id)
-            .eq('product_id', productId);
+            .eq('id', cartItemId)
+            .eq('user_id', user.id);
 
         if (error) throw error;
     },

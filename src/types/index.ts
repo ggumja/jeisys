@@ -53,12 +53,26 @@ export interface Product {
   additionalImages?: string[];
   description: string;
   stock: number;
+  isPackage?: boolean;
+  selectableCount?: number;
+  creditAvailable?: boolean;
+  isActive?: boolean;
+}
+
+export interface PackageItem {
+  id: string;
+  packageId: string;
+  productId: string;
+  product?: Product;
+  priceOverride?: number;
 }
 
 export interface CartItem {
+  id: string;
   productId: string;
   quantity: number;
   isSubscription: boolean;
+  selectedProductIds?: string[];
 }
 
 export interface Order {

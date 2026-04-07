@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { X, Minus, Plus, Package, FileText, ShoppingCart, Loader2 } from 'lucide-react';
+import { Minus, Plus, Package, FileText, ShoppingCart, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent } from './ui/dialog';
 import { useProduct } from '../hooks/useProducts';
-import { Product } from '../types';
+import { ProductImage } from './ui/ProductImage';
 
 interface ProductPreviewModalProps {
   product: { id: string };
@@ -10,7 +10,7 @@ interface ProductPreviewModalProps {
   onEdit?: () => void;
 }
 
-export function ProductPreviewModal({ product: initialProduct, onClose, onEdit }: ProductPreviewModalProps) {
+export function ProductPreviewModal({ product: initialProduct, onClose }: ProductPreviewModalProps) {
   const { data: product, isLoading } = useProduct(initialProduct.id);
   const [quantity, setQuantity] = useState(1);
   const [isSubscription, setIsSubscription] = useState(false);
@@ -36,8 +36,6 @@ export function ProductPreviewModal({ product: initialProduct, onClose, onEdit }
       .find(tier => quantity >= tier.quantity)?.unitPrice || product.price
     : product.price;
 
-  // 연관 상품 (같은 카테고리, 현재 상품 제외) - 미리보기에서는 제외하거나 빈 배열
-  const relatedProducts: any[] = [];
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -69,17 +67,11 @@ export function ProductPreviewModal({ product: initialProduct, onClose, onEdit }
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
             {/* Product Image */}
             <div className="bg-neutral-100 overflow-hidden aspect-square">
-              {product.imageUrl ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                  <Package className="w-24 h-24" />
-                </div>
-              )}
+              <ProductImage
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
             </div>
 
             {/* Product Info */}

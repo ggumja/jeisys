@@ -4,7 +4,7 @@ import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Loader2 } from 'lucide-r
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { useProduct, useCreateProduct, useUpdateProduct, useAddPricingTiers } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
-import { productService, ProductInput, PricingTierInput } from '../../services/productService';
+import { productService, ProductInput } from '../../services/productService';
 
 interface BulkDiscount {
   id: string;
@@ -20,6 +20,7 @@ interface FormData {
   price: string;
   stock: string;
   status: 'active' | 'inactive';
+  creditAvailable: boolean;
   description: string;
   subscriptionDiscount: string;
   bulkDiscounts: BulkDiscount[];
@@ -47,6 +48,7 @@ export function ProductRegisterPage() {
     price: '',
     stock: '',
     status: 'active',
+    creditAvailable: true,
     description: '',
     subscriptionDiscount: '',
     bulkDiscounts: [],
@@ -68,7 +70,8 @@ export function ProductRegisterPage() {
         manufacturer: '', // Not in Product type, will need to add if needed
         price: existingProduct.price.toString(),
         stock: existingProduct.stock.toString(),
-        status: 'active', // Assuming active, adjust based on your data
+        status: existingProduct.isActive !== false ? 'active' : 'inactive',
+        creditAvailable: existingProduct.creditAvailable ?? true,
         description: existingProduct.description || '',
         subscriptionDiscount: '',
         bulkDiscounts: existingProduct.tierPricing?.map((tier, index) => ({
@@ -204,6 +207,7 @@ export function ProductRegisterPage() {
         description: formData.description,
         image_url: finalImageUrl,
         is_active: formData.status === 'active',
+        credit_available: formData.creditAvailable,
       };
 
       let productId: string;
@@ -381,7 +385,7 @@ export function ProductRegisterPage() {
         {/* Basic Info */}
         <div className="bg-white border border-neutral-200 p-6">
           <h3 className="text-sm font-medium text-neutral-900 mb-4">기본 정보</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-2">
                 상품명 <span className="text-red-600">*</span>
@@ -415,7 +419,7 @@ export function ProductRegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-2">
-                상품코드
+                상품코드 <span className="text-red-600">*</span>
               </label>
               <input
                 type="text"
@@ -424,6 +428,7 @@ export function ProductRegisterPage() {
                 onChange={handleInputChange}
                 placeholder="상품코드를 입력하세요"
                 className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                required
               />
             </div>
 
@@ -471,17 +476,32 @@ export function ProductRegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className="block text-sm font-medium text-neutral-900 mb-3">
                 판매 상태
               </label>
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
               >
                 <option value="active">판매중</option>
                 <option value="inactive">판매중지</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 mb-3">
+                크레딧 사용 가능 여부
+              </label>
+              <select
+                name="creditAvailable"
+                value={formData.creditAvailable.toString()}
+                onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+              >
+                <option value="true">사용가능</option>
+                <option value="false">사용불가능</option>
               </select>
             </div>
           </div>
@@ -518,7 +538,7 @@ export function ProductRegisterPage() {
               다량주문 할인률
             </label>
             <div className="space-y-3">
-              {formData.bulkDiscounts.map((discount, index) => (
+              {formData.bulkDiscounts.map((discount) => (
                 <div key={discount.id} className="flex items-center gap-3">
                   <input
                     type="text"

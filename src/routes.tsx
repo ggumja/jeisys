@@ -31,6 +31,7 @@ import { OrderHistoryPage } from "./pages/admin/OrderHistoryPage";
 import { SubscriptionListPage } from "./pages/admin/SubscriptionListPage";
 import { ProductManagementPage } from "./pages/admin/ProductManagementPage";
 import { ProductRegisterPage } from "./pages/admin/ProductRegisterPage";
+import { PackageRegisterPage } from "./pages/admin/PackageRegisterPage";
 import { InquiryManagementPage } from "./pages/admin/InquiryManagementPage";
 import { FaqManagementPage } from "./pages/admin/FaqManagementPage";
 import { ManualManagementPage } from "./pages/admin/ManualManagementPage";
@@ -87,9 +88,13 @@ export const router = createBrowserRouter([
             { path: "order-history", Component: OrderHistoryPage },
             { path: "subscriptions", Component: SubscriptionListPage },
             { path: "orders/:id", Component: OrderDetailPage },
-            { path: "products", Component: ProductManagementPage },
+            { path: "products", element: <Navigate to="single" replace /> },
+            { path: "products/single", Component: ProductManagementPage },
+            { path: "products/package", Component: ProductManagementPage },
             { path: "products/register", Component: ProductRegisterPage },
+            { path: "products/package-register", Component: PackageRegisterPage },
             { path: "products/edit/:id", Component: ProductRegisterPage },
+            { path: "products/package-edit/:id", Component: PackageRegisterPage },
             { path: "sales-offices", Component: SalesOfficeManagementPage },
             { path: "statistics/sales", Component: SalesAnalyticsPage },
             { path: "statistics/products", Component: ProductAnalyticsPage },

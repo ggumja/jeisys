@@ -155,7 +155,7 @@ export const adService = {
         const filePath = `${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('ads')
+            .from('marketing')
             .upload(filePath, file);
 
         if (uploadError) {
@@ -164,7 +164,7 @@ export const adService = {
         }
 
         const { data: { publicUrl } } = supabase.storage
-            .from('ads')
+            .from('marketing')
             .getPublicUrl(filePath);
 
         return publicUrl;

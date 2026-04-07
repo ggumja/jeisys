@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router';
-import { CreditCard, Building2, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2 } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
-import { BASE_PATH } from '../constants/paths';
 import { CartItem, Product } from '../types';
+import { ProductImage } from '../components/ui/ProductImage';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'virtual' | 'loan'>('credit');
+  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'virtual'>('credit');
   const [selectedCard, setSelectedCard] = useState('신한 4402-****-****');
   const [deliveryMemo, setDeliveryMemo] = useState('');
   const [address, setAddress] = useState({
@@ -229,7 +229,7 @@ export function CheckoutPage() {
                   >
                     {/* Product Image */}
                     <div className="w-20 h-20 bg-neutral-100 overflow-hidden flex-shrink-0">
-                      <img
+                      <ProductImage
                         src={product.imageUrl}
                         alt={product.name}
                         className="w-full h-full object-cover"
@@ -264,34 +264,7 @@ export function CheckoutPage() {
           {/* Payment Methods */}
           <div className="bg-white border border-neutral-200 p-8">
             <h2 className="text-xl tracking-tight text-neutral-900 mb-6">결제 수단</h2>
-
             <div className="space-y-4">
-              {/* Loan Payment */}
-              <label
-                className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${paymentMethod === 'loan'
-                  ? 'border-neutral-900 bg-neutral-50'
-                  : 'border-neutral-200 bg-white'
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="loan"
-                  checked={paymentMethod === 'loan'}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  className="mt-0.5 w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Building2 className="w-5 h-5 text-neutral-700" />
-                    <span className="font-medium text-neutral-900">여신(외상) 거래</span>
-                  </div>
-                  <p className="text-sm text-neutral-600">
-                    가능 잔액: 5,400,000원
-                  </p>
-                </div>
-              </label>
-
               {/* Card Payment */}
               <div
                 className={`border-2 transition-all ${paymentMethod === 'credit'

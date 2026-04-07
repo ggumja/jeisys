@@ -5,6 +5,7 @@ import { mockEquipment } from '../lib/mockData';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { Product } from '../types';
+import { ProductImage } from '../components/ui/ProductImage';
 
 export function ProductListPage() {
   const [searchParams] = useSearchParams();
@@ -295,7 +296,7 @@ export function ProductListPage() {
                   <div key={product.id} className="bg-white border border-neutral-200 overflow-hidden group hover:border-neutral-900 transition-all">
                     <Link to={`/products/${product.id}`} className="block">
                       <div className="aspect-square bg-neutral-100 overflow-hidden">
-                        <img
+                        <ProductImage
                           src={product.imageUrl}
                           alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

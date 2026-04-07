@@ -9,6 +9,7 @@ import {
 } from "../lib/mockData";
 import heroBackground from "@/assets/ad843824065901ed0a4fc63f6a56c44c7c4ad85d.png";
 import { adService, Ad } from "../services/adService";
+import { ProductImage } from "../components/ui/ProductImage";
 
 export function HomePage() {
   const user = storage.getUser();
@@ -114,7 +115,7 @@ export function HomePage() {
                 className="flex transition-transform duration-500 ease-in-out h-full"
                 style={{ transform: `translateX(-${currentSlide * 100}%)` }}
               >
-                {activeBanners.map((ad, index) => (
+                {activeBanners.map((ad) => (
                   <a
                     key={ad.id}
                     href={ad.linkUrl}
@@ -230,7 +231,7 @@ export function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xl tracking-tight mb-2">
-                반복 구매 상품
+                최근 구매 상품
               </h3>
               <p className="text-sm text-neutral-400">
                 자주 구매하는 소모품을 빠르게 재주문
@@ -280,7 +281,7 @@ export function HomePage() {
               className="group bg-white border border-neutral-200 overflow-hidden hover:border-neutral-900 transition-all"
             >
               <div className="aspect-[4/3] bg-neutral-100 overflow-hidden">
-                <img
+                <ProductImage
                   src={product.imageUrl}
                   alt={product.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

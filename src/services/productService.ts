@@ -11,6 +11,9 @@ export interface ProductInput {
   description?: string;
   image_url?: string;
   is_active?: boolean;
+  is_package?: boolean;
+  selectable_count?: number;
+  credit_available?: boolean;
 }
 
 export interface PricingTierInput {
@@ -44,24 +47,7 @@ export const productService = {
       throw error;
     }
 
-    return data.map((item: any) => ({
-      id: item.id,
-      displayNo: item.display_no,
-      sku: item.sku,
-      name: item.name,
-      category: item.category,
-      subcategory: item.subcategory,
-      compatibleEquipment: item.product_compatibility.map((pc: any) => pc.equipment?.code).filter(Boolean),
-      price: item.price,
-      tierPricing: item.product_pricing_tiers.map((pt: any) => ({
-        quantity: pt.min_quantity,
-        unitPrice: pt.unit_price,
-      })).sort((a: any, b: any) => a.quantity - b.quantity),
-      imageUrl: item.image_url,
-      additionalImages: item.product_images.map((pi: any) => pi.image_url),
-      description: item.description,
-      stock: item.stock,
-    }));
+    return data.map((item: any) => this.mapProduct(item));
   },
 
   async getProductById(id: string): Promise<Product | null> {
@@ -90,23 +76,7 @@ export const productService = {
       return null;
     }
 
-    return {
-      id: data.id,
-      sku: data.sku,
-      name: data.name,
-      category: data.category,
-      subcategory: data.subcategory,
-      compatibleEquipment: data.product_compatibility.map((pc: any) => pc.equipment?.code).filter(Boolean),
-      price: data.price,
-      tierPricing: data.product_pricing_tiers.map((pt: any) => ({
-        quantity: pt.min_quantity,
-        unitPrice: pt.unit_price,
-      })).sort((a: any, b: any) => a.quantity - b.quantity),
-      imageUrl: data.image_url,
-      additionalImages: data.product_images.map((pi: any) => pi.image_url),
-      description: data.description,
-      stock: data.stock,
-    };
+    return this.mapProduct(data);
   },
 
   async createProduct(productData: ProductInput): Promise<any> {
@@ -122,6 +92,9 @@ export const productService = {
         description: productData.description,
         image_url: productData.image_url,
         is_active: productData.is_active ?? true,
+        is_package: productData.is_package ?? false,
+        selectable_count: productData.selectable_count ?? 1,
+        credit_available: productData.credit_available ?? true,
       })
       .select()
       .single();
@@ -131,7 +104,7 @@ export const productService = {
       throw error;
     }
 
-    return data;
+    return this.mapProduct(data);
   },
 
   async updateProduct(id: string, productData: Partial<ProductInput>): Promise<any> {
@@ -147,6 +120,9 @@ export const productService = {
         ...(productData.description !== undefined && { description: productData.description }),
         ...(productData.image_url !== undefined && { image_url: productData.image_url }),
         ...(productData.is_active !== undefined && { is_active: productData.is_active }),
+        ...(productData.is_package !== undefined && { is_package: productData.is_package }),
+        ...(productData.selectable_count !== undefined && { selectable_count: productData.selectable_count }),
+        ...(productData.credit_available !== undefined && { credit_available: productData.credit_available }),
       })
       .eq('id', id)
       .select()
@@ -157,7 +133,7 @@ export const productService = {
       throw error;
     }
 
-    return data;
+    return this.mapProduct(data);
   },
 
   async deleteProduct(id: string): Promise<void> {
@@ -246,6 +222,78 @@ export const productService = {
 
     if (error) {
       console.error('Error deleting product images:', error);
+      throw error;
+    }
+  },
+
+  async getPackageItems(packageId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('package_items')
+      .select(`
+        *,
+        product:products!product_id (*)
+      `)
+      .eq('package_id', packageId)
+      .order('display_order', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching package items:', error);
+      throw error;
+    }
+
+    return data.map(item => ({
+      id: item.id,
+      packageId: item.package_id,
+      productId: item.product_id,
+      priceOverride: item.price_override,
+      product: item.product ? this.mapProduct(item.product) : undefined
+    }));
+  },
+
+  mapProduct(item: any): Product {
+    return {
+      id: item.id,
+      displayNo: item.display_no,
+      sku: item.sku,
+      name: item.name,
+      category: item.category,
+      subcategory: item.subcategory,
+      compatibleEquipment: item.product_compatibility?.map((pc: any) => pc.equipment?.code).filter(Boolean) || [],
+      price: item.price,
+      tierPricing: item.product_pricing_tiers?.map((pt: any) => ({
+        quantity: pt.min_quantity,
+        unitPrice: pt.unit_price,
+      })).sort((a: any, b: any) => a.quantity - b.quantity) || [],
+      imageUrl: item.image_url,
+      additionalImages: item.product_images?.map((pi: any) => pi.image_url) || [],
+      description: item.description,
+      stock: item.stock,
+      isPackage: item.is_package,
+      selectableCount: item.selectable_count,
+      creditAvailable: item.credit_available,
+      isActive: item.is_active,
+    };
+  },
+
+  async addPackageItems(packageId: string, items: { productId: string; priceOverride?: number }[]): Promise<void> {
+    // Delete existing
+    await supabase.from('package_items').delete().eq('package_id', packageId);
+
+    if (items.length === 0) return;
+
+    const { error } = await supabase
+      .from('package_items')
+      .insert(
+        items.map((item, index) => ({
+          package_id: packageId,
+          product_id: item.productId,
+          price_override: item.priceOverride,
+          display_order: index,
+        }))
+      );
+
+    if (error) {
+      console.error('Error adding package items:', error);
       throw error;
     }
   },

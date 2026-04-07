@@ -1,9 +1,8 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
-import { Home, ShoppingCart, Package, User, Menu, X, Zap, Youtube, MessageSquare, ChevronDown, LogOut } from 'lucide-react';
+import { Home, ShoppingCart, Package, User, Zap, Youtube, MessageSquare, ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { FloatingButtons } from './FloatingButtons';
-import { BASE_PATH } from '../constants/paths';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
 import brandsImage from '@/assets/b5662c9e081b390cfd4a0ad2846686cabac40eaf.png';
 
@@ -11,7 +10,6 @@ export function RootLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showCommunicationDropdown, setShowCommunicationDropdown] = useState(false);
   const user = storage.getUser();
 
@@ -32,7 +30,7 @@ export function RootLayout() {
 
   const navItems = [
     { to: '/', icon: Home, label: '홈' },
-    { to: '/quick-order', icon: Zap, label: '반복 구매 상품' },
+    { to: '/quick-order', icon: Zap, label: '최근 구매 상품' },
     { to: '/products', icon: Package, label: '상품' },
   ];
 
@@ -48,7 +46,7 @@ export function RootLayout() {
 
   const mobileNavItems = [
     { to: '/', icon: Home, label: '홈' },
-    { to: '/quick-order', icon: Zap, label: '반복구매' },
+    { to: '/quick-order', icon: Zap, label: '최근구매' },
     { to: '/products', icon: Package, label: '상품' },
     { to: '/communication/inquiry', icon: MessageSquare, label: '커뮤니케이션' },
     { to: '/mypage/orders', icon: User, label: '마이페이지' },

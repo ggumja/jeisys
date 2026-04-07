@@ -4,6 +4,7 @@ import { Trash2, Plus, Minus, FileDown, ShoppingBag, Loader2 } from 'lucide-reac
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { CartItem, Product } from '../types';
+import { ProductImage } from '../components/ui/ProductImage';
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -22,10 +23,15 @@ export function CartPage() {
       setCart(items);
 
       if (items.length > 0) {
-        // Fetch product details for items in cart
-        // Optimization: In a real app we might want strict "getByIds" API. 
-        // For now, allow parallel fetching or if list is small.
-        const productPromises = items.map(item => productService.getProductById(item.productId));
+        // Collect all unique product IDs (main products + selected items for packages)
+        const allProductIds = new Set<string>();
+        items.forEach(item => {
+          allProductIds.add(item.productId);
+          item.selectedProductIds?.forEach(id => allProductIds.add(id));
+        });
+
+        // Fetch details for all relevant products
+        const productPromises = Array.from(allProductIds).map(id => productService.getProductById(id));
         const products = await Promise.all(productPromises);
 
         const map: Record<string, Product> = {};
@@ -41,38 +47,39 @@ export function CartPage() {
     }
   };
 
-  const updateQuantity = async (productId: string, newQuantity: number) => {
+  const getItemKey = (item: CartItem) => {
+    return item.id;
+  };
+
+  const updateQuantity = async (item: CartItem, newQuantity: number) => {
     try {
       if (newQuantity < 1) return;
       // Optimistic update
-      setCart(cart.map(item => item.productId === productId ? { ...item, quantity: newQuantity } : item));
-      await cartService.updateQuantity(productId, newQuantity);
+      setCart(cart.map(c => c.id === item.id ? { ...c, quantity: newQuantity } : c));
+      await cartService.updateQuantity(item.id, newQuantity);
     } catch (error) {
       console.error('Failed to update quantity', error);
       loadCart(); // Revert on error
     }
   };
 
-  const toggleSubscription = async (productId: string) => {
-    const item = cart.find(c => c.productId === productId);
-    if (!item) return;
-
+  const toggleSubscription = async (item: CartItem) => {
     try {
       const newState = !item.isSubscription;
       // Optimistic update
-      setCart(cart.map(c => c.productId === productId ? { ...c, isSubscription: newState } : c));
-      await cartService.updateSubscription(productId, newState);
+      setCart(cart.map(c => c.id === item.id ? { ...c, isSubscription: newState } : c));
+      await cartService.updateSubscription(item.id, newState);
     } catch (error) {
       console.error('Failed to toggle subscription', error);
       loadCart();
     }
   };
 
-  const removeItem = async (productId: string) => {
+  const removeItem = async (item: CartItem) => {
     try {
       // Optimistic update
-      setCart(cart.filter(item => item.productId !== productId));
-      await cartService.removeItem(productId);
+      setCart(cart.filter(c => c.id !== item.id));
+      await cartService.removeItem(item.id);
     } catch (error) {
       console.error('Failed to remove item', error);
       loadCart();
@@ -154,7 +161,7 @@ export function CartPage() {
 
             return (
               <div
-                key={item.productId}
+                key={getItemKey(item)}
                 className="bg-white border border-neutral-200 p-6"
               >
                 <div className="flex flex-col sm:flex-row gap-6">
@@ -163,7 +170,7 @@ export function CartPage() {
                     to={`/products/${product.id}`}
                     className="w-full sm:w-24 aspect-square sm:aspect-auto sm:h-24 bg-neutral-100 overflow-hidden flex-shrink-0"
                   >
-                    <img
+                    <ProductImage
                       src={product.imageUrl}
                       alt={product.name}
                       className="w-full h-full object-cover"
@@ -181,9 +188,20 @@ export function CartPage() {
                         >
                           {product.name}
                         </Link>
+                        {/* Package Selection Display */}
+                        {item.selectedProductIds && item.selectedProductIds.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs font-semibold text-neutral-900">패키지 구성:</p>
+                            <ul className="text-xs text-neutral-600 list-disc list-inside">
+                              {item.selectedProductIds.map((id, idx) => (
+                                <li key={idx}>{productsMap[id]?.name || '로딩 중...'}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                       <button
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => removeItem(item)}
                         className="text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
                       >
                         <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -194,14 +212,14 @@ export function CartPage() {
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-4">
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                          onClick={() => updateQuantity(item, item.quantity - 1)}
                           className="w-10 h-10 border border-neutral-300 hover:border-neutral-900 flex items-center justify-center transition-colors"
                         >
                           <Minus className="w-4 h-4 text-neutral-700" />
                         </button>
                         <span className="w-12 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                          onClick={() => updateQuantity(item, item.quantity + 1)}
                           className="w-10 h-10 bg-neutral-900 hover:bg-neutral-800 flex items-center justify-center transition-colors"
                         >
                           <Plus className="w-4 h-4 text-white" />
@@ -217,7 +235,7 @@ export function CartPage() {
                       <input
                         type="checkbox"
                         checked={item.isSubscription}
-                        onChange={() => toggleSubscription(item.productId)}
+                        onChange={() => toggleSubscription(item)}
                         className="w-4 h-4 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
                       />
                       <span className="text-sm text-neutral-700">
