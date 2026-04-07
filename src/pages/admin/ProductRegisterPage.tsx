@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
-import { useProduct, useCreateProduct, useUpdateProduct, useAddPricingTiers } from '../../hooks/useProducts';
+import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useAddPricingTiers } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
+import { Product } from '../../types';
 
 interface BulkDiscount {
   id: string;
   quantity: string;
   discountRate: string;
+}
+
+interface BonusProductData {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  price: string;
+  quantity: string;
+  imageUrl: string;
 }
 
 interface FormData {
@@ -24,7 +35,10 @@ interface FormData {
   description: string;
   useSubscriptionDiscount: boolean;
   subscriptionDiscount: string;
+  minOrderQuantity: string;
+  maxOrderQuantity: string;
   bulkDiscounts: BulkDiscount[];
+  bonusProducts: BonusProductData[];
 }
 
 
@@ -37,6 +51,7 @@ export function ProductRegisterPage() {
   // React Query hooks
   const { data: existingProduct, isLoading: isLoadingProduct } = useProduct(id || '');
   const { data: categories = [] } = useCategories();
+  const { data: allProducts = [], isLoading: isLoadingProducts } = useProducts();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const addPricingTiers = useAddPricingTiers();
@@ -53,7 +68,10 @@ export function ProductRegisterPage() {
     description: '',
     useSubscriptionDiscount: false,
     subscriptionDiscount: '',
+    minOrderQuantity: '1',
+    maxOrderQuantity: '0',
     bulkDiscounts: [],
+    bonusProducts: [],
   });
 
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -62,25 +80,40 @@ export function ProductRegisterPage() {
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+
   // Load existing product data in edit mode
   useEffect(() => {
     if (isEditMode && existingProduct) {
       setFormData({
-        name: existingProduct.name,
-        category: existingProduct.category,
-        productCode: existingProduct.sku,
+        name: existingProduct.name || '',
+        category: existingProduct.category || '',
+        productCode: existingProduct.sku || '',
         manufacturer: '', // Not in Product type, will need to add if needed
-        price: existingProduct.price.toString(),
-        stock: existingProduct.stock.toString(),
+        price: (existingProduct.price || 0).toString(),
+        stock: (existingProduct.stock || 0).toString(),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
         creditAvailable: existingProduct.creditAvailable ?? true,
         description: existingProduct.description || '',
         useSubscriptionDiscount: (existingProduct.subscriptionDiscount ?? 0) > 0,
         subscriptionDiscount: existingProduct.subscriptionDiscount?.toString() || '',
+        minOrderQuantity: (existingProduct.minOrderQuantity || 1).toString(),
+        maxOrderQuantity: (existingProduct.maxOrderQuantity || 0).toString(),
         bulkDiscounts: existingProduct.tierPricing?.map((tier, index) => ({
           id: index.toString(),
           quantity: tier.quantity.toString(),
           discountRate: ((1 - tier.unitPrice / existingProduct.price) * 100).toFixed(0),
+        })) || [],
+        bonusProducts: existingProduct.bonusItems?.map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          name: item.product?.name || '',
+          sku: item.product?.sku || '',
+          price: (item.priceOverride || item.product?.price || 0).toString(),
+          quantity: item.quantity.toString(),
+          imageUrl: item.product?.imageUrl || '',
         })) || [],
       });
       if (existingProduct.imageUrl) {
@@ -88,6 +121,55 @@ export function ProductRegisterPage() {
       }
     }
   }, [isEditMode, existingProduct]);
+
+  // Bonus Products Handlers
+  const filteredSearchProducts = (allProducts || []).filter(p => {
+    const searchLower = searchTerm.toLowerCase().trim();
+    if (!searchLower) return false;
+    
+    return (
+      p.id !== id && // Exclude current product
+      (
+        (p.name || '').toLowerCase().includes(searchLower) || 
+        (p.sku || '').toLowerCase().includes(searchLower)
+      ) &&
+      !formData.bonusProducts.some(bp => bp.productId === p.id) // Exclude already added
+    );
+  }).slice(0, 10);
+
+  const addBonusProduct = (product: Product) => {
+    const newBonus: BonusProductData = {
+      id: Date.now().toString(),
+      productId: product.id,
+      name: product.name,
+      sku: product.sku,
+      price: product.price.toString(),
+      quantity: '1',
+      imageUrl: product.imageUrl,
+    };
+    setFormData(prev => ({
+      ...prev,
+      bonusProducts: [...prev.bonusProducts, newBonus],
+    }));
+    setSearchTerm('');
+    setIsSearchDropdownOpen(false);
+  };
+
+  const removeBonusProduct = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      bonusProducts: prev.bonusProducts.filter(p => p.id !== id),
+    }));
+  };
+
+  const updateBonusProduct = (id: string, field: 'quantity' | 'price', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      bonusProducts: prev.bonusProducts.map(p => 
+        p.id === id ? { ...p, [field]: value } : p
+      ),
+    }));
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -179,6 +261,14 @@ export function ProductRegisterPage() {
       return;
     }
 
+    const minQty = parseInt(formData.minOrderQuantity) || 1;
+    const maxQty = parseInt(formData.maxOrderQuantity) || 0;
+
+    if (maxQty > 0 && maxQty < minQty) {
+      alert('최대 주문 수량은 최소 주문 수량보다 크거나 같아야 합니다.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // 1. Upload thumbnail image if changed
@@ -211,7 +301,9 @@ export function ProductRegisterPage() {
         image_url: finalImageUrl,
         is_active: formData.status === 'active',
         credit_available: formData.creditAvailable,
-        subscription_discount: formData.useSubscriptionDiscount ? parseFloat(formData.subscriptionDiscount) || 0 : 0
+        subscription_discount: formData.useSubscriptionDiscount ? parseFloat(formData.subscriptionDiscount) || 0 : 0,
+        min_order_quantity: minQty,
+        max_order_quantity: maxQty > 0 ? maxQty : undefined,
       };
 
       let productId: string;
@@ -257,6 +349,14 @@ export function ProductRegisterPage() {
           await addPricingTiers.mutateAsync({ productId, tiers });
         }
       }
+
+      // 4. Update Bonus Items
+      const bonusItems = formData.bonusProducts.map(bp => ({
+        bonusProductId: bp.productId,
+        quantity: parseInt(bp.quantity) || 1,
+        priceOverride: parseFloat(bp.price) || 0,
+      }));
+      await productService.addBonusItems(productId, bonusItems);
 
       alert(isEditMode ? '상품이 수정되었습니다.' : '상품이 등록되었습니다.');
       navigate('/admin/products');
@@ -494,6 +594,39 @@ export function ProductRegisterPage() {
               </select>
             </div>
 
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-neutral-500 tracking-wider uppercase flex items-center gap-1">
+                    최소 주문 수량 <span className="text-red-500 text-[10px]">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="minOrderQuantity"
+                    value={formData.minOrderQuantity}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                    min="1"
+                    required
+                  />
+                  <p className="text-[10px] text-neutral-400">기본: 1</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-neutral-500 tracking-wider uppercase">최대 주문 수량</label>
+                  <input
+                    type="number"
+                    name="maxOrderQuantity"
+                    value={formData.maxOrderQuantity}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                    min="0"
+                    placeholder="제한 없음: 0"
+                  />
+                  <p className="text-[10px] text-neutral-400">제한 없을 경우 0 입력</p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-3">
                 크레딧 사용 가능 여부
@@ -615,6 +748,141 @@ export function ProductRegisterPage() {
             <p className="text-xs text-neutral-500 mt-2">
               구매 수량에 따른 할인률을 설정하세요
             </p>
+          </div>
+        </div>
+
+        {/* 추가 증정 상품 섹터 */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-medium text-neutral-900 mb-4">추가 증정 상품</h3>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              상품 검색 및 추가
+            </label>
+            <div className="relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setIsSearchDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsSearchDropdownOpen(true)}
+                  placeholder="추가 증정상품에 포함할 상품을 검색하여 추가해 주세요"
+                  className="w-full pl-10 pr-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 shadow-sm"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+              </div>
+
+              {isSearchDropdownOpen && searchTerm.trim() && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 shadow-xl max-h-60 overflow-y-auto rounded-sm">
+                  {isLoadingProducts ? (
+                    <div className="px-4 py-8 text-center text-neutral-500">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">상품 정보를 불러오고 있습니다...</p>
+                    </div>
+                  ) : filteredSearchProducts.length > 0 ? (
+                    filteredSearchProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => addBonusProduct(product)}
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
+                      >
+                        <div className="w-10 h-10 border border-neutral-200 flex-shrink-0 group-hover:border-neutral-400 transition-colors">
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400">
+                              <ImageIcon className="w-5 h-5" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-neutral-900 truncate">{product.name}</p>
+                          <p className="text-xs text-neutral-500 truncate">{product.sku}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</p>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-4 text-sm text-neutral-500 text-center">
+                      검색 결과가 없습니다.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-medium text-neutral-900 mb-2">추가된 상품 목록</h4>
+            <div className="border border-neutral-200">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-neutral-50 border-b border-neutral-200">
+                  <tr>
+                    <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-32">금액</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정갯수</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {formData.bonusProducts.length > 0 ? (
+                    formData.bonusProducts.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-neutral-900">{item.name}</span>
+                            <span className="text-xs text-neutral-500">{item.sku}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <input
+                              type="text"
+                              value={item.price}
+                              onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
+                              className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                            />
+                            <span className="text-neutral-500">원</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <input
+                              type="text"
+                              value={item.quantity}
+                              onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
+                              className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                            />
+                            <span className="text-neutral-500">개</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeBonusProduct(item.id)}
+                            className="text-neutral-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-8 text-center text-neutral-500">
+                        추가된 증정 상품이 없습니다.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

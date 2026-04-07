@@ -16,6 +16,8 @@ export interface ProductInput {
   item_input_type?: 'select' | 'input';
   credit_available?: boolean;
   subscription_discount?: number;
+  min_order_quantity?: number;
+  max_order_quantity?: number;
 }
 
 export interface PricingTierInput {
@@ -40,6 +42,10 @@ export const productService = {
         ),
         product_images (
           image_url
+        ),
+        product_bonus_items:product_bonus_items!parent_product_id (
+          *,
+          product:products!bonus_product_id (*)
         )
       `)
       .order('display_no', { ascending: false });
@@ -68,6 +74,10 @@ export const productService = {
         ),
         product_images (
           image_url
+        ),
+        product_bonus_items:product_bonus_items!parent_product_id (
+          *,
+          product:products!bonus_product_id (*)
         )
       `)
       .eq('id', id)
@@ -99,6 +109,8 @@ export const productService = {
         item_input_type: productData.item_input_type ?? 'select',
         credit_available: productData.credit_available ?? true,
         subscription_discount: productData.subscription_discount,
+        min_order_quantity: productData.min_order_quantity ?? 1,
+        max_order_quantity: productData.max_order_quantity,
       })
       .select()
       .single();
@@ -129,6 +141,8 @@ export const productService = {
         ...(productData.item_input_type !== undefined && { item_input_type: productData.item_input_type }),
         ...(productData.credit_available !== undefined && { credit_available: productData.credit_available }),
         ...(productData.subscription_discount !== undefined && { subscription_discount: productData.subscription_discount }),
+        ...(productData.min_order_quantity !== undefined && { min_order_quantity: productData.min_order_quantity }),
+        ...(productData.max_order_quantity !== undefined && { max_order_quantity: productData.max_order_quantity }),
       })
       .eq('id', id)
       .select()
@@ -281,6 +295,15 @@ export const productService = {
       creditAvailable: item.credit_available,
       isActive: item.is_active,
       subscriptionDiscount: item.subscription_discount,
+      minOrderQuantity: item.min_order_quantity || 1,
+      maxOrderQuantity: item.max_order_quantity || undefined,
+      bonusItems: item.product_bonus_items?.map((bi: any) => ({
+        id: bi.id,
+        productId: bi.bonus_product_id,
+        quantity: bi.quantity,
+        priceOverride: bi.price_override,
+        product: bi.product ? this.mapProduct(bi.product) : undefined
+      })) || [],
     };
   },
 
@@ -304,6 +327,29 @@ export const productService = {
 
     if (error) {
       console.error('Error adding package items:', error);
+      throw error;
+    }
+  },
+
+  async addBonusItems(productId: string, items: { bonusProductId: string; quantity: number; priceOverride?: number }[]): Promise<void> {
+    // Delete existing
+    await supabase.from('product_bonus_items').delete().eq('parent_product_id', productId);
+
+    if (items.length === 0) return;
+
+    const { error } = await supabase
+      .from('product_bonus_items')
+      .insert(
+        items.map((item) => ({
+          parent_product_id: productId,
+          bonus_product_id: item.bonusProductId,
+          quantity: item.quantity,
+          price_override: item.priceOverride,
+        }))
+      );
+
+    if (error) {
+      console.error('Error adding bonus items:', error);
       throw error;
     }
   },

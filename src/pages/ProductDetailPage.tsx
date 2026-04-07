@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import { toast } from 'sonner';
 import { ProductImage } from '../components/ui/ProductImage';
 
 export function ProductDetailPage() {
@@ -94,6 +95,29 @@ export function ProductDetailPage() {
   const currentTierPrice = product
     ? [...product.tierPricing].reverse().find(tier => quantity >= tier.quantity)?.unitPrice || product.price
     : 0;
+
+  useEffect(() => {
+    if (product) {
+      setQuantity(product.minOrderQuantity || 1);
+    }
+  }, [product]);
+
+  const handleQuantityChange = (newQuantity: number) => {
+    const minQty = product?.minOrderQuantity || 1;
+    if (newQuantity < minQty) {
+      toast.error(`최소 주문 수량이 ${minQty}개인 상품입니다.`);
+      return;
+    }
+    if (product?.maxOrderQuantity && newQuantity > product.maxOrderQuantity) {
+      toast.error(`최대 주문 수량이 ${product.maxOrderQuantity}개인 상품입니다.`);
+      return;
+    }
+    if (newQuantity > (product?.stock || 0)) {
+      toast.error('재고가 부족합니다.');
+      return;
+    }
+    setQuantity(newQuantity);
+  };
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -205,6 +229,27 @@ export function ProductDetailPage() {
               </p>
             )}
           </div>
+
+          {/* Bonus Items Display */}
+          {product.bonusItems && product.bonusItems.length > 0 && (
+            <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <Package className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-blue-900 tracking-tight">추가 증정 혜택</h3>
+              </div>
+              <ul className="space-y-2">
+                {product.bonusItems.map((item) => (
+                  <li key={item.id} className="text-sm text-blue-800 flex items-center justify-between bg-white/50 p-2 rounded-sm border border-blue-100/50">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-blue-500" />
+                      <span className="font-medium">{item.product?.name}</span>
+                    </div>
+                    <span className="font-bold whitespace-nowrap ml-4">{item.quantity} EA</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
 
 
@@ -344,8 +389,14 @@ export function ProductDetailPage() {
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-12 h-12 border border-neutral-300 hover:border-neutral-900 flex items-center justify-center transition-colors"
+                  type="button"
+                  onClick={() => handleQuantityChange(quantity - 1)}
+                  disabled={product.minOrderQuantity === product.maxOrderQuantity}
+                  className={`w-12 h-12 border border-neutral-300 flex items-center justify-center transition-colors ${
+                    product.minOrderQuantity === product.maxOrderQuantity 
+                      ? 'bg-neutral-50 cursor-not-allowed opacity-50' 
+                      : 'hover:border-neutral-900'
+                  }`}
                 >
                   <Minus className="w-5 h-5 text-neutral-700" />
                 </button>
@@ -353,10 +404,16 @@ export function ProductDetailPage() {
                   <span className="text-2xl font-light tracking-tight text-neutral-900">{quantity}</span>
                 </div>
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-12 h-12 bg-neutral-900 hover:bg-neutral-800 flex items-center justify-center transition-colors"
+                  type="button"
+                  onClick={() => handleQuantityChange(quantity + 1)}
+                  disabled={product.minOrderQuantity === product.maxOrderQuantity}
+                  className={`w-12 h-12 flex items-center justify-center transition-colors ${
+                    product.minOrderQuantity === product.maxOrderQuantity 
+                      ? 'bg-neutral-50 border border-neutral-200 cursor-not-allowed opacity-50 text-neutral-400' 
+                      : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                  }`}
                 >
-                  <Plus className="w-5 h-5 text-white" />
+                  <Plus className="w-5 h-5" />
                 </button>
               </div>
               <div className="text-sm text-neutral-600">

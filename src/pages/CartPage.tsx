@@ -52,8 +52,20 @@ export function CartPage() {
   };
 
   const updateQuantity = async (item: CartItem, newQuantity: number) => {
+    const product = productsMap[item.productId];
+    const minQty = product?.minOrderQuantity || 1;
+    const maxQty = product?.maxOrderQuantity;
+
+    if (newQuantity < minQty) {
+      alert(`최소 주문 수량이 ${minQty}개인 상품입니다.`);
+      return;
+    }
+    if (maxQty !== undefined && newQuantity > maxQty) {
+      alert(`최대 주문 수량이 ${maxQty}개인 상품입니다.`);
+      return;
+    }
+
     try {
-      if (newQuantity < 1) return;
       // Optimistic update
       setCart(cart.map(c => c.id === item.id ? { ...c, quantity: newQuantity } : c));
       await cartService.updateQuantity(item.id, newQuantity);
@@ -227,16 +239,26 @@ export function CartPage() {
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => updateQuantity(item, item.quantity - 1)}
-                          className="w-10 h-10 border border-neutral-300 hover:border-neutral-900 flex items-center justify-center transition-colors"
+                          disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
+                          className={`w-10 h-10 border border-neutral-300 flex items-center justify-center transition-colors ${
+                            item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : 'hover:border-neutral-900 group-hover:bg-neutral-50'
+                          }`}
                         >
                           <Minus className="w-4 h-4 text-neutral-700" />
                         </button>
                         <span className="w-12 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item, item.quantity + 1)}
-                          className="w-10 h-10 bg-neutral-900 hover:bg-neutral-800 flex items-center justify-center transition-colors"
+                          disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
+                          className={`w-10 h-10 flex items-center justify-center transition-colors ${
+                            (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
+                              ? 'bg-neutral-200 cursor-not-allowed opacity-50' 
+                              : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                          }`}
                         >
-                          <Plus className="w-4 h-4 text-white" />
+                          <Plus className={`w-4 h-4 ${((product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)) ? 'text-neutral-500' : 'text-white'}`} />
                         </button>
                       </div>
                       <span className="text-xs text-neutral-600 text-center sm:text-left">

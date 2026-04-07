@@ -19,6 +19,8 @@ interface PackageFormData {
   selectableCount: string;
   itemInputType: 'select' | 'input';
   creditAvailable: boolean;
+  minOrderQuantity: string;
+  maxOrderQuantity: string;
   description: string;
 }
 
@@ -46,6 +48,8 @@ export function PackageRegisterPage() {
     selectableCount: '1',
     itemInputType: 'select',
     creditAvailable: true,
+    minOrderQuantity: '1',
+    maxOrderQuantity: '',
     description: '',
   });
 
@@ -86,6 +90,8 @@ export function PackageRegisterPage() {
         selectableCount: existingProduct.selectableCount?.toString() || '1',
         itemInputType: existingProduct.itemInputType || 'select',
         creditAvailable: existingProduct.creditAvailable ?? true,
+        minOrderQuantity: (existingProduct.minOrderQuantity || 1).toString(),
+        maxOrderQuantity: existingProduct.maxOrderQuantity?.toString() || '',
         description: existingProduct.description || '',
       });
       if (existingProduct.imageUrl) {
@@ -216,18 +222,40 @@ export function PackageRegisterPage() {
       return;
     }
 
+    const minQty = parseInt(formData.minOrderQuantity) || 1;
+    const maxQty = formData.maxOrderQuantity ? parseInt(formData.maxOrderQuantity) : null;
+
+    if (maxQty !== null && maxQty < minQty) {
+      alert('최대 주문 수량은 최소 주문 수량보다 크거나 같아야 합니다.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // 1. Upload thumbnail image if changed
-      let finalImageUrl = thumbnailPreview || undefined;
+      let finalImageUrl: string | undefined = thumbnailPreview || undefined;
       if (thumbnailFile) {
         finalImageUrl = await productService.uploadProductImage(thumbnailFile);
+      }
+
+      // Determine final category and subcategory based on hierarchy
+      const selectedCat = categories.find(c => c.name === formData.category);
+      let finalCategory = formData.category;
+      let finalSubcategory = '';
+
+      if (selectedCat && selectedCat.parentId) {
+        const parentCat = categories.find(c => c.id === selectedCat.parentId);
+        if (parentCat) {
+          finalCategory = parentCat.name;
+          finalSubcategory = selectedCat.name;
+        }
       }
 
       const productData: ProductInput = {
         sku: formData.productCode || `PKG-${Date.now()}`,
         name: formData.name,
-        category: formData.category,
+        category: finalCategory,
+        subcategory: finalSubcategory,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock) || 0,
         is_active: formData.status === 'active',
@@ -235,6 +263,8 @@ export function PackageRegisterPage() {
         selectable_count: parseInt(formData.selectableCount) || 1,
         item_input_type: formData.itemInputType,
         credit_available: formData.creditAvailable,
+        min_order_quantity: parseInt(formData.minOrderQuantity) || 1,
+        max_order_quantity: formData.maxOrderQuantity ? parseInt(formData.maxOrderQuantity) : undefined,
         description: formData.description,
         image_url: finalImageUrl,
       };
@@ -561,6 +591,34 @@ export function PackageRegisterPage() {
                   <option value="true">가능</option>
                   <option value="false">불가능</option>
                 </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">최소 주문 수량</label>
+                <input
+                  type="number"
+                  name="minOrderQuantity"
+                  value={formData.minOrderQuantity}
+                  onChange={handleInputChange}
+                  min="1"
+                  placeholder="1"
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+                />
+                <p className="text-xs text-neutral-400 mt-1">패키지 주문 시 필요한 최소 수량을 설정하세요</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">최대 주문 수량</label>
+                <input
+                  type="number"
+                  name="maxOrderQuantity"
+                  value={formData.maxOrderQuantity}
+                  onChange={handleInputChange}
+                  min="1"
+                  placeholder="제한 없음"
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
+                />
+                <p className="text-xs text-neutral-400 mt-1">패키지 주문 시 허용되는 최대 수량을 설정하세요 (비워두면 제한 없음)</p>
               </div>
             </div>
           </div>

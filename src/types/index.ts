@@ -59,6 +59,17 @@ export interface Product {
   creditAvailable?: boolean;
   isActive?: boolean;
   subscriptionDiscount?: number;
+  minOrderQuantity?: number;
+  maxOrderQuantity?: number;
+  bonusItems?: BonusItem[];
+}
+
+export interface BonusItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  priceOverride?: number;
+  product?: Product;
 }
 
 export interface PackageItem {
