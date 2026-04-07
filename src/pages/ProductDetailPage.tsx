@@ -205,7 +205,7 @@ export function ProductDetailPage() {
                       <option value="">상품을 선택하세요</option>
                       {packageItems.map((item) => (
                         <option key={item.productId} value={item.productId}>
-                          {item.product?.name} {item.priceOverride ? `(+₩${item.priceOverride.toLocaleString()})` : ''}
+                          {item.product?.name}
                         </option>
                       ))}
                     </select>

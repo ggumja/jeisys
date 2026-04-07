@@ -161,17 +161,19 @@ export const printInvoice = (order: any, shipment: any) => {
   }
 };
 
-export const printPackingList = (order: any, shipment: any) => {
+export const printPackingList = (order: any, shipment: any, boxCount: number = 1) => {
   let html = `
     <html>
       <head>
         <title>패킹 리스트 (Packing List)</title>
         <style>
-          body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 40px; margin: 0; color: #333; }
-          .container { max-width: 800px; margin: 0 auto; }
-          .header { text-align: center; margin-bottom: 40px; }
+          body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #333; }
+          .page { max-width: 800px; margin: 0 auto; padding: 40px; page-break-after: always; }
+          .page:last-child { page-break-after: avoid; }
+          .header { text-align: center; margin-bottom: 30px; }
           .header h1 { margin: 0; font-size: 32px; letter-spacing: 2px; }
-          .header p { margin: 10px 0 0; color: #666; }
+          .header p { margin: 6px 0 0; color: #666; }
+          .box-badge { display: inline-block; margin-top: 10px; background: #000; color: #fff; padding: 4px 16px; font-size: 15px; font-weight: bold; letter-spacing: 1px; }
           .info-pane { display: flex; justify-content: space-between; margin-bottom: 30px; border-top: 2px solid #000; border-bottom: 1px solid #ccc; padding: 20px 0; }
           .info-group { flex: 1; }
           .info-group strong { display: inline-block; width: 80px; }
@@ -180,66 +182,72 @@ export const printPackingList = (order: any, shipment: any) => {
           .item-table th { background-color: #f4f4f5; font-weight: bold; border-top: 2px solid #000; }
           .item-table td { font-size: 14px; }
           .item-table .qty { text-align: center; font-weight: bold; }
+          .sign-box { margin-bottom: 40px; border: 1px solid #000; padding: 20px; }
           .footer { text-align: center; border-top: 1px dashed #ccc; padding-top: 20px; font-size: 12px; color: #888; }
           @media print { body { padding: 0; } }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>PACKING LIST</h1>
-            <p>Date: ${new Date(shipment.shippedAt).toLocaleString()}</p>
-          </div>
-          
-          <div class="info-pane">
-            <div class="info-group">
-              <div style="margin-bottom: 10px;"><strong>Order No:</strong> ${order.orderNumber}</div>
-              <div><strong>Tracking:</strong> ${shipment.trackingNumber || 'N/A'}</div>
-            </div>
-            <div class="info-group">
-              <div style="margin-bottom: 10px;"><strong>Customer:</strong> ${order.customerName} (${order.hospitalName || ''})</div>
-              <div><strong>Address:</strong> ${order.shippingInfo?.address || order.user?.address || ''}</div>
-            </div>
-          </div>
-
-          <table class="item-table">
-            <thead>
-              <tr>
-                <th style="width: 50px; text-align: center;">No.</th>
-                <th>상품명 (Product Name)</th>
-                <th style="width: 80px; text-align: center;">수량 (Qty)</th>
-              </tr>
-            </thead>
-            <tbody>
   `;
 
-  shipment.items.forEach((item: any, index: number) => {
+  // 박스 수량만큼 페이지 반복
+  for (let boxNum = 1; boxNum <= boxCount; boxNum++) {
+    const itemRows = shipment.items.map((item: any, index: number) => `
+      <tr>
+        <td style="text-align: center;">${index + 1}</td>
+        <td>${item.productName}</td>
+        <td class="qty">${item.quantity}</td>
+      </tr>
+    `).join('');
+
     html += `
-              <tr>
-                <td style="text-align: center;">${index + 1}</td>
-                <td>${item.productName}</td>
-                <td class="qty">${item.quantity}</td>
-              </tr>
-    `;
-  });
+      <div class="page">
+        <div class="header">
+          <h1>PACKING LIST</h1>
+          <p>Date: ${new Date(shipment.shippedAt).toLocaleString()}</p>
+          ${boxCount > 1 ? `<div class="box-badge">BOX ${boxNum} / ${boxCount}</div>` : ''}
+        </div>
 
-  html += `
-            </tbody>
-          </table>
-
-          <div style="margin-bottom: 40px; border: 1px solid #000; padding: 20px;">
-            <p style="margin:0 0 10px 0; font-weight:bold;">발송 담당자 확인란</p>
-            <p style="margin:0; font-size: 14px;">위 상품을 정확하게 포장 및 검수하였음을 확인합니다. (서명: ______________ )</p>
+        <div class="info-pane">
+          <div class="info-group">
+            <div style="margin-bottom: 10px;"><strong>Order No:</strong> ${order.orderNumber}</div>
+            <div><strong>Tracking:</strong> ${shipment.trackingNumber || 'N/A'}</div>
           </div>
-
-          <div class="footer">
-            Jeisys Medical Inc.<br/>
-            감사합니다.
+          <div class="info-group">
+            <div style="margin-bottom: 10px;"><strong>Customer:</strong> ${order.customerName} (${order.hospitalName || ''})</div>
+            <div><strong>Address:</strong> ${order.shippingInfo?.address || order.user?.address || ''}</div>
           </div>
         </div>
-      </body>
-    </html>
-  `;
+
+        <table class="item-table">
+          <thead>
+            <tr>
+              <th style="width: 50px; text-align: center;">No.</th>
+              <th>상품명 (Product Name)</th>
+              <th style="width: 80px; text-align: center;">수량 (Qty)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+        </table>
+
+        <div class="sign-box">
+          <p style="margin:0 0 10px 0; font-weight:bold;">
+            발송 담당자 확인란 ${boxCount > 1 ? `(BOX ${boxNum} / ${boxCount})` : ''}
+          </p>
+          <p style="margin:0; font-size: 14px;">위 상품을 정확하게 포장 및 검수하였음을 확인합니다. (서명: ______________ )</p>
+        </div>
+
+        <div class="footer">
+          Jeisys Medical Inc.<br/>
+          감사합니다.
+        </div>
+      </div>
+    `;
+  }
+
+  html += `</body></html>`;
 
   const w = window.open('', '_blank', 'width=800,height=900');
   if (w) {
@@ -249,3 +257,4 @@ export const printPackingList = (order: any, shipment: any) => {
     setTimeout(() => { w.print(); }, 500);
   }
 };
+
