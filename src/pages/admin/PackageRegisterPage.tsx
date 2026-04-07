@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Search, Trash2, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X, Plus } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { ProductImage } from '../../components/ui/ProductImage';
 import { useProduct, useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
@@ -54,6 +54,11 @@ export function PackageRegisterPage() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
+
   // Load all products for the component search
   useEffect(() => {
     const fetchProducts = async () => {
@@ -83,6 +88,12 @@ export function PackageRegisterPage() {
         creditAvailable: existingProduct.creditAvailable ?? true,
         description: existingProduct.description || '',
       });
+      if (existingProduct.imageUrl) {
+        setThumbnailPreview(existingProduct.imageUrl);
+      }
+      if (existingProduct.additionalImages) {
+        setAdditionalImages(existingProduct.additionalImages);
+      }
 
       const fetchItems = async () => {
         try {
@@ -120,6 +131,39 @@ export function PackageRegisterPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setThumbnailFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileList = Array.from(files);
+      setAdditionalFiles((prev) => [...prev, ...fileList]);
+
+      fileList.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAdditionalImages((prev) => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index: number) => {
+    setAdditionalImages((prev) => prev.filter((_, i) => i !== index));
+    setAdditionalFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const addItemToPackage = (product: Product) => {
@@ -174,18 +218,25 @@ export function PackageRegisterPage() {
 
     setIsSubmitting(true);
     try {
+      // 1. Upload thumbnail image if changed
+      let finalImageUrl = thumbnailPreview || undefined;
+      if (thumbnailFile) {
+        finalImageUrl = await productService.uploadProductImage(thumbnailFile);
+      }
+
       const productData: ProductInput = {
         sku: formData.productCode || `PKG-${Date.now()}`,
         name: formData.name,
         category: formData.category,
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock) || 0,
-        description: formData.description,
         is_active: formData.status === 'active',
         is_package: true,
         selectable_count: parseInt(formData.selectableCount) || 1,
         item_input_type: formData.itemInputType,
         credit_available: formData.creditAvailable,
+        description: formData.description,
+        image_url: finalImageUrl,
       };
 
       let packageId: string;
@@ -206,6 +257,18 @@ export function PackageRegisterPage() {
           maxQuantity: item.maxQuantity
         }))
       );
+
+      // 2. Upload and save additional images
+      if (additionalFiles.length > 0) {
+        const uploadedUrls = await Promise.all(
+          additionalFiles.map(file => productService.uploadProductImage(file))
+        );
+
+        if (isEditMode) {
+          await productService.deleteProductImages(packageId);
+        }
+        await productService.addProductImages(packageId, uploadedUrls);
+      }
 
       alert(isEditMode ? '패키지가 수정되었습니다.' : '패키지가 등록되었습니다.');
       navigate('/admin/products');
@@ -258,8 +321,97 @@ export function PackageRegisterPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Info Section */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Main Image Upload */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-medium text-neutral-900 mb-4">대표 이미지</h3>
+          <div className="flex items-start gap-4">
+            <div className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden">
+              {thumbnailPreview ? (
+                <>
+                  <img
+                    src={thumbnailPreview}
+                    alt="Thumbnail preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setThumbnailPreview(null)}
+                    className="absolute top-2 right-2 p-1 bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <div className="text-center">
+                  <ImageIcon className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
+                  <p className="text-xs text-neutral-500">대표 이미지</p>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors cursor-pointer">
+                <Upload className="w-4 h-4" />
+                <span>이미지 업로드</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailChange}
+                  className="hidden"
+                />
+              </label>
+              <p className="text-xs text-neutral-500 mt-2">
+                권장 크기: 800x800px, 최대 5MB
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Images */}
+        <div className="bg-white border border-neutral-200 p-6">
+          <h3 className="text-sm font-medium text-neutral-900 mb-4">추가 이미지</h3>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-4">
+              {additionalImages.map((image, index) => (
+                <div
+                  key={index}
+                  className="w-32 h-32 border border-neutral-300 relative overflow-hidden"
+                >
+                  <img
+                    src={image}
+                    alt={`Additional ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAdditionalImage(index)}
+                    className="absolute top-1 right-1 p-1 bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <label className="w-32 h-32 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 cursor-pointer hover:bg-neutral-100 transition-colors">
+                <div className="text-center">
+                  <Upload className="w-6 h-6 text-neutral-400 mx-auto mb-1" />
+                  <p className="text-xs text-neutral-500">추가</p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleAdditionalImagesChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-neutral-500">
+              최대 10개까지 추가 가능합니다
+            </p>
+          </div>
+        </div>
+
+        {/* Form Grid */}
         <div className="bg-white border border-neutral-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
             <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">기본 정보</h3>
