@@ -366,27 +366,29 @@ export function ProductDetailPage() {
           </div>
 
           {/* Subscription Option */}
-          <div className="mb-8">
-            <label className="flex items-center gap-4 p-6 border border-neutral-200 cursor-pointer hover:bg-neutral-50 transition-colors">
-              <input
-                type="checkbox"
-                checked={isSubscription}
-                onChange={(e) => setIsSubscription(e.target.checked)}
-                className="w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
-              />
-              <div>
-                <p className="text-base font-medium text-neutral-900">정기 배송 (5% 추가 할인)</p>
-                <p className="text-sm text-neutral-600 mt-1">매달 자동으로 배송받으세요</p>
-              </div>
-            </label>
-          </div>
+          {(product.subscriptionDiscount ?? 0) > 0 && (
+            <div className="mb-8">
+              <label className="flex items-center gap-4 p-6 border border-neutral-200 cursor-pointer hover:bg-neutral-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={isSubscription}
+                  onChange={(e) => setIsSubscription(e.target.checked)}
+                  className="w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
+                />
+                <div>
+                  <p className="text-base font-medium text-neutral-900">정기 배송 ({product.subscriptionDiscount}% 추가 할인)</p>
+                  <p className="text-sm text-neutral-600 mt-1">매달 자동으로 배송받으세요</p>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Total Price */}
           <div className="bg-neutral-50 border border-neutral-200 p-6 mb-8">
             <div className="flex items-center justify-between">
               <span className="text-base font-medium text-neutral-700">총 금액</span>
               <span className="text-3xl tracking-tight text-neutral-900">
-                ₩{(currentTierPrice * quantity * (isSubscription ? 0.95 : 1)).toLocaleString()}
+                ₩{(currentTierPrice * quantity * (isSubscription ? (1 - (product.subscriptionDiscount || 0) / 100) : 1)).toLocaleString()}
               </span>
             </div>
           </div>

@@ -22,6 +22,7 @@ interface FormData {
   status: 'active' | 'inactive';
   creditAvailable: boolean;
   description: string;
+  useSubscriptionDiscount: boolean;
   subscriptionDiscount: string;
   bulkDiscounts: BulkDiscount[];
 }
@@ -50,6 +51,7 @@ export function ProductRegisterPage() {
     status: 'active',
     creditAvailable: true,
     description: '',
+    useSubscriptionDiscount: false,
     subscriptionDiscount: '',
     bulkDiscounts: [],
   });
@@ -73,7 +75,8 @@ export function ProductRegisterPage() {
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
         creditAvailable: existingProduct.creditAvailable ?? true,
         description: existingProduct.description || '',
-        subscriptionDiscount: '',
+        useSubscriptionDiscount: (existingProduct.subscriptionDiscount ?? 0) > 0,
+        subscriptionDiscount: existingProduct.subscriptionDiscount?.toString() || '',
         bulkDiscounts: existingProduct.tierPricing?.map((tier, index) => ({
           id: index.toString(),
           quantity: tier.quantity.toString(),
@@ -208,6 +211,7 @@ export function ProductRegisterPage() {
         image_url: finalImageUrl,
         is_active: formData.status === 'active',
         credit_available: formData.creditAvailable,
+        subscription_discount: formData.useSubscriptionDiscount ? parseFloat(formData.subscriptionDiscount) || 0 : 0
       };
 
       let productId: string;
@@ -512,24 +516,58 @@ export function ProductRegisterPage() {
           <h3 className="text-sm font-medium text-neutral-900 mb-6">할인 설정</h3>
 
           {/* Subscription Discount */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-neutral-900 mb-2">
-              정기주문 할인률
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                name="subscriptionDiscount"
-                value={formData.subscriptionDiscount}
-                onChange={handleInputChange}
-                placeholder="0"
-                className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-              />
-              <span className="text-neutral-600">%</span>
+          <div className="mb-8 p-4 bg-neutral-50 border border-neutral-200">
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-neutral-900 mb-3">
+                  정기주문 할인 설정
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="useSubscriptionDiscount"
+                      checked={!formData.useSubscriptionDiscount}
+                      onChange={() => setFormData(prev => ({ ...prev, useSubscriptionDiscount: false }))}
+                      className="w-4 h-4 text-neutral-900 focus:ring-neutral-900"
+                    />
+                    <span className="text-sm text-neutral-800">미사용</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="useSubscriptionDiscount"
+                      checked={formData.useSubscriptionDiscount}
+                      onChange={() => setFormData(prev => ({ ...prev, useSubscriptionDiscount: true }))}
+                      className="w-4 h-4 text-neutral-900 focus:ring-neutral-900"
+                    />
+                    <span className="text-sm text-neutral-800">사용</span>
+                  </label>
+                </div>
+              </div>
+
+              {formData.useSubscriptionDiscount && (
+                <div className="animate-in fade-in slide-in-from-top-2">
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    정기주문 할인률 (%)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      name="subscriptionDiscount"
+                      value={formData.subscriptionDiscount}
+                      onChange={handleInputChange}
+                      placeholder="0"
+                      className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+                    />
+                    <span className="text-neutral-600 font-medium">%</span>
+                  </div>
+                  <p className="text-xs text-neutral-500 mt-2">
+                    정기주문 시 적용될 할인율을 숫자로 입력하세요.
+                  </p>
+                </div>
+              )}
             </div>
-            <p className="text-xs text-neutral-500 mt-1">
-              정기주문 시 적용되는 할인률을 입력하세요
-            </p>
           </div>
 
           {/* Bulk Discounts */}

@@ -58,6 +58,7 @@ export interface Product {
   itemInputType?: 'select' | 'input';
   creditAvailable?: boolean;
   isActive?: boolean;
+  subscriptionDiscount?: number;
 }
 
 export interface PackageItem {

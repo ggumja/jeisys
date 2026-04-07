@@ -15,6 +15,7 @@ export interface ProductInput {
   selectable_count?: number;
   item_input_type?: 'select' | 'input';
   credit_available?: boolean;
+  subscription_discount?: number;
 }
 
 export interface PricingTierInput {
@@ -97,6 +98,7 @@ export const productService = {
         selectable_count: productData.selectable_count ?? 1,
         item_input_type: productData.item_input_type ?? 'select',
         credit_available: productData.credit_available ?? true,
+        subscription_discount: productData.subscription_discount,
       })
       .select()
       .single();
@@ -126,6 +128,7 @@ export const productService = {
         ...(productData.selectable_count !== undefined && { selectable_count: productData.selectable_count }),
         ...(productData.item_input_type !== undefined && { item_input_type: productData.item_input_type }),
         ...(productData.credit_available !== undefined && { credit_available: productData.credit_available }),
+        ...(productData.subscription_discount !== undefined && { subscription_discount: productData.subscription_discount }),
       })
       .eq('id', id)
       .select()
@@ -277,6 +280,7 @@ export const productService = {
       itemInputType: item.item_input_type,
       creditAvailable: item.credit_available,
       isActive: item.is_active,
+      subscriptionDiscount: item.subscription_discount,
     };
   },
 
