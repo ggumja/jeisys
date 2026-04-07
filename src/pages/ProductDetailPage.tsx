@@ -220,14 +220,40 @@ export function ProductDetailPage() {
           <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-6">{product.name}</h1>
 
           <div className="bg-neutral-50 border border-neutral-200 p-8 mb-8">
-            <p className="text-4xl tracking-tight text-neutral-900 mb-2">
-              ₩{currentTierPrice.toLocaleString()}
-            </p>
-            {currentTierPrice !== product.price && (
-              <p className="text-sm text-neutral-600">
-                정가: <span className="line-through">₩{product.price.toLocaleString()}</span>
-              </p>
-            )}
+            {(() => {
+              const currentTier = [...product.tierPricing]
+                .sort((a, b) => b.quantity - a.quantity)
+                .find(tier => quantity >= tier.quantity);
+              
+              if (currentTier) {
+                const discountPercent = Math.round((1 - currentTier.unitPrice / product.price) * 100);
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm text-neutral-500">
+                      <span>정가:</span>
+                      <span className="line-through">₩{product.price.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-neutral-700">할인적용 금액:</span>
+                        <span className="text-4xl tracking-tight text-neutral-900 font-bold">
+                          ₩{currentTier.unitPrice.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-red-600 mt-2">
+                        (대량구매할인 {currentTier.quantity}개이상 / {discountPercent}%)
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              
+              return (
+                <p className="text-4xl tracking-tight text-neutral-900 font-bold">
+                  ₩{product.price.toLocaleString()}
+                </p>
+              );
+            })()}
           </div>
 
           {/* Bonus Items Display */}
