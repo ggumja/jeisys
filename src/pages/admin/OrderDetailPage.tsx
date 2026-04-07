@@ -485,20 +485,27 @@ export function OrderDetailPage() {
           <h4 className="text-sm font-medium text-neutral-900">주문 상품</h4>
           {order.status === 'paid' || order.status === 'partially_shipped' ? (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 mr-1">
-                <span className="text-sm font-medium text-neutral-600">박스 수량:</span>
-                <input 
-                  type="number" 
-                  min={1} 
-                  max={20} 
-                  value={boxCount}
-                  onChange={(e) => setBoxCount(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-16 border border-neutral-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                />
-              </div>
-              <Button
-                variant="default"
-                onClick={async () => {
+              {(() => {
+                const isAllShipped = !order.orderItems?.some(item => (item.quantity - (item.shippedQuantity || 0)) > 0);
+                return (
+                  <>
+                    <div className="flex items-center gap-2 mr-1">
+                      <span className="text-sm font-medium text-neutral-600">박스 수량:</span>
+                      <input 
+                        type="number" 
+                        min={1} 
+                        max={20} 
+                        value={boxCount}
+                        disabled={isAllShipped}
+                        onChange={(e) => setBoxCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        className={`w-16 border border-neutral-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-1 focus:ring-neutral-900 ${isAllShipped ? 'bg-neutral-50 text-neutral-400' : ''}`}
+                      />
+                    </div>
+                    <Button
+                      variant="default"
+                      disabled={isAllShipped || isUpdating}
+                      title={isAllShipped ? '모든 상품 발송 완료' : ''}
+                      onClick={async () => {
                   const itemsToShip = order.orderItems?.filter(item => {
                     const qty = shipQtyMap[item.id] ?? 0;
                     return qty > 0 && item.productId;
@@ -564,6 +571,9 @@ export function OrderDetailPage() {
                   ? '부분 발송 처리'
                   : '전체 발송 처리'}
               </Button>
+                  </>
+                );
+              })()}
             </div>
           ) : null}
         </div>
