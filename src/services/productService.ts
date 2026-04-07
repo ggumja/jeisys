@@ -9,7 +9,7 @@ export interface ProductInput {
   price: number;
   stock: number;
   description?: string;
-  image_url?: string;
+  image_url?: string | null;
   is_active?: boolean;
   is_package?: boolean;
   selectable_count?: number;

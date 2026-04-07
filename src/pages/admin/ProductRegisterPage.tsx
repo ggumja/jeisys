@@ -272,7 +272,7 @@ export function ProductRegisterPage() {
     setIsSubmitting(true);
     try {
       // 1. Upload thumbnail image if changed
-      let finalImageUrl = thumbnailPreview || undefined;
+      let finalImageUrl: string | null = thumbnailPreview || null;
       if (thumbnailFile) {
         finalImageUrl = await productService.uploadProductImage(thumbnailFile);
       }
@@ -319,15 +319,17 @@ export function ProductRegisterPage() {
       }
 
       // 2. Upload and save additional images
-      if (additionalFiles.length > 0) {
-        const uploadedUrls = await Promise.all(
-          additionalFiles.map(file => productService.uploadProductImage(file))
-        );
+      const existingUrls = additionalImages.filter(img => img.startsWith('http'));
+      const newUploadedUrls = await Promise.all(
+        additionalFiles.map(file => productService.uploadProductImage(file))
+      );
+      const allUrls = [...existingUrls, ...newUploadedUrls];
 
-        if (isEditMode) {
-          await productService.deleteProductImages(productId);
-        }
-        await productService.addProductImages(productId, uploadedUrls);
+      if (isEditMode) {
+        await productService.deleteProductImages(productId);
+      }
+      if (allUrls.length > 0) {
+        await productService.addProductImages(productId, allUrls);
       }
 
       // 3. Update Pricing Tiers
