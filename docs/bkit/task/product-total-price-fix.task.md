@@ -1,5 +1,5 @@
-# Task: Product Total Price Calculation Fix
+# 작업: 상품 총 금액 계산 오류 수정
 
-- [x] Update price calculation logic in `ProductDetailPage.tsx`
-- [x] Update "Total Price" display at the bottom
-- [x] Verify calculation for regular, discounted, and set-option products
+- [x] `ProductDetailPage.tsx` 내 가격 계산 로직 통합 및 수정
+- [x] 하단 "총 금액" 디스플레이 영역 업데이트
+- [x] 일반 상품, 할인 상품, 세트 옵션 상품별 계산 결과 검증

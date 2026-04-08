@@ -3,6 +3,8 @@ import { Product } from '../types';
 
 export interface ProductInput {
   sku: string;
+  sap_sku?: string;
+  manufacturer?: string;
   name: string;
   category: string;
   subcategory?: string;
@@ -98,6 +100,8 @@ export const productService = {
       .from('products')
       .insert({
         sku: productData.sku,
+        sap_sku: productData.sap_sku,
+        manufacturer: productData.manufacturer,
         name: productData.name,
         category: productData.category,
         subcategory: productData.subcategory,
@@ -130,6 +134,8 @@ export const productService = {
       .from('products')
       .update({
         ...(productData.sku && { sku: productData.sku }),
+        ...(productData.sap_sku !== undefined && { sap_sku: productData.sap_sku }),
+        ...(productData.manufacturer !== undefined && { manufacturer: productData.manufacturer }),
         ...(productData.name && { name: productData.name }),
         ...(productData.category && { category: productData.category }),
         ...(productData.subcategory !== undefined && { subcategory: productData.subcategory }),
@@ -278,6 +284,8 @@ export const productService = {
       id: item.id,
       displayNo: item.display_no,
       sku: item.sku,
+      sapSku: item.sap_sku,
+      manufacturer: item.manufacturer,
       name: item.name,
       category: item.category,
       subcategory: item.subcategory,

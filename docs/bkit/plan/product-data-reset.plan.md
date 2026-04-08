@@ -1,14 +1,14 @@
-# Plan: Product Data Reset for Testing
+# 계획: 상품 데이터 전체 초기화 (테스트용)
 
-## Purpose
-Clear all existing product and transaction data to test product creation from scratch.
+## 목적
+상품 생성 기능을 처음부터 깨끗하게 테스트하기 위해 기존의 모든 상품 및 거래 데이터를 삭제합니다.
 
-## Scope
-- Database tables for products, orders, shipments, carts.
+## 범위
+- 상품, 주문, 배송, 장바구니 관련 데이터베이스 테이블 전체.
 
-## Requirements
-- Maintain Referential Integrity (Delete child tables before parents).
-- Provide a single consolidated SQL script for the user.
+## 요구사항
+- 참조 무결성 유지 (하위 테이블부터 삭제).
+- 사용자가 실행할 수 있는 통합 SQL 스크립트 제공.
 
-## Success Criteria
-- All 13 listed tables are empty (count = 0).
+## 성공 기준
+- 13개의 관련 테이블이 모두 비워짐 (데이터 수 = 0).

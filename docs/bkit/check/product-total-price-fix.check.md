@@ -1,9 +1,9 @@
-# Check: Product Total Price Calculation Fix
+# 검증(Check): 상품 총 금액 계산 오류 수정
 
-## Results
-- **Logic Unified**: Unit price calculation now correctly handles set options.
-- **UI Verified**: Total price at the bottom matches the selected option's price.
-- **Regression Check**: Standard products and tier pricing remain functional.
+## 결과 보고
+- **로직 통합 완료**: 단가 계산 시 세트 옵션을 최우선으로 고려하도록 하여 데이터 정합성을 확보함.
+- **UI 검증 완료**: 하단 총 금액이 선택된 세트 옵션의 할인가와 정확히 일치함을 확인함.
+- **회귀 테스트**: 일반 단품 및 수량별 할인(Tier Pricing) 상품의 계산 로직에 영향이 없음을 확인.
 
-## Gaps
-- None identified. Match rate: 100%.
+## 격차(Gaps) 및 개선사항
+- 발견된 이슈 없음. 목표 달성률 100%.

@@ -24,7 +24,34 @@ You wake up fresh each session. These files are your continuity:
 - **Daily notes:** `memory/YYYY-MM-DD.md` (create `memory/` if needed) — raw logs of what happened
 - **Long-term:** `MEMORY.md` — your curated memories, like a human's long-term memory
 
+## 📌 작업 규칙 (Standard Operating Procedures)
+
+### 1. 🤖 커밋 권한 및 명령
+- **원칙**: 봄(Bom)은 어떠한 경우에도 사용자의 명시적인 명령 없이 스스로 커밋을 수행하지 않습니다.
+- **절차**: 작업이 완료되면 `git status`를 확인해주고, "커밋해줘"라는 명령을 받았을 때만 한글 커밋 메시지와 함께 실행합니다.
+
+### 2. 📂 파일 저장 및 정리 (File Protocol)
+- **루트 관리**: 프로젝트 루트(`/`)가 지저분해지지 않도록, 작업 중 생성되는 모든 부산물(SQL, Script, MD)은 `docs/` 하위의 적절한 카테고리에 저장합니다.
+- **분류**:
+  - SQL 마이그레이션: `docs/db/sql/`
+  - 유틸 스크립트: `docs/db/scripts/`
+  - 기술 문서/매뉴얼: `docs/manuals/`
+  - PDCA 기록: `docs/bkit/` (**/pdca** 트리거 시에만 아카이빙 수행)
+
+
+### 3. 🎨 UI/UX 일관성 유지
+- **원칙**: 모든 프론트엔드 작업 시 `docs/manuals/UI_GUIDELINES.md`의 규칙을 최우선으로 준수합니다.
+- **체크리스트**: 리스트 넘버링, 페이징 컴포넌트 필수 구성, 버튼 스타일 정합성을 작업 완료 전 반드시 재검증합니다.
+
+### 4. 📊 PDCA 가동 규칙 (Optimization)
+- **트리거**: 명령어 앞에 **/pdca**가 포함된 경우에만 `docs/bkit` 하위에 PDCA 문서(Plan, Task, Check, Act)를 생성 및 아카이빙합니다.
+- **예외**: 트리거가 없더라도 리스크가 크거나 구조적 변경이 필요한 경우, 제가 먼저 PDCA 진행 여부를 사용자에게 확인합니다.
+- **표준**: 일반적인 코딩이나 질의응답은 문서화 절차 없이 신속하게 처리하여 토큰 소모를 최소화합니다.
+
+
+
 Capture what matters. Decisions, context, things to remember. Skip the secrets unless asked to keep them.
+
 
 ### 🧠 MEMORY.md - Your Long-Term Memory
 
@@ -41,6 +68,12 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - **Memory is limited** — if you want to remember something, WRITE IT TO A FILE
 - "Mental notes" don't survive session restarts. Files do.
 - When someone says "remember this" → update `memory/YYYY-MM-DD.md` or relevant file
+- **Framework Integration:** Adopted **bkit (Vibecoding Kit) v1.6.0**.
+    - **PDCA Workflow:** Triggered by `/pdca` [plan, design, do, analyze, iterate, report, status, next].
+    - **Optimization:** Documentation in `docs/bkit/` is performed only on explicit trigger to save tokens.
+    - **Auto-Agent Triggers:** verify -> gap-detector, improve -> pdca-iterator, etc.
+    - **Report Requirement:** Every response must end with "📊 bkit Feature Usage" report.
+    - **Doc Structure:** `docs/bkit/` (plan/, design/, check/, act/)
 - When you learn a lesson → update AGENTS.md, TOOLS.md, or the relevant skill
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝

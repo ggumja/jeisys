@@ -43,6 +43,8 @@ export interface Product {
   id: string;
   displayNo?: number;
   sku: string;
+  sapSku?: string;
+  manufacturer?: string;
   name: string;
   category: string;
   subcategory?: string;

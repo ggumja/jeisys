@@ -44,6 +44,7 @@ interface FormData {
   name: string;
   category: string;
   productCode: string;
+  sapSku: string;
   manufacturer: string;
   price: string;
   stock: string;
@@ -80,6 +81,7 @@ export function ProductRegisterPage() {
     name: '',
     category: '',
     productCode: '',
+    sapSku: '',
     manufacturer: '',
     price: '',
     stock: '',
@@ -127,7 +129,8 @@ export function ProductRegisterPage() {
         name: existingProduct.name || '',
         category: existingProduct.category || '',
         productCode: existingProduct.sku || '',
-        manufacturer: '', 
+        sapSku: existingProduct.sapSku || '',
+        manufacturer: existingProduct.manufacturer || '', 
         price: (existingProduct.price || 0).toString(),
         stock: (existingProduct.stock || 0).toString(),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
@@ -454,6 +457,8 @@ export function ProductRegisterPage() {
 
       const productData: ProductInput = {
         sku: formData.productCode || `PROD-${Date.now()}`,
+        sap_sku: formData.sapSku,
+        manufacturer: formData.manufacturer,
         name: formData.name,
         category: finalCategory,
         subcategory: finalSubcategory,
@@ -740,6 +745,20 @@ export function ProductRegisterPage() {
                 placeholder="상품코드를 입력하세요"
                 className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 mb-2">
+                SAP SKU (ERP 매핑용)
+              </label>
+              <input
+                type="text"
+                name="sapSku"
+                value={formData.sapSku}
+                onChange={handleInputChange}
+                placeholder="SAP 품번을 입력하세요"
+                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
               />
             </div>
 

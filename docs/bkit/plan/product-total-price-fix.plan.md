@@ -1,14 +1,14 @@
-# Plan: Product Total Price Calculation Fix
+# 계획: 상품 총 금액 계산 오류 수정
 
-## Purpose
-Fix the "Total Price" (총 금액) at the bottom of the product detail page to correctly reflect set-option discounts.
+## 목적
+상품 상세 페이지 하단의 "총 금액"이 세트 옵션 할인가를 정상적으로 반영하도록 수정합니다.
 
-## Scope
-- `ProductDetailPage.tsx` logic update.
+## 범위
+- `ProductDetailPage.tsx` 가격 계산 로직.
 
-## Requirements
-- Prioritize set option discounts over tier pricing.
-- Correctly apply subscription discounts on the final effective unit price.
+## 요구사항
+- 세트 옵션 할인을 대량구매 할인(Tier Pricing)보다 우선 적용.
+- 정기 배송 할인이 있을 경우 최종 단가에 추가 적용.
 
-## Success Criteria
-- Total price matches the selected option's discounted price.
+## 성공 기준
+- 하단 총 금액이 선택된 옵션의 표시 가격과 일치함.

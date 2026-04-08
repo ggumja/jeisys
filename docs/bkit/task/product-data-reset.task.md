@@ -1,6 +1,6 @@
-# Task: Product Data Reset for Testing
+# 작업: 상품 데이터 전체 초기화 (테스트용)
 
-- [x] Identify all product-related tables
-- [x] Create consolidated SQL script
-- [ ] Provide script to user and instruct execution
-- [ ] Verify cleanup (Check count=0)
+- [x] 모든 상품 관련 테이블 식별
+- [x] 통합 SQL 스크립트 작성
+- [ ] 사용자에게 스크립트 제공 및 실행 안내
+- [ ] 초기화 확인 (데이터 수 0 체크)

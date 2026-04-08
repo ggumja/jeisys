@@ -12,6 +12,7 @@ interface PackageFormData {
   name: string;
   category: string;
   productCode: string;
+  sapSku: string;
   manufacturer: string;
   price: string;
   stock: string;
@@ -50,6 +51,7 @@ export function PackageRegisterPage() {
     name: '',
     category: '',
     productCode: '',
+    sapSku: '',
     manufacturer: '',
     price: '',
     stock: '',
@@ -97,7 +99,8 @@ export function PackageRegisterPage() {
         name: existingProduct.name,
         category: existingProduct.category,
         productCode: existingProduct.sku,
-        manufacturer: '', 
+        sapSku: existingProduct.sapSku || '',
+        manufacturer: existingProduct.manufacturer || '', 
         price: existingProduct.price.toString(),
         stock: existingProduct.stock.toString(),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
@@ -336,6 +339,8 @@ export function PackageRegisterPage() {
 
       const productData: ProductInput = {
         sku: formData.productCode || `PKG-${Date.now()}`,
+        sap_sku: formData.sapSku,
+        manufacturer: formData.manufacturer,
         name: formData.name,
         category: finalCategory,
         subcategory: finalSubcategory,
@@ -584,6 +589,18 @@ export function PackageRegisterPage() {
                   placeholder="상품코드를 입력하세요"
                   className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700">SAP SKU (ERP 매핑용)</label>
+                <input
+                  type="text"
+                  name="sapSku"
+                  value={formData.sapSku}
+                  onChange={handleInputChange}
+                  placeholder="SAP 품번을 입력하세요"
+                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
                 />
               </div>
 
