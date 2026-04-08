@@ -62,6 +62,16 @@ export interface Product {
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
   bonusItems?: BonusItem[];
+  options?: ProductQuantityOption[];
+}
+
+export interface ProductQuantityOption {
+  id: string;
+  productId: string;
+  name: string;
+  quantity: number;
+  discountRate: number;
+  displayOrder: number;
 }
 
 export interface BonusItem {
@@ -70,6 +80,7 @@ export interface BonusItem {
   quantity: number;
   priceOverride?: number;
   product?: Product;
+  optionId?: string;
 }
 
 export interface PackageItem {
@@ -87,6 +98,8 @@ export interface CartItem {
   quantity: number;
   isSubscription: boolean;
   selectedProductIds?: string[];
+  optionId?: string;
+  optionName?: string;
 }
 
 export interface Order {
@@ -94,7 +107,12 @@ export interface Order {
   orderNumber: string;
   date: string;
   status: 'pending' | 'processing' | 'shipped' | 'delivered';
-  items: { product: Product; quantity: number }[];
+  items: { 
+    product: Product; 
+    quantity: number;
+    optionId?: string;
+    optionName?: string;
+  }[];
   totalAmount: number;
   paymentMethod: string;
   deliveryTrackingNumber?: string;

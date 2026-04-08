@@ -14,7 +14,9 @@ export const cartService = {
                 product_id,
                 quantity,
                 is_subscription,
-                selected_product_ids
+                selected_product_ids,
+                option_id,
+                option_name
             `)
             .eq('user_id', user.id);
 
@@ -26,15 +28,24 @@ export const cartService = {
             quantity: item.quantity,
             isSubscription: item.is_subscription,
             selectedProductIds: item.selected_product_ids,
+            optionId: item.option_id,
+            optionName: item.option_name,
         }));
     },
 
     // Add item to cart
-    async addToCart(productId: string, quantity: number, isSubscription: boolean = false, selectedProductIds?: string[]) {
+    async addToCart(
+        productId: string, 
+        quantity: number, 
+        isSubscription: boolean = false, 
+        selectedProductIds?: string[],
+        optionId?: string,
+        optionName?: string
+    ) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
-        // Check if identical item exists (same product AND same selections)
+        // Check if identical item exists (same product AND same selections AND same option)
         let query = supabase
             .from('cart_items')
             .select('id, quantity')
@@ -47,7 +58,13 @@ export const cartService = {
             query = query.is('selected_product_ids', null);
         }
 
-        const { data: existing } = await query.single();
+        if (optionId) {
+            query = query.eq('option_id', optionId);
+        } else {
+            query = query.is('option_id', null);
+        }
+
+        const { data: existing } = await query.maybeSingle();
 
         if (existing) {
             // Update quantity
@@ -68,7 +85,9 @@ export const cartService = {
                     product_id: productId,
                     quantity,
                     is_subscription: isSubscription,
-                    selected_product_ids: selectedProductIds || null
+                    selected_product_ids: selectedProductIds || null,
+                    option_id: optionId || null,
+                    option_name: optionName || null
                 });
             if (error) throw error;
         }

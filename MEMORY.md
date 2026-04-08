@@ -14,3 +14,12 @@
     - **Tech Stack:** React (Vite + TS), Supabase, Prisma (Server-side), Tailwind/Shadcn UI.
     - **Status:** Documentation moved to preferred location. Existing PDCA items found for Dashboard and Member Management.
     - **Working Directory:** All development and files are managed in `/Users/bpnr/Documents/Jeisys/`.
+
+## 2026-04-08
+- **Set Quantity Options Feature:** Completed high-level implementation of non-sequential product options (e.g., SET selections).
+    - Integrated `product_quantity_options` and bonus items mapping.
+    - Resolved critical data mapping issues in admin edit mode.
+    - Updated `ProductDetailPage` and `CartPage` for dynamic pricing.
+- **UI/UX Enhancement:** Replaced all native `alert()` with `Dialog` based layer popups in the admin registration page.
+- **PDCA Archiving:** Implemented permanent storage of implementation plans and results in `.agent/pdca/` for future reference.
+- **Tech Progress:** Updated `PRODUCT_FEATURE_PROGRESS.md` to reflect Step 4 completion.

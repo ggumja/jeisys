@@ -98,21 +98,30 @@ export function CartPage() {
     }
   };
 
-  const getTierPrice = (productId: string, quantity: number) => {
-    const product = productsMap[productId];
+  const getTierPrice = (item: CartItem) => {
+    const product = productsMap[item.productId];
     if (!product) return 0;
 
-    // Sort logic just in case, though productService handles it
+    // 1. If it's a set option
+    if (item.optionId) {
+      const option = product.options?.find(opt => opt.id === item.optionId);
+      if (option) {
+        const discountRate = option.discountRate / 100;
+        return product.price * (1 - discountRate);
+      }
+    }
+
+    // 2. Default tier pricing
     const tier = [...product.tierPricing]
       .sort((a, b) => b.quantity - a.quantity)
-      .find(t => quantity >= t.quantity);
+      .find(t => item.quantity >= t.quantity);
 
     return tier?.unitPrice || product.price;
   };
 
   const calculateTotal = () => {
     return cart.reduce((sum, item) => {
-      const unitPrice = getTierPrice(item.productId, item.quantity);
+      const unitPrice = getTierPrice(item);
       const discount = item.isSubscription ? 0.95 : 1;
       return sum + unitPrice * item.quantity * discount;
     }, 0);
@@ -168,7 +177,7 @@ export function CartPage() {
             const product = productsMap[item.productId];
             if (!product) return null; // Should not happen if loaded correctly
 
-            const unitPrice = getTierPrice(item.productId, item.quantity);
+            const unitPrice = getTierPrice(item);
             const itemTotal = unitPrice * item.quantity * (item.isSubscription ? 0.95 : 1);
 
             return (
@@ -200,6 +209,14 @@ export function CartPage() {
                         >
                           {product.name}
                         </Link>
+                        {item.optionName && (
+                          <div className="mt-1">
+                            <span className="inline-block bg-neutral-900 text-white text-[10px] px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider mb-1">
+                              SET OPTION
+                            </span>
+                            <p className="text-sm font-semibold text-neutral-900">{item.optionName}</p>
+                          </div>
+                        )}
                         {/* Package Selection Display */}
                         {item.selectedProductIds && item.selectedProductIds.length > 0 && (
                           <div className="mt-2 space-y-1">
@@ -236,31 +253,39 @@ export function CartPage() {
 
                     {/* Quantity Controls */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-4">
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => updateQuantity(item, item.quantity - 1)}
-                          disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
-                          className={`w-10 h-10 border border-neutral-300 flex items-center justify-center transition-colors ${
-                            item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
-                              ? 'opacity-50 cursor-not-allowed' 
-                              : 'hover:border-neutral-900 group-hover:bg-neutral-50'
-                          }`}
-                        >
-                          <Minus className="w-4 h-4 text-neutral-700" />
-                        </button>
-                        <span className="w-12 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item, item.quantity + 1)}
-                          disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
-                          className={`w-10 h-10 flex items-center justify-center transition-colors ${
-                            (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
-                              ? 'bg-neutral-200 cursor-not-allowed opacity-50' 
-                              : 'bg-neutral-900 hover:bg-neutral-800 text-white'
-                          }`}
-                        >
-                          <Plus className={`w-4 h-4 ${((product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)) ? 'text-neutral-500' : 'text-white'}`} />
-                        </button>
-                      </div>
+                      {item.optionId ? (
+                        <div className="flex items-center gap-2">
+                          <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-600">
+                            세트 고정 수량: {item.quantity}개
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => updateQuantity(item, item.quantity - 1)}
+                            disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
+                            className={`w-10 h-10 border border-neutral-300 flex items-center justify-center transition-colors ${
+                              item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
+                                ? 'opacity-50 cursor-not-allowed' 
+                                : 'hover:border-neutral-900 group-hover:bg-neutral-50'
+                            }`}
+                          >
+                            <Minus className="w-4 h-4 text-neutral-700" />
+                          </button>
+                          <span className="w-12 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item, item.quantity + 1)}
+                            disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
+                            className={`w-10 h-10 flex items-center justify-center transition-colors ${
+                              (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
+                                ? 'bg-neutral-200 cursor-not-allowed opacity-50' 
+                                : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                            }`}
+                          >
+                            <Plus className={`w-4 h-4 ${((product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)) ? 'text-neutral-500' : 'text-white'}`} />
+                          </button>
+                        </div>
+                      )}
                       <span className="text-xs text-neutral-600 text-center sm:text-left">
                         단가: ₩{unitPrice.toLocaleString()}
                       </span>

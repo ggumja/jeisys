@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ShoppingCart, Check, FileText, Minus, Plus, Package, Loader2 } from 'lucide-react';
+import { ShoppingCart, Check, Minus, Plus, Package, Loader2 } from 'lucide-react';
 import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { equipmentService, EquipmentModel } from '../services/equipmentService';
@@ -28,6 +28,7 @@ export function ProductDetailPage() {
   const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
   const [selections, setSelections] = useState<string[]>([]);
   const [inputQuantities, setInputQuantities] = useState<Record<string, number>>({});
+  const [selectedOptionId, setSelectedOptionId] = useState<string>('');
 
   const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -92,9 +93,7 @@ export function ProductDetailPage() {
     }
   };
 
-  const currentTierPrice = product
-    ? [...product.tierPricing].reverse().find(tier => quantity >= tier.quantity)?.unitPrice || product.price
-    : 0;
+
 
   useEffect(() => {
     if (product) {
@@ -118,6 +117,42 @@ export function ProductDetailPage() {
     }
     setQuantity(newQuantity);
   };
+
+  const handleOptionChange = (optionId: string) => {
+    setSelectedOptionId(optionId);
+    if (!product) return;
+    
+    if (optionId) {
+      const option = product.options?.find(opt => opt.id === optionId);
+      if (option) {
+        setQuantity(option.quantity);
+      }
+    } else {
+      setQuantity(product.minOrderQuantity || 1);
+    }
+  };
+
+  const currentOption = product?.options?.find(opt => opt.id === selectedOptionId);
+  const currentBonusItems = selectedOptionId && currentOption
+    ? product?.bonusItems?.filter(item => item.optionId === selectedOptionId)
+    : product?.bonusItems?.filter(item => !item.optionId);
+
+  const currentUnitPrice = (() => {
+    if (!product) return 0;
+    
+    // 1. If an option is selected, use that option's discount
+    if (currentOption) {
+      return product.price * (1 - currentOption.discountRate / 100);
+    }
+    
+    // 2. Otherwise, check for tier pricing based on quantity
+    const tier = [...product.tierPricing]
+      .sort((a, b) => b.quantity - a.quantity)
+      .find(t => quantity >= t.quantity);
+      
+    return tier ? tier.unitPrice : product.price;
+  })();
+
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -164,7 +199,14 @@ export function ProductDetailPage() {
           finalSelections = selections;
         }
       }
-      await cartService.addToCart(product.id, quantity, isSubscription, finalSelections);
+      await cartService.addToCart(
+        product.id, 
+        quantity, 
+        isSubscription, 
+        finalSelections,
+        selectedOptionId || undefined,
+        currentOption?.name
+      );
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
       setShowCartDialog(true);
@@ -221,6 +263,33 @@ export function ProductDetailPage() {
 
           <div className="bg-neutral-50 border border-neutral-200 p-8 mb-8">
             {(() => {
+              if (currentOption) {
+                // Option-based Pricing
+                const discountRate = currentOption.discountRate / 100;
+                const unitPrice = product.price * (1 - discountRate);
+                const totalPrice = unitPrice * currentOption.quantity;
+
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm text-neutral-500">
+                      <span>정가 (단품):</span>
+                      <span className="line-through">₩{product.price.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-neutral-700">세트 구성 옵션가:</span>
+                        <span className="text-4xl tracking-tight text-neutral-900 font-bold">
+                          ₩{totalPrice.toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm font-bold text-red-600 mt-2">
+                        ({currentOption.name} / {currentOption.discountRate}% 할인 적용)
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
               const currentTier = [...product.tierPricing]
                 .sort((a, b) => b.quantity - a.quantity)
                 .find(tier => quantity >= tier.quantity);
@@ -257,14 +326,16 @@ export function ProductDetailPage() {
           </div>
 
           {/* Bonus Items Display */}
-          {product.bonusItems && product.bonusItems.length > 0 && (
+          {currentBonusItems && currentBonusItems.length > 0 && (
             <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-sm">
               <div className="flex items-center gap-2 mb-3">
                 <Package className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-blue-900 tracking-tight">추가 증정 혜택</h3>
+                <h3 className="text-base font-bold text-blue-900 tracking-tight">
+                  {selectedOptionId ? `${currentOption?.name} 전용 추가 증정` : '입급 시 추가 증정 혜택'}
+                </h3>
               </div>
               <ul className="space-y-2">
-                {product.bonusItems.map((item) => (
+                {currentBonusItems.map((item) => (
                   <li key={item.id} className="text-sm text-blue-800 flex items-center justify-between bg-white/50 p-2 rounded-sm border border-blue-100/50">
                     <div className="flex items-center gap-2">
                       <Check className="w-4 h-4 text-blue-500" />
@@ -407,46 +478,76 @@ export function ProductDetailPage() {
             </div>
           )}
 
-          {/* Quantity Selector */}
-          <div className="mb-8">
-            <label className="block text-xs tracking-wide text-neutral-700 mb-4 uppercase font-medium">
-              수량
-            </label>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={product.minOrderQuantity === product.maxOrderQuantity}
-                  className={`w-12 h-12 border border-neutral-300 flex items-center justify-center transition-colors ${
-                    product.minOrderQuantity === product.maxOrderQuantity 
-                      ? 'bg-neutral-50 cursor-not-allowed opacity-50' 
-                      : 'hover:border-neutral-900'
-                  }`}
+          {/* Option Selector or Quantity Selector */}
+          {product.options && product.options.length > 0 ? (
+            <div className="mb-8">
+              <label className="block text-xs tracking-wide text-neutral-700 mb-4 uppercase font-medium">
+                구매 세트 선택 <span className="text-red-500">*</span>
+              </label>
+              <div className="space-y-2">
+                <select
+                  value={selectedOptionId}
+                  onChange={(e) => handleOptionChange(e.target.value)}
+                  className="w-full px-4 py-4 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-base font-medium"
                 >
-                  <Minus className="w-5 h-5 text-neutral-700" />
-                </button>
-                <div className="w-20 text-center">
-                  <span className="text-2xl font-light tracking-tight text-neutral-900">{quantity}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={product.minOrderQuantity === product.maxOrderQuantity}
-                  className={`w-12 h-12 flex items-center justify-center transition-colors ${
-                    product.minOrderQuantity === product.maxOrderQuantity 
-                      ? 'bg-neutral-50 border border-neutral-200 cursor-not-allowed opacity-50 text-neutral-400' 
-                      : 'bg-neutral-900 hover:bg-neutral-800 text-white'
-                  }`}
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="text-sm text-neutral-600">
-                재고: {product.stock}개
+                  <option value="">세트 구성을 선택하세요</option>
+                  {product.options.map((opt) => {
+                    const discountRate = opt.discountRate / 100;
+                    const unitPrice = product.price * (1 - discountRate);
+                    const totalPrice = unitPrice * opt.quantity;
+                    return (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name} (수량: {opt.quantity}개 / ₩{totalPrice.toLocaleString()})
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="text-xs text-neutral-500">
+                  세트 옵션 상품은 지정된 수량 단위로만 구매 가능합니다.
+                </p>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="mb-8">
+              <label className="block text-xs tracking-wide text-neutral-700 mb-4 uppercase font-medium">
+                수량
+              </label>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(quantity - 1)}
+                    disabled={product.minOrderQuantity === product.maxOrderQuantity}
+                    className={`w-12 h-12 border border-neutral-300 flex items-center justify-center transition-colors ${
+                      product.minOrderQuantity === product.maxOrderQuantity 
+                        ? 'bg-neutral-50 cursor-not-allowed opacity-50' 
+                        : 'hover:border-neutral-900'
+                    }`}
+                  >
+                    <Minus className="w-5 h-5 text-neutral-700" />
+                  </button>
+                  <div className="w-20 text-center">
+                    <span className="text-2xl font-light tracking-tight text-neutral-900">{quantity}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(quantity + 1)}
+                    disabled={product.minOrderQuantity === product.maxOrderQuantity}
+                    className={`w-12 h-12 flex items-center justify-center transition-colors ${
+                      product.minOrderQuantity === product.maxOrderQuantity 
+                        ? 'bg-neutral-50 border border-neutral-200 cursor-not-allowed opacity-50 text-neutral-400' 
+                        : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                    }`}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="text-sm text-neutral-600">
+                  재고: {product.stock}개
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Subscription Option */}
           {(product.subscriptionDiscount ?? 0) > 0 && (
@@ -470,8 +571,8 @@ export function ProductDetailPage() {
           <div className="bg-neutral-50 border border-neutral-200 p-6 mb-8">
             <div className="flex items-center justify-between">
               <span className="text-base font-medium text-neutral-700">총 금액</span>
-              <span className="text-3xl tracking-tight text-neutral-900">
-                ₩{(currentTierPrice * quantity * (isSubscription ? (1 - (product.subscriptionDiscount || 0) / 100) : 1)).toLocaleString()}
+              <span className="text-3xl tracking-tight text-neutral-900 font-bold">
+                ₩{(currentUnitPrice * quantity * (isSubscription ? (1 - (product.subscriptionDiscount || 0) / 100) : 1)).toLocaleString()}
               </span>
             </div>
           </div>

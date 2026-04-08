@@ -1,0 +1,9 @@
+- [x] 상품 옵션 스키마 설계 및 테이블 생성 (`product_quantity_options`)
+- [x] `product_bonus_items` 테이블에 `option_id` 컬럼 추가 및 제약 조건 수정
+- [x] 관리자 페이지 (`ProductRegisterPage.tsx`) 세트 옵션 UI 구현
+- [x] 관리자 페이지 데이터 저장(Submit) 및 수정(Edit) 시 데이터 매핑 로직 완성
+- [x] 관리자 페이지 브라우저 알림(`alert`)을 레이어 팝업(`Dialog`)으로 전면 교체
+- [x] 고객 상세 페이지 (`ProductDetailPage.tsx`) 옵션 선택 및 동적 가격/증정품 UI 구현
+- [x] 장바구니 페이지 (`CartPage.tsx`) 옵션 명칭 표시 및 세트 수량 고정 처리
+- [x] `productService.ts`, `cartService.ts` 옵션 데이터 연동 및 매핑 안정화
+- [x] 최종 테스트 및 PDCA 문서 영구 보관용 아카이빙

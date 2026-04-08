@@ -46,7 +46,8 @@ export const productService = {
         product_bonus_items:product_bonus_items!parent_product_id (
           *,
           product:products!bonus_product_id (*)
-        )
+        ),
+        product_quantity_options (*)
       `)
       .order('display_no', { ascending: false });
 
@@ -78,7 +79,8 @@ export const productService = {
         product_bonus_items:product_bonus_items!parent_product_id (
           *,
           product:products!bonus_product_id (*)
-        )
+        ),
+        product_quantity_options (*)
       `)
       .eq('id', id)
       .single();
@@ -302,8 +304,17 @@ export const productService = {
         productId: bi.bonus_product_id,
         quantity: bi.quantity,
         priceOverride: bi.price_override,
+        optionId: bi.option_id,
         product: bi.product ? this.mapProduct(bi.product) : undefined
       })) || [],
+      options: item.product_quantity_options?.map((opt: any) => ({
+        id: opt.id,
+        productId: opt.product_id,
+        name: opt.name,
+        quantity: opt.quantity,
+        discountRate: opt.discount_rate,
+        displayOrder: opt.display_order
+      })).sort((a: any, b: any) => a.displayOrder - b.displayOrder) || [],
     };
   },
 
@@ -331,7 +342,33 @@ export const productService = {
     }
   },
 
-  async addBonusItems(productId: string, items: { bonusProductId: string; quantity: number; priceOverride?: number }[]): Promise<void> {
+  async addOptions(productId: string, options: any[]): Promise<any[]> {
+    await supabase.from('product_quantity_options').delete().eq('product_id', productId);
+
+    if (options.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('product_quantity_options')
+      .insert(
+        options.map((opt, index) => ({
+          product_id: productId,
+          name: opt.name,
+          quantity: opt.quantity,
+          discount_rate: opt.discountRate,
+          display_order: index,
+        }))
+      )
+      .select();
+
+    if (error) {
+      console.error('Error adding product options:', error);
+      throw error;
+    }
+    
+    return data.sort((a: any, b: any) => a.display_order - b.display_order);
+  },
+
+  async addBonusItems(productId: string, items: { bonusProductId: string; quantity: number; priceOverride?: number; optionId?: string | null }[]): Promise<void> {
     // Delete existing
     await supabase.from('product_bonus_items').delete().eq('parent_product_id', productId);
 
@@ -345,6 +382,7 @@ export const productService = {
           bonus_product_id: item.bonusProductId,
           quantity: item.quantity,
           price_override: item.priceOverride,
+          option_id: item.optionId || null,
         }))
       );
 
