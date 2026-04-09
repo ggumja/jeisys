@@ -393,7 +393,15 @@ export function ProductRegisterPage() {
       // Allow only numbers and format with commas
       const numericValue = value.replace(/[^0-9]/g, '');
       const formattedValue = formatWithCommas(numericValue);
-      setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+      
+      setFormData((prev) => {
+        const next = { ...prev, [name]: formattedValue };
+        // Sync minOrderQuantity with salesUnit when salesUnit changes
+        if (name === 'salesUnit') {
+          next.minOrderQuantity = formattedValue;
+        }
+        return next;
+      });
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -875,6 +883,7 @@ export function ProductRegisterPage() {
                   required
                 />
                 <p className="text-[10px] text-neutral-400 mt-1">* 개당 단가 계산의 기준이 됩니다 (기본값: 1)</p>
+                <p className="text-[10px] text-neutral-400">* 판매 단위를 수정하면 최소 주문수량도 같이 반영이 됩니다.</p>
               </div>
             </div>
 
