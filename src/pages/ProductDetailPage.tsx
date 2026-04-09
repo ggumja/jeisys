@@ -282,7 +282,21 @@ export function ProductDetailPage() {
         {/* Product Info */}
         <div>
           <p className="text-xs text-neutral-500 mb-3 tracking-wide uppercase">{product.sku}</p>
-          <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-6">{product.name}</h1>
+          <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-4">
+            {product.name}
+          </h1>
+          <div className="mb-4 leading-none flex items-center gap-1">
+            {product.creditAvailable && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider transform scale-[0.7] origin-left">
+                크레딧 사용가능
+              </span>
+            )}
+            {( (product.salesUnit && product.salesUnit > 1) || (product.options && product.options.length > 0) || product.isPackage ) && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-[2px] text-[10px] font-bold bg-green-600 text-white uppercase tracking-wider transform scale-[0.7] origin-left">
+                SET
+              </span>
+            )}
+          </div>
 
           <div className="mb-12">
             <div className="flex flex-col gap-2">
@@ -325,9 +339,6 @@ export function ProductDetailPage() {
                       </div>
                       <span className="font-bold whitespace-nowrap ml-4">
                         {displayQuantity} EA
-                        {item.calculationMethod === 'ratio' && (
-                          <span className="text-[10px] ml-1 opacity-70">(비율계산)</span>
-                        )}
                       </span>
                     </li>
                   );
@@ -734,8 +745,27 @@ export function ProductDetailPage() {
                 </div>
                 <div className="p-4">
                   <p className="text-xs text-neutral-500 mb-1 tracking-wide uppercase">{p.sku}</p>
-                  <h3 className="text-sm font-medium text-neutral-900 mb-2 line-clamp-2">{p.name}</h3>
-                  <p className="text-base tracking-tight text-neutral-900">
+                  <h3 className="text-sm font-medium text-neutral-900 mb-1 line-clamp-2">
+                    {p.name}
+                  </h3>
+                  <div className="mb-1 leading-none flex items-center gap-1">
+                    {p.creditAvailable && (
+                      <span className="inline-flex items-center px-1 py-0.5 rounded-[2px] text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider transform scale-[0.65] origin-left">
+                        크레딧 사용가능
+                      </span>
+                    )}
+                    {( (p.salesUnit && p.salesUnit > 1) || (p.options && p.options.length > 0) || p.isPackage ) && (
+                      <span className="inline-flex items-center px-1 py-0.5 rounded-[2px] text-[10px] font-bold bg-green-600 text-white uppercase tracking-wider transform scale-[0.65] origin-left">
+                        SET
+                      </span>
+                    )}
+                  </div>
+                  {p.salesUnit && p.salesUnit > 1 && (
+                    <p className="text-[9px] text-neutral-400 mb-2">
+                      {Math.floor(p.price / p.salesUnit).toLocaleString()}(단가)*{p.salesUnit}(구매단위)
+                    </p>
+                  )}
+                  <p className="text-lg font-bold tracking-tight text-neutral-900">
                     ₩{p.price.toLocaleString()}
                   </p>
                 </div>

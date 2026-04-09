@@ -306,12 +306,30 @@ export function ProductListPage() {
                       </div>
                       <div className="p-6">
                         <p className="text-xs text-neutral-500 mb-2 tracking-wide uppercase">{product.sku}</p>
-                        <h3 className="text-lg font-bold tracking-tight text-neutral-900 mb-3 line-clamp-2">
+                        <h3 className="text-lg font-bold tracking-tight text-neutral-900 mb-1 line-clamp-2">
                           {product.name}
                         </h3>
-                        <p className="text-base tracking-tight text-neutral-900 mb-4">
+                        <div className="mb-1 leading-none flex items-center gap-1">
+                          {product.creditAvailable && (
+                            <span className="inline-flex items-center px-1 py-0.5 rounded-[2px] text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider transform scale-[0.65] origin-left">
+                              크레딧 사용가능
+                            </span>
+                          )}
+                          {( (product.salesUnit && product.salesUnit > 1) || (product.options && product.options.length > 0) || product.isPackage ) && (
+                            <span className="inline-flex items-center px-1 py-0.5 rounded-[2px] text-[10px] font-bold bg-green-600 text-white uppercase tracking-wider transform scale-[0.65] origin-left">
+                              SET
+                            </span>
+                          )}
+                        </div>
+                        {product.salesUnit && product.salesUnit > 1 && (
+                          <p className="text-[9px] text-neutral-400 mb-2">
+                            {Math.floor(product.price / product.salesUnit).toLocaleString()}(단가)*{product.salesUnit}(구매단위)
+                          </p>
+                        )}
+                        <p className="text-lg font-bold tracking-tight text-neutral-900 mb-4">
                           ₩{product.price.toLocaleString()}
                         </p>
+                        {/* 
                         <div className="flex items-center justify-between text-xs text-neutral-500">
                           <span className="flex items-center gap-1">
                             <Package className="w-3 h-3" />
@@ -321,6 +339,7 @@ export function ProductListPage() {
                             {product.stock > 0 ? '구매 가능' : '품절'}
                           </span>
                         </div>
+                        */}
                       </div>
                     </Link>
                   </div>
