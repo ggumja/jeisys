@@ -5,6 +5,7 @@ import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { equipmentService, EquipmentModel } from '../services/equipmentService';
 import { Product, PackageItem } from '../types';
+import { storage } from '../lib/storage';
 import {
   Dialog,
   DialogContent,
@@ -189,6 +190,14 @@ export function ProductDetailPage() {
       }
     }
 
+    const currentUser = storage.getUser();
+    if (!currentUser) {
+      if (window.confirm('로그인이 필요한 서비스입니다. 로그인 페이지로 이동하시겠습니까?')) {
+        navigate('/login', { state: { from: location.pathname } });
+      }
+      return;
+    }
+
     try {
       let finalSelections = undefined;
       if (product.isPackage) {
@@ -210,13 +219,21 @@ export function ProductDetailPage() {
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
       setShowCartDialog(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add to cart', error);
-      setAlertDialog({
-        isOpen: true,
-        title: '장바구니 담기 실패',
-        description: '장바구니 담기에 실패했습니다. 로그인 상태를 확인해주세요.'
-      });
+      
+      if (error.message === 'User not authenticated') {
+        storage.clearAll();
+        if (window.confirm('세션이 만료되었습니다. 다시 로그인 해주시겠습니까?')) {
+          navigate('/login', { state: { from: location.pathname } });
+        }
+      } else {
+        setAlertDialog({
+          isOpen: true,
+          title: '장바구니 담기 실패',
+          description: '장바구니 담기에 실패했습니다. 잠시 후 다시 시도해주세요.'
+        });
+      }
     }
   };
 

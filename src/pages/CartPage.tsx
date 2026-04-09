@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Trash2, Plus, Minus, FileDown, ShoppingBag, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Minus, FileDown, ShoppingBag, Loader2, Package, Check } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { CartItem, Product } from '../types';
@@ -23,14 +23,12 @@ export function CartPage() {
       setCart(items);
 
       if (items.length > 0) {
-        // Collect all unique product IDs (main products + selected items for packages)
         const allProductIds = new Set<string>();
         items.forEach(item => {
           allProductIds.add(item.productId);
           item.selectedProductIds?.forEach(id => allProductIds.add(id));
         });
 
-        // Fetch details for all relevant products
         const productPromises = Array.from(allProductIds).map(id => productService.getProductById(id));
         const products = await Promise.all(productPromises);
 
@@ -66,19 +64,17 @@ export function CartPage() {
     }
 
     try {
-      // Optimistic update
       setCart(cart.map(c => c.id === item.id ? { ...c, quantity: newQuantity } : c));
       await cartService.updateQuantity(item.id, newQuantity);
     } catch (error) {
       console.error('Failed to update quantity', error);
-      loadCart(); // Revert on error
+      loadCart();
     }
   };
 
   const toggleSubscription = async (item: CartItem) => {
     try {
       const newState = !item.isSubscription;
-      // Optimistic update
       setCart(cart.map(c => c.id === item.id ? { ...c, isSubscription: newState } : c));
       await cartService.updateSubscription(item.id, newState);
     } catch (error) {
@@ -89,7 +85,6 @@ export function CartPage() {
 
   const removeItem = async (item: CartItem) => {
     try {
-      // Optimistic update
       setCart(cart.filter(c => c.id !== item.id));
       await cartService.removeItem(item.id);
     } catch (error) {
@@ -102,7 +97,6 @@ export function CartPage() {
     const product = productsMap[item.productId];
     if (!product) return 0;
 
-    // 1. If it's a set option
     if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
@@ -111,7 +105,6 @@ export function CartPage() {
       }
     }
 
-    // 2. Default tier pricing
     const tier = [...product.tierPricing]
       .sort((a, b) => b.quantity - a.quantity)
       .find(t => item.quantity >= t.quantity);
@@ -121,8 +114,10 @@ export function CartPage() {
 
   const calculateTotal = () => {
     return cart.reduce((sum, item) => {
+      const product = productsMap[item.productId];
       const unitPrice = getTierPrice(item);
-      const discount = item.isSubscription ? 0.95 : 1;
+      const subDiscount = (product?.subscriptionDiscount || 0) / 100;
+      const discount = item.isSubscription ? (1 - subDiscount) : 1;
       return sum + unitPrice * item.quantity * discount;
     }, 0);
   };
@@ -171,14 +166,14 @@ export function CartPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.map(item => {
             const product = productsMap[item.productId];
-            if (!product) return null; // Should not happen if loaded correctly
+            if (!product) return null;
 
             const unitPrice = getTierPrice(item);
-            const itemTotal = unitPrice * item.quantity * (item.isSubscription ? 0.95 : 1);
+            const subDiscount = (product?.subscriptionDiscount || 0) / 100;
+            const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
 
             return (
               <div
@@ -186,7 +181,6 @@ export function CartPage() {
                 className="bg-white border border-neutral-200 p-6"
               >
                 <div className="flex flex-col sm:flex-row gap-6">
-                  {/* Product Image */}
                   <Link
                     to={`/products/${product.id}`}
                     className="w-full sm:w-24 aspect-square sm:aspect-auto sm:h-24 bg-neutral-100 overflow-hidden flex-shrink-0"
@@ -198,34 +192,40 @@ export function CartPage() {
                     />
                   </Link>
 
-                  {/* Product Details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-4 mb-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-neutral-500 mb-2 tracking-wide uppercase">{product.sku}</p>
                         <Link
                           to={`/products/${product.id}`}
-                          className="text-lg font-bold tracking-tight text-neutral-900 hover:text-neutral-700"
+                          className="text-lg font-bold tracking-tight text-neutral-900 hover:text-neutral-700 block mb-2"
                         >
                           {product.name}
                         </Link>
-                        {item.optionName && (
-                          <div className="mt-1">
-                            <span className="inline-block bg-neutral-900 text-white text-[10px] px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider mb-1">
-                              SET OPTION
-                            </span>
-                            <p className="text-sm font-semibold text-neutral-900">{item.optionName}</p>
-                          </div>
-                        )}
-                        {/* Package Selection Display */}
+                        
+                        <div className="text-sm mb-4">
+                          {unitPrice < product.price ? (
+                            <div className="flex flex-wrap items-center gap-x-1">
+                              <span className="text-neutral-500">정상가(개당): {product.price.toLocaleString()},</span>
+                              <span className="text-red-600 font-bold">
+                                할인가({Math.round((1 - unitPrice / product.price) * 100)}%적용): {unitPrice.toLocaleString()}
+                              </span>
+                              <span className="text-neutral-600 font-medium">* {item.quantity} EA</span>
+                            </div>
+                          ) : (
+                            <div className="text-neutral-600">
+                              <span>정상가(개당): {product.price.toLocaleString()} * {item.quantity} EA</span>
+                            </div>
+                          )}
+                        </div>
+
                         {item.selectedProductIds && item.selectedProductIds.length > 0 && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs font-semibold text-neutral-900">패키지 구성:</p>
                             <ul className="text-xs text-neutral-600 space-y-0.5">
                               {(() => {
-                                // Group product IDs and count them
                                 const counts: Record<string, number> = {};
-                                item.selectedProductIds.forEach(id => {
+                                item.selectedProductIds?.forEach(id => {
                                   counts[id] = (counts[id] || 0) + 1;
                                 });
                                 
@@ -251,15 +251,8 @@ export function CartPage() {
                       </button>
                     </div>
 
-                    {/* Quantity Controls */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-4">
-                      {item.optionId ? (
-                        <div className="flex items-center gap-2">
-                          <div className="px-3 py-2 bg-neutral-50 border border-neutral-200 text-sm font-medium text-neutral-600">
-                            세트 고정 수량: {item.quantity}개
-                          </div>
-                        </div>
-                      ) : (
+                      {!item.optionId && (
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => updateQuantity(item, item.quantity - 1)}
@@ -286,25 +279,46 @@ export function CartPage() {
                           </button>
                         </div>
                       )}
-                      <span className="text-xs text-neutral-600 text-center sm:text-left">
-                        단가: ₩{unitPrice.toLocaleString()}
-                      </span>
                     </div>
 
-                    {/* Subscription Toggle */}
-                    <label className="flex items-center gap-2 mb-4 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={item.isSubscription}
-                        onChange={() => toggleSubscription(item)}
-                        className="w-4 h-4 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
-                      />
-                      <span className="text-sm text-neutral-700">
-                        정기 배송 (5% 추가 할인)
-                      </span>
-                    </label>
+                    {product.bonusItems && product.bonusItems.filter(bi => bi.optionId === (item.optionId || null)).length > 0 && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-sm">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Package className="w-3.5 h-3.5 text-blue-600" />
+                          <h4 className="text-xs font-bold text-blue-900">
+                            {item.optionId ? 'SET 전용 추가 증정' : '추가 증정 혜택'}
+                          </h4>
+                        </div>
+                        <ul className="space-y-1">
+                          {product.bonusItems
+                            .filter(bi => bi.optionId === (item.optionId || null))
+                            .map((bi) => (
+                              <li key={bi.id} className="text-[11px] text-blue-800 flex items-center justify-between">
+                                <div className="flex items-center gap-1">
+                                  <Check className="w-3 h-3 text-blue-500" />
+                                  <span>{bi.product?.name}</span>
+                                </div>
+                                <span className="font-bold ml-2">{bi.quantity} EA</span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    )}
 
-                    {/* Item Total */}
+                    {(product.subscriptionDiscount ?? 0) > 0 && (
+                      <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={item.isSubscription}
+                          onChange={() => toggleSubscription(item)}
+                          className="w-4 h-4 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
+                        />
+                        <span className="text-sm text-neutral-700">
+                          정기 배송 ({product.subscriptionDiscount}% 추가 할인)
+                        </span>
+                      </label>
+                    )}
+
                     <div className="flex items-center justify-between pt-4 border-t border-neutral-200">
                       <span className="text-sm text-neutral-600">소계</span>
                       <span className="text-lg tracking-tight text-neutral-900">
@@ -318,7 +332,6 @@ export function CartPage() {
           })}
         </div>
 
-        {/* Order Summary */}
         <div className="lg:col-span-1">
           <div className="bg-white border border-neutral-200 p-8 sticky top-24">
             <h2 className="text-xl tracking-tight text-neutral-900 mb-6">주문 요약</h2>
