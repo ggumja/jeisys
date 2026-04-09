@@ -59,7 +59,7 @@ export function ProductDetailPage() {
 
         // Filter related products
         const related = allProducts
-          .filter(p => p.category === fetchedProduct.category && p.id !== fetchedProduct.id)
+          .filter(p => p.category === fetchedProduct.category && p.id !== fetchedProduct.id && p.isVisible !== false)
           .slice(0, 4);
         setRelatedProducts(related);
 
