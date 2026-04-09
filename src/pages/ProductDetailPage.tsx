@@ -271,22 +271,22 @@ export function ProductDetailPage() {
 
                 return (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-neutral-500">
-                      <span>정가 (단품):</span>
-                      <span className="line-through">₩{product.price.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-neutral-700">세트 구성 옵션가:</span>
-                        <span className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
-                          ₩{totalPrice.toLocaleString()}
-                        </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-sm mb-2">
+                        <span className="text-neutral-600">정상가(개당): {product.price.toLocaleString()}</span>
+                        {currentOption.discountRate > 0 ? (
+                          <>
+                            <span className="text-neutral-600">, </span>
+                            <span className="text-red-600 font-bold">할인가({currentOption.discountRate}%적용)</span>
+                            <span className="text-neutral-600">: {unitPrice.toLocaleString()} * {currentOption.quantity} EA</span>
+                          </>
+                        ) : (
+                          <span className="text-neutral-600"> * {currentOption.quantity} EA</span>
+                        )}
                       </div>
-                      {currentOption.discountRate > 0 && (
-                        <p className="text-sm font-bold text-red-600 mt-2">
-                          ({currentOption.name} / {currentOption.discountRate}% 할인 적용)
-                        </p>
-                      )}
+                      <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
+                        ₩{totalPrice.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 );
@@ -300,29 +300,35 @@ export function ProductDetailPage() {
                 const discountPercent = Math.round((1 - currentTier.unitPrice / product.price) * 100);
                 return (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-neutral-500">
-                      <span>정가:</span>
-                      <span className="line-through">₩{product.price.toLocaleString()}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-neutral-700">할인적용 금액:</span>
-                        <span className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
-                          ₩{currentTier.unitPrice.toLocaleString()}
-                        </span>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-sm mb-2">
+                        <span className="text-neutral-600">정상가(개당): {product.price.toLocaleString()}</span>
+                        {discountPercent > 0 ? (
+                          <>
+                            <span className="text-neutral-600">, </span>
+                            <span className="text-red-600 font-bold">할인가({discountPercent}%적용)</span>
+                            <span className="text-neutral-600">: {currentTier.unitPrice.toLocaleString()} * {quantity} EA</span>
+                          </>
+                        ) : (
+                          <span className="text-neutral-600"> * {quantity} EA</span>
+                        )}
                       </div>
-                      <p className="text-sm font-bold text-red-600 mt-2">
-                        (대량구매할인 {currentTier.quantity}개이상 / {discountPercent}%)
-                      </p>
+                      <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
+                        ₩{(currentTier.unitPrice * quantity).toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 );
               }
-              
               return (
-                <p className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
-                  ₩{product.price.toLocaleString()}
-                </p>
+                <div className="flex flex-col gap-2">
+                  <div className="text-sm mb-1">
+                    <span className="text-neutral-600">정상가(개당): {product.price.toLocaleString()} * {quantity} EA</span>
+                  </div>
+                  <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
+                    ₩{(product.price * quantity).toLocaleString()}
+                  </div>
+                </div>
               );
             })()}
           </div>

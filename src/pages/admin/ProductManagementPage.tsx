@@ -235,35 +235,35 @@ export function ProductManagementPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">전체 상품</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-neutral-900">{totalCount}</h3>
-            <span className="text-sm text-neutral-500">개</span>
+        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
+          <p className="text-sm font-bold text-neutral-600 tracking-tight">전체 상품</p>
+          <div className="flex items-baseline gap-1">
+            <h3 className="text-2xl font-bold text-neutral-900">{totalCount}</h3>
+            <span className="text-xs text-neutral-500">개</span>
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">판매중</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-green-600">{activeCount}</h3>
-            <span className="text-sm text-green-500">개</span>
+        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
+          <p className="text-sm font-bold text-neutral-600 tracking-tight">판매중</p>
+          <div className="flex items-baseline gap-1">
+            <h3 className="text-2xl font-bold text-green-600">{activeCount}</h3>
+            <span className="text-xs text-green-500">개</span>
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">품절</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-red-600">{outOfStockCount}</h3>
-            <span className="text-sm text-red-500">개</span>
+        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
+          <p className="text-sm font-bold text-neutral-600 tracking-tight">품절</p>
+          <div className="flex items-baseline gap-1">
+            <h3 className="text-2xl font-bold text-red-600">{outOfStockCount}</h3>
+            <span className="text-xs text-red-500">개</span>
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">품절임박</p>
-          <div className="flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-orange-500">{lowStockCount}</h3>
-            <span className="text-sm text-orange-400">개</span>
+        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
+          <p className="text-sm font-bold text-neutral-600 tracking-tight">품절임박</p>
+          <div className="flex items-baseline gap-1">
+            <h3 className="text-2xl font-bold text-orange-500">{lowStockCount}</h3>
+            <span className="text-xs text-orange-400">개</span>
           </div>
         </div>
       </div>
