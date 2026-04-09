@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2 } from 'lucide-react';
+import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
@@ -54,13 +54,15 @@ export function CheckoutPage() {
       setCart(items);
 
       // Pre-fill address if available
-      setAddress({
-        recipient: user.name,
-        phone: user.phone || '',
-        zipCode: user.zipCode || '',
-        address: user.address || '',
-        detail: user.addressDetail || '',
-      });
+      if (user) {
+        setAddress({
+          recipient: user.name || '',
+          phone: user.phone || user.mobile || '',
+          zipCode: user.zipCode || '',
+          address: user.address || '',
+          detail: user.addressDetail || '',
+        });
+      }
 
       if (items.length > 0) {
         const productPromises = items.map(item => productService.getProductById(item.productId));
@@ -108,21 +110,33 @@ export function CheckoutPage() {
     }).open();
   };
 
-  const getTierPrice = (productId: string, quantity: number) => {
-    const product = productsMap[productId];
+  const getTierPrice = (item: CartItem) => {
+    const product = productsMap[item.productId];
     if (!product) return 0;
 
+    // 1. If it's a set option
+    if (item.optionId) {
+      const option = product.options?.find(opt => opt.id === item.optionId);
+      if (option) {
+        const discountRate = option.discountRate / 100;
+        return product.price * (1 - discountRate);
+      }
+    }
+
+    // 2. Default tier pricing
     const tier = [...product.tierPricing]
       .sort((a, b) => b.quantity - a.quantity)
-      .find(t => quantity >= t.quantity);
+      .find(t => item.quantity >= t.quantity);
 
     return tier?.unitPrice || product.price;
   };
 
   const calculateTotal = () => {
     return cart.reduce((sum, item) => {
-      const unitPrice = getTierPrice(item.productId, item.quantity);
-      const discount = item.isSubscription ? 0.95 : 1;
+      const product = productsMap[item.productId];
+      const unitPrice = getTierPrice(item);
+      const subDiscount = (product?.subscriptionDiscount || 0) / 100;
+      const discount = item.isSubscription ? (1 - subDiscount) : 1;
       return sum + unitPrice * item.quantity * discount;
     }, 0);
   };
@@ -269,8 +283,9 @@ export function CheckoutPage() {
                 const product = productsMap[item.productId];
                 if (!product) return null;
 
-                const unitPrice = getTierPrice(item.productId, item.quantity);
-                const itemTotal = unitPrice * item.quantity * (item.isSubscription ? 0.95 : 1);
+                const unitPrice = getTierPrice(item);
+                const subDiscount = (product?.subscriptionDiscount || 0) / 100;
+                const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
 
                 return (
                   <div
@@ -289,18 +304,59 @@ export function CheckoutPage() {
                     {/* Product Details */}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-neutral-500 mb-1 tracking-wide uppercase">{product.sku}</p>
-                      <h3 className="text-sm font-medium tracking-tight text-neutral-900 mb-2">
+                      <h3 className="text-sm font-bold tracking-tight text-neutral-900 mb-1">
                         {product.name}
                       </h3>
 
+                      {/* Integrated Price & Quantity Info */}
+                      <div className="text-[11px] mb-3">
+                        {unitPrice < product.price ? (
+                          <div className="flex flex-wrap items-center gap-x-1">
+                            <span className="text-neutral-500">정상가: {product.price.toLocaleString()},</span>
+                            <span className="text-red-600 font-bold">
+                              할인가({Math.round((1 - unitPrice / product.price) * 100)}%적용): {unitPrice.toLocaleString()}
+                            </span>
+                            <span className="text-neutral-600 font-medium">* {item.quantity} EA</span>
+                          </div>
+                        ) : (
+                          <div className="text-neutral-600">
+                            <span>정상가: {product.price.toLocaleString()} * {item.quantity} EA</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bonus Items Display */}
+                      {product.bonusItems && product.bonusItems.filter(bi => bi.optionId === (item.optionId || null)).length > 0 && (
+                        <div className="mb-3 p-2 bg-blue-50 border border-blue-100 rounded-sm">
+                          <div className="flex items-center gap-1 mb-1">
+                            <Package className="w-3 h-3 text-blue-600" />
+                            <h4 className="text-[10px] font-bold text-blue-900">
+                              {item.optionId ? 'SET 전용 추가 증정' : '추가 증정 혜택'}
+                            </h4>
+                          </div>
+                          <ul className="space-y-0.5">
+                            {product.bonusItems
+                              .filter(bi => bi.optionId === (item.optionId || null))
+                              .map((bi) => (
+                                <li key={bi.id} className="text-[9px] text-blue-800 flex items-center justify-between">
+                                  <div className="flex items-center gap-0.5">
+                                    <Check className="w-2.5 h-2.5 text-blue-500" />
+                                    <span>{bi.product?.name}</span>
+                                  </div>
+                                  <span className="font-bold ml-2">{bi.quantity} EA</span>
+                                </li>
+                              ))}
+                          </ul>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between">
                         <div className="text-xs text-neutral-600">
-                          <span>수량: {item.quantity}개</span>
                           {item.isSubscription && (
-                            <span className="ml-2 text-blue-600">• 정기배송</span>
+                            <span className="text-blue-600 font-medium">정기 배송 ({product.subscriptionDiscount}% 추가 할인 적용됨)</span>
                           )}
                         </div>
-                        <span className="text-sm font-medium text-neutral-900">
+                        <span className="text-sm font-bold text-neutral-900">
                           ₩{itemTotal.toLocaleString()}
                         </span>
                       </div>

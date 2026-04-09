@@ -202,5 +202,30 @@ export const authService = {
             role: profile.role,
             approvalStatus: profile.approval_status
         };
+    },
+
+    async updateProfile(userId: string, data: Partial<User>) {
+        const { error } = await supabase
+            .from('users')
+            .update({
+                name: data.name,
+                hospital_name: data.hospitalName,
+                business_number: data.businessNumber,
+                phone: data.phone,
+                mobile: data.mobile,
+                zip_code: data.zipCode,
+                address: data.address,
+                address_detail: data.addressDetail,
+                region: data.region,
+                hospital_email: data.hospitalEmail,
+                tax_email: data.taxEmail,
+                email_notification: data.emailNotification,
+                holiday_week: data.holidayWeek,
+                holiday_day: data.holidayDay,
+                is_public_holiday: data.isPublicHoliday
+            })
+            .eq('id', userId);
+
+        if (error) throw error;
     }
 };

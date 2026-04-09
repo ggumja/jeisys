@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { storage } from "../lib/storage";
 import { User } from "../types";
 import { Check } from "lucide-react";
+import { authService } from "../services/authService";
 
 declare global {
   interface Window {
@@ -66,32 +67,42 @@ export function ProfileEditPage() {
     }).open();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Update user data in storage
-    const updatedUser: User = {
-      id: currentUser?.id || "",
-      email: formData.email,
-      name: formData.managerName,
-      hospitalName: formData.hospitalName,
-      businessNumber: formData.businessNumber,
-      phone: formData.phone,
-      zipCode: formData.zipCode,
-      address: formData.businessAddress,
-      addressDetail: formData.businessAddressDetail,
-    };
+    try {
+      // Update user data in storage
+      const updatedUser: User = {
+        id: currentUser?.id || "",
+        email: formData.email,
+        name: formData.managerName,
+        hospitalName: formData.hospitalName,
+        businessNumber: formData.businessNumber,
+        phone: formData.phone,
+        zipCode: formData.zipCode,
+        address: formData.businessAddress,
+        addressDetail: formData.businessAddressDetail,
+      };
 
-    storage.setUser(updatedUser);
+      storage.setUser(updatedUser);
 
-    // Show success message
-    setShowSuccessMessage(true);
+      // Update in database
+      if (currentUser?.id) {
+        await authService.updateProfile(currentUser.id, updatedUser);
+      }
 
-    // Hide message and navigate after 2 seconds
-    setTimeout(() => {
-      setShowSuccessMessage(false);
-      navigate("/mypage/orders");
-    }, 2000);
+      // Show success message
+      setShowSuccessMessage(true);
+
+      // Hide message and navigate after 2 seconds
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        navigate("/mypage/orders");
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      alert("정보 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
