@@ -320,7 +320,7 @@ export function ProductDetailPage() {
         {/* Product Info */}
         <div>
           <p className="text-xs text-neutral-500 mb-3 tracking-wide uppercase">{product.sku}</p>
-          <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-4">
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-neutral-900 mb-4">
             {product.name}
           </h1>
           <div className="mb-4 leading-none flex items-center gap-1">
@@ -350,7 +350,7 @@ export function ProductDetailPage() {
                   </span>
                 )}
               </div>
-              <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
+              <div className="text-2xl lg:text-3xl tracking-tight text-[#1a2b4b] font-bold">
                 ₩{(product.isPackage && !selectedOptionId) 
                   ? "0" 
                   : (currentUnitPrice * quantity * (isSubscription ? (1 - (product.subscriptionDiscount || 0) / 100) : 1)).toLocaleString()}
@@ -609,17 +609,6 @@ export function ProductDetailPage() {
             </div>
           )}
 
-          {/* Total Price - Hidden for Package products as it's redundant */}
-          {!product.isPackage && (
-            <div className="bg-neutral-50 border border-neutral-200 p-6 mb-8">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-medium text-neutral-700">총 금액</span>
-                <span className="text-3xl tracking-tight text-neutral-900 font-bold">
-                  ₩{(currentUnitPrice * quantity * (isSubscription ? (1 - (product.subscriptionDiscount || 0) / 100) : 1)).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 mb-6">
