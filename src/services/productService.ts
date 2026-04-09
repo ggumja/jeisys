@@ -268,15 +268,20 @@ export const productService = {
     }
   },
 
-  async getPackageItems(packageId: string): Promise<any[]> {
-    const { data, error } = await supabase
+  async getPackageItems(packageId: string, optionId?: string): Promise<any[]> {
+    let query = supabase
       .from('package_items')
       .select(`
         *,
         product:products!product_id (*)
       `)
-      .eq('package_id', packageId)
-      .order('display_order', { ascending: true });
+      .eq('package_id', packageId);
+
+    if (optionId) {
+      query = query.eq('option_id', optionId);
+    }
+
+    const { data, error } = await query.order('display_order', { ascending: true });
 
     if (error) {
       console.error('Error fetching package items:', error);
@@ -289,6 +294,7 @@ export const productService = {
       productId: item.product_id,
       priceOverride: item.price_override,
       maxQuantity: item.max_quantity,
+      optionId: item.option_id,
       product: item.product ? this.mapProduct(item.product) : undefined
     }));
   },
@@ -342,12 +348,13 @@ export const productService = {
         name: opt.name,
         quantity: opt.quantity,
         discountRate: opt.discount_rate,
+        price: opt.price,
         displayOrder: opt.display_order
       })).sort((a: any, b: any) => a.displayOrder - b.displayOrder) || [],
     };
   },
 
-  async addPackageItems(packageId: string, items: { productId: string; priceOverride?: number; maxQuantity?: number }[]): Promise<void> {
+  async addPackageItems(packageId: string, items: { productId: string; priceOverride?: number; maxQuantity?: number; optionId?: string | null }[]): Promise<void> {
     // Delete existing
     await supabase.from('package_items').delete().eq('package_id', packageId);
 
@@ -361,6 +368,7 @@ export const productService = {
           product_id: item.productId,
           price_override: item.priceOverride,
           max_quantity: item.maxQuantity || 0,
+          option_id: item.optionId || null,
           display_order: index,
         }))
       );
@@ -384,6 +392,7 @@ export const productService = {
           name: opt.name,
           quantity: opt.quantity,
           discount_rate: opt.discountRate,
+          price: opt.price || 0,
           display_order: index,
         }))
       )

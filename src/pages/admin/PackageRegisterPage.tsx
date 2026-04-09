@@ -1,12 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X, Plus } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 
 import { useProduct, useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
 import { Product, PackageItem } from '../../types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
 
 const formatWithCommas = (value: string | number) => {
   if (value === undefined || value === null || value === '') return '';
@@ -37,6 +45,7 @@ interface PackageFormData {
   maxOrderQuantity: string;
   description: string;
   bonusProducts: BonusProductData[];
+  options: QuantityOptionData[];
 }
 
 interface BonusProductData {
@@ -45,6 +54,26 @@ interface BonusProductData {
   name: string;
   price: string;
   quantity: string;
+  calculationMethod: 'fixed' | 'ratio';
+  percentage: string;
+}
+
+interface QuantityOptionData {
+  id: string;
+  name: string;
+  quantity: string;
+  discountRate: string;
+  price: string;
+  items: PackageItemData[];
+}
+
+interface PackageItemData {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  priceOverride: string;
+  maxQuantity: string;
 }
 
 export function PackageRegisterPage() {
@@ -53,6 +82,7 @@ export function PackageRegisterPage() {
   const isEditMode = !!id;
 
   const { data: existingProduct, isLoading: isLoadingProduct } = useProduct(id || '');
+  const isInitialized = useRef<string | null>(null);
   const { data: categories = [] } = useCategories();
   
   const [productsList, setProductsList] = useState<Product[]>([]);
@@ -70,8 +100,8 @@ export function PackageRegisterPage() {
     stock: '',
     status: 'active',
     isVisible: true,
-    selectableCount: '1',
-    itemInputType: 'select',
+    selectableCount: '100',
+    itemInputType: 'input',
     creditAvailable: true,
     pointsAvailable: true,
     minOrderQuantity: '1',
@@ -79,21 +109,34 @@ export function PackageRegisterPage() {
     description: '',
     salesUnit: '1',
     bonusProducts: [],
+    options: [],
   });
 
-  const [selectedItems, setSelectedItems] = useState<Partial<PackageItem>[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [optionSearchTerms, setOptionSearchTerms] = useState<Record<string, string>>({});
+  const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
+  const [isOptionSearchDropdownOpen, setIsOptionSearchDropdownOpen] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [bonusSearchResults, setBonusSearchResults] = useState<Product[]>([]);
+  const [bonusSearchTerm, setBonusSearchTerm] = useState('');
+  const [isBonusDropdownOpen, setIsBonusDropdownOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [additionalImages, setAdditionalImages] = useState<string[]>([]);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
-  
-  const [bonusSearchTerm, setBonusSearchTerm] = useState('');
-  const [bonusSearchResults, setBonusSearchResults] = useState<Product[]>([]);
-  const [isBonusDropdownOpen, setIsBonusDropdownOpen] = useState(false);
+
+  const [resultModal, setResultModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    type: 'success' | 'error';
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    type: 'success',
+  });
 
   // Load all products for the component search
   useEffect(() => {
@@ -110,85 +153,115 @@ export function PackageRegisterPage() {
 
   // Load existing package data in edit mode
   useEffect(() => {
-    if (isEditMode && existingProduct) {
-      setFormData({
-        name: existingProduct.name,
-        category: existingProduct.category,
-        productCode: existingProduct.sku,
-        sapSku: existingProduct.sapSku || '',
-        manufacturer: existingProduct.manufacturer || '', 
-        price: formatWithCommas(existingProduct.price || 0),
-        stock: formatWithCommas(existingProduct.stock || 0),
-        status: existingProduct.isActive !== false ? 'active' : 'inactive',
-        isVisible: existingProduct.isVisible !== false,
-        selectableCount: formatWithCommas(existingProduct.selectableCount || 1),
-        salesUnit: formatWithCommas(existingProduct.salesUnit || 1),
-        itemInputType: existingProduct.itemInputType || 'select',
-        creditAvailable: existingProduct.creditAvailable ?? true,
-        pointsAvailable: existingProduct.pointsAvailable ?? true,
-        minOrderQuantity: formatWithCommas(existingProduct.minOrderQuantity || 1),
-        maxOrderQuantity: formatWithCommas(existingProduct.maxOrderQuantity || 0),
-        description: existingProduct.description || '',
-        bonusProducts: [], // Will be updated by the next block if items exist
-      });
-      if (existingProduct.imageUrl) {
-        setThumbnailPreview(existingProduct.imageUrl);
-      }
-      if (existingProduct.additionalImages) {
-        setAdditionalImages(existingProduct.additionalImages);
+    const initializeData = async () => {
+      // 이미 이 ID로 초기화가 완료되었다면 중복 실행 방지
+      if (!isEditMode || !existingProduct || isInitialized.current === existingProduct.id) {
+        return;
       }
 
-      if (existingProduct.bonusItems) {
-        setFormData(prev => ({
-          ...prev,
-          bonusProducts: existingProduct.bonusItems?.map(bi => ({
+      try {
+        console.log('Initializing package data for:', existingProduct.id);
+        
+        // Fetch package items first
+        const items = await productService.getPackageItems(existingProduct.id);
+        
+        // Map options and attach their items
+        const mappedOptions: QuantityOptionData[] = (existingProduct.options || []).map((opt, idx) => {
+          const optionId = String(opt.id);
+          return {
+            id: optionId,
+            name: opt.name,
+            quantity: opt.quantity.toString(),
+            discountRate: opt.discountRate.toString(),
+            price: formatWithCommas(opt.price || 0),
+            items: items
+              .filter(item => {
+                const itemOptionId = item.optionId ? String(item.optionId) : null;
+                // 매칭되거나, (아이템에 optionId가 없고 이 옵션이 첫 번째 옵션인 경우) 구제
+                return itemOptionId === optionId || (itemOptionId === null && idx === 0);
+              })
+              .map(item => ({
+                id: item.id,
+                productId: item.productId,
+                name: item.product?.name || '알 수 없는 상품',
+                sku: item.product?.sku || '-',
+                priceOverride: formatWithCommas(item.priceOverride || 0),
+                maxQuantity: (item.maxQuantity || 0).toString()
+              }))
+          };
+        });
+
+        // Set all form data at once
+        setFormData({
+          name: existingProduct.name,
+          category: existingProduct.category,
+          productCode: existingProduct.sku,
+          sapSku: existingProduct.sapSku || '',
+          manufacturer: existingProduct.manufacturer || '', 
+          price: formatWithCommas(existingProduct.price || 0),
+          stock: formatWithCommas(existingProduct.stock || 0),
+          status: existingProduct.isActive !== false ? 'active' : 'inactive',
+          isVisible: existingProduct.isVisible !== false,
+          selectableCount: formatWithCommas(existingProduct.selectableCount || 1),
+          salesUnit: formatWithCommas(existingProduct.salesUnit || 1),
+          itemInputType: existingProduct.itemInputType || 'select',
+          creditAvailable: existingProduct.creditAvailable ?? true,
+          pointsAvailable: existingProduct.pointsAvailable ?? true,
+          minOrderQuantity: formatWithCommas(existingProduct.minOrderQuantity || 1),
+          maxOrderQuantity: formatWithCommas(existingProduct.maxOrderQuantity || 0),
+          description: existingProduct.description || '',
+          bonusProducts: (existingProduct.bonusItems || []).map(bi => ({
             id: bi.productId,
             sku: bi.product?.sku || '',
             name: bi.product?.name || '',
             price: formatWithCommas(bi.priceOverride || 0),
-            quantity: formatWithCommas(bi.quantity || 1)
-          })) || []
-        }));
-      }
+            quantity: formatWithCommas(bi.quantity || 1),
+            calculationMethod: bi.calculationMethod || 'fixed',
+            percentage: (bi.percentage || 0).toString()
+          })),
+          options: mappedOptions,
+        });
 
-      const fetchItems = async () => {
-        try {
-          const items = await productService.getPackageItems(existingProduct.id);
-          setSelectedItems(items.map(item => ({
-            id: item.id,
-            productId: item.productId,
-            product: item.product,
-            priceOverride: item.priceOverride,
-            maxQuantity: item.maxQuantity || 0,
-          })));
-        } catch (err) {
-          console.error('Error fetching package items:', err);
+        if (existingProduct.imageUrl) {
+          setThumbnailPreview(existingProduct.imageUrl);
         }
-      };
-      fetchItems();
-    }
-  }, [isEditMode, existingProduct]);
+        if (existingProduct.additionalImages) {
+          setAdditionalImages(existingProduct.additionalImages);
+        }
+
+        // 초기화 완료 표시
+        isInitialized.current = existingProduct.id;
+        console.log('Package initialization complete');
+      } catch (err) {
+        console.error('Error initializing package data:', err);
+      }
+    };
+
+    initializeData();
+  }, [isEditMode, existingProduct?.id, existingProduct]);
 
   useEffect(() => {
-    if (searchTerm.trim().length > 0) {
+    // Option-specific search logic
+    if (activeOptionId && optionSearchTerms[activeOptionId]?.trim()) {
+      const term = optionSearchTerms[activeOptionId].toLowerCase();
       const results = productsList.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchTerm.toLowerCase())
+        p.name.toLowerCase().includes(term) ||
+        p.sku.toLowerCase().includes(term)
       ).slice(0, 20);
       setSearchResults(results);
+      setIsOptionSearchDropdownOpen(true);
     } else {
       setSearchResults([]);
+      setIsOptionSearchDropdownOpen(false);
     }
-  }, [searchTerm, productsList]);
+  }, [optionSearchTerms, activeOptionId, productsList]);
 
   useEffect(() => {
     if (bonusSearchTerm.trim().length > 0) {
       const termLower = bonusSearchTerm.toLowerCase();
       const results = productsList.filter(p => 
         p.name.toLowerCase().includes(termLower) ||
-        p.sku.toLowerCase().includes(termLower) ||
-        p.category.toLowerCase().includes(termLower)
+        p.sku.toLowerCase().includes(termLower)
       ).slice(0, 20);
       setBonusSearchResults(results);
       setIsBonusDropdownOpen(true);
@@ -197,6 +270,32 @@ export function PackageRegisterPage() {
       setIsBonusDropdownOpen(false);
     }
   }, [bonusSearchTerm, productsList]);
+
+
+  useEffect(() => {
+    if ((formData.options || []).length > 0) {
+      const optionPrices = (formData.options || [])
+        .map(opt => parseFloat(unformatNumber(opt.price || '0')))
+        .filter(price => price > 0);
+      
+      if (optionPrices.length > 0) {
+        // Use the minimum price among options as the representative price
+        const minPrice = Math.min(...optionPrices);
+        setFormData(prev => ({
+          ...prev,
+          price: formatWithCommas(minPrice)
+        }));
+      }
+
+      // Also sync salesUnit with the quantity of the first option if it's not set
+      if ((formData.options || []).length > 0 && formData.options[0].quantity && formData.options[0].quantity !== '0') {
+        setFormData(prev => ({
+          ...prev,
+          salesUnit: formatWithCommas(formData.options[0].quantity)
+        }));
+      }
+    }
+  }, [formData.options]);
 
 
   const handleInputChange = (
@@ -250,41 +349,94 @@ export function PackageRegisterPage() {
     setAdditionalFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const addItemToPackage = (product: Product) => {
-    if (selectedItems.some(item => item.productId === product.id)) {
-      alert('이미 추가된 상품입니다.');
-      return;
-    }
-
-    setSelectedItems(prev => [
+  const addItemToOption = (optionId: string, product: Product) => {
+    setFormData(prev => ({
       ...prev,
-      {
-        productId: product.id,
-        product: product,
-        priceOverride: product.price,
-        maxQuantity: 1,
-      }
-    ]);
-    setSearchTerm('');
-    setSearchResults([]);
+      options: prev.options.map(opt => {
+        if (opt.id !== optionId) return opt;
+        
+        if (opt.items.find(item => item.productId === product.id)) {
+          setResultModal({
+            isOpen: true,
+            title: '중복 상품',
+            description: '이미 추가된 상품입니다.',
+            type: 'error'
+          });
+          return opt;
+        }
+
+        const newItem: PackageItemData = {
+          id: crypto.randomUUID(),
+          productId: product.id,
+          name: product.name,
+          sku: product.sku,
+          priceOverride: product.price.toString(),
+          maxQuantity: '1'
+        };
+
+        return { ...opt, items: [...opt.items, newItem] };
+      })
+    }));
+    setActiveOptionId(null);
+    setIsOptionSearchDropdownOpen(false);
+    setOptionSearchTerms(prev => ({ ...prev, [optionId]: '' }));
   };
 
-  const removeItemFromPackage = (productId: string) => {
-    setSelectedItems(prev => prev.filter(item => item.productId !== productId));
+  const updateItemInOption = (optionId: string, itemId: string, field: keyof PackageItemData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      options: prev.options.map(opt => {
+        if (opt.id !== optionId) return opt;
+        return {
+          ...opt,
+          items: opt.items.map(item => item.id === itemId ? { ...item, [field]: value } : item)
+        };
+      })
+    }));
   };
 
-  const updateItemPrice = (productId: string, price: string) => {
-    const numericPrice = parseFloat(price.replace(/[^0-9.]/g, '')) || 0;
-    setSelectedItems(prev => prev.map(item => 
-      item.productId === productId ? { ...item, priceOverride: numericPrice } : item
-    ));
+  const removeItemFromOption = (optionId: string, itemId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      options: prev.options.map(opt => {
+        if (opt.id !== optionId) return opt;
+        return {
+          ...opt,
+          items: opt.items.filter(item => item.id !== itemId)
+        };
+      })
+    }));
   };
 
-  const updateItemMaxQuantity = (productId: string, qty: string) => {
-    const numericQty = parseInt(qty.replace(/[^0-9]/g, '')) || 1;
-    setSelectedItems(prev => prev.map(item => 
-      item.productId === productId ? { ...item, maxQuantity: numericQty } : item
-    ));
+  const addQuantityOption = () => {
+    const newOption: QuantityOptionData = {
+      id: crypto.randomUUID(),
+      name: '',
+      quantity: '0',
+      discountRate: '0',
+      price: '0',
+      items: []
+    };
+    setFormData(prev => ({
+      ...prev,
+      options: [...prev.options, newOption]
+    }));
+  };
+
+  const updateQuantityOption = (id: string, field: keyof QuantityOptionData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      options: prev.options.map(opt => 
+        opt.id === id ? { ...opt, [field]: value } : opt
+      )
+    }));
+  };
+
+  const removeQuantityOption = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      options: prev.options.filter(opt => opt.id !== id)
+    }));
   };
 
   const addBonusProduct = (product: Product) => {
@@ -302,7 +454,9 @@ export function PackageRegisterPage() {
           sku: product.sku,
           name: product.name,
           price: '0',
-          quantity: '1'
+          quantity: '1',
+          calculationMethod: 'fixed',
+          percentage: '0'
         }
       ]
     }));
@@ -317,11 +471,11 @@ export function PackageRegisterPage() {
     }));
   };
 
-  const updateBonusProduct = (id: string, field: 'price' | 'quantity', value: string) => {
+  const updateBonusProduct = (id: string, field: keyof BonusProductData, value: string) => {
     setFormData(prev => ({
       ...prev,
       bonusProducts: prev.bonusProducts.map(p => 
-        p.id === id ? { ...p, [field]: value.replace(/[^0-9]/g, '') } : p
+        p.id === id ? { ...p, [field]: value } : p
       )
     }));
   };
@@ -330,20 +484,48 @@ export function PackageRegisterPage() {
     e.preventDefault();
 
     if (!formData.name || !formData.category || !formData.price) {
-      alert('필수 항목을 모두 입력해주세요.');
+      setResultModal({
+        isOpen: true,
+        title: '입력 정보 부족',
+        description: '패키지 명, 카테고리, 가격 등 필수 항목을 모두 입력해주세요.',
+        type: 'error'
+      });
       return;
     }
 
-    if (selectedItems.length === 0) {
-      alert('최소 하나 이상의 구성 상품을 추가해주세요.');
+    if (formData.options.length === 0) {
+      setResultModal({
+        isOpen: true,
+        title: '옵션 설정 필요',
+        description: '최소 하나 이상의 세트 옵션을 설정해주세요.',
+        type: 'error'
+      });
       return;
+    }
+
+    // Check if each option has at least one item
+    for (const opt of formData.options) {
+      if (opt.items.length === 0) {
+        setResultModal({
+          isOpen: true,
+          title: '구성 상품 미포함',
+          description: `[${opt.name || '미지정'}] 옵션의 구성 상품을 추가해주세요.`,
+          type: 'error'
+        });
+        return;
+      }
     }
 
     const minQty = parseInt(formData.minOrderQuantity) || 1;
     const maxQty = formData.maxOrderQuantity ? parseInt(formData.maxOrderQuantity) : null;
 
     if (maxQty !== null && maxQty < minQty) {
-      alert('최대 주문 수량은 최소 주문 수량보다 크거나 같아야 합니다.');
+      setResultModal({
+        isOpen: true,
+        title: '주문 수량 설정 오류',
+        description: '최대 주문 수량은 최소 주문 수량보다 크거나 같아야 합니다.',
+        type: 'error'
+      });
       return;
     }
 
@@ -400,15 +582,29 @@ export function PackageRegisterPage() {
         packageId = newPackage.id;
       }
 
-      // Save package items
-      await productService.addPackageItems(
-        packageId, 
-        selectedItems.map(item => ({
-          productId: item.productId!,
-          priceOverride: item.priceOverride,
-          maxQuantity: item.maxQuantity
-        }))
-      );
+      // Save Options and get their IDs
+      const savedOptions = await productService.addOptions(packageId, formData.options.map(opt => ({
+        name: opt.name,
+        quantity: parseInt(opt.quantity),
+        discountRate: parseFloat(opt.discountRate),
+        price: parseFloat(unformatNumber(opt.price || '0'))
+      })));
+
+      // Map items to their saved option IDs and save
+      const allPackageItems: any[] = [];
+      formData.options.forEach((opt, index) => {
+        const optionId = savedOptions[index].id;
+        opt.items.forEach(item => {
+          allPackageItems.push({
+            productId: item.productId,
+            priceOverride: parseFloat(unformatNumber(item.priceOverride)),
+            maxQuantity: parseInt(unformatNumber(item.maxQuantity)),
+            optionId: optionId
+          });
+        });
+      });
+
+      await productService.addPackageItems(packageId, allPackageItems);
 
       // 2. Upload and save additional images
       const existingUrls = additionalImages.filter(img => img.startsWith('http'));
@@ -429,19 +625,28 @@ export function PackageRegisterPage() {
         packageId,
         formData.bonusProducts.map(bp => ({
           bonusProductId: bp.id,
-          quantity: parseInt(unformatNumber(bp.quantity)) || 1,
+          quantity: parseInt(unformatNumber(bp.quantity)) || 0,
           priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
-          optionId: null
+          optionId: null,
+          calculationMethod: bp.calculationMethod,
+          percentage: parseFloat(unformatNumber(bp.percentage)) || 0
         }))
       );
 
-      alert(isEditMode ? '패키지가 수정되었습니다.' : '패키지가 등록되었습니다.');
-      if (!isEditMode) {
-        navigate('/admin/products/package');
-      }
+      setResultModal({
+        isOpen: true,
+        title: isEditMode ? '패키지 수정 완료' : '패키지 등록 완료',
+        description: isEditMode ? '패키지 정보가 성공적으로 수정되었습니다.' : '새로운 패키지가 성공적으로 등록되었습니다.',
+        type: 'success'
+      });
     } catch (error) {
       console.error('Error saving package:', error);
-      alert('패키지 저장 중 오류가 발생했습니다.');
+      setResultModal({
+        isOpen: true,
+        title: '저장 실패',
+        description: '패키지 저장 중 오류가 발생했습니다. 다시 시도해주세요.',
+        type: 'error'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -464,6 +669,27 @@ export function PackageRegisterPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+      </div>
+    );
+  }
+
+  // Show error state if product not found in edit mode
+  if (isEditMode && !existingProduct && !isLoadingProduct) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-white border border-neutral-200">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-bold text-neutral-900 mb-2">상품 정보를 찾을 수 없습니다</h3>
+          <p className="text-neutral-500 mb-6">존재하지 않거나 이미 삭제된 상품일 수 있습니다.</p>
+          <button
+            onClick={() => navigate('/admin/products')}
+            className="px-6 py-2 bg-neutral-900 text-white font-bold hover:bg-neutral-800 transition-colors"
+          >
+            상품 목록으로 돌아가기
+          </button>
+        </div>
       </div>
     );
   }
@@ -653,59 +879,6 @@ export function PackageRegisterPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-700">
-                    패키지 가격 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleInputChange}
-                      placeholder="패키지 가격을 입력하세요"
-                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
-                      required
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">원</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-neutral-700">
-                    판매 단위 <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      name="salesUnit"
-                      value={formData.salesUnit}
-                      onChange={handleInputChange}
-                      placeholder="예: 5"
-                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
-                      required
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">EA</span>
-                  </div>
-                  <p className="text-[10px] text-neutral-400 mt-1">* 개당 단가 계산의 기준 (기본값: 1)</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700 uppercase">
-                  개당 단가 (자동계산)
-                </label>
-                <div className="w-full px-4 py-3 border border-neutral-200 bg-neutral-50 text-neutral-500 font-medium tracking-tight">
-                  {(() => {
-                    const price = Number(formData.price.replace(/[^0-9]/g, '')) || 0;
-                    const unit = Number(formData.salesUnit.replace(/[^0-9]/g, '')) || 1;
-                    return (Math.floor(price / unit)).toLocaleString();
-                  })()} 원
-                </div>
-                <p className="text-[10px] text-neutral-400 mt-1">* 패키지 가격 / 판매 단위 기준</p>
-              </div>
-
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-neutral-700">재고 수량</label>
                 <div className="relative">
@@ -718,34 +891,6 @@ export function PackageRegisterPage() {
                     className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">개</span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-700">판매 상태</label>
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="active"
-                      checked={formData.status === 'active'}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">판매중</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="inactive"
-                      checked={formData.status === 'inactive'}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">판매중지</span>
-                  </label>
                 </div>
               </div>
 
@@ -777,50 +922,43 @@ export function PackageRegisterPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">
-                  선택 가능한 상품 종류 개수 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="selectableCount"
-                  value={formData.selectableCount}
-                  onChange={handleInputChange}
-                  placeholder="예: 3"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                  required
-                />
-                <p className="text-xs text-neutral-400 mt-1">고객이 선택할 수 있는 상품의 종류 개수를 입력하세요</p>
-              </div>
-
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-700">상품갯수 입력방법</label>
+                <label className="block text-sm font-medium text-neutral-700">판매 상태</label>
                 <div className="flex gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
-                      name="itemInputType"
-                      value="select"
-                      checked={formData.itemInputType === 'select'}
+                      name="status"
+                      value="active"
+                      checked={formData.status === 'active'}
                       onChange={handleInputChange}
                       className="w-4 h-4 accent-neutral-900 cursor-pointer"
                     />
-                    <span className="text-sm text-neutral-900">리스트선택</span>
+                    <span className="text-sm text-neutral-900">판매중</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
-                      name="itemInputType"
-                      value="input"
-                      checked={formData.itemInputType === 'input'}
+                      name="status"
+                      value="inactive"
+                      checked={formData.status === 'inactive'}
                       onChange={handleInputChange}
                       className="w-4 h-4 accent-neutral-900 cursor-pointer"
                     />
-                    <span className="text-sm text-neutral-900">직접입력</span>
+                    <span className="text-sm text-neutral-900">판매중지</span>
                   </label>
                 </div>
-                <p className="text-xs text-neutral-400 mt-1">사용자가 상품 상세보기에서 상품을 선택하는 방식을 결정합니다</p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Order Options */}
+        <div className="bg-white border border-neutral-200 overflow-hidden">
+          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
+            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">주문 옵션</h3>
+          </div>
+          <div className="p-8 space-y-8">
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
@@ -879,154 +1017,207 @@ export function PackageRegisterPage() {
                 </div>
               </div>
             </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">최소 주문 수량</label>
-                <input
-                  type="number"
-                  name="minOrderQuantity"
-                  value={formData.minOrderQuantity}
-                  onChange={handleInputChange}
-                  min="1"
-                  placeholder="1"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                />
-                <p className="text-xs text-neutral-400 mt-1">패키지 주문 시 필요한 최소 수량을 설정하세요</p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">최대 주문 수량</label>
-                <input
-                  type="number"
-                  name="maxOrderQuantity"
-                  value={formData.maxOrderQuantity}
-                  onChange={handleInputChange}
-                  min="1"
-                  placeholder="제한 없음"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                />
-                <p className="text-xs text-neutral-400 mt-1">패키지 주문 시 허용되는 최대 수량을 설정하세요 (비워두면 제한 없음)</p>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Package Components Section */}
+        {/* Package Set Options Section */}
         <div className="bg-white border border-neutral-200 overflow-visible">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">패키지 구성 상품 <span className="text-red-500">*</span></h3>
+          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">패키지 상품 구성옵션 <span className="text-red-500">*</span></h3>
+            <button
+              type="button"
+              onClick={addQuantityOption}
+              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-all shadow-sm active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              옵션 추가
+            </button>
           </div>
-          <div className="p-8 space-y-8">
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-neutral-700">상품 검색 및 추가</label>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="상품명, 카테고리, 상품코드로 검색"
-                  className="w-full pl-12 pr-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                />
-                
-                {/* Search Results Dropdown */}
-                {searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 overflow-hidden max-h-[500px] overflow-y-auto">
-                    {searchResults.map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => addItemToPackage(product)}
-                        className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
-                      >
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
-                          <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
-                        </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <span className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</span>
-                        </div>
-                      </button>
-                    ))}
+          
+          <div className="p-8 flex flex-col gap-12">
+            {(formData.options || []).length === 0 ? (
+              <div className="text-center py-20 bg-neutral-50 border border-dashed border-neutral-200">
+                <p className="text-neutral-500 text-sm mb-4">설정된 구성 옵션이 없습니다. [옵션 추가] 버튼을 눌러주세요.</p>
+              </div>
+            ) : (
+              (formData.options || []).map((opt, optIndex) => (
+                <div key={opt.id} className="border border-neutral-200 bg-neutral-50 p-6 relative">
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="font-bold text-sm text-neutral-900">옵션 {optIndex + 1}</h4>
+                    <button
+                      type="button"
+                      onClick={() => removeQuantityOption(opt.id)}
+                      className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                )}
-              </div>
-              <p className="text-xs text-neutral-400 mt-1">패키지에 포함할 상품을 검색하여 추가하세요</p>
-            </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-medium text-neutral-700">추가된 상품 목록 ({selectedItems.length}개)</label>
-              </div>
-              
-              <div className="border border-neutral-200">
-                <table className="w-full">
-                  <thead className="bg-neutral-50 border-b border-neutral-200">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">상품 정보</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider">금액</th>
-                      <th className="px-6 py-3 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider w-32">최대구매갯수</th>
-                      <th className="px-6 py-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider w-20">관리</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-200">
-                    {selectedItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="px-6 py-12 text-center text-neutral-500 text-sm bg-neutral-50/30">
-                          추가된 구성 상품이 없습니다
-                        </td>
-                      </tr>
-                    ) : (
-                      selectedItems.map((item, index) => (
-                        <tr key={item.productId} className="hover:bg-neutral-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex gap-4 items-center">
-                              <span className="text-sm font-bold text-neutral-400">{index + 1}.</span>
-                              <div>
-                                <div className="text-sm font-bold text-neutral-900">{item.product?.name}</div>
-                                <div className="text-xs text-neutral-500">{item.product?.category} | {item.product?.sku}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <input
-                                type="text"
-                                value={item.priceOverride}
-                                onChange={(e) => updateItemPrice(item.productId!, e.target.value)}
-                                className="w-32 text-right px-3 py-1.5 border border-neutral-300 rounded-sm focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 focus:outline-none text-sm transition-colors"
-                              />
-                              <span className="text-neutral-600 text-sm font-medium whitespace-nowrap">원</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <input
-                                type="text"
-                                value={item.maxQuantity}
-                                onChange={(e) => updateItemMaxQuantity(item.productId!, e.target.value)}
-                                className="w-20 text-right px-3 py-1.5 border border-neutral-300 rounded-sm focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 focus:outline-none text-sm transition-colors"
-                              />
-                              <span className="text-neutral-600 text-sm font-medium whitespace-nowrap">개</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">옵션 표기명 <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="예) 20개 패키지"
+                        value={opt.name}
+                        onChange={(e) => updateQuantityOption(opt.id, 'name', e.target.value)}
+                        className="w-full px-4 py-2 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm bg-white h-[40px] font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">패키지 총 구성 갯수 <span className="text-red-500">*</span></label>
+                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                        <input
+                          type="text"
+                          placeholder="20"
+                          value={opt.quantity}
+                          onChange={(e) => updateQuantityOption(opt.id, 'quantity', e.target.value.replace(/[^0-9]/g, ''))}
+                          className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium"
+                        />
+                        <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-4 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center uppercase">개</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">패키지 확정 상품금액 <span className="text-red-500">*</span></label>
+                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                        <input
+                          type="text"
+                          placeholder="10,000,000"
+                          value={formatWithCommas(opt.price)}
+                          onChange={(e) => updateQuantityOption(opt.id, 'price', e.target.value)}
+                          className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium"
+                        />
+                        <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-4 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center uppercase">원</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Option Specific Item Search */}
+                  <div className="bg-white p-6 border border-neutral-200">
+                    <h5 className="text-xs font-bold text-neutral-900 mb-4 uppercase tracking-tight">옵션별 구성 상품 설정</h5>
+                    
+                    <div className="mb-6 relative group">
+                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                        <div className="pl-3 flex-shrink-0">
+                          <Search className="w-4 h-4 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
+                        </div>
+                        <input
+                          type="text"
+                          value={optionSearchTerms[opt.id] || ''}
+                          onFocus={() => {
+                            setActiveOptionId(opt.id);
+                            setIsOptionSearchDropdownOpen(true);
+                          }}
+                          onChange={(e) => {
+                            setActiveOptionId(opt.id);
+                            setOptionSearchTerms(prev => ({ ...prev, [opt.id]: e.target.value }));
+                          }}
+                          placeholder="구성 상품명 또는 SKU로 검색하여 추가"
+                          className="flex-1 w-full px-3 py-2 border-0 focus:ring-0 text-sm bg-transparent placeholder:text-neutral-400 outline-none"
+                        />
+                      </div>
+
+                      {activeOptionId === opt.id && isOptionSearchDropdownOpen && (searchResults || []).length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 overflow-hidden max-h-[400px] overflow-y-auto">
+                          {(searchResults || []).map((product) => (
                             <button
+                              key={product.id}
                               type="button"
-                              onClick={() => removeItemFromPackage(item.productId!)}
-                              className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                              onClick={() => addItemToOption(opt.id, product)}
+                              className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <div className="flex-1 min-w-0 flex items-center gap-2">
+                                <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
+                                <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-4">
+                                <span className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</span>
+                              </div>
                             </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-xs text-neutral-400">각 상품의 가격을 입력하세요. 고객은 이 중에서 선택한 개수만큼 상품을 선택할 수 있습니다.</p>
-            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selection Progress Message */}
+                    <div className="mb-4 p-4 bg-neutral-900 text-white flex items-center justify-between shadow-inner">
+                      <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                        <span className="text-sm font-bold tracking-tight">총 <span className="text-blue-400">{opt.quantity || 0}</span>개의 상품을 선택하세요.</span>
+                      </div>
+                      <div className="text-sm font-black text-[#ffffff]">
+                        현재 <span className={(opt.items || []).reduce((sum, item) => sum + (parseInt(item.maxQuantity) || 0), 0) === parseInt(opt.quantity || '0') ? 'text-green-400' : 'text-blue-400'}>
+                          {(opt.items || []).reduce((sum, item) => sum + (parseInt(item.maxQuantity) || 0), 0)}
+                        </span> / {opt.quantity || 0} 개가 선택되었습니다.
+                      </div>
+                    </div>
+
+                    {/* Items Table for this Option */}
+                    <div className="overflow-hidden border border-neutral-200">
+                      <table className="w-full text-xs">
+                        <thead className="bg-neutral-50 border-b border-neutral-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-bold text-neutral-700 uppercase tracking-tight">옵션 구성 상품명</th>
+                            <th className="px-4 py-3 text-right font-bold text-neutral-700 uppercase tracking-tight w-40 pr-6">금액 설정</th>
+                            <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-32">최대 선택 수량</th>
+                            <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-12">삭제</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100 border-b border-neutral-100">
+                          {(opt.items || []).length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-10 text-center text-xs text-neutral-400">검색을 호출하여 상품을 추가해 주세요.</td>
+                            </tr>
+                          ) : (
+                            (opt.items || []).map((item) => (
+                              <tr key={item.id} className="hover:bg-neutral-50 transition-colors">
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <div className="flex flex-col">
+                                    <span className="font-bold text-neutral-900 text-[13px]">{item.name}</span>
+                                    <span className="text-[10px] text-neutral-500">{item.sku}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <div className="flex items-center border border-neutral-200 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[34px]">
+                                    <input
+                                      type="text"
+                                      value={formatWithCommas(item.priceOverride)}
+                                      onChange={(e) => updateItemInOption(opt.id, item.id, 'priceOverride', e.target.value)}
+                                      className="flex-1 w-full pl-3 pr-1 py-1 text-right border-0 focus:ring-0 text-xs bg-transparent outline-none font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-3 h-full border-l border-neutral-200 select-none min-w-[2.5rem] justify-center uppercase">원</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <div className="flex items-center border border-neutral-200 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[34px]">
+                                    <input
+                                      type="text"
+                                      value={item.maxQuantity}
+                                      onChange={(e) => updateItemInOption(opt.id, item.id, 'maxQuantity', e.target.value.replace(/[^0-9]/g, ''))}
+                                      className="flex-1 w-full pl-2 pr-1 py-1 text-center border-0 focus:ring-0 text-xs bg-transparent outline-none font-medium"
+                                    />
+                                    <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-3 h-full border-l border-neutral-200 select-none min-w-[2.5rem] justify-center uppercase">개</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeItemFromOption(opt.id, item.id)}
+                                    className="text-neutral-400 hover:text-red-500 transition-colors"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -1050,8 +1241,8 @@ export function PackageRegisterPage() {
                 
                 {isBonusDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 overflow-hidden max-h-[500px] overflow-y-auto">
-                    {bonusSearchResults.length > 0 ? (
-                      bonusSearchResults.map((product) => (
+                    {(bonusSearchResults || []).length > 0 ? (
+                      (bonusSearchResults || []).map((product) => (
                         <button
                           key={product.id}
                           type="button"
@@ -1082,55 +1273,95 @@ export function PackageRegisterPage() {
               <div className="border border-neutral-200">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-neutral-50 border-b border-neutral-200">
-                    <tr>
-                      <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
-                      <th className="px-4 py-3 font-medium text-neutral-700 w-32">금액</th>
-                      <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정갯수</th>
-                      <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {formData.bonusProducts.length > 0 ? (
-                      formData.bonusProducts.map((item) => (
-                        <tr key={item.id}>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-neutral-900">{item.name}</span>
-                              <span className="text-xs text-neutral-500">{item.sku}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-end gap-2">
+                  <tr>
+                    <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-32">금액</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-48 text-center">계산 방법</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정 수량</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {formData.bonusProducts.length > 0 ? (
+                    formData.bonusProducts.map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-neutral-900">{item.name}</span>
+                            <span className="text-xs text-neutral-500">{item.sku}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <input
+                              type="text"
+                              value={item.price}
+                              onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
+                              className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm text-sm"
+                            />
+                            <span className="text-neutral-500 text-xs">원</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-2 items-center justify-center">
+                            <label className="flex items-center gap-2 cursor-pointer">
                               <input
-                                type="text"
-                                value={item.price}
-                                onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
-                                className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                type="radio"
+                                checked={item.calculationMethod === 'fixed'}
+                                onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'fixed')}
+                                className="w-3.5 h-3.5 accent-neutral-900"
                               />
-                              <span className="text-neutral-500">원</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
+                              <span className="text-xs">직접입력</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
                               <input
-                                type="text"
-                                value={item.quantity}
-                                onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
-                                className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                type="radio"
+                                checked={item.calculationMethod === 'ratio'}
+                                onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'ratio')}
+                                className="w-3.5 h-3.5 accent-neutral-900"
                               />
-                              <span className="text-neutral-500">개</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeBonusProduct(item.id)}
-                              className="text-neutral-400 hover:text-red-600 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
+                              <span className="text-xs">비율계산</span>
+                            </label>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            {item.calculationMethod === 'fixed' ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={item.quantity}
+                                  onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
+                                  className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                />
+                                <span className="text-neutral-500 text-xs">개</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={item.percentage}
+                                    onChange={(e) => updateBonusProduct(item.id, 'percentage', e.target.value)}
+                                    className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                  />
+                                  <span className="text-neutral-500 text-xs">%</span>
+                                </div>
+                                <span className="text-[10px] text-blue-600 font-medium">구매량 비례</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeBonusProduct(item.id)}
+                            className="text-neutral-400 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
                       ))
                     ) : (
                       <tr>
@@ -1185,6 +1416,40 @@ export function PackageRegisterPage() {
           </button>
         </div>
       </form>
+
+      {/* Result Layer Popup */}
+      <Dialog open={resultModal.isOpen} onOpenChange={(open) => setResultModal(prev => ({...prev, isOpen: open}))}>
+        <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden border-none shadow-2xl">
+          <div className={`h-2 ${resultModal.type === 'error' ? 'bg-red-500' : 'bg-neutral-900'}`} />
+          <div className="p-8">
+            <DialogHeader>
+              <DialogTitle className={`text-2xl font-black tracking-tight ${resultModal.type === 'error' ? 'text-red-600' : 'text-neutral-900'}`}>
+                {resultModal.title}
+              </DialogTitle>
+              <DialogDescription className="text-base text-neutral-600 pt-4 leading-relaxed whitespace-pre-wrap font-medium">
+                {resultModal.description}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-8 flex sm:justify-center">
+              <button
+                onClick={() => {
+                  setResultModal(prev => ({...prev, isOpen: false}));
+                  if (resultModal.type === 'success') {
+                    navigate('/admin/products/package');
+                  }
+                }}
+                className={`w-full py-4 px-6 font-bold transition-all text-sm tracking-widest uppercase rounded-sm shadow-md hover:shadow-lg active:scale-[0.98] ${
+                  resultModal.type === 'error' 
+                    ? 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-neutral-200' 
+                    : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                }`}
+              >
+                확인
+              </button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

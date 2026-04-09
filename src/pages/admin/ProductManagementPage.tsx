@@ -6,6 +6,7 @@ import { ProductPreviewModal } from '../../components/ProductPreviewModal';
 import { useProducts, useDeleteProduct } from '../../hooks/useProducts';
 import { useCategories, useSaveCategories } from '../../hooks/useCategories';
 import { Category } from '../../services/categoryService';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 
 
@@ -52,6 +53,20 @@ export function ProductManagementPage() {
 
   const [tempCategoryList, setTempCategoryList] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
+  
+  // Modal states
+  const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{
+    isOpen: boolean;
+    productId?: string;
+    isBulk: boolean;
+    title: string;
+    description: string;
+  }>({
+    isOpen: false,
+    isBulk: false,
+    title: '',
+    description: ''
+  });
 
   // Transform DB products to match UI Product interface
   const products: Product[] = productsData.map(p => ({
@@ -186,21 +201,29 @@ export function ProductManagementPage() {
     );
   };
 
-  const handleDeleteBulk = async () => {
+  const handleDeleteBulk = () => {
     if (selectedProductIds.length === 0) return;
 
-    if (window.confirm(`선택한 ${selectedProductIds.length}개의 상품을 정말로 삭제하시겠습니까?`)) {
-      setIsDeletingBulk(true);
-      try {
-        await Promise.all(selectedProductIds.map(id => deleteProduct.mutateAsync(id)));
-        setSelectedProductIds([]);
-        alert('선택한 상품들이 삭제되었습니다.');
-      } catch (err) {
-        console.error('Error deleting products:', err);
-        alert('일부 상품 삭제 중 오류가 발생했습니다.');
-      } finally {
-        setIsDeletingBulk(false);
-      }
+    setDeleteConfirmInfo({
+      isOpen: true,
+      isBulk: true,
+      title: '선택 상품 삭제',
+      description: `선택한 ${selectedProductIds.length}개의 상품을 정말로 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+    });
+  };
+
+  const executeDeleteBulk = async () => {
+    setIsDeletingBulk(true);
+    try {
+      await Promise.all(selectedProductIds.map(id => deleteProduct.mutateAsync(id)));
+      setSelectedProductIds([]);
+      setDeleteConfirmInfo(prev => ({ ...prev, isOpen: false }));
+      // alert('선택한 상품들이 삭제되었습니다.'); // Optional: Can use a snackbar instead
+    } catch (err) {
+      console.error('Error deleting products:', err);
+      alert('일부 상품 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingBulk(false);
     }
   };
 
@@ -463,17 +486,15 @@ export function ProductManagementPage() {
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              if (window.confirm(`'${product.name}' 상품을 삭제하시겠습니까?`)) {
-                                try {
-                                  await deleteProduct.mutateAsync(product.id);
-                                  alert('상품이 삭제되었습니다.');
-                                } catch (err) {
-                                  console.error('Error deleting product:', err);
-                                  alert('상품 삭제 중 오류가 발생했습니다.');
-                                }
-                              }
+                              setDeleteConfirmInfo({
+                                isOpen: true,
+                                productId: product.id,
+                                isBulk: false,
+                                title: '상품 삭제',
+                                description: `'${product.name}' 상품을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+                              });
                             }}
                             disabled={deleteProduct.isPending}
                             className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -627,6 +648,28 @@ export function ProductManagementPage() {
           }}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmInfo.isOpen}
+        onClose={() => setDeleteConfirmInfo(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={deleteConfirmInfo.isBulk ? executeDeleteBulk : async () => {
+          if (deleteConfirmInfo.productId) {
+            try {
+              await deleteProduct.mutateAsync(deleteConfirmInfo.productId);
+              setDeleteConfirmInfo(prev => ({ ...prev, isOpen: false }));
+            } catch (err) {
+              console.error('Error deleting product:', err);
+              alert('삭제 중 오류가 발생했습니다.');
+            }
+          }
+        }}
+        title={deleteConfirmInfo.title}
+        description={deleteConfirmInfo.description}
+        confirmText="삭제하기"
+        isLoading={deleteProduct.isPending || isDeletingBulk}
+        type="danger"
+      />
     </div>
   );
 }

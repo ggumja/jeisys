@@ -78,6 +78,7 @@ export interface ProductQuantityOption {
   name: string;
   quantity: number;
   discountRate: number;
+  price?: number;
   displayOrder: number;
 }
 
@@ -99,6 +100,7 @@ export interface PackageItem {
   product?: Product;
   priceOverride?: number;
   maxQuantity?: number;
+  optionId?: string;
 }
 
 export interface CartItem {
