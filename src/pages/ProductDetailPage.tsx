@@ -140,18 +140,24 @@ export function ProductDetailPage() {
 
   const currentUnitPrice = (() => {
     if (!product) return 0;
+    const salesUnit = product.salesUnit || 1;
     
     // 1. If an option is selected, use that option's discount
     if (currentOption) {
-      return product.price * (1 - currentOption.discountRate / 100);
+      const optionBasePrice = product.price * (1 - currentOption.discountRate / 100);
+      return optionBasePrice / salesUnit;
     }
     
     // 2. Otherwise, check for tier pricing based on quantity
     const tier = [...product.tierPricing]
-      .sort((a, b) => b.quantity - a.quantity)
-      .find(t => quantity >= t.quantity);
-      
-    return tier ? tier.unitPrice : product.price;
+      .reverse()
+      .find((t) => quantity >= t.quantity);
+    
+    if (tier) {
+      return tier.unitPrice / salesUnit;
+    }
+    
+    return product.price / salesUnit;
   })();
 
 
@@ -279,75 +285,21 @@ export function ProductDetailPage() {
           <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-6">{product.name}</h1>
 
           <div className="mb-12">
-            {(() => {
-              if (currentOption) {
-                // Option-based Pricing
-                const discountRate = currentOption.discountRate / 100;
-                const unitPrice = product.price * (1 - discountRate);
-                const totalPrice = unitPrice * currentOption.quantity;
-
-                return (
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="text-sm mb-2">
-                        <span className="text-neutral-600">정상가(개당): {product.price.toLocaleString()}</span>
-                        {currentOption.discountRate > 0 ? (
-                          <>
-                            <span className="text-neutral-600">, </span>
-                            <span className="text-red-600 font-bold">할인가({currentOption.discountRate}%적용)</span>
-                            <span className="text-neutral-600">: {unitPrice.toLocaleString()} * {currentOption.quantity} EA</span>
-                          </>
-                        ) : (
-                          <span className="text-neutral-600"> * {currentOption.quantity} EA</span>
-                        )}
-                      </div>
-                      <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
-                        ₩{totalPrice.toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              const currentTier = [...product.tierPricing]
-                .sort((a, b) => b.quantity - a.quantity)
-                .find(tier => quantity >= tier.quantity);
-              
-              if (currentTier) {
-                const discountPercent = Math.round((1 - currentTier.unitPrice / product.price) * 100);
-                return (
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="text-sm mb-2">
-                        <span className="text-neutral-600">정상가(개당): {product.price.toLocaleString()}</span>
-                        {discountPercent > 0 ? (
-                          <>
-                            <span className="text-neutral-600">, </span>
-                            <span className="text-red-600 font-bold">할인가({discountPercent}%적용)</span>
-                            <span className="text-neutral-600">: {currentTier.unitPrice.toLocaleString()} * {quantity} EA</span>
-                          </>
-                        ) : (
-                          <span className="text-neutral-600"> * {quantity} EA</span>
-                        )}
-                      </div>
-                      <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
-                        ₩{(currentTier.unitPrice * quantity).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <div className="flex flex-col gap-2">
-                  <div className="text-sm mb-1">
-                    <span className="text-neutral-600">정상가(개당): {product.price.toLocaleString()} * {quantity} EA</span>
-                  </div>
-                  <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
-                    ₩{(product.price * quantity).toLocaleString()}
-                  </div>
-                </div>
-              );
-            })()}
+            <div className="flex flex-col gap-2">
+              <div className="text-sm mb-1">
+                <span className="text-neutral-600 font-medium">
+                  정상가(개당): {currentUnitPrice.toLocaleString()} * {quantity} EA
+                </span>
+                {isSubscription && (
+                  <span className="ml-2 text-blue-600 font-bold">
+                    [정기배송 {product.subscriptionDiscount}% 할인 적용]
+                  </span>
+                )}
+              </div>
+              <div className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
+                ₩{(currentUnitPrice * quantity * (isSubscription ? (1 - (product.subscriptionDiscount || 0) / 100) : 1)).toLocaleString()}
+              </div>
+            </div>
           </div>
 
           {/* Bonus Items Display */}
@@ -360,15 +312,26 @@ export function ProductDetailPage() {
                 </h3>
               </div>
               <ul className="space-y-2">
-                {currentBonusItems.map((item) => (
-                  <li key={item.id} className="text-sm text-blue-800 flex items-center justify-between bg-white/50 p-2 rounded-sm border border-blue-100/50">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-blue-500" />
-                      <span className="font-medium">{item.product?.name}</span>
-                    </div>
-                    <span className="font-bold whitespace-nowrap ml-4">{item.quantity} EA</span>
-                  </li>
-                ))}
+                {currentBonusItems.map((item) => {
+                  const displayQuantity = item.calculationMethod === 'ratio' 
+                    ? Math.ceil(quantity * (item.percentage || 0) / 100)
+                    : item.quantity;
+                  
+                  return (
+                    <li key={item.id} className="text-sm text-blue-800 flex items-center justify-between bg-white/50 p-2 rounded-sm border border-blue-100/50">
+                      <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-blue-500" />
+                        <span className="font-medium">{item.product?.name}</span>
+                      </div>
+                      <span className="font-bold whitespace-nowrap ml-4">
+                        {displayQuantity} EA
+                        {item.calculationMethod === 'ratio' && (
+                          <span className="text-[10px] ml-1 opacity-70">(비율계산)</span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -541,7 +504,7 @@ export function ProductDetailPage() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => handleQuantityChange(quantity - 1)}
+                    onClick={() => handleQuantityChange(quantity - (product.salesUnit || 1))}
                     disabled={product.minOrderQuantity === product.maxOrderQuantity}
                     className={`w-12 h-12 border border-neutral-300 flex items-center justify-center transition-colors ${
                       product.minOrderQuantity === product.maxOrderQuantity 
@@ -556,7 +519,7 @@ export function ProductDetailPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleQuantityChange(quantity + 1)}
+                    onClick={() => handleQuantityChange(quantity + (product.salesUnit || 1))}
                     disabled={product.minOrderQuantity === product.maxOrderQuantity}
                     className={`w-12 h-12 flex items-center justify-center transition-colors ${
                       product.minOrderQuantity === product.maxOrderQuantity 
@@ -566,6 +529,11 @@ export function ProductDetailPage() {
                   >
                     <Plus className="w-5 h-5" />
                   </button>
+                  {product.salesUnit && product.salesUnit > 1 && (
+                    <span className="text-sm text-blue-600 font-medium whitespace-nowrap">
+                      (주문단위: {product.salesUnit}개)
+                    </span>
+                  )}
                 </div>
                 {/* 재고 표시 제거됨 */}
               </div>

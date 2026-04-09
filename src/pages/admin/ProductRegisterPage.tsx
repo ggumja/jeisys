@@ -41,6 +41,8 @@ interface BonusProductData {
   price: string;
   quantity: string;
   imageUrl: string;
+  calculationMethod: 'fixed' | 'ratio';
+  percentage: string;
 }
 
 interface QuantityOptionData {
@@ -183,6 +185,8 @@ export function ProductRegisterPage() {
           price: formatWithCommas(item.priceOverride || item.product?.price || 0),
           quantity: formatWithCommas(item.quantity || 0),
           imageUrl: item.product?.imageUrl || '',
+          calculationMethod: item.calculationMethod || 'fixed',
+          percentage: formatWithCommas(item.percentage || 0),
         })) || [],
         quantityOptions: existingProduct.options?.map(opt => {
           const matchedBonusItems = existingProduct.bonusItems?.filter(item => {
@@ -235,9 +239,11 @@ export function ProductRegisterPage() {
       productId: product.id,
       name: product.name,
       sku: product.sku,
-      price: product.price.toString(),
+      price: '0',
       quantity: '1',
       imageUrl: product.imageUrl,
+      calculationMethod: 'fixed',
+      percentage: '0',
     };
     setFormData(prev => ({
       ...prev,
@@ -254,10 +260,14 @@ export function ProductRegisterPage() {
     }));
   };
 
-  const updateBonusProduct = (id: string, field: 'quantity' | 'price', value: string) => {
+  const updateBonusProduct = (id: string, field: keyof BonusProductData, value: string) => {
     // Format if it's a numeric field
-    const numericValue = value.replace(/[^0-9]/g, '');
-    const processedValue = formatWithCommas(numericValue);
+    const numericFields: string[] = ['quantity', 'price', 'percentage'];
+    let processedValue = value;
+    
+    if (numericFields.includes(field)) {
+      processedValue = formatWithCommas(value.replace(/[^0-9]/g, ''));
+    }
 
     setFormData(prev => ({
       ...prev,
@@ -329,9 +339,11 @@ export function ProductRegisterPage() {
       productId: product.id,
       name: product.name,
       sku: product.sku,
-      price: product.price.toString(),
+      price: '0',
       quantity: '1',
       imageUrl: product.imageUrl,
+      calculationMethod: 'fixed',
+      percentage: '0',
     };
     setFormData(prev => ({
       ...prev,
@@ -591,7 +603,9 @@ export function ProductRegisterPage() {
           bonusProductId: bp.productId,
           quantity: parseInt(unformatNumber(bp.quantity)) || 1,
           priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
-          optionId: null
+          optionId: null,
+          calculationMethod: bp.calculationMethod,
+          percentage: parseFloat(unformatNumber(bp.percentage)) || 0
         });
       });
 
@@ -619,10 +633,16 @@ export function ProductRegisterPage() {
       });
     } catch (error: any) {
       console.error('Error saving product:', error);
+      let errorMessage = error.message || '상품 저장 중 오류가 발생했습니다. 데이터 연결 상태를 확인해주세요.';
+      
+      if (error.code === '23505') {
+        errorMessage = '이미 존재하는 상품 코드(SKU)입니다. 다른 코드를 입력해주세요.';
+      }
+
       setResultModal({
         isOpen: true,
         title: '저장 실패',
-        description: error.message || '상품 저장 중 오류가 발생했습니다. 데이터 연결 상태를 확인해주세요.',
+        description: errorMessage,
         type: 'error'
       });
     } finally {
@@ -1313,7 +1333,7 @@ export function ProductRegisterPage() {
                           <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
                         </div>
                         <div className="text-right flex-shrink-0 ml-4">
-                          <span className="text-sm font-medium text-neutral-900">{product.price.toLocaleString()}원</span>
+                          <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1">증정전용</span>
                         </div>
                       </button>
                     ))
@@ -1334,7 +1354,8 @@ export function ProductRegisterPage() {
                   <tr>
                     <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
                     <th className="px-4 py-3 font-medium text-neutral-700 w-32">금액</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정갯수</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-48 text-center">계산 방법</th>
+                    <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정 수량</th>
                     <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
                   </tr>
                 </thead>
@@ -1354,20 +1375,59 @@ export function ProductRegisterPage() {
                               type="text"
                               value={item.price}
                               onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
-                              className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                              className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm text-sm"
                             />
-                            <span className="text-neutral-500 ml-2">원</span>
+                            <span className="text-neutral-500 text-xs">원</span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-2">
-                            <input
-                              type="text"
-                              value={item.quantity}
-                              onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
-                              className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
-                            />
-                            <span className="text-neutral-500 ml-2">개</span>
+                          <div className="flex flex-col gap-2 items-center justify-center">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                checked={item.calculationMethod === 'fixed'}
+                                onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'fixed')}
+                                className="w-3.5 h-3.5 accent-neutral-900"
+                              />
+                              <span className="text-xs">직접입력</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                checked={item.calculationMethod === 'ratio'}
+                                onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'ratio')}
+                                className="w-3.5 h-3.5 accent-neutral-900"
+                              />
+                              <span className="text-xs">비율계산</span>
+                            </label>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            {item.calculationMethod === 'fixed' ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={item.quantity}
+                                  onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
+                                  className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                />
+                                <span className="text-neutral-500 text-xs">개</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={item.percentage}
+                                    onChange={(e) => updateBonusProduct(item.id, 'percentage', e.target.value)}
+                                    className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                  />
+                                  <span className="text-neutral-500 text-xs">%</span>
+                                </div>
+                                <span className="text-[10px] text-blue-600 font-medium">구매량 비례(올림)</span>
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -1501,8 +1561,8 @@ export function ProductRegisterPage() {
                                 <span className="font-medium text-neutral-900 text-sm">{p.name}</span>
                                 <span className="text-[10px] text-neutral-500">{p.sku}</span>
                               </div>
-                              <span className="text-xs font-semibold text-neutral-700">
-                                {p.price.toLocaleString()}원
+                              <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1">
+                                증정전용
                               </span>
                             </button>
                           ))

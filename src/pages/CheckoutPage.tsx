@@ -113,22 +113,24 @@ export function CheckoutPage() {
   const getTierPrice = (item: CartItem) => {
     const product = productsMap[item.productId];
     if (!product) return 0;
+    const salesUnit = product.salesUnit || 1;
 
     // 1. If it's a set option
     if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
         const discountRate = option.discountRate / 100;
-        return product.price * (1 - discountRate);
+        return (product.price * (1 - discountRate)) / salesUnit;
       }
     }
 
     // 2. Default tier pricing
     const tier = [...product.tierPricing]
-      .sort((a, b) => b.quantity - a.quantity)
+      .reverse()
       .find(t => item.quantity >= t.quantity);
 
-    return tier?.unitPrice || product.price;
+    const basePrice = tier?.unitPrice || product.price;
+    return basePrice / salesUnit;
   };
 
   const calculateTotal = () => {
@@ -310,19 +312,18 @@ export function CheckoutPage() {
 
                       {/* Integrated Price & Quantity Info */}
                       <div className="text-[11px] mb-3">
-                        {unitPrice < product.price ? (
-                          <div className="flex flex-wrap items-center gap-x-1">
-                            <span className="text-neutral-500">정상가: {product.price.toLocaleString()},</span>
-                            <span className="text-red-600 font-bold">
-                              할인가({Math.round((1 - unitPrice / product.price) * 100)}%적용): {unitPrice.toLocaleString()}
-                            </span>
-                            <span className="text-neutral-600 font-medium">* {item.quantity} EA</span>
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5 leading-none">
+                            <span className="text-sm font-bold text-neutral-900">₩{itemTotal.toLocaleString()}</span>
+                            <span className="text-[10px] text-neutral-500 font-medium">({unitPrice.toLocaleString()}원 × {item.quantity}개)</span>
                           </div>
-                        ) : (
-                          <div className="text-neutral-600">
-                            <span>정상가: {product.price.toLocaleString()} * {item.quantity} EA</span>
-                          </div>
-                        )}
+                          {unitPrice < (product.price / (product.salesUnit || 1)) && (
+                            <div className="flex items-center gap-1.5 text-[9px]">
+                              <span className="text-neutral-400 line-through">정상가(개당): ₩{(product.price / (product.salesUnit || 1)).toLocaleString()}</span>
+                              <span className="text-red-500 font-bold">{Math.round((1 - unitPrice / (product.price / (product.salesUnit || 1))) * 100)}% 할인</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Bonus Items Display */}
@@ -337,28 +338,36 @@ export function CheckoutPage() {
                           <ul className="space-y-0.5">
                             {product.bonusItems
                               .filter(bi => bi.optionId === (item.optionId || null))
-                              .map((bi) => (
-                                <li key={bi.id} className="text-[9px] text-blue-800 flex items-center justify-between">
-                                  <div className="flex items-center gap-0.5">
-                                    <Check className="w-2.5 h-2.5 text-blue-500" />
-                                    <span>{bi.product?.name}</span>
-                                  </div>
-                                  <span className="font-bold ml-2">{bi.quantity} EA</span>
-                                </li>
-                              ))}
+                              .map((bi) => {
+                                const displayQuantity = bi.calculationMethod === 'ratio'
+                                  ? Math.ceil(item.quantity * (bi.percentage || 0) / 100)
+                                  : bi.quantity;
+                                  
+                                return (
+                                  <li key={bi.id} className="text-[9px] text-blue-800 flex items-center justify-between">
+                                    <div className="flex items-center gap-0.5">
+                                      <Check className="w-2.5 h-2.5 text-blue-500" />
+                                      <span>{bi.product?.name}</span>
+                                    </div>
+                                    <span className="font-bold ml-2">
+                                      {displayQuantity} EA
+                                      {bi.calculationMethod === 'ratio' && (
+                                        <span className="text-[8px] ml-1 opacity-70">(비율)</span>
+                                      )}
+                                    </span>
+                                  </li>
+                                );
+                              })}
                           </ul>
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs text-neutral-600">
+                      <div className="flex items-center">
+                        <div className="text-[10px] text-neutral-600">
                           {item.isSubscription && (
                             <span className="text-blue-600 font-medium">정기 배송 ({product.subscriptionDiscount}% 추가 할인 적용됨)</span>
                           )}
                         </div>
-                        <span className="text-sm font-bold text-neutral-900">
-                          ₩{itemTotal.toLocaleString()}
-                        </span>
                       </div>
                     </div>
                   </div>

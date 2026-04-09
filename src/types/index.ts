@@ -88,6 +88,8 @@ export interface BonusItem {
   priceOverride?: number;
   product?: Product;
   optionId?: string;
+  calculationMethod?: 'fixed' | 'ratio';
+  percentage?: number;
 }
 
 export interface PackageItem {

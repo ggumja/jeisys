@@ -96,12 +96,13 @@ export function CartPage() {
   const getTierPrice = (item: CartItem) => {
     const product = productsMap[item.productId];
     if (!product) return 0;
+    const salesUnit = product.salesUnit || 1;
 
     if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
         const discountRate = option.discountRate / 100;
-        return product.price * (1 - discountRate);
+        return (product.price * (1 - discountRate)) / salesUnit;
       }
     }
 
@@ -109,7 +110,7 @@ export function CartPage() {
       .sort((a, b) => b.quantity - a.quantity)
       .find(t => item.quantity >= t.quantity);
 
-    return tier?.unitPrice || product.price;
+    return (tier?.unitPrice || product.price) / salesUnit;
   };
 
   const calculateTotal = () => {
@@ -204,19 +205,24 @@ export function CartPage() {
                         </Link>
                         
                         <div className="text-sm mb-4">
-                          {unitPrice < product.price ? (
-                            <div className="flex flex-wrap items-center gap-x-1">
-                              <span className="text-neutral-500">정상가(개당): {product.price.toLocaleString()},</span>
-                              <span className="text-red-600 font-bold">
-                                할인가({Math.round((1 - unitPrice / product.price) * 100)}%적용): {unitPrice.toLocaleString()}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl font-bold text-neutral-900">
+                                ₩{itemTotal.toLocaleString()}
                               </span>
-                              <span className="text-neutral-600 font-medium">* {item.quantity} EA</span>
+                              <span className="text-sm text-neutral-500 font-medium">
+                                ({unitPrice.toLocaleString()}원 × {item.quantity}개)
+                              </span>
                             </div>
-                          ) : (
-                            <div className="text-neutral-600">
-                              <span>정상가(개당): {product.price.toLocaleString()} * {item.quantity} EA</span>
-                            </div>
-                          )}
+                            {unitPrice < (product.price / (product.salesUnit || 1)) && (
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-neutral-400 line-through">정상가(개당): ₩{(product.price / (product.salesUnit || 1)).toLocaleString()}</span>
+                                <span className="text-red-500 font-bold">
+                                  {Math.round((1 - unitPrice / (product.price / (product.salesUnit || 1))) * 100)}% 할인 적용
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         {item.selectedProductIds && item.selectedProductIds.length > 0 && (
@@ -255,7 +261,7 @@ export function CartPage() {
                       {!item.optionId && (
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => updateQuantity(item, item.quantity - 1)}
+                            onClick={() => updateQuantity(item, item.quantity - (product.salesUnit || 1))}
                             disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
                             className={`w-10 h-10 border border-neutral-300 flex items-center justify-center transition-colors ${
                               item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
@@ -267,7 +273,7 @@ export function CartPage() {
                           </button>
                           <span className="w-12 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item, item.quantity + 1)}
+                            onClick={() => updateQuantity(item, item.quantity + (product.salesUnit || 1))}
                             disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
                             className={`w-10 h-10 flex items-center justify-center transition-colors ${
                               (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
@@ -292,15 +298,26 @@ export function CartPage() {
                         <ul className="space-y-1">
                           {product.bonusItems
                             .filter(bi => bi.optionId === (item.optionId || null))
-                            .map((bi) => (
-                              <li key={bi.id} className="text-[11px] text-blue-800 flex items-center justify-between">
-                                <div className="flex items-center gap-1">
-                                  <Check className="w-3 h-3 text-blue-500" />
-                                  <span>{bi.product?.name}</span>
-                                </div>
-                                <span className="font-bold ml-2">{bi.quantity} EA</span>
-                              </li>
-                            ))}
+                            .map((bi) => {
+                              const displayQuantity = bi.calculationMethod === 'ratio'
+                                ? Math.ceil(item.quantity * (bi.percentage || 0) / 100)
+                                : bi.quantity;
+                                
+                              return (
+                                <li key={bi.id} className="text-[11px] text-blue-800 flex items-center justify-between">
+                                  <div className="flex items-center gap-1">
+                                    <Check className="w-3 h-3 text-blue-500" />
+                                    <span>{bi.product?.name}</span>
+                                  </div>
+                                  <span className="font-bold ml-2">
+                                    {displayQuantity} EA
+                                    {bi.calculationMethod === 'ratio' && (
+                                      <span className="text-[9px] ml-1 opacity-70">(비율)</span>
+                                    )}
+                                  </span>
+                                </li>
+                              );
+                            })}
                         </ul>
                       </div>
                     )}

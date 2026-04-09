@@ -332,6 +332,8 @@ export const productService = {
         quantity: bi.quantity,
         priceOverride: bi.price_override,
         optionId: bi.option_id,
+        calculationMethod: bi.calculation_method || 'fixed',
+        percentage: bi.percentage || 0,
         product: bi.product ? this.mapProduct(bi.product) : undefined
       })) || [],
       options: item.product_quantity_options?.map((opt: any) => ({
@@ -395,7 +397,7 @@ export const productService = {
     return data.sort((a: any, b: any) => a.display_order - b.display_order);
   },
 
-  async addBonusItems(productId: string, items: { bonusProductId: string; quantity: number; priceOverride?: number; optionId?: string | null }[]): Promise<void> {
+  async addBonusItems(productId: string, items: { bonusProductId: string; quantity: number; priceOverride?: number; optionId?: string | null; calculationMethod?: string; percentage?: number }[]): Promise<void> {
     // Delete existing
     await supabase.from('product_bonus_items').delete().eq('parent_product_id', productId);
 
@@ -410,6 +412,8 @@ export const productService = {
           quantity: item.quantity,
           price_override: item.priceOverride,
           option_id: item.optionId || null,
+          calculation_method: item.calculationMethod || 'fixed',
+          percentage: item.percentage || 0,
         }))
       );
 
