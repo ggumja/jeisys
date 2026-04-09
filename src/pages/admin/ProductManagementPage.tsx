@@ -65,9 +65,13 @@ export function ProductManagementPage() {
     status: p.isActive !== false ? ('active' as const) : ('inactive' as const),
     isVisible: p.isVisible !== false,
     createdDate: new Date().toISOString().split('T')[0], // Placeholder
+    sku: p.sku,
     productCode: p.sku,
+    sapSku: p.sap_sku,
     description: p.description,
     isPackage: p.isPackage,
+    selectableCount: p.selectable_count || 1,
+    salesUnit: p.sales_unit || 1,
   }));
 
   // Helper to get full category path (e.g., Parent > Child)
@@ -352,13 +356,7 @@ export function ProductManagementPage() {
                       가격
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                      재고
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
                       상태
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                      노출
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
                       관리
@@ -384,11 +382,29 @@ export function ProductManagementPage() {
                         {product.displayNo || '-'}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-neutral-900">
-                          {product.name}
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-neutral-900">
+                            {product.name}
+                          </span>
+                          {!product.isVisible && (
+                            <span 
+                              className="px-1 py-0 text-[10px] bg-orange-50 text-orange-600 border border-orange-200 rounded-sm font-bold whitespace-nowrap inline-flex items-center"
+                              style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}
+                            >
+                              비노출
+                            </span>
+                          )}
+                          {product.baseProductId && (
+                            <span 
+                              className="px-1 py-0 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded-sm font-bold whitespace-nowrap inline-flex items-center"
+                              style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}
+                            >
+                              재고 연동
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-neutral-500">
-                          등록일: {product.createdDate}
+                          {product.sku}
                         </div>
                       </td>
                       <td className="px-4 py-4 w-32 min-w-[128px]">
@@ -411,25 +427,17 @@ export function ProductManagementPage() {
                         {product.price.toLocaleString()}원
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`text-sm font-medium ${product.stock === 0 ? 'text-red-600' : 'text-neutral-900'}`}>
-                          {product.stock}개
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 text-xs font-medium ${product.status === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                          }`}>
-                          {product.status === 'active' ? '판매중' : '판매중지'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 text-xs font-medium ${product.isVisible
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-neutral-100 text-neutral-800'
-                          }`}>
-                          {product.isVisible ? '노출' : '미노출'}
-                        </span>
+                        <div className="inline-flex overflow-visible">
+                          <span 
+                            className={`inline-flex px-1 py-0 text-[10px] font-bold rounded-sm whitespace-nowrap items-center ${product.status === 'active'
+                              ? 'bg-green-50 text-green-700 border border-green-200'
+                              : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}
+                            style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}
+                          >
+                            {product.status === 'active' ? '판매중' : '판매중지'}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">

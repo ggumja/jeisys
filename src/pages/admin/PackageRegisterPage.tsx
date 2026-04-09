@@ -66,6 +66,7 @@ export function PackageRegisterPage() {
     minOrderQuantity: '1',
     maxOrderQuantity: '',
     description: '',
+    salesUnit: '1',
     bonusProducts: [],
   });
 
@@ -105,16 +106,17 @@ export function PackageRegisterPage() {
         productCode: existingProduct.sku,
         sapSku: existingProduct.sapSku || '',
         manufacturer: existingProduct.manufacturer || '', 
-        price: existingProduct.price.toString(),
-        stock: existingProduct.stock.toString(),
+        price: formatWithCommas(existingProduct.price || 0),
+        stock: formatWithCommas(existingProduct.stock || 0),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
         isVisible: existingProduct.isVisible !== false,
-        selectableCount: existingProduct.selectableCount?.toString() || '1',
+        selectableCount: formatWithCommas(existingProduct.selectableCount || 1),
+        salesUnit: formatWithCommas(existingProduct.salesUnit || 1),
         itemInputType: existingProduct.itemInputType || 'select',
         creditAvailable: existingProduct.creditAvailable ?? true,
         pointsAvailable: existingProduct.pointsAvailable ?? true,
-        minOrderQuantity: (existingProduct.minOrderQuantity || 1).toString(),
-        maxOrderQuantity: existingProduct.maxOrderQuantity?.toString() || '',
+        minOrderQuantity: formatWithCommas(existingProduct.minOrderQuantity || 1),
+        maxOrderQuantity: formatWithCommas(existingProduct.maxOrderQuantity || 0),
         description: existingProduct.description || '',
         bonusProducts: [], // Will be updated by the next block if items exist
       });
@@ -132,8 +134,8 @@ export function PackageRegisterPage() {
             id: bi.productId,
             sku: bi.product?.sku || '',
             name: bi.product?.name || '',
-            price: bi.priceOverride?.toString() || '0',
-            quantity: bi.quantity.toString() || '1'
+            price: formatWithCommas(bi.priceOverride || 0),
+            quantity: formatWithCommas(bi.quantity || 1)
           })) || []
         }));
       }
@@ -185,11 +187,33 @@ export function PackageRegisterPage() {
     }
   }, [bonusSearchTerm, productsList]);
 
+  const formatWithCommas = (value: string | number) => {
+    if (value === undefined || value === null || value === '') return '';
+    const stringValue = value.toString().replace(/,/g, '');
+    if (isNaN(Number(stringValue))) return stringValue;
+    return Number(stringValue).toLocaleString('ko-KR');
+  };
+
+  const unformatNumber = (value: string) => {
+    return value.replace(/,/g, '');
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // List of numeric fields to format with commas
+    const numericFields = ['price', 'stock', 'selectableCount', 'minOrderQuantity', 'maxOrderQuantity', 'salesUnit'];
+    
+    if (numericFields.includes(name)) {
+      // Allow only numbers and format with commas
+      const numericValue = value.replace(/[^0-9]/g, '');
+      const formattedValue = formatWithCommas(numericValue);
+      setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -350,19 +374,20 @@ export function PackageRegisterPage() {
         name: formData.name,
         category: finalCategory,
         subcategory: finalSubcategory,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock) || 0,
+        price: parseFloat(unformatNumber(formData.price)),
+        stock: parseInt(unformatNumber(formData.stock)) || 0,
         is_active: formData.status === 'active',
         is_visible: formData.isVisible,
         is_package: true,
-        selectable_count: parseInt(formData.selectableCount) || 1,
+        selectable_count: parseInt(unformatNumber(formData.selectableCount)) || 1,
         item_input_type: formData.itemInputType,
         credit_available: formData.creditAvailable,
         points_available: formData.pointsAvailable,
-        min_order_quantity: parseInt(formData.minOrderQuantity) || 1,
-        max_order_quantity: formData.maxOrderQuantity ? parseInt(formData.maxOrderQuantity) : undefined,
+        min_order_quantity: parseInt(unformatNumber(formData.minOrderQuantity)) || 1,
+        max_order_quantity: formData.maxOrderQuantity ? parseInt(unformatNumber(formData.maxOrderQuantity)) : undefined,
         description: formData.description,
         image_url: finalImageUrl,
+        sales_unit: parseInt(unformatNumber(formData.salesUnit)) || 1,
       };
 
       let packageId: string;
@@ -403,13 +428,16 @@ export function PackageRegisterPage() {
         packageId,
         formData.bonusProducts.map(bp => ({
           bonusProductId: bp.id,
-          quantity: parseInt(bp.quantity) || 1,
-          priceOverride: parseInt(bp.price) || 0
+          quantity: parseInt(unformatNumber(bp.quantity)) || 1,
+          priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
+          optionId: null
         }))
       );
 
       alert(isEditMode ? '패키지가 수정되었습니다.' : '패키지가 등록되었습니다.');
-      navigate('/admin/products/package');
+      if (!isEditMode) {
+        navigate('/admin/products/package');
+      }
     } catch (error) {
       console.error('Error saving package:', error);
       alert('패키지 저장 중 오류가 발생했습니다.');
@@ -624,22 +652,57 @@ export function PackageRegisterPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">
-                  패키지 가격 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    placeholder="패키지 가격을 입력하세요"
-                    className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
-                    required
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">원</span>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-neutral-700">
+                    패키지 가격 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      placeholder="패키지 가격을 입력하세요"
+                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
+                      required
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">원</span>
+                  </div>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-neutral-700">
+                    판매 단위 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="salesUnit"
+                      value={formData.salesUnit}
+                      onChange={handleInputChange}
+                      placeholder="예: 5"
+                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
+                      required
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">EA</span>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 mt-1">* 개당 단가 계산의 기준 (기본값: 1)</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-neutral-700 uppercase">
+                  개당 단가 (자동계산)
+                </label>
+                <div className="w-full px-4 py-3 border border-neutral-200 bg-neutral-50 text-neutral-500 font-medium tracking-tight">
+                  {(() => {
+                    const price = Number(formData.price.replace(/[^0-9]/g, '')) || 0;
+                    const unit = Number(formData.salesUnit.replace(/[^0-9]/g, '')) || 1;
+                    return (Math.floor(price / unit)).toLocaleString();
+                  })()} 원
+                </div>
+                <p className="text-[10px] text-neutral-400 mt-1">* 패키지 가격 / 판매 단위 기준</p>
               </div>
 
               <div className="space-y-2">

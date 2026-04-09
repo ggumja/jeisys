@@ -55,6 +55,9 @@ export interface Product {
   additionalImages?: string[];
   description: string;
   stock: number;
+  salesUnit?: number;
+  baseProductId?: string;
+  stockMultiplier?: number;
   isPackage?: boolean;
   selectableCount?: number;
   itemInputType?: 'select' | 'input';

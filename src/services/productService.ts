@@ -17,6 +17,9 @@ export interface ProductInput {
   is_package?: boolean;
   selectable_count?: number;
   item_input_type?: 'select' | 'input';
+  sales_unit?: number;
+  base_product_id?: string | null;
+  stock_multiplier?: number;
   credit_available?: boolean;
   points_available?: boolean;
   subscription_discount?: number;
@@ -121,6 +124,8 @@ export const productService = {
         subscription_discount: productData.subscription_discount,
         min_order_quantity: productData.min_order_quantity ?? 1,
         max_order_quantity: productData.max_order_quantity,
+        base_product_id: productData.base_product_id || null,
+        stock_multiplier: productData.stock_multiplier || 1,
       })
       .select()
       .single();
@@ -157,6 +162,9 @@ export const productService = {
         ...(productData.subscription_discount !== undefined && { subscription_discount: productData.subscription_discount }),
         ...(productData.min_order_quantity !== undefined && { min_order_quantity: productData.min_order_quantity }),
         ...(productData.max_order_quantity !== undefined && { max_order_quantity: productData.max_order_quantity }),
+        ...(productData.sales_unit !== undefined && { sales_unit: productData.sales_unit }),
+        ...(productData.base_product_id !== undefined && { base_product_id: productData.base_product_id }),
+        ...(productData.stock_multiplier !== undefined && { stock_multiplier: productData.stock_multiplier }),
       })
       .eq('id', id)
       .select()
@@ -307,6 +315,9 @@ export const productService = {
       stock: item.stock,
       isPackage: item.is_package,
       selectableCount: item.selectable_count,
+      salesUnit: item.sales_unit || 1,
+      baseProductId: item.base_product_id,
+      stockMultiplier: item.stock_multiplier || 1,
       itemInputType: item.item_input_type,
       creditAvailable: item.credit_available,
       pointsAvailable: item.points_available,

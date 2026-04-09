@@ -206,7 +206,50 @@ export const orderService = {
 
         if (itemsError) throw itemsError;
 
-        // 3. Clear User's Cart
+        // 3. Update Inventory (Real-time Stock Management)
+        for (const item of items) {
+            try {
+                // Fetch current product to check for master linkage
+                const { data: product, error: fetchError } = await supabase
+                    .from('products')
+                    .select('id, stock, base_product_id, stock_multiplier')
+                    .eq('id', item.productId)
+                    .single();
+
+                if (fetchError || !product) continue;
+
+                const targetProductId = product.base_product_id || product.id;
+                const decrementAmount = (item.quantity || 1) * (product.stock_multiplier || 1);
+
+                // Use simple column decrement
+                const { error: stockError } = await supabase.rpc('decrement_stock', {
+                    row_id: targetProductId,
+                    amount: decrementAmount
+                });
+
+                // If RPC not available, fallback to manual update (less safe but works for now)
+                if (stockError) {
+                    console.warn('RPC decrement_stock failed, falling back to manual update', stockError);
+                    const { data: targetProd } = await supabase
+                        .from('products')
+                        .select('stock')
+                        .eq('id', targetProductId)
+                        .single();
+
+                    if (targetProd) {
+                        await supabase
+                            .from('products')
+                            .update({ stock: Math.max(0, targetProd.stock - decrementAmount) })
+                            .eq('id', targetProductId);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to update stock for item', item.productId, err);
+                // Continue with other items even if one fails
+            }
+        }
+
+        // 4. Clear User's Cart
         const { error: clearError } = await supabase
             .from('cart_items')
             .delete()

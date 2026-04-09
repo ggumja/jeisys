@@ -78,7 +78,6 @@ export function ProductRegisterPage() {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const addPricingTiers = useAddPricingTiers();
-
   const [formData, setFormData] = useState<FormData>({
     name: '',
     category: '',
@@ -98,6 +97,10 @@ export function ProductRegisterPage() {
     subscriptionDiscount: '',
     minOrderQuantity: '1',
     maxOrderQuantity: '0',
+    salesUnit: '1',
+    baseProductId: '',
+    stockMultiplier: '1',
+    isShareStock: false,
     bulkDiscounts: [],
     bonusProducts: [],
     quantityOptions: [],
@@ -109,7 +112,11 @@ export function ProductRegisterPage() {
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Search state
+  // Search state for Master Product Linkage
+  const [masterSearchTerm, setMasterSearchTerm] = useState('');
+  const [isMasterSearchOpen, setIsMasterSearchOpen] = useState(false);
+
+  // Existing search state
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
 
@@ -135,22 +142,26 @@ export function ProductRegisterPage() {
         productCode: existingProduct.sku || '',
         sapSku: existingProduct.sapSku || '',
         manufacturer: existingProduct.manufacturer || '', 
-        price: (existingProduct.price || 0).toString(),
-        stock: (existingProduct.stock || 0).toString(),
+        price: formatWithCommas(existingProduct.price || 0),
+        stock: formatWithCommas(existingProduct.stock || 0),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
         isVisible: existingProduct.isVisible !== false,
         itemInputType: existingProduct.itemInputType || 'input',
-        selectableCount: (existingProduct.selectableCount || 1).toString(),
+        selectableCount: formatWithCommas(existingProduct.selectableCount || 1),
+        salesUnit: formatWithCommas(existingProduct.salesUnit || 1),
+        baseProductId: existingProduct.baseProductId || '',
+        stockMultiplier: formatWithCommas(existingProduct.stockMultiplier || 1),
+        isShareStock: !!existingProduct.baseProductId,
         creditAvailable: existingProduct.creditAvailable ?? true,
         pointsAvailable: existingProduct.pointsAvailable ?? true,
         description: existingProduct.description || '',
         useSubscriptionDiscount: (existingProduct.subscriptionDiscount ?? 0) > 0,
-        subscriptionDiscount: existingProduct.subscriptionDiscount?.toString() || '',
-        minOrderQuantity: (existingProduct.minOrderQuantity || 1).toString(),
-        maxOrderQuantity: (existingProduct.maxOrderQuantity || 0).toString(),
+        subscriptionDiscount: formatWithCommas(existingProduct.subscriptionDiscount || 0),
+        minOrderQuantity: formatWithCommas(existingProduct.minOrderQuantity || 1),
+        maxOrderQuantity: formatWithCommas(existingProduct.maxOrderQuantity || 0),
         bulkDiscounts: existingProduct.tierPricing?.map((tier, index) => ({
           id: index.toString(),
-          quantity: tier.quantity.toString(),
+          quantity: formatWithCommas(tier.quantity || 0),
           discountRate: ((1 - tier.unitPrice / existingProduct.price) * 100).toFixed(0),
         })) || [],
         bonusProducts: existingProduct.bonusItems?.filter(item => !item.optionId).map((item) => ({
@@ -158,8 +169,8 @@ export function ProductRegisterPage() {
           productId: item.productId,
           name: item.product?.name || '',
           sku: item.product?.sku || '',
-          price: (item.priceOverride || item.product?.price || 0).toString(),
-          quantity: item.quantity.toString(),
+          price: formatWithCommas(item.priceOverride || item.product?.price || 0),
+          quantity: formatWithCommas(item.quantity || 0),
           imageUrl: item.product?.imageUrl || '',
         })) || [],
         quantityOptions: existingProduct.options?.map(opt => {
@@ -178,8 +189,8 @@ export function ProductRegisterPage() {
               productId: item.productId,
               name: item.product?.name || '상품 정보 없음',
               sku: item.product?.sku || '',
-              price: (item.priceOverride || item.product?.price || 0).toString(),
-              quantity: item.quantity.toString(),
+              price: formatWithCommas(item.priceOverride || item.product?.price || 0),
+              quantity: formatWithCommas(item.quantity || 0),
               imageUrl: item.product?.imageUrl || '',
             })) || []
           };
@@ -233,10 +244,14 @@ export function ProductRegisterPage() {
   };
 
   const updateBonusProduct = (id: string, field: 'quantity' | 'price', value: string) => {
+    // Format if it's a numeric field
+    const numericValue = value.replace(/[^0-9]/g, '');
+    const processedValue = formatWithCommas(numericValue);
+
     setFormData(prev => ({
       ...prev,
       bonusProducts: prev.bonusProducts.map(p => 
-        p.id === id ? { ...p, [field]: value } : p
+        p.id === id ? { ...p, [field]: processedValue } : p
       ),
     }));
   };
@@ -263,11 +278,17 @@ export function ProductRegisterPage() {
     }));
   };
 
-  const updateQuantityOption = (id: string, field: keyof Omit<QuantityOptionData, 'id' | 'bonusProducts'>, value: string) => {
+  const updateQuantityOption = (id: string, field: 'name' | 'quantity' | 'discountRate', value: string) => {
+    let processedValue = value;
+    if (field === 'quantity' || field === 'discountRate') {
+      const numericValue = value.replace(/[^0-9]/g, '');
+      processedValue = formatWithCommas(numericValue);
+    }
+
     setFormData(prev => ({
       ...prev,
       quantityOptions: prev.quantityOptions.map(o => 
-        o.id === id ? { ...o, [field]: value } : o
+        o.id === id ? { ...o, [field]: processedValue } : o
       ),
     }));
   };
@@ -321,23 +342,48 @@ export function ProductRegisterPage() {
   };
 
   const updateBonusProductInOption = (optionId: string, bonusId: string, field: 'quantity' | 'price', value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    const processedValue = formatWithCommas(numericValue);
+
     setFormData(prev => ({
       ...prev,
       quantityOptions: prev.quantityOptions.map(o => 
         o.id === optionId ? {
           ...o,
-          bonusProducts: o.bonusProducts.map(bp => bp.id === bonusId ? { ...bp, [field]: value } : bp)
+          bonusProducts: o.bonusProducts.map(bp => bp.id === bonusId ? { ...bp, [field]: processedValue } : bp)
         } : o
       ),
     }));
   };
 
 
+  const formatWithCommas = (value: string | number) => {
+    if (value === undefined || value === null || value === '') return '';
+    const stringValue = value.toString().replace(/,/g, '');
+    if (isNaN(Number(stringValue))) return stringValue;
+    return Number(stringValue).toLocaleString('ko-KR');
+  };
+
+  const unformatNumber = (value: string) => {
+    return value.replace(/,/g, '');
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // List of numeric fields to format with commas
+    const numericFields = ['price', 'stock', 'selectableCount', 'subscriptionDiscount', 'minOrderQuantity', 'maxOrderQuantity', 'salesUnit', 'stockMultiplier'];
+    
+    if (numericFields.includes(name)) {
+      // Allow only numbers and format with commas
+      const numericValue = value.replace(/[^0-9]/g, '');
+      const formattedValue = formatWithCommas(numericValue);
+      setFormData((prev) => ({ ...prev, [name]: formattedValue }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -427,8 +473,8 @@ export function ProductRegisterPage() {
       return;
     }
 
-    const minQty = parseInt(formData.minOrderQuantity) || 1;
-    const maxQty = parseInt(formData.maxOrderQuantity) || 0;
+    const minQty = parseInt(unformatNumber(formData.minOrderQuantity)) || 1;
+    const maxQty = parseInt(unformatNumber(formData.maxOrderQuantity)) || 0;
 
     if (maxQty > 0 && maxQty < minQty) {
       setResultModal({
@@ -468,19 +514,22 @@ export function ProductRegisterPage() {
         name: formData.name,
         category: finalCategory,
         subcategory: finalSubcategory,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock) || 0,
+        price: parseFloat(unformatNumber(formData.price)),
+        stock: parseInt(unformatNumber(formData.stock)) || 0,
         description: formData.description,
         image_url: finalImageUrl,
         is_active: formData.status === 'active',
         is_visible: formData.isVisible,
         item_input_type: formData.itemInputType,
-        selectable_count: parseInt(formData.selectableCount) || 1,
+        selectable_count: parseInt(unformatNumber(formData.selectableCount)) || 1,
         credit_available: formData.creditAvailable,
         points_available: formData.pointsAvailable,
-        subscription_discount: formData.useSubscriptionDiscount ? parseFloat(formData.subscriptionDiscount) || 0 : 0,
+        subscription_discount: formData.useSubscriptionDiscount ? parseFloat(unformatNumber(formData.subscriptionDiscount)) || 0 : 0,
         min_order_quantity: minQty,
         max_order_quantity: maxQty > 0 ? maxQty : undefined,
+        sales_unit: parseInt(unformatNumber(formData.salesUnit)) || 1,
+        base_product_id: formData.isShareStock ? formData.baseProductId : null,
+        stock_multiplier: formData.isShareStock ? parseInt(unformatNumber(formData.stockMultiplier)) : 1,
       };
 
       let productId: string;
@@ -510,35 +559,28 @@ export function ProductRegisterPage() {
       }
 
       // 3. Update Pricing Tiers
-      if (formData.bulkDiscounts.length > 0) {
-        const tiers = formData.bulkDiscounts
-          .filter(d => d.quantity && d.discountRate)
-          .map(d => {
-            const basePrice = parseFloat(formData.price);
-            const discountRate = parseFloat(d.discountRate) / 100;
-            const discountedPrice = basePrice * (1 - discountRate);
+      const tiers = formData.bulkDiscounts
+        .filter(d => d.quantity && d.discountRate)
+        .map(d => {
+          const basePrice = parseFloat(unformatNumber(formData.price));
+          const discountRate = parseFloat(unformatNumber(d.discountRate)) / 100;
+          const discountedPrice = basePrice * (1 - discountRate);
 
-            return {
-              min_quantity: parseInt(d.quantity),
-              unit_price: discountedPrice,
-            };
-          });
+          return {
+            min_quantity: parseInt(unformatNumber(d.quantity)),
+            unit_price: discountedPrice,
+          };
+        });
 
-        if (tiers.length > 0) {
-          await addPricingTiers.mutateAsync({ productId, tiers });
-        }
-      }
+      await addPricingTiers.mutateAsync({ productId, tiers });
 
       // 4. Update Options
-      let savedOptions: any[] = [];
-      if (formData.quantityOptions.length > 0) {
-        const optionsData = formData.quantityOptions.map(opt => ({
-          name: opt.name,
-          quantity: parseInt(opt.quantity) || 1,
-          discountRate: parseFloat(opt.discountRate) || 0
-        }));
-        savedOptions = await productService.addOptions(productId, optionsData);
-      }
+      const optionsData = formData.quantityOptions.map(opt => ({
+        name: opt.name,
+        quantity: parseInt(unformatNumber(opt.quantity)) || 1,
+        discountRate: parseFloat(unformatNumber(opt.discountRate)) || 0
+      }));
+      const savedOptions = await productService.addOptions(productId, optionsData);
 
       // 5. Update Bonus Items (Main + Options)
       const allBonusItems: { bonusProductId: string; quantity: number; priceOverride: number; optionId: string | null }[] = [];
@@ -546,8 +588,8 @@ export function ProductRegisterPage() {
       formData.bonusProducts.forEach(bp => {
         allBonusItems.push({
           bonusProductId: bp.productId,
-          quantity: parseInt(bp.quantity) || 1,
-          priceOverride: parseFloat(bp.price) || 0,
+          quantity: parseInt(unformatNumber(bp.quantity)) || 1,
+          priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
           optionId: null
         });
       });
@@ -558,14 +600,13 @@ export function ProductRegisterPage() {
           opt.bonusProducts.forEach(bp => {
             allBonusItems.push({
               bonusProductId: bp.productId,
-              quantity: parseInt(bp.quantity) || 1,
-              priceOverride: parseFloat(bp.price) || 0,
+              quantity: parseInt(unformatNumber(bp.quantity)) || 1,
+              priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
               optionId: dbOption.id
             });
           });
         }
       });
-      
       
       await productService.addBonusItems(productId, allBonusItems);
 
@@ -784,19 +825,50 @@ export function ProductRegisterPage() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
+                  판매가 <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="판매가를 입력하세요"
+                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
+                  판매 단위 <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="salesUnit"
+                  value={formData.salesUnit}
+                  onChange={handleInputChange}
+                  placeholder="예: 10 (10개 묶음)"
+                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">* 개당 단가 계산의 기준이 됩니다 (기본값: 1)</p>
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
-                판매가 <span className="text-red-600">*</span>
+              <label className="block text-sm font-medium text-neutral-900 mb-2 uppercase">
+                개당 단가 (자동계산)
               </label>
-              <input
-                type="text"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                placeholder="판매가를 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                required
-              />
+              <div className="w-full px-4 py-3 border border-neutral-200 bg-neutral-50 text-neutral-500 font-medium tracking-tight">
+                {(() => {
+                  const price = Number(formData.price.replace(/[^0-9]/g, '')) || 0;
+                  const unit = Number(formData.salesUnit.replace(/[^0-9]/g, '')) || 1;
+                  return (Math.floor(price / unit)).toLocaleString();
+                })()} 원
+              </div>
+              <p className="text-[10px] text-neutral-400 mt-1">* 판매가 / 판매 단위</p>
             </div>
 
             <div>
@@ -808,9 +880,94 @@ export function ProductRegisterPage() {
                 name="stock"
                 value={formData.stock}
                 onChange={handleInputChange}
-                placeholder="재고 수량을 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                disabled={formData.isShareStock}
+                placeholder={formData.isShareStock ? "마스터 재고를 공유 중입니다" : "재고 수량을 입력하세요"}
+                className={`w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${formData.isShareStock ? 'bg-neutral-50 text-neutral-400 cursor-not-allowed' : ''}`}
               />
+              {formData.isShareStock && <p className="text-[10px] text-neutral-500 mt-1">* 마스터 상품의 실제 재고를 추적합니다.</p>}
+            </div>
+
+            {/* 재고 공유 설정 추가 */}
+            <div className="col-span-2 pt-4 border-t border-neutral-100">
+              <label className="flex items-center gap-2 cursor-pointer mb-4">
+                <input
+                  type="checkbox"
+                  checked={formData.isShareStock}
+                  onChange={(e) => setFormData(prev => ({ ...prev, isShareStock: e.target.checked }))}
+                  className="w-4 h-4 accent-neutral-900"
+                />
+                <span className="text-sm font-bold text-neutral-900">다른 상품과 재고를 공유하시겠습니까? (세트 상품 등)</span>
+              </label>
+
+              {formData.isShareStock && (
+                <div className="bg-neutral-50 p-6 space-y-4 border border-neutral-200">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">마스터 상품 (낱개/재고 보유 상품) 검색</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="상품명 또는 SKU 검색"
+                          value={masterSearchTerm}
+                          onChange={(e) => {
+                            setMasterSearchTerm(e.target.value);
+                            setIsMasterSearchOpen(true);
+                          }}
+                          className="w-full px-4 py-2 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                        />
+                        {isMasterSearchOpen && masterSearchTerm.trim() && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-50 max-h-60 overflow-y-auto">
+                            {allProducts
+                              .filter(p => !p.baseProductId && p.id !== id && (p.name.toLowerCase().includes(masterSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(masterSearchTerm.toLowerCase())))
+                              .map(p => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, baseProductId: p.id }));
+                                    setMasterSearchTerm(p.name);
+                                    setIsMasterSearchOpen(false);
+                                  }}
+                                  className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-sm border-b border-neutral-100 flex justify-between items-center"
+                                >
+                                  <span>{p.name} <span className="text-[10px] text-neutral-400 ml-1">{p.sku}</span></span>
+                                  <span className="text-xs text-neutral-500">재고: {p.stock}</span>
+                                </button>
+                              ))
+                            }
+                          </div>
+                        )}
+                      </div>
+                      {formData.baseProductId && (
+                        <div className="mt-2 p-2 bg-white border border-neutral-900 inline-flex items-center gap-2 rounded-sm shadow-sm">
+                          <span className="text-xs font-bold">연결됨:</span>
+                          <span className="text-xs text-neutral-700">
+                            {allProducts.find(p => p.id === formData.baseProductId)?.name || "선택된 상품"}
+                          </span>
+                          <button 
+                            type="button" 
+                            onClick={() => setFormData(prev => ({ ...prev, baseProductId: '' }))}
+                            className="text-neutral-400 hover:text-red-500"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">재고 차감 배수 (판매 1개당 차감량)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.stockMultiplier}
+                        onChange={(e) => setFormData(prev => ({ ...prev, stockMultiplier: e.target.value }))}
+                        className="w-full px-4 py-2 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                      />
+                      <p className="text-[10px] text-neutral-400 mt-1">* 예: 5개 세트면 5 입력 (1개 판매 시 마스터 재고 5개 차감)</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -1465,7 +1622,7 @@ export function ProductRegisterPage() {
               <button
                 onClick={() => {
                   setResultModal(prev => ({...prev, isOpen: false}));
-                  if (resultModal.type === 'success') {
+                  if (resultModal.type === 'success' && !isEditMode) {
                     navigate('/admin/products');
                   }
                 }}

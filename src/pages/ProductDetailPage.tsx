@@ -261,7 +261,7 @@ export function ProductDetailPage() {
           <p className="text-xs text-neutral-500 mb-3 tracking-wide uppercase">{product.sku}</p>
           <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-neutral-900 mb-6">{product.name}</h1>
 
-          <div className="bg-neutral-50 border border-neutral-200 p-8 mb-8">
+          <div className="mb-12">
             {(() => {
               if (currentOption) {
                 // Option-based Pricing
@@ -278,13 +278,15 @@ export function ProductDetailPage() {
                     <div>
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-sm font-medium text-neutral-700">세트 구성 옵션가:</span>
-                        <span className="text-4xl tracking-tight text-neutral-900 font-bold">
+                        <span className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
                           ₩{totalPrice.toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-sm font-bold text-red-600 mt-2">
-                        ({currentOption.name} / {currentOption.discountRate}% 할인 적용)
-                      </p>
+                      {currentOption.discountRate > 0 && (
+                        <p className="text-sm font-bold text-red-600 mt-2">
+                          ({currentOption.name} / {currentOption.discountRate}% 할인 적용)
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
@@ -305,7 +307,7 @@ export function ProductDetailPage() {
                     <div>
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-sm font-medium text-neutral-700">할인적용 금액:</span>
-                        <span className="text-4xl tracking-tight text-neutral-900 font-bold">
+                        <span className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
                           ₩{currentTier.unitPrice.toLocaleString()}
                         </span>
                       </div>
@@ -318,7 +320,7 @@ export function ProductDetailPage() {
               }
               
               return (
-                <p className="text-4xl tracking-tight text-neutral-900 font-bold">
+                <p className="text-4xl tracking-tight text-[#1a2b4b] font-bold">
                   ₩{product.price.toLocaleString()}
                 </p>
               );
@@ -542,9 +544,7 @@ export function ProductDetailPage() {
                     <Plus className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="text-sm text-neutral-600">
-                  재고: {product.stock}개
-                </div>
+                {/* 재고 표시 제거됨 */}
               </div>
             </div>
           )}
