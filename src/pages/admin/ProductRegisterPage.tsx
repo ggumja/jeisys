@@ -7,6 +7,17 @@ import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
 import { Product } from '../../types';
 
+const formatWithCommas = (value: string | number) => {
+  if (value === undefined || value === null || value === '') return '';
+  const stringValue = value.toString().replace(/,/g, '');
+  if (isNaN(Number(stringValue))) return stringValue;
+  return Number(stringValue).toLocaleString('ko-KR');
+};
+
+const unformatNumber = (value: string) => {
+  return value.replace(/,/g, '');
+};
+
 import {
   Dialog,
   DialogContent,
@@ -357,16 +368,6 @@ export function ProductRegisterPage() {
   };
 
 
-  const formatWithCommas = (value: string | number) => {
-    if (value === undefined || value === null || value === '') return '';
-    const stringValue = value.toString().replace(/,/g, '');
-    if (isNaN(Number(stringValue))) return stringValue;
-    return Number(stringValue).toLocaleString('ko-KR');
-  };
-
-  const unformatNumber = (value: string) => {
-    return value.replace(/,/g, '');
-  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>

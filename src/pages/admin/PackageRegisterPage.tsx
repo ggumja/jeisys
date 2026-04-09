@@ -8,6 +8,17 @@ import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
 import { Product, PackageItem } from '../../types';
 
+const formatWithCommas = (value: string | number) => {
+  if (value === undefined || value === null || value === '') return '';
+  const stringValue = value.toString().replace(/,/g, '');
+  if (isNaN(Number(stringValue))) return stringValue;
+  return Number(stringValue).toLocaleString('ko-KR');
+};
+
+const unformatNumber = (value: string) => {
+  return value.replace(/,/g, '');
+};
+
 interface PackageFormData {
   name: string;
   category: string;
@@ -187,16 +198,6 @@ export function PackageRegisterPage() {
     }
   }, [bonusSearchTerm, productsList]);
 
-  const formatWithCommas = (value: string | number) => {
-    if (value === undefined || value === null || value === '') return '';
-    const stringValue = value.toString().replace(/,/g, '');
-    if (isNaN(Number(stringValue))) return stringValue;
-    return Number(stringValue).toLocaleString('ko-KR');
-  };
-
-  const unformatNumber = (value: string) => {
-    return value.replace(/,/g, '');
-  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
