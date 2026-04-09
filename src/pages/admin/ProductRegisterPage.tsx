@@ -182,7 +182,7 @@ export function ProductRegisterPage() {
           productId: item.productId,
           name: item.product?.name || '',
           sku: item.product?.sku || '',
-          price: formatWithCommas(item.priceOverride || item.product?.price || 0),
+          price: formatWithCommas(item.priceOverride ?? item.product?.price ?? 0),
           quantity: formatWithCommas(item.quantity || 0),
           imageUrl: item.product?.imageUrl || '',
           calculationMethod: item.calculationMethod || 'fixed',
@@ -204,7 +204,7 @@ export function ProductRegisterPage() {
               productId: item.productId,
               name: item.product?.name || '상품 정보 없음',
               sku: item.product?.sku || '',
-              price: formatWithCommas(item.priceOverride || item.product?.price || 0),
+              price: formatWithCommas(item.priceOverride ?? item.product?.price ?? 0),
               quantity: formatWithCommas(item.quantity || 0),
               imageUrl: item.product?.imageUrl || '',
             })) || []
@@ -610,7 +610,7 @@ export function ProductRegisterPage() {
         allBonusItems.push({
           bonusProductId: bp.productId,
           quantity: parseInt(unformatNumber(bp.quantity)) || 1,
-          priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
+          priceOverride: Number(unformatNumber(bp.price)) || 0,
           optionId: null,
           calculationMethod: bp.calculationMethod,
           percentage: parseFloat(unformatNumber(bp.percentage)) || 0
@@ -624,7 +624,7 @@ export function ProductRegisterPage() {
             allBonusItems.push({
               bonusProductId: bp.productId,
               quantity: parseInt(unformatNumber(bp.quantity)) || 1,
-              priceOverride: parseFloat(unformatNumber(bp.price)) || 0,
+              priceOverride: Number(unformatNumber(bp.price)) || 0,
               optionId: dbOption.id
             });
           });
@@ -1434,7 +1434,7 @@ export function ProductRegisterPage() {
                                   />
                                   <span className="text-neutral-500 text-xs">%</span>
                                 </div>
-                                <span className="text-[10px] text-blue-600 font-medium">구매량 비례(올림)</span>
+                                <span className="text-[10px] text-blue-600 font-medium">구매량 비례</span>
                               </div>
                             )}
                           </div>
