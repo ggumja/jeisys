@@ -13,10 +13,12 @@ export interface ProductInput {
   description?: string;
   image_url?: string | null;
   is_active?: boolean;
+  is_visible?: boolean;
   is_package?: boolean;
   selectable_count?: number;
   item_input_type?: 'select' | 'input';
   credit_available?: boolean;
+  points_available?: boolean;
   subscription_discount?: number;
   min_order_quantity?: number;
   max_order_quantity?: number;
@@ -110,10 +112,12 @@ export const productService = {
         description: productData.description,
         image_url: productData.image_url,
         is_active: productData.is_active ?? true,
+        is_visible: productData.is_visible ?? true,
         is_package: productData.is_package ?? false,
         selectable_count: productData.selectable_count ?? 1,
         item_input_type: productData.item_input_type ?? 'select',
         credit_available: productData.credit_available ?? true,
+        points_available: productData.points_available ?? true,
         subscription_discount: productData.subscription_discount,
         min_order_quantity: productData.min_order_quantity ?? 1,
         max_order_quantity: productData.max_order_quantity,
@@ -144,10 +148,12 @@ export const productService = {
         ...(productData.description !== undefined && { description: productData.description }),
         ...(productData.image_url !== undefined && { image_url: productData.image_url }),
         ...(productData.is_active !== undefined && { is_active: productData.is_active }),
+        ...(productData.is_visible !== undefined && { is_visible: productData.is_visible }),
         ...(productData.is_package !== undefined && { is_package: productData.is_package }),
         ...(productData.selectable_count !== undefined && { selectable_count: productData.selectable_count }),
         ...(productData.item_input_type !== undefined && { item_input_type: productData.item_input_type }),
         ...(productData.credit_available !== undefined && { credit_available: productData.credit_available }),
+        ...(productData.points_available !== undefined && { points_available: productData.points_available }),
         ...(productData.subscription_discount !== undefined && { subscription_discount: productData.subscription_discount }),
         ...(productData.min_order_quantity !== undefined && { min_order_quantity: productData.min_order_quantity }),
         ...(productData.max_order_quantity !== undefined && { max_order_quantity: productData.max_order_quantity }),
@@ -303,6 +309,8 @@ export const productService = {
       selectableCount: item.selectable_count,
       itemInputType: item.item_input_type,
       creditAvailable: item.credit_available,
+      pointsAvailable: item.points_available,
+      isVisible: item.is_visible,
       isActive: item.is_active,
       subscriptionDiscount: item.subscription_discount,
       minOrderQuantity: item.min_order_quantity || 1,

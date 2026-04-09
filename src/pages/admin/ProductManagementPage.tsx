@@ -18,6 +18,7 @@ interface Product {
   price: number;
   stock: number;
   status: 'active' | 'inactive';
+  isVisible: boolean;
   createdDate: string;
   productCode?: string;
   manufacturer?: string;
@@ -61,7 +62,8 @@ export function ProductManagementPage() {
     subcategory: p.subcategory,
     price: p.price,
     stock: p.stock,
-    status: 'active' as const,
+    status: p.isActive !== false ? ('active' as const) : ('inactive' as const),
+    isVisible: p.isVisible !== false,
     createdDate: new Date().toISOString().split('T')[0], // Placeholder
     productCode: p.sku,
     description: p.description,
@@ -110,6 +112,13 @@ export function ProductManagementPage() {
     setCurrentPage(page);
     window.scrollTo(0, 0);
   };
+
+  // Stats Logic
+  const currentViewProducts = products.filter(p => isPackageView ? p.isPackage : !p.isPackage);
+  const totalCount = currentViewProducts.length;
+  const activeCount = currentViewProducts.filter(p => p.status === 'active').length;
+  const outOfStockCount = currentViewProducts.filter(p => p.stock === 0).length;
+  const lowStockCount = currentViewProducts.filter(p => p.stock > 0 && p.stock < 100).length;
 
   const handleOpenCategoryModal = () => {
     // Calculate product counts for each category
@@ -220,6 +229,41 @@ export function ProductManagementPage() {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">전체 상품</p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-3xl font-bold text-neutral-900">{totalCount}</h3>
+            <span className="text-sm text-neutral-500">개</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">판매중</p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-3xl font-bold text-green-600">{activeCount}</h3>
+            <span className="text-sm text-green-500">개</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">품절</p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-3xl font-bold text-red-600">{outOfStockCount}</h3>
+            <span className="text-sm text-red-500">개</span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">품절임박</p>
+          <div className="flex items-baseline gap-2">
+            <h3 className="text-3xl font-bold text-orange-500">{lowStockCount}</h3>
+            <span className="text-sm text-orange-400">개</span>
+          </div>
+        </div>
+      </div>
+
       {selectedProductIds.length > 0 && (
         <div className="bg-red-50 border border-red-200 p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-4">
           <div className="flex items-center gap-3">
@@ -314,6 +358,9 @@ export function ProductManagementPage() {
                       상태
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
+                      노출
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
                       관리
                     </th>
                   </tr>
@@ -374,6 +421,14 @@ export function ProductManagementPage() {
                           : 'bg-red-100 text-red-800'
                           }`}>
                           {product.status === 'active' ? '판매중' : '판매중지'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium ${product.isVisible
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-neutral-100 text-neutral-800'
+                          }`}>
+                          {product.isVisible ? '노출' : '미노출'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -488,31 +543,6 @@ export function ProductManagementPage() {
         )}
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">전체 상품</div>
-          <div className="text-2xl font-medium text-neutral-900">{products.length}</div>
-        </div>
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">판매중</div>
-          <div className="text-2xl font-medium text-green-600">
-            {products.filter((p) => p.status === 'active').length}
-          </div>
-        </div>
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">품절</div>
-          <div className="text-2xl font-medium text-red-600">
-            {products.filter((p) => p.stock === 0).length}
-          </div>
-        </div>
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">전체 재고</div>
-          <div className="text-2xl font-medium text-neutral-900">
-            {products.reduce((sum, p) => sum + p.stock, 0)}
-          </div>
-        </div>
-      </div>
 
       {/* Category Management Modal */}
       {isCategoryModalOpen && (

@@ -48,7 +48,9 @@ export function ProductListPage() {
       selectedEquipment === 'all' ||
       product.compatibleEquipment.includes(selectedEquipment);
 
-    return matchesSearch && matchesCategory && matchesSubcategory && matchesEquipment;
+    const isVisible = product.isVisible !== false;
+
+    return matchesSearch && matchesCategory && matchesSubcategory && matchesEquipment && isVisible;
   });
 
   // 카테고리별로 상품 그룹화

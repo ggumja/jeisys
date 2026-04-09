@@ -59,6 +59,8 @@ export interface Product {
   selectableCount?: number;
   itemInputType?: 'select' | 'input';
   creditAvailable?: boolean;
+  pointsAvailable?: boolean;
+  isVisible?: boolean;
   isActive?: boolean;
   subscriptionDiscount?: number;
   minOrderQuantity?: number;

@@ -49,9 +49,11 @@ interface FormData {
   price: string;
   stock: string;
   status: 'active' | 'inactive';
+  isVisible: boolean;
   itemInputType: 'select' | 'input';
   selectableCount: string;
   creditAvailable: boolean;
+  pointsAvailable: boolean;
   description: string;
   useSubscriptionDiscount: boolean;
   subscriptionDiscount: string;
@@ -86,9 +88,11 @@ export function ProductRegisterPage() {
     price: '',
     stock: '',
     status: 'active',
+    isVisible: true,
     itemInputType: 'input',
     selectableCount: '1',
     creditAvailable: true,
+    pointsAvailable: true,
     description: '',
     useSubscriptionDiscount: false,
     subscriptionDiscount: '',
@@ -134,9 +138,11 @@ export function ProductRegisterPage() {
         price: (existingProduct.price || 0).toString(),
         stock: (existingProduct.stock || 0).toString(),
         status: existingProduct.isActive !== false ? 'active' : 'inactive',
+        isVisible: existingProduct.isVisible !== false,
         itemInputType: existingProduct.itemInputType || 'input',
         selectableCount: (existingProduct.selectableCount || 1).toString(),
         creditAvailable: existingProduct.creditAvailable ?? true,
+        pointsAvailable: existingProduct.pointsAvailable ?? true,
         description: existingProduct.description || '',
         useSubscriptionDiscount: (existingProduct.subscriptionDiscount ?? 0) > 0,
         subscriptionDiscount: existingProduct.subscriptionDiscount?.toString() || '',
@@ -467,9 +473,11 @@ export function ProductRegisterPage() {
         description: formData.description,
         image_url: finalImageUrl,
         is_active: formData.status === 'active',
+        is_visible: formData.isVisible,
         item_input_type: formData.itemInputType,
         selectable_count: parseInt(formData.selectableCount) || 1,
         credit_available: formData.creditAvailable,
+        points_available: formData.pointsAvailable,
         subscription_discount: formData.useSubscriptionDiscount ? parseFloat(formData.subscriptionDiscount) || 0 : 0,
         min_order_quantity: minQty,
         max_order_quantity: maxQty > 0 ? maxQty : undefined,
@@ -610,8 +618,8 @@ export function ProductRegisterPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Main Image Upload */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-medium text-neutral-900 mb-4">대표 이미지</h3>
+        <div className="bg-white border border-neutral-200 p-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">대표 이미지</h3>
           <div className="flex items-start gap-4">
             <div className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden">
               {thumbnailPreview ? (
@@ -655,8 +663,8 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Additional Images */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-medium text-neutral-900 mb-4">추가 이미지</h3>
+        <div className="bg-white border border-neutral-200 p-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">추가 이미지</h3>
           <div className="space-y-4">
             <div className="flex flex-wrap gap-4">
               {additionalImages.map((image, index) => (
@@ -699,8 +707,8 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Basic Info */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-medium text-neutral-900 mb-4">기본 정보</h3>
+        <div className="bg-white border border-neutral-200 p-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">기본 정보</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-2">
@@ -805,57 +813,163 @@ export function ProductRegisterPage() {
               />
             </div>
 
-             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-3">
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 mb-4">
                 판매 상태
               </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
-              >
-                <option value="active">판매중</option>
-                <option value="inactive">판매중지</option>
-              </select>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="status"
+                    value="active"
+                    checked={formData.status === 'active'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">판매중</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="status"
+                    value="inactive"
+                    checked={formData.status === 'inactive'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">판매중지</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-900 mb-4">
+                노출 여부 (고객 화면)
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isVisible"
+                    value="true"
+                    checked={formData.isVisible === true}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isVisible: e.target.value === 'true' }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">노출</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isVisible"
+                    value="false"
+                    checked={formData.isVisible === false}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isVisible: e.target.value === 'true' }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">미노출</span>
+                </label>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Order Options */}
         <div className="bg-white border border-neutral-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-sm font-semibold text-neutral-900 uppercase tracking-wider">주문 옵션</h3>
+          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
+            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">주문 옵션</h3>
           </div>
           <div className="p-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <label className="block text-sm font-medium text-neutral-700">상품갯수 입력방법</label>
-                <select
-                  name="itemInputType"
-                  value={formData.itemInputType}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                >
-                  <option value="input">상품갯수 직접입력</option>
-                  <option value="select">리스트 선택방식</option>
-                </select>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="itemInputType"
+                      value="select"
+                      checked={formData.itemInputType === 'select'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">리스트선택</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="itemInputType"
+                      value="input"
+                      checked={formData.itemInputType === 'input'}
+                      onChange={handleInputChange}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">직접입력</span>
+                  </label>
+                </div>
                 <p className="text-xs text-neutral-400">사용자가 상품 상세보기에서 상품을 선택하는 방식을 결정합니다</p>
               </div>
 
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
                 <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
-                <select
-                  name="creditAvailable"
-                  value={formData.creditAvailable.toString()}
-                  onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                >
-                  <option value="true">사용가능</option>
-                  <option value="false">사용불가능</option>
-                </select>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="creditAvailable"
+                      value="true"
+                      checked={formData.creditAvailable === true}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">가능</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="creditAvailable"
+                      value="false"
+                      checked={formData.creditAvailable === false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">불가능</span>
+                  </label>
+                </div>
                 <p className="text-xs text-neutral-400">해당 상품 구매 시 크레딧 사용 가능 여부를 설정합니다</p>
               </div>
+
+              <div className="space-y-4">
+                <label className="block text-sm font-medium text-neutral-700">적립금 사용 가능여부</label>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pointsAvailable"
+                      value="true"
+                      checked={formData.pointsAvailable === true}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">가능</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="pointsAvailable"
+                      value="false"
+                      checked={formData.pointsAvailable === false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">불가능</span>
+                  </label>
+                </div>
+                <p className="text-xs text-neutral-400">해당 상품 구매 시 적립금 사용 가능 여부를 설정합니다</p>
+              </div>
+            </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -890,8 +1004,8 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Discount Settings */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-medium text-neutral-900 mb-6">할인 설정</h3>
+        <div className="bg-white border border-neutral-200 p-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">할인 설정</h3>
 
           {/* Subscription Discount */}
           <div className="mb-8 p-4 bg-neutral-50 border border-neutral-200">
@@ -997,8 +1111,8 @@ export function ProductRegisterPage() {
         </div>
 
         {/* 추가 증정 상품 섹터 */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-medium text-neutral-900 mb-4">추가 증정 상품</h3>
+        <div className="bg-white border border-neutral-200 p-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">추가 증정 상품</h3>
           
           <div className="mb-6">
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -1123,10 +1237,10 @@ export function ProductRegisterPage() {
         </div>
 
         {/* 세트 옵션 설정 섹터 */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white border border-neutral-200 p-8">
+          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
             <div>
-              <h3 className="text-sm font-medium text-neutral-900">세트 옵션 설정 (선택사항)</h3>
+              <h3 className="text-lg font-bold text-neutral-900">세트 옵션 설정 (선택사항)</h3>
             </div>
             <button
               type="button"
@@ -1304,8 +1418,8 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Description */}
-        <div className="bg-white border border-neutral-200 p-6">
-          <h3 className="text-sm font-medium text-neutral-900 mb-4">상품 설명</h3>
+        <div className="bg-white border border-neutral-200 p-8">
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">상품 설명</h3>
           <RichTextEditor
             value={formData.description}
             onChange={(value) => setFormData((prev) => ({ ...prev, description: value }))}
