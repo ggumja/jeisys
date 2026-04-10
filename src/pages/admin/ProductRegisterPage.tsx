@@ -901,6 +901,34 @@ export function ProductRegisterPage() {
               <p className="text-[10px] text-neutral-400 mt-1">* 판매가 / 판매 단위</p>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-900 mb-2">최소 주문 수량</label>
+                <input
+                  type="text"
+                  name="minOrderQuantity"
+                  value={formData.minOrderQuantity}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                  placeholder="1"
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">* 주문 시 필요한 최소 수량을 설정하세요 (기본: 1)</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-900 mb-2">최대 주문 수량</label>
+                <input
+                  type="text"
+                  name="maxOrderQuantity"
+                  value={formData.maxOrderQuantity}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                  placeholder="제한 없음"
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">* 주문 시 허용되는 최대 수량 (0 입력 시 제한 없음)</p>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-2">
                 재고 수량
@@ -1157,35 +1185,6 @@ export function ProductRegisterPage() {
                 <p className="text-xs text-neutral-400">해당 상품 구매 시 적립금 사용 가능 여부를 설정합니다</p>
               </div>
             </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">최소 주문 수량</label>
-                <input
-                  type="number"
-                  name="minOrderQuantity"
-                  value={formData.minOrderQuantity}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                  min="1"
-                />
-                <p className="text-xs text-neutral-400">주문 시 필요한 최소 수량을 설정하세요</p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">최대 주문 수량</label>
-                <input
-                  type="number"
-                  name="maxOrderQuantity"
-                  value={formData.maxOrderQuantity}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
-                  min="0"
-                  placeholder="제한 없음"
-                />
-                <p className="text-xs text-neutral-400">주문 시 허용되는 최대 수량을 설정하세요 (비워두면 제한 없음)</p>
-              </div>
             </div>
           </div>
         </div>

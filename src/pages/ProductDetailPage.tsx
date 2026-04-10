@@ -561,7 +561,7 @@ export function ProductDetailPage() {
           )}
 
           {/* Bonus Items Display */}
-          {selectedOptionId && currentBonusItems && currentBonusItems.length > 0 && (
+          {(product.itemInputType === 'input' || selectedOptionId) && currentBonusItems && currentBonusItems.length > 0 && (
             <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-sm">
               <div className="flex items-center gap-2 mb-3">
                 <Package className="w-5 h-5 text-blue-600" />
