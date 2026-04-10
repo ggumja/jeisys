@@ -59,6 +59,9 @@ export interface Product {
   baseProductId?: string;
   stockMultiplier?: number;
   isPackage?: boolean;
+  isPromotion?: boolean;
+  buyQuantity?: number;
+  getQuantity?: number;
   selectableCount?: number;
   itemInputType?: 'select' | 'input';
   creditAvailable?: boolean;
@@ -68,6 +71,7 @@ export interface Product {
   subscriptionDiscount?: number;
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
+  quantityInputType?: 'button' | 'list';
   bonusItems?: BonusItem[];
   options?: ProductQuantityOption[];
 }

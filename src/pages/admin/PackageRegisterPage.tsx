@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X, Plus } from 'lucide-react';
+import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X, Plus, Package } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 
 import { useProduct, useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
@@ -374,7 +374,20 @@ export function PackageRegisterPage() {
           maxQuantity: '1'
         };
 
-        return { ...opt, items: [...opt.items, newItem] };
+        const newItems = [...opt.items, newItem];
+        const totalQty = newItems.reduce((sum, i) => sum + (parseInt(i.maxQuantity) || 0), 0);
+        const totalPrice = newItems.reduce((sum, i) => {
+          const qty = parseInt(i.maxQuantity) || 0;
+          const price = parseFloat(unformatNumber(i.priceOverride)) || 0;
+          return sum + (qty * price);
+        }, 0);
+
+        return { 
+          ...opt, 
+          items: newItems,
+          quantity: totalQty.toString(),
+          price: totalPrice.toString()
+        };
       })
     }));
     setActiveOptionId(null);
@@ -387,9 +400,19 @@ export function PackageRegisterPage() {
       ...prev,
       options: prev.options.map(opt => {
         if (opt.id !== optionId) return opt;
-        return {
-          ...opt,
-          items: opt.items.map(item => item.id === itemId ? { ...item, [field]: value } : item)
+        const newItems = opt.items.map(item => item.id === itemId ? { ...item, [field]: value } : item);
+        const totalQty = newItems.reduce((sum, i) => sum + (parseInt(i.maxQuantity) || 0), 0);
+        const totalPrice = newItems.reduce((sum, i) => {
+          const qty = parseInt(i.maxQuantity) || 0;
+          const price = parseFloat(unformatNumber(i.priceOverride)) || 0;
+          return sum + (qty * price);
+        }, 0);
+
+        return { 
+          ...opt, 
+          items: newItems,
+          quantity: totalQty.toString(),
+          price: totalPrice.toString()
         };
       })
     }));
@@ -400,9 +423,19 @@ export function PackageRegisterPage() {
       ...prev,
       options: prev.options.map(opt => {
         if (opt.id !== optionId) return opt;
-        return {
-          ...opt,
-          items: opt.items.filter(item => item.id !== itemId)
+        const newItems = opt.items.filter(item => item.id !== itemId);
+        const totalQty = newItems.reduce((sum, i) => sum + (parseInt(i.maxQuantity) || 0), 0);
+        const totalPrice = newItems.reduce((sum, i) => {
+          const qty = parseInt(i.maxQuantity) || 0;
+          const price = parseFloat(unformatNumber(i.priceOverride)) || 0;
+          return sum + (qty * price);
+        }, 0);
+
+        return { 
+          ...opt, 
+          items: newItems,
+          quantity: totalQty.toString(),
+          price: totalPrice.toString()
         };
       })
     }));
@@ -517,13 +550,14 @@ export function PackageRegisterPage() {
     }
 
     const minQty = parseInt(formData.minOrderQuantity) || 1;
-    const maxQty = formData.maxOrderQuantity ? parseInt(formData.maxOrderQuantity) : null;
+    const maxQtyString = formData.maxOrderQuantity?.toString().trim();
+    const maxQty = maxQtyString && maxQtyString !== '' ? parseInt(maxQtyString) : null;
 
-    if (maxQty !== null && maxQty < minQty) {
+    if (maxQty !== null && maxQty > 0 && maxQty < minQty) {
       setResultModal({
         isOpen: true,
         title: '주문 수량 설정 오류',
-        description: '최대 주문 수량은 최소 주문 수량보다 크거나 같아야 합니다.',
+        description: '최대 주문 수량은 최소 주문 수량보다 크거나 같아야 합니다. (설정하지 않으려면 비워두세요)',
         type: 'error'
       });
       return;
@@ -1053,7 +1087,7 @@ export function PackageRegisterPage() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div>
                       <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">옵션 표기명 <span className="text-red-500">*</span></label>
                       <input
@@ -1088,6 +1122,19 @@ export function PackageRegisterPage() {
                           className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium"
                         />
                         <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-4 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center uppercase">원</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">옵션별 할인율</label>
+                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                        <input
+                          type="text"
+                          placeholder="0"
+                          value={opt.discountRate}
+                          onChange={(e) => updateQuantityOption(opt.id, 'discountRate', e.target.value.replace(/[^0-9]/g, ''))}
+                          className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium text-blue-600"
+                        />
+                        <span className="text-[10px] text-blue-600 font-bold whitespace-nowrap bg-blue-50 flex items-center px-4 h-full border-l border-blue-100 select-none min-w-[3rem] justify-center uppercase">%</span>
                       </div>
                     </div>
                   </div>
@@ -1139,18 +1186,6 @@ export function PackageRegisterPage() {
                       )}
                     </div>
 
-                    {/* Selection Progress Message */}
-                    <div className="mb-4 p-4 bg-neutral-900 text-white flex items-center justify-between shadow-inner">
-                      <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
-                        <span className="text-sm font-bold tracking-tight">총 <span className="text-blue-400">{opt.quantity || 0}</span>개의 상품을 선택하세요.</span>
-                      </div>
-                      <div className="text-sm font-black text-[#ffffff]">
-                        현재 <span className={(opt.items || []).reduce((sum, item) => sum + (parseInt(item.maxQuantity) || 0), 0) === parseInt(opt.quantity || '0') ? 'text-green-400' : 'text-blue-400'}>
-                          {(opt.items || []).reduce((sum, item) => sum + (parseInt(item.maxQuantity) || 0), 0)}
-                        </span> / {opt.quantity || 0} 개가 선택되었습니다.
-                      </div>
-                    </div>
 
                     {/* Items Table for this Option */}
                     <div className="overflow-hidden border border-neutral-200">
@@ -1159,7 +1194,7 @@ export function PackageRegisterPage() {
                           <tr>
                             <th className="px-4 py-3 text-left font-bold text-neutral-700 uppercase tracking-tight">옵션 구성 상품명</th>
                             <th className="px-4 py-3 text-right font-bold text-neutral-700 uppercase tracking-tight w-40 pr-6">금액 설정</th>
-                            <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-32">최대 선택 수량</th>
+                            <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-32">선택수량</th>
                             <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-12">삭제</th>
                           </tr>
                         </thead>
@@ -1392,27 +1427,28 @@ export function PackageRegisterPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-4 sticky bottom-6 z-10">
+        {/* Action Buttons - Design System Token Based Styling */}
+        <div className="flex items-center justify-end gap-3 py-16 border-t border-neutral-100 mt-8">
           <button
             type="button"
             onClick={() => navigate('/admin/products/package')}
             disabled={isSubmitting}
-            className="px-8 py-4 bg-white border border-neutral-300 text-neutral-900 hover:bg-neutral-50 font-medium transition-all shadow-lg active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center gap-2 py-3 px-6 border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 font-medium text-xl tracking-tight transition-all active:scale-95 disabled:opacity-50"
           >
-            취소
+            <ArrowLeft className="w-6 h-6 stroke-[1.5]" />
+            <span>취소</span>
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-10 py-4 bg-neutral-900 text-white hover:bg-neutral-800 font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
+            className="inline-flex items-center gap-2 py-3 px-6 bg-neutral-900 text-white hover:bg-black font-medium text-xl tracking-tight transition-all active:scale-95 shadow-md disabled:opacity-50"
           >
             {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" />
             ) : (
-              <Check className="w-5 h-5" />
+              <Package className="w-6 h-6 stroke-[1.5]" />
             )}
-            {isEditMode ? '수정 완료' : '등록 완료'}
+            <span>{isEditMode ? '수정 완료' : '등록 완료'}</span>
           </button>
         </div>
       </form>

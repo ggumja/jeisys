@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Search, Filter, ScanLine, ChevronDown, Menu, ChevronRight, Package, Loader2 } from 'lucide-react';
+import { Search, Filter, ScanLine, ChevronDown, Menu, ChevronRight, Package, Loader2, Home } from 'lucide-react';
 import { mockEquipment } from '../lib/mockData';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
@@ -17,18 +17,25 @@ export function ProductListPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
   const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(true);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
-  // 모든 카테고리 추출 (중복 제거)
-  // DB에서 카테고리 가져오기 (이름 목록)
-  const allCategories = dbCategories.map(cat => cat.name);
+  // 최상위 카테고리 객체만 추출 (parentId가 없거나 빈 값인 항목)
+  const rootCategories = dbCategories
+    .filter(cat => !cat.parentId || cat.parentId === '');
 
-  // 선택된 카테고리의 중분류 추출
+  // 선택된 카테고리의 중분류 추출 (DB 마스터 데이터 기준)
   const getSubcategories = (category: string) => {
-    const subcategories = products
-      .filter(p => p.category === category && p.subcategory)
-      .map(p => p.subcategory as string);
+    const parentCat = dbCategories.find(c => c.name.trim() === category.trim());
+    
+    // DB 마스터에서 하위 항목 추출
+    let subcategories: string[] = [];
+    if (parentCat) {
+      subcategories = dbCategories
+        .filter(c => c.parentId === parentCat.id)
+        .map(c => c.name.trim());
+    }
+    
     return Array.from(new Set(subcategories));
   };
 
@@ -38,11 +45,8 @@ export function ProductListPage() {
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory =
-      selectedCategory === 'all' || product.category === selectedCategory;
-
-    const matchesSubcategory =
-      selectedSubcategory === 'all' || product.subcategory === selectedSubcategory;
+    let matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    let matchesSubcategory = selectedSubcategory === 'all' || product.subcategory === selectedSubcategory;
 
     const matchesEquipment =
       selectedEquipment === 'all' ||
@@ -56,10 +60,12 @@ export function ProductListPage() {
   // 카테고리별로 상품 그룹화
   const groupedByCategory: { [key: string]: Product[] } = {};
   filteredProducts.forEach(product => {
-    if (!groupedByCategory[product.category]) {
-      groupedByCategory[product.category] = [];
+    const displayCategory = product.category?.trim() || '기타';
+
+    if (!groupedByCategory[displayCategory]) {
+      groupedByCategory[displayCategory] = [];
     }
-    groupedByCategory[product.category].push(product);
+    groupedByCategory[displayCategory].push(product);
   });
 
   if (loading) {
@@ -86,79 +92,65 @@ export function ProductListPage() {
 
             {/* Category List */}
             {showCategoryDropdown && (
-              <div className="bg-white border border-neutral-200 border-t-0 relative">
+              <div className="bg-white border border-neutral-200 border-t-0 flex flex-col p-1">
                 <button
                   onClick={() => {
                     setSelectedCategory('all');
                     setSelectedSubcategory('all');
                     setExpandedCategory(null);
                   }}
-                  className={`w-full text-left px-4 py-3 text-sm hover:bg-neutral-50 transition-colors ${selectedCategory === 'all' ? 'bg-neutral-100 font-medium' : ''
-                    }`}
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm mb-1 ${selectedCategory === 'all' 
+                    ? 'bg-neutral-900 text-white font-bold' 
+                    : 'text-neutral-700 hover:bg-neutral-100'}`}
                 >
-                  전체
+                  <span>전체 상품</span>
                 </button>
-                {allCategories.map(category => {
+
+                {rootCategories.map(categoryObj => {
+                  const category = categoryObj.name;
+                  const displayName = category.trim();
                   const subcategories = getSubcategories(category);
                   const hasSubcategories = subcategories.length > 0;
+                  const isMainCategoryActive = selectedCategory === category;
 
                   return (
-                    <div
-                      key={category}
-                      className="relative"
-                      onMouseEnter={() => {
-                        if (hasSubcategories) {
-                          setExpandedCategory(category);
-                        } else {
-                          setExpandedCategory(null);
-                        }
-                      }}
+                    <div 
+                      key={category} 
+                      className="flex flex-col mb-1 relative group"
+                      onMouseEnter={() => hasSubcategories && setExpandedCategory(category)}
+                      onMouseLeave={() => setExpandedCategory(null)}
                     >
                       <button
                         onClick={() => {
-                          if (hasSubcategories) {
-                            setExpandedCategory(expandedCategory === category ? null : category);
-                          } else {
-                            setSelectedCategory(category);
-                            setSelectedSubcategory('all');
-                            setExpandedCategory(null);
-                          }
+                          setSelectedCategory(category);
+                          setSelectedSubcategory('all');
                         }}
-                        className={`w-full text-left px-4 py-3 text-sm hover:bg-neutral-50 transition-colors border-t border-neutral-100 flex items-center justify-between ${selectedCategory === category && !expandedCategory ? 'bg-neutral-100 font-medium' : ''
-                          }`}
+                        className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMainCategoryActive
+                          ? 'bg-neutral-900 text-white font-bold' 
+                          : 'text-neutral-700 hover:bg-neutral-100'}`}
                       >
-                        <span>{category}</span>
-                        {hasSubcategories && (
-                          <ChevronRight className={`w-4 h-4 text-neutral-400`} />
-                        )}
+                        <div className="flex items-center gap-3">
+                          <span>{displayName}</span>
+                        </div>
                       </button>
 
-                      {/* Subcategory Panel - Positioned to the right */}
-                      {expandedCategory === category && hasSubcategories && (
-                        <div
-                          className="absolute left-full top-0 ml-0 w-[250px] bg-white border border-neutral-200 shadow-xl z-50"
-                          onMouseEnter={() => setExpandedCategory(category)}
-                          onMouseLeave={() => setExpandedCategory(null)}
-                        >
-                          <div className="px-4 py-2 bg-neutral-100 border-b border-neutral-200">
-                            <h3 className="text-xs font-medium text-neutral-700 uppercase">{category}</h3>
-                          </div>
-                          <div>
-                            {subcategories.map(subcategory => (
+                      {/* Accordion Subcategory List */}
+                      {isMainCategoryActive && hasSubcategories && (
+                        <div className="bg-neutral-50 flex flex-col border-b border-neutral-200 animate-in slide-in-from-top-2 duration-300 overflow-hidden">
+                          {subcategories.map(subcategory => {
+                            const isSubActive = selectedSubcategory === subcategory;
+                            return (
                               <button
                                 key={subcategory}
-                                onClick={() => {
-                                  setSelectedCategory(category);
-                                  setSelectedSubcategory(subcategory);
-                                  setExpandedCategory(null);
-                                }}
-                                className={`w-full text-left px-4 py-3 text-sm hover:bg-neutral-50 transition-colors border-t border-neutral-100 first:border-t-0 ${selectedCategory === category && selectedSubcategory === subcategory ? 'bg-neutral-100 font-medium' : ''
-                                  }`}
+                                onClick={() => setSelectedSubcategory(subcategory)}
+                                className={`flex items-center gap-2 px-6 py-2.5 transition-colors text-xs ${isSubActive 
+                                  ? 'text-[#1e3a8a] font-bold' 
+                                  : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'}`}
                               >
-                                {subcategory}
+                                <span>{subcategory}</span>
                               </button>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -321,11 +313,6 @@ export function ProductListPage() {
                             </span>
                           )}
                         </div>
-                        {product.salesUnit && product.salesUnit > 1 && (
-                          <p className="text-[9px] text-neutral-400 mb-2">
-                            {Math.floor(product.price / product.salesUnit).toLocaleString()}(단가)*{product.salesUnit}(구매단위)
-                          </p>
-                        )}
                         <p className="text-lg font-bold tracking-tight text-neutral-900 mb-4">
                           ₩{product.price.toLocaleString()}
                         </p>

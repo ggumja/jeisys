@@ -25,6 +25,11 @@ export interface ProductInput {
   subscription_discount?: number;
   min_order_quantity?: number;
   max_order_quantity?: number;
+  quantity_input_type?: 'button' | 'list';
+  is_promotion?: boolean;
+  buy_quantity?: number;
+  get_quantity?: number;
+  promotion_item_ids?: string[];
 }
 
 export interface PricingTierInput {
@@ -117,6 +122,9 @@ export const productService = {
         is_active: productData.is_active ?? true,
         is_visible: productData.is_visible ?? true,
         is_package: productData.is_package ?? false,
+        is_promotion: productData.is_promotion ?? false,
+        buy_quantity: productData.buy_quantity ?? 0,
+        get_quantity: productData.get_quantity ?? 0,
         selectable_count: productData.selectable_count ?? 1,
         item_input_type: productData.item_input_type ?? 'select',
         credit_available: productData.credit_available ?? true,
@@ -124,6 +132,7 @@ export const productService = {
         subscription_discount: productData.subscription_discount,
         min_order_quantity: productData.min_order_quantity ?? 1,
         max_order_quantity: productData.max_order_quantity,
+        quantity_input_type: productData.quantity_input_type ?? 'button',
         base_product_id: productData.base_product_id || null,
         stock_multiplier: productData.stock_multiplier || 1,
       })
@@ -155,6 +164,9 @@ export const productService = {
         ...(productData.is_active !== undefined && { is_active: productData.is_active }),
         ...(productData.is_visible !== undefined && { is_visible: productData.is_visible }),
         ...(productData.is_package !== undefined && { is_package: productData.is_package }),
+        ...(productData.is_promotion !== undefined && { is_promotion: productData.is_promotion }),
+        ...(productData.buy_quantity !== undefined && { buy_quantity: productData.buy_quantity }),
+        ...(productData.get_quantity !== undefined && { get_quantity: productData.get_quantity }),
         ...(productData.selectable_count !== undefined && { selectable_count: productData.selectable_count }),
         ...(productData.item_input_type !== undefined && { item_input_type: productData.item_input_type }),
         ...(productData.credit_available !== undefined && { credit_available: productData.credit_available }),
@@ -162,6 +174,7 @@ export const productService = {
         ...(productData.subscription_discount !== undefined && { subscription_discount: productData.subscription_discount }),
         ...(productData.min_order_quantity !== undefined && { min_order_quantity: productData.min_order_quantity }),
         ...(productData.max_order_quantity !== undefined && { max_order_quantity: productData.max_order_quantity }),
+        ...(productData.quantity_input_type !== undefined && { quantity_input_type: productData.quantity_input_type }),
         ...(productData.sales_unit !== undefined && { sales_unit: productData.sales_unit }),
         ...(productData.base_product_id !== undefined && { base_product_id: productData.base_product_id }),
         ...(productData.stock_multiplier !== undefined && { stock_multiplier: productData.stock_multiplier }),
@@ -320,6 +333,9 @@ export const productService = {
       description: item.description,
       stock: item.stock,
       isPackage: item.is_package,
+      isPromotion: item.is_promotion,
+      buyQuantity: item.buy_quantity,
+      getQuantity: item.get_quantity,
       selectableCount: item.selectable_count,
       salesUnit: item.sales_unit || 1,
       baseProductId: item.base_product_id,
@@ -332,6 +348,7 @@ export const productService = {
       subscriptionDiscount: item.subscription_discount,
       minOrderQuantity: item.min_order_quantity || 1,
       maxOrderQuantity: item.max_order_quantity || undefined,
+      quantityInputType: item.quantity_input_type || 'button',
       bonusItems: item.product_bonus_items?.map((bi: any) => ({
         id: bi.id,
         productId: bi.bonus_product_id,
@@ -412,23 +429,115 @@ export const productService = {
 
     if (items.length === 0) return;
 
-    const { error } = await supabase
-      .from('product_bonus_items')
-      .insert(
-        items.map((item) => ({
-          parent_product_id: productId,
-          bonus_product_id: item.bonusProductId,
-          quantity: item.quantity,
-          price_override: item.priceOverride,
-          option_id: item.optionId || null,
-          calculation_method: item.calculationMethod || 'fixed',
-          percentage: item.percentage || 0,
-        }))
-      );
+    const { error } = await supabase.from('product_bonus_items').insert(
+      items.map((item) => ({
+        parent_product_id: productId,
+        bonus_product_id: item.bonusProductId,
+        quantity: item.quantity,
+        price_override: item.priceOverride,
+        option_id: item.optionId || null,
+        calculation_method: item.calculationMethod || 'fixed',
+        percentage: item.percentage || 0,
+      }))
+    );
 
     if (error) {
       console.error('Error adding bonus items:', error);
       throw error;
     }
   },
+
+  async searchProducts(term: string): Promise<Product[]> {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .or(`name.ilike.%${term}%,sku.ilike.%${term}%`)
+      .eq('is_package', false)
+      .eq('is_promotion', false)
+      .limit(20);
+
+    if (error) {
+      console.error('Error searching products:', error);
+      throw error;
+    }
+
+    return data.map((item: any) => this.mapProduct(item));
+  },
+
+  async getPromotionItems(promotionId: string): Promise<Product[]> {
+    const { data, error } = await supabase
+      .from('product_promotion_items')
+      .select(`
+        product:products!product_id (*)
+      `)
+      .eq('parent_product_id', promotionId);
+
+    if (error) {
+      console.error('Error fetching promotion items:', error);
+      throw error;
+    }
+
+    return data.map((item: any) => this.mapProduct(item.product));
+  },
+
+  async createPromotionProduct(productData: ProductInput): Promise<any> {
+    const { promotion_item_ids, ...baseData } = productData;
+    
+    // 1. Create the promotion product
+    const created = await this.createProduct({
+      ...baseData,
+      is_promotion: true
+    });
+
+    // 2. Add promotion items
+    if (promotion_item_ids && promotion_item_ids.length > 0) {
+      const { error } = await supabase
+        .from('product_promotion_items')
+        .insert(
+          promotion_item_ids.map(productId => ({
+            parent_product_id: created.id,
+            product_id: productId
+          }))
+        );
+
+      if (error) {
+        console.error('Error adding promotion items:', error);
+        throw error;
+      }
+    }
+
+    return created;
+  },
+
+  async updatePromotionProduct(id: string, productData: Partial<ProductInput>): Promise<any> {
+    const { promotion_item_ids, ...baseData } = productData;
+
+    // 1. Update basic product info
+    const updated = await this.updateProduct(id, baseData);
+
+    // 2. Update promotion items
+    if (promotion_item_ids) {
+      // Delete existing
+      await supabase.from('product_promotion_items').delete().eq('parent_product_id', id);
+
+      // Add new
+      if (promotion_item_ids.length > 0) {
+        const { error } = await supabase
+          .from('product_promotion_items')
+          .insert(
+            promotion_item_ids.map(productId => ({
+              parent_product_id: id,
+              product_id: productId
+            }))
+          );
+
+        if (error) {
+          console.error('Error updating promotion items:', error);
+          throw error;
+        }
+      }
+    }
+
+    return updated;
+  }
 };

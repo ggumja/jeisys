@@ -98,11 +98,24 @@ export function CartPage() {
     if (!product) return 0;
     const salesUnit = product.salesUnit || 1;
 
+    // Promotion Product: Price is sum of selected paid items
+    if (product.isPromotion && item.selectedProductIds) {
+      const buyQty = product.buyQuantity || 0;
+      // The first buyQty items in selectedProductIds are the paid ones
+      const paidItemIds = item.selectedProductIds.slice(0, buyQty);
+      const paidTotal = paidItemIds.reduce((sum, id) => {
+        const subProduct = productsMap[id];
+        return sum + (subProduct?.price || 0);
+      }, 0);
+      return paidTotal / salesUnit;
+    }
+
     if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
-        const discountRate = option.discountRate / 100;
-        return (product.price * (1 - discountRate)) / salesUnit;
+        const discountRate = (option.discountRate || 0) / 100;
+        const basePrice = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
+        return (basePrice * (1 - discountRate)) / salesUnit;
       }
     }
 
@@ -226,26 +239,43 @@ export function CartPage() {
                         </div>
 
                         {item.selectedProductIds && item.selectedProductIds.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs font-semibold text-neutral-900">패키지 구성:</p>
-                            <ul className="text-xs text-neutral-600 space-y-0.5">
+                          <div className="mt-4 p-4 bg-neutral-50 border border-neutral-100">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-1 h-3 bg-neutral-900" />
+                              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-900">Bundle Composition</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
                               {(() => {
-                                const counts: Record<string, number> = {};
-                                item.selectedProductIds?.forEach(id => {
-                                  counts[id] = (counts[id] || 0) + 1;
-                                });
-                                
-                                return Object.entries(counts).map(([id, count], idx) => {
-                                  const name = productsMap[id]?.name || '로딩 중...';
+                                const buyQty = product.buyQuantity || 0;
+                                let paidCount = 0;
+                                let freeCount = 0;
+
+                                return item.selectedProductIds?.map((id, idx) => {
+                                  const subProduct = productsMap[id];
+                                  const name = subProduct?.name || '로딩 중...';
+                                  const isPaid = idx < buyQty;
+                                  
                                   return (
-                                    <li key={idx} className="flex items-center gap-1">
-                                      <span>• {name}</span>
-                                      <span className="font-bold text-neutral-900">x {count} ea</span>
-                                    </li>
+                                    <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-100 last:border-0 group">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`text-[8px] ${isPaid ? 'text-neutral-900 font-black' : 'text-blue-400'}`}>●</span>
+                                        <span className={`truncate font-medium ${isPaid ? 'text-neutral-900' : 'text-blue-600'}`}>{name}</span>
+                                        {product.isPromotion && (
+                                          <span className={`text-[9px] font-black px-1.5 py-0.5 uppercase tracking-tighter ${
+                                            isPaid ? 'bg-neutral-100 text-neutral-600' : 'bg-blue-600 text-white'
+                                          }`}>
+                                            {isPaid ? 'Paid' : 'Free Gift'}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className={`flex-shrink-0 font-black ml-4 tabular-nums ${isPaid ? 'text-neutral-900' : 'text-blue-600'}`}>
+                                        1 EA
+                                      </div>
+                                    </div>
                                   );
                                 });
                               })()}
-                            </ul>
+                            </div>
                           </div>
                         )}
                       </div>

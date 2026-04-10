@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -60,8 +60,10 @@ export function AdminLayout() {
   ];
   
   const productSubMenus = [
-    { to: '/admin/products/single', icon: LayoutList, label: '단일상품관리' },
-    { to: '/admin/products/package', icon: Package, label: '패키지상품관리' },
+    { to: '/admin/products/single', icon: LayoutList, label: '일반상품관리' },
+    { to: '/admin/products/set', icon: Layers, label: '셋트상품관리' },
+    { to: '/admin/products/package', icon: Package, label: '복합상품관리' },
+    { to: '/admin/products/promotion', icon: Package, label: '프로모션번들관리' },
   ];
 
   const bottomMenuItems = [
@@ -345,7 +347,26 @@ export function AdminLayout() {
                   {isProductsOpen && (
                     <div className="bg-white">
                       {productSubMenus.map((item) => {
-                        const isActive = location.pathname === item.to;
+                        let isActive = false;
+                        if (item.to === '/admin/products/single') {
+                          isActive = location.pathname === '/admin/products/single' || 
+                                     location.pathname === '/admin/products/register' || 
+                                     location.pathname.startsWith('/admin/products/edit/');
+                        } else if (item.to === '/admin/products/set') {
+                          isActive = location.pathname === '/admin/products/set' || 
+                                     location.pathname === '/admin/products/set-register' || 
+                                     location.pathname.startsWith('/admin/products/set-edit/');
+                        } else if (item.to === '/admin/products/package') {
+                          isActive = location.pathname === '/admin/products/package' || 
+                                     location.pathname === '/admin/products/package-register' || 
+                                     location.pathname.startsWith('/admin/products/package-edit/');
+                        } else if (item.to === '/admin/products/promotion') {
+                          isActive = location.pathname === '/admin/products/promotion' || 
+                                     location.pathname === '/admin/products/promotion-register' || 
+                                     location.pathname.startsWith('/admin/products/promotion-edit/');
+                        } else {
+                          isActive = location.pathname === item.to;
+                        }
                         return (
                           <Link
                             key={item.to}

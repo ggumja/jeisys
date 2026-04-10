@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight, Package, Copy } from 'lucide-react';
 import { CategoryManager } from '../../components/CategoryManager';
 import { ProductPreviewModal } from '../../components/ProductPreviewModal';
 import { useProducts, useDeleteProduct } from '../../hooks/useProducts';
 import { useCategories, useSaveCategories } from '../../hooks/useCategories';
 import { Category } from '../../services/categoryService';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { productService } from '../../services/productService';
+import { useQueryClient } from '@tanstack/react-query';
 
 
 
@@ -28,6 +30,8 @@ interface Product {
   regularDiscount?: number;
   bulkDiscounts?: Array<{ quantity: number; discount: number }>;
   isPackage?: boolean;
+  isPromotion?: boolean;
+  quantityOptions?: any[];
 }
 
 export function ProductManagementPage() {
@@ -36,7 +40,11 @@ export function ProductManagementPage() {
   const { data: productsData = [], isLoading } = useProducts();
   
   const isPackageView = location.pathname.includes('/admin/products/package');
+  const isPromotionView = location.pathname.includes('/admin/products/promotion');
+  const isSetView = location.pathname.includes('/admin/products/set');
+  const isSingleView = location.pathname.includes('/admin/products/single');
   const deleteProduct = useDeleteProduct();
+  const queryClient = useQueryClient();
 
   const { data: dbCategories = [] } = useCategories();
   const saveCategories = useSaveCategories();
@@ -50,6 +58,12 @@ export function ProductManagementPage() {
   const itemsPerPage = 15;
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [copyConfirmInfo, setCopyConfirmInfo] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    isResult: false
+  });
 
   const [tempCategoryList, setTempCategoryList] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -85,6 +99,8 @@ export function ProductManagementPage() {
     sapSku: p.sap_sku,
     description: p.description,
     isPackage: p.isPackage,
+    isPromotion: p.isPromotion,
+    quantityOptions: p.options || [],
     selectableCount: p.selectable_count || 1,
     salesUnit: p.sales_unit || 1,
   }));
@@ -95,7 +111,7 @@ export function ProductManagementPage() {
       return `${categoryName} > ${subcategoryName}`;
     }
 
-    // Find if the category is actually a subcategory in our DB
+    // Find if the category is actually a subcategory in our DB (Legacy Handling)
     const category = dbCategories.find(c => c.name === categoryName);
     if (category && category.parentId) {
       const parent = dbCategories.find(c => c.id === category.parentId);
@@ -114,8 +130,20 @@ export function ProductManagementPage() {
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.productCode && product.productCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
       product.category.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
-    const matchesType = isPackageView ? product.isPackage : !product.isPackage;
+    
+    let matchesType = false;
+    if (isPackageView) {
+      matchesType = !!product.isPackage && !product.isPromotion;
+    } else if (isPromotionView) {
+      matchesType = !!product.isPromotion;
+    } else if (isSetView) {
+      matchesType = !product.isPackage && !product.isPromotion && (product.quantityOptions?.length || 0) > 0;
+    } else {
+      matchesType = !product.isPackage && !product.isPromotion && (product.quantityOptions?.length || 0) === 0;
+    }
+
     return matchesSearch && matchesCategory && matchesType;
   });
 
@@ -133,7 +161,12 @@ export function ProductManagementPage() {
   };
 
   // Stats Logic
-  const currentViewProducts = products.filter(p => isPackageView ? p.isPackage : !p.isPackage);
+  const currentViewProducts = products.filter(p => {
+    if (isPackageView) return !!p.isPackage && !p.isPromotion;
+    if (isPromotionView) return !!p.isPromotion;
+    if (isSetView) return !p.isPackage && !p.isPromotion && (p.quantityOptions?.length || 0) > 0;
+    return !p.isPackage && !p.isPromotion && (p.quantityOptions?.length || 0) === 0;
+  });
   const totalCount = currentViewProducts.length;
   const activeCount = currentViewProducts.filter(p => p.status === 'active').length;
   const outOfStockCount = currentViewProducts.filter(p => p.stock === 0).length;
@@ -143,10 +176,14 @@ export function ProductManagementPage() {
     // Calculate product counts for each category
     const categoriesWithCounts = dbCategories.map(cat => ({
       ...cat,
-      productCount: products.filter(p =>
-        p.category && cat.name &&
-        p.category.trim().toLowerCase() === cat.name.trim().toLowerCase()
-      ).length
+      productCount: products.filter(p => {
+        const isParent = !cat.parentId;
+        if (isParent) {
+          return p.category && cat.name && p.category.trim().toLowerCase() === cat.name.trim().toLowerCase();
+        } else {
+          return p.subcategory && cat.name && p.subcategory.trim().toLowerCase() === cat.name.trim().toLowerCase();
+        }
+      }).length
     }));
     setTempCategoryList(JSON.parse(JSON.stringify(categoriesWithCounts)));
     setIsCategoryModalOpen(true);
@@ -212,6 +249,120 @@ export function ProductManagementPage() {
     });
   };
 
+  const handleCopyBulk = () => {
+    if (selectedProductIds.length === 0) return;
+    
+    setCopyConfirmInfo({
+      isOpen: true,
+      title: '선택 상품 복사',
+      description: `선택한 ${selectedProductIds.length}개의 상품을 복사하시겠습니까?\n상품명과 상품코드를 제외한 모든 정보가 복사됩니다.`,
+      isResult: false
+    });
+  };
+
+  const executeCopyBulk = async () => {
+    setCopyConfirmInfo(prev => ({ ...prev, isOpen: false }));
+    setIsDeletingBulk(true); // Reusing UI loading state
+    
+    try {
+      for (const id of selectedProductIds) {
+        // 1. Get original product details
+        const original = await productService.getProductById(id);
+        if (!original) continue;
+
+        // 2. Prepare new product data
+        const newProductData = {
+          sku: `${original.sku}_COPY_${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+          sap_sku: original.sapSku,
+          manufacturer: original.manufacturer,
+          name: `${original.name} (복사본)`,
+          category: original.category,
+          subcategory: original.subcategory,
+          price: original.price,
+          stock: original.stock,
+          description: original.description,
+          image_url: original.imageUrl,
+          is_active: false,
+          is_visible: original.isVisible,
+          is_package: original.isPackage,
+          selectable_count: original.selectableCount,
+          item_input_type: original.itemInputType,
+          sales_unit: original.salesUnit,
+          base_product_id: original.baseProductId,
+          stock_multiplier: original.stockMultiplier,
+          credit_available: original.creditAvailable,
+          points_available: original.pointsAvailable,
+          subscription_discount: original.subscriptionDiscount,
+          min_order_quantity: original.minOrderQuantity,
+          max_order_quantity: original.maxOrderQuantity,
+          quantity_input_type: original.quantityInputType,
+        };
+
+        // 3. Create product
+        const created = await productService.createProduct(newProductData);
+        const newId = created.id;
+
+        // 4. Copy Additional Images
+        if (original.additionalImages && original.additionalImages.length > 0) {
+          await productService.addProductImages(newId, original.additionalImages);
+        }
+
+        // 5. Copy Options (for Sets)
+        if (original.options && original.options.length > 0) {
+          const optionsData = original.options.map(opt => ({
+            name: opt.name,
+            quantity: opt.quantity,
+            discountRate: opt.discountRate,
+            price: opt.price
+          }));
+          await productService.addOptions(newId, optionsData);
+        }
+
+        // 6. Copy Bonus Items
+        if (original.bonusItems && original.bonusItems.length > 0) {
+          const bonusItemsData = original.bonusItems.map(bi => ({
+            bonusProductId: bi.productId,
+            quantity: bi.quantity,
+            priceOverride: Number(bi.priceOverride) || 0,
+            optionId: null,
+            calculationMethod: bi.calculationMethod || 'fixed',
+            percentage: Number(bi.percentage) || 0
+          }));
+          await productService.addBonusItems(newId, bonusItemsData);
+        }
+        
+        // 7. Copy Pricing Tiers
+        if (original.tierPricing && original.tierPricing.length > 0) {
+          const tiers = original.tierPricing.map(t => ({
+            min_quantity: t.quantity,
+            unit_price: t.unitPrice
+          }));
+          await productService.addPricingTiers(newId, tiers);
+        }
+      }
+
+      setSelectedProductIds([]);
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      
+      setCopyConfirmInfo({
+        isOpen: true,
+        title: '복사 완료',
+        description: '선택한 상품들이 성공적으로 복사되었습니다.',
+        isResult: true
+      });
+    } catch (err) {
+      console.error('Error copying products:', err);
+      setCopyConfirmInfo({
+        isOpen: true,
+        title: '복사 실패',
+        description: '상품 복사 도중 오류가 발생했습니다.',
+        isResult: true
+      });
+    } finally {
+      setIsDeletingBulk(false);
+    }
+  };
+
   const executeDeleteBulk = async () => {
     setIsDeletingBulk(true);
     try {
@@ -232,10 +383,16 @@ export function ProductManagementPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
-            {isPackageView ? '패키지상품관리' : '단일상품관리'}
+            {isPromotionView ? '프로모션번들관리' : isPackageView ? '복합상품관리' : isSetView ? '셋트상품관리' : '일반상품관리'}
           </h2>
           <p className="text-sm text-neutral-600">
-            {isPackageView ? '패키지 상품 구성을 등록하고 관리합니다' : '개별 상품을 등록하고 관리합니다'}
+            {isPromotionView 
+              ? '상품 유료 구매 시 무료 증정 구성인 프로모션 번들을 등록하고 관리합니다'
+              : isPackageView 
+                ? '복합(패키지) 상품 구성을 등록하고 관리합니다' 
+                : isSetView 
+                  ? '수량별 옵션이 포함된 셋트 상품을 등록하고 관리합니다' 
+                  : '개별 단품 상품을 등록하고 관리합니다'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -246,13 +403,46 @@ export function ProductManagementPage() {
             <FolderTree className="w-5 h-5" />
             <span>카테고리 관리</span>
           </button>
-          <button
-            onClick={() => navigate(isPackageView ? '/admin/products/package-register' : '/admin/products/register')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
-          >
-            {isPackageView ? <Package className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-            <span>{isPackageView ? '패키지 상품 등록' : '단일 상품 등록'}</span>
-          </button>
+          
+          {isSingleView && (
+            <button
+              onClick={() => navigate('/admin/products/register')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              <span>일반상품 등록</span>
+            </button>
+          )}
+
+          {isSetView && (
+            <button
+              onClick={() => navigate('/admin/products/set-register')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors shadow-sm"
+            >
+              <Package className="w-5 h-5" />
+              <span>셋트상품 등록</span>
+            </button>
+          )}
+
+          {isPackageView && (
+            <button
+              onClick={() => navigate('/admin/products/package-register')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors"
+            >
+              <Package className="w-5 h-5" />
+              <span>복합상품 등록</span>
+            </button>
+          )}
+          
+          {isPromotionView && (
+            <button
+              onClick={() => navigate('/admin/products/promotion-register')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors shadow-sm"
+            >
+              <Package className="w-5 h-5" />
+              <span>프로모션번들 등록</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -298,6 +488,13 @@ export function ProductManagementPage() {
               {selectedProductIds.length}개의 상품이 선택되었습니다
             </span>
           </div>
+          <button
+            onClick={handleCopyBulk}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white hover:bg-neutral-800 transition-colors disabled:opacity-50 font-medium text-sm"
+          >
+            <Copy className="w-4 h-4" />
+            <span>선택 복제</span>
+          </button>
           <button
             onClick={handleDeleteBulk}
             disabled={isDeletingBulk}
@@ -387,12 +584,17 @@ export function ProductManagementPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {currentProducts.map((product) => (
-                    <tr 
-                      key={product.id} 
-                      className={`hover:bg-neutral-50 cursor-pointer ${selectedProductIds.includes(product.id) ? 'bg-neutral-50' : ''}`}
-                      onClick={() => navigate(isPackageView ? `/admin/products/package-edit/${product.id}` : `/admin/products/edit/${product.id}`)}
-                    >
+                  {currentProducts.map((product, index) => (
+                      <tr 
+                        key={product.id} 
+                        className={`hover:bg-neutral-50 cursor-pointer ${selectedProductIds.includes(product.id) ? 'bg-neutral-50' : ''}`}
+                        onClick={() => navigate(
+                          isPackageView ? `/admin/products/package-edit/${product.id}` : 
+                          isSetView ? `/admin/products/set-edit/${product.id}` : 
+                          isPromotionView ? `/admin/products/promotion-edit/${product.id}` :
+                          `/admin/products/edit/${product.id}`
+                        )}
+                      >
                       <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
@@ -402,7 +604,7 @@ export function ProductManagementPage() {
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 font-medium">
-                        {product.displayNo || '-'}
+                        {totalItems - ((currentPage - 1) * itemsPerPage + index)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -478,7 +680,12 @@ export function ProductManagementPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(isPackageView ? `/admin/products/package-edit/${product.id}` : `/admin/products/edit/${product.id}`);
+                              navigate(
+                                isPackageView ? `/admin/products/package-edit/${product.id}` : 
+                                isSetView ? `/admin/products/set-edit/${product.id}` : 
+                                isPromotionView ? `/admin/products/promotion-edit/${product.id}` :
+                                `/admin/products/edit/${product.id}`
+                              );
                             }}
                             className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
                             title="수정"
@@ -644,10 +851,26 @@ export function ProductManagementPage() {
           onClose={() => setIsPreviewModalOpen(false)}
           onEdit={() => {
             setIsPreviewModalOpen(false);
-            navigate(isPackageView ? `/admin/products/package-edit/${previewProduct.id}` : `/admin/products/edit/${previewProduct.id}`);
+            navigate(
+              isPackageView ? `/admin/products/package-edit/${previewProduct.id}` : 
+              isSetView ? `/admin/products/set-edit/${previewProduct.id}` : 
+              `/admin/products/edit/${previewProduct.id}`
+            );
           }}
         />
       )}
+
+      {/* Copy Confirmation Modal */}
+      <ConfirmModal
+        isOpen={copyConfirmInfo.isOpen}
+        onClose={() => setCopyConfirmInfo(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={copyConfirmInfo.isResult ? () => setCopyConfirmInfo(prev => ({ ...prev, isOpen: false })) : executeCopyBulk}
+        title={copyConfirmInfo.title}
+        description={copyConfirmInfo.description}
+        confirmText={copyConfirmInfo.isResult ? "확인" : "복사하기"}
+        showCancel={!copyConfirmInfo.isResult}
+        isLoading={isDeletingBulk}
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

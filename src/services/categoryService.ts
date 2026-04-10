@@ -30,22 +30,15 @@ export const categoryService = {
     },
 
     async saveCategories(categories: Category[]): Promise<void> {
-        // This is a bit complex because we need to handle sync.
-        // Simplifying: Delete all and re-insert, or perform upsert.
-        // For hierarchies, we need to be careful with IDs if they are temporary.
-
-        // First, separate categories by those that already have UUIDs and those that have temporary IDs
-        const existingCategories = categories.filter(c => c.id.length === 36); // Typical UUID length
-        const newCategories = categories.filter(c => c.id.length !== 36);
-
-        // For simplicity and to match the current UI logic (which uses temporary IDs for new items),
-        // we should probably handle this carefully.
-
-        // Better way: Upsert all with correct parent mapping.
-        // Since the UI might have changed orders and names, we'll sync.
+        // Fetch existing categories to detect name changes
+        const { data: oldCategories } = await supabase.from('categories').select('id, name');
+        const oldNameMap = new Map(oldCategories?.map(c => [c.id, c.name]) || []);
 
         for (const cat of categories) {
             const isNew = cat.id.length !== 36;
+            const oldName = oldNameMap.get(cat.id);
+            const isNameChanged = !isNew && oldName && oldName !== cat.name;
+
             const { data, error } = await supabase
                 .from('categories')
                 .upsert({
@@ -58,6 +51,24 @@ export const categoryService = {
                 .single();
 
             if (error) throw error;
+
+            // If name changed, update all products referencing this category
+            if (isNameChanged && oldName) {
+                // Determine if this is a parent or child category to update correct field
+                const isParent = !cat.parentId;
+                
+                if (isParent) {
+                    await supabase
+                        .from('products')
+                        .update({ category: cat.name })
+                        .eq('category', oldName);
+                } else {
+                    await supabase
+                        .from('products')
+                        .update({ subcategory: cat.name })
+                        .eq('subcategory', oldName);
+                }
+            }
 
             // If it was new, we might need to update its children's parent_id
             if (isNew) {

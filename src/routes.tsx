@@ -32,6 +32,8 @@ import { SubscriptionListPage } from "./pages/admin/SubscriptionListPage";
 import { ProductManagementPage } from "./pages/admin/ProductManagementPage";
 import { ProductRegisterPage } from "./pages/admin/ProductRegisterPage";
 import { PackageRegisterPage } from "./pages/admin/PackageRegisterPage";
+import { SetRegisterPage } from "./pages/admin/SetRegisterPage";
+import { PromotionRegisterPage } from "./pages/admin/PromotionRegisterPage";
 import { InquiryManagementPage } from "./pages/admin/InquiryManagementPage";
 import { FaqManagementPage } from "./pages/admin/FaqManagementPage";
 import { ManualManagementPage } from "./pages/admin/ManualManagementPage";
@@ -90,11 +92,17 @@ export const router = createBrowserRouter([
             { path: "orders/:id", Component: OrderDetailPage },
             { path: "products", element: <Navigate to="single" replace /> },
             { path: "products/single", Component: ProductManagementPage },
+            { path: "products/set", Component: ProductManagementPage },
             { path: "products/package", Component: ProductManagementPage },
+            { path: "products/promotion", Component: ProductManagementPage },
             { path: "products/register", Component: ProductRegisterPage },
+            { path: "products/set-register", Component: SetRegisterPage },
             { path: "products/package-register", Component: PackageRegisterPage },
+            { path: "products/promotion-register", Component: PromotionRegisterPage },
             { path: "products/edit/:id", Component: ProductRegisterPage },
+            { path: "products/set-edit/:id", Component: SetRegisterPage },
             { path: "products/package-edit/:id", Component: PackageRegisterPage },
+            { path: "products/promotion-edit/:id", Component: PromotionRegisterPage },
             { path: "sales-offices", Component: SalesOfficeManagementPage },
             { path: "statistics/sales", Component: SalesAnalyticsPage },
             { path: "statistics/products", Component: ProductAnalyticsPage },

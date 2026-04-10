@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Search, Loader2, ShieldAlert, Package, Save } from 'lucide-react';
+import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Search, Loader2, ShieldAlert, Package } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useAddPricingTiers } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
@@ -45,6 +45,13 @@ interface BonusProductData {
   percentage: string;
 }
 
+interface QuantityOptionData {
+  id: string;
+  name: string;
+  quantity: string;
+  discountRate: string;
+}
+
 interface FormData {
   name: string;
   category: string;
@@ -64,14 +71,14 @@ interface FormData {
   subscriptionDiscount: string;
   minOrderQuantity: string;
   maxOrderQuantity: string;
-  quantityInputType: 'button' | 'list';
   bulkDiscounts: BulkDiscount[];
   bonusProducts: BonusProductData[];
+  quantityOptions: QuantityOptionData[];
 }
 
 
 
-export function ProductRegisterPage() {
+export function SetRegisterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!id;
@@ -103,13 +110,12 @@ export function ProductRegisterPage() {
     minOrderQuantity: '1',
     maxOrderQuantity: '0',
     salesUnit: '1',
-    quantityInputType: 'button',
     baseProductId: '',
     stockMultiplier: '1',
     isShareStock: false,
     bulkDiscounts: [],
     bonusProducts: [],
-
+    quantityOptions: [],
   });
 
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
@@ -165,7 +171,6 @@ export function ProductRegisterPage() {
         subscriptionDiscount: formatWithCommas(existingProduct.subscriptionDiscount || 0),
         minOrderQuantity: formatWithCommas(existingProduct.minOrderQuantity || 1),
         maxOrderQuantity: formatWithCommas(existingProduct.maxOrderQuantity || 0),
-        quantityInputType: existingProduct.quantityInputType || 'button',
         bulkDiscounts: existingProduct.tierPricing?.map((tier, index) => ({
           id: index.toString(),
           quantity: formatWithCommas(tier.quantity || 0),
@@ -182,7 +187,12 @@ export function ProductRegisterPage() {
           calculationMethod: item.calculationMethod || 'fixed',
           percentage: formatWithCommas(item.percentage || 0),
         })) || [],
-
+        quantityOptions: existingProduct.options?.map(opt => ({
+          id: opt.id,
+          name: opt.name,
+          quantity: opt.quantity.toString(),
+          discountRate: opt.discountRate.toString(),
+        })) || [],
       });
       if (existingProduct.imageUrl) {
         setThumbnailPreview(existingProduct.imageUrl);
@@ -249,6 +259,50 @@ export function ProductRegisterPage() {
       ),
     }));
   };
+
+  // --- Quantity Options Handlers ---
+  const addQuantityOption = () => {
+    const newOption: QuantityOptionData = {
+      id: Date.now().toString(),
+      name: '',
+      quantity: '1',
+      discountRate: '0',
+    };
+    setFormData(prev => ({
+      ...prev,
+      quantityOptions: [...prev.quantityOptions, newOption],
+    }));
+  };
+
+  const removeQuantityOption = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      quantityOptions: prev.quantityOptions.filter(o => o.id !== id),
+    }));
+  };
+
+  const updateQuantityOption = (id: string, field: 'name' | 'quantity' | 'discountRate', value: string) => {
+    let processedValue = value;
+    if (field === 'quantity') {
+      const numericValue = value.replace(/[^0-9]/g, '');
+      processedValue = formatWithCommas(numericValue);
+    } else if (field === 'discountRate') {
+      // Allow only numbers and a single dot
+      processedValue = value.replace(/[^0-9.]/g, '');
+      const parts = processedValue.split('.');
+      if (parts.length > 2) {
+        processedValue = parts[0] + '.' + parts.slice(1).join('');
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      quantityOptions: prev.quantityOptions.map(o => 
+        o.id === id ? { ...o, [field]: processedValue } : o
+      ),
+    }));
+  };
+
 
 
 
@@ -411,6 +465,7 @@ export function ProductRegisterPage() {
         stock: parseInt(unformatNumber(formData.stock)) || 0,
         description: formData.description,
         image_url: finalImageUrl,
+        is_package: false,
         is_active: formData.status === 'active',
         is_visible: formData.isVisible,
         item_input_type: formData.itemInputType,
@@ -420,7 +475,6 @@ export function ProductRegisterPage() {
         subscription_discount: formData.useSubscriptionDiscount ? parseFloat(unformatNumber(formData.subscriptionDiscount)) || 0 : 0,
         min_order_quantity: minQty,
         max_order_quantity: maxQty > 0 ? maxQty : undefined,
-        quantity_input_type: formData.quantityInputType,
         sales_unit: parseInt(unformatNumber(formData.salesUnit)) || 1,
         base_product_id: formData.isShareStock ? formData.baseProductId : null,
         stock_multiplier: formData.isShareStock ? parseInt(unformatNumber(formData.stockMultiplier)) : 1,
@@ -452,25 +506,17 @@ export function ProductRegisterPage() {
         await productService.addProductImages(productId, allUrls);
       }
 
-      // 3. Update Pricing Tiers
-      const tiers = formData.bulkDiscounts
-        .filter(d => d.quantity && d.discountRate)
-        .map(d => {
-          const basePrice = parseFloat(unformatNumber(formData.price));
-          const discountRate = parseFloat(unformatNumber(d.discountRate)) / 100;
-          const discountedPrice = basePrice * (1 - discountRate);
 
-          return {
-            min_quantity: parseInt(unformatNumber(d.quantity)),
-            unit_price: discountedPrice,
-          };
-        });
+      // 4. Update Options
+      const optionsData = formData.quantityOptions.map(opt => ({
+        name: opt.name,
+        quantity: parseInt(unformatNumber(opt.quantity)) || 1,
+        discountRate: parseFloat(unformatNumber(opt.discountRate)) || 0
+      }));
+      await productService.addOptions(productId, optionsData);
 
-      await addPricingTiers.mutateAsync({ productId, tiers });
-
-
-      // 5. Update Bonus Items (Main + Options)
-      const allBonusItems: { bonusProductId: string; quantity: number; priceOverride: number; optionId: string | null; calculationMethod: string; percentage: number }[] = [];
+      // 5. Update Bonus Items (Main Only)
+      const allBonusItems: { bonusProductId: string; quantity: number; priceOverride: number; optionId: string | null }[] = [];
       
       formData.bonusProducts.forEach(bp => {
         allBonusItems.push({
@@ -482,7 +528,6 @@ export function ProductRegisterPage() {
           percentage: parseFloat(unformatNumber(bp.percentage)) || 0
         });
       });
-
       
       await productService.addBonusItems(productId, allBonusItems);
 
@@ -531,10 +576,10 @@ export function ProductRegisterPage() {
         </button>
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
-            {isEditMode ? '일반 상품 수정' : '일반 상품 등록'}
+            {isEditMode ? '셋트 상품 수정' : '셋트 상품 등록'}
           </h2>
           <p className="text-sm text-neutral-600">
-            {isEditMode ? '상품 정보를 수정합니다' : '새로운 상품을 등록합니다'}
+            {isEditMode ? '셋트 상품 정보를 수정합니다' : '새로운 상품 세트를 등록합니다'}
           </p>
         </div>
       </div>
@@ -544,10 +589,7 @@ export function ProductRegisterPage() {
         <div className="bg-white border border-neutral-200 p-8">
           <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">대표 이미지</h3>
           <div className="flex items-start gap-4">
-            <div 
-              className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden cursor-pointer hover:bg-neutral-100 transition-colors group"
-              onClick={() => document.getElementById('thumbnail-upload')?.click()}
-            >
+            <div className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden">
               {thumbnailPreview ? (
                 <>
                   <img
@@ -555,32 +597,26 @@ export function ProductRegisterPage() {
                     alt="Thumbnail preview"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setThumbnailPreview(null);
-                      setThumbnailFile(null);
-                    }}
-                    className="absolute top-2 right-2 p-1 bg-red-600 text-white hover:bg-red-700 transition-colors z-10"
+                    onClick={() => setThumbnailPreview(null)}
+                    className="absolute top-2 right-2 p-1 bg-red-600 text-white hover:bg-red-700 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </>
               ) : (
-                <div className="text-center group-hover:scale-105 transition-transform duration-200">
-                  <ImageIcon className="w-8 h-8 text-neutral-400 mx-auto mb-2 group-hover:text-neutral-900 transition-colors" />
-                  <p className="text-xs text-neutral-500 font-bold group-hover:text-neutral-900 transition-colors">대표 이미지 등록</p>
+                <div className="text-center">
+                  <ImageIcon className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
+                  <p className="text-xs text-neutral-500">대표 이미지</p>
                 </div>
               )}
             </div>
             <div className="flex-1">
-              <label className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors cursor-pointer font-bold text-sm shadow-sm active:scale-95 transition-all">
+              <label className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors cursor-pointer">
                 <Upload className="w-4 h-4" />
-                <span>이미지 파일 선택</span>
+                <span>이미지 업로드</span>
                 <input
-                  id="thumbnail-upload"
                   type="file"
                   accept="image/*"
                   onChange={handleThumbnailChange}
@@ -716,21 +752,38 @@ export function ProductRegisterPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
-                판매가 <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="text"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                placeholder="판매가를 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-900 mb-2">
+                  판매가 <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="판매가를 입력하세요"
+                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  required
+                />
+              </div>
             </div>
 
+
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-900 mb-2">최대 주문 수량</label>
+                <input
+                  type="text"
+                  name="maxOrderQuantity"
+                  value={formData.maxOrderQuantity}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white transition-all text-sm"
+                  placeholder="제한 없음"
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">* 주문 시 허용되는 최대 수량 (0 입력 시 제한 없음)</p>
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-2">
@@ -748,7 +801,7 @@ export function ProductRegisterPage() {
               {formData.isShareStock && <p className="text-[10px] text-neutral-500 mt-1">* 마스터 상품의 실제 재고를 추적합니다.</p>}
             </div>
 
-            {/* 재고 공유 설정 추가 (복구) */}
+            {/* 재고 공유 설정 추가 */}
             <div className="col-span-2 pt-4 border-t border-neutral-100">
               <label className="flex items-center gap-2 cursor-pointer mb-4">
                 <input
@@ -761,10 +814,10 @@ export function ProductRegisterPage() {
               </label>
 
               {formData.isShareStock && (
-                <div className="bg-neutral-50 p-6 space-y-4 border border-neutral-200 shadow-sm">
+                <div className="bg-neutral-50 p-6 space-y-4 border border-neutral-200">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="relative">
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase tracking-tighter">마스터 상품 (낱개/재고 보유 상품) 검색</label>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">마스터 상품 (낱개/재고 보유 상품) 검색</label>
                       <div className="relative">
                         <input
                           type="text"
@@ -774,7 +827,7 @@ export function ProductRegisterPage() {
                             setMasterSearchTerm(e.target.value);
                             setIsMasterSearchOpen(true);
                           }}
-                          className="w-full px-4 py-3 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 bg-white"
+                          className="w-full px-4 py-2 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900"
                         />
                         {isMasterSearchOpen && masterSearchTerm.trim() && (
                           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-50 max-h-60 overflow-y-auto">
@@ -789,13 +842,10 @@ export function ProductRegisterPage() {
                                     setMasterSearchTerm(p.name);
                                     setIsMasterSearchOpen(false);
                                   }}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-50 text-sm border-b border-neutral-100 flex justify-between items-center transition-colors"
+                                  className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-sm border-b border-neutral-100 flex justify-between items-center"
                                 >
-                                  <div className="flex flex-col">
-                                    <span className="font-bold">{p.name}</span>
-                                    <span className="text-[10px] text-neutral-400">{p.sku}</span>
-                                  </div>
-                                  <span className="text-xs font-bold text-blue-600">재고: {p.stock}</span>
+                                  <span>{p.name} <span className="text-[10px] text-neutral-400 ml-1">{p.sku}</span></span>
+                                  <span className="text-xs text-neutral-500">재고: {p.stock}</span>
                                 </button>
                               ))
                             }
@@ -803,18 +853,15 @@ export function ProductRegisterPage() {
                         )}
                       </div>
                       {formData.baseProductId && (
-                        <div className="mt-2 p-2 bg-white border border-neutral-900 inline-flex items-center gap-2 rounded-sm shadow-sm animate-in fade-in zoom-in duration-200">
+                        <div className="mt-2 p-2 bg-white border border-neutral-900 inline-flex items-center gap-2 rounded-sm shadow-sm">
                           <span className="text-xs font-bold">연결됨:</span>
                           <span className="text-xs text-neutral-700">
                             {allProducts.find(p => p.id === formData.baseProductId)?.name || "선택된 상품"}
                           </span>
                           <button 
                             type="button" 
-                            onClick={() => {
-                              setFormData(prev => ({ ...prev, baseProductId: '' }));
-                              setMasterSearchTerm('');
-                            }}
-                            className="text-neutral-400 hover:text-red-500 font-black px-1"
+                            onClick={() => setFormData(prev => ({ ...prev, baseProductId: '' }))}
+                            className="text-neutral-400 hover:text-red-500"
                           >
                             ×
                           </button>
@@ -822,21 +869,20 @@ export function ProductRegisterPage() {
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase tracking-tighter">재고 차감 배수 (판매 1개당 차감량)</label>
+                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">재고 차감 배수 (판매 1개당 차감량)</label>
                       <input
                         type="number"
                         min="1"
                         value={formData.stockMultiplier}
                         onChange={(e) => setFormData(prev => ({ ...prev, stockMultiplier: e.target.value }))}
-                        className="w-full px-4 py-3 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 bg-white"
+                        className="w-full px-4 py-2 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900"
                       />
-                      <p className="text-[10px] text-neutral-400 mt-1 leading-tight">* 예: 5개 세트면 5 입력 (1개 판매 시 마스터 재고 5개 차감)</p>
+                      <p className="text-[10px] text-neutral-400 mt-1">* 예: 5개 세트면 5 입력 (1개 판매 시 마스터 재고 5개 차감)</p>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-
 
             <div>
               <label className="block text-sm font-medium text-neutral-900 mb-4">
@@ -907,116 +953,73 @@ export function ProductRegisterPage() {
           </div>
           <div className="p-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-900">
-                  판매 단위 <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="salesUnit"
-                  value={formData.salesUnit}
-                  onChange={handleInputChange}
-                  placeholder="예: 10 (10개 묶음)"
-                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
-                  required
-                />
+                <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="creditAvailable"
+                      value="true"
+                      checked={formData.creditAvailable === true}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">가능</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="creditAvailable"
+                      value="false"
+                      checked={formData.creditAvailable === false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                    />
+                    <span className="text-sm text-neutral-900">불가능</span>
+                  </label>
+                </div>
+                <p className="text-xs text-neutral-400">해당 상품 구매 시 크레딧 사용 가능 여부를 설정합니다</p>
               </div>
 
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-900">수량 입력방법</label>
-                <div className="flex gap-4">
+                <label className="block text-sm font-medium text-neutral-700">적립금 사용 가능여부</label>
+                <div className="flex gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
-                      name="quantityInputType"
-                      value="list"
-                      checked={formData.quantityInputType === 'list'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantityInputType: 'list' }))}
+                      name="pointsAvailable"
+                      value="true"
+                      checked={formData.pointsAvailable === true}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
                       className="w-4 h-4 accent-neutral-900 cursor-pointer"
                     />
-                    <span className="text-sm text-neutral-900">리스트형</span>
+                    <span className="text-sm text-neutral-900">가능</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
-                      name="quantityInputType"
-                      value="button"
-                      checked={formData.quantityInputType === 'button'}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantityInputType: 'button' }))}
+                      name="pointsAvailable"
+                      value="false"
+                      checked={formData.pointsAvailable === false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
                       className="w-4 h-4 accent-neutral-900 cursor-pointer"
                     />
-                    <span className="text-sm text-neutral-900">버튼형</span>
+                    <span className="text-sm text-neutral-900">불가능</span>
                   </label>
                 </div>
-                <p className="text-xs text-neutral-400 mt-2">수량입력 방법을 선택합니다.</p>
+                <p className="text-xs text-neutral-400">해당 상품 구매 시 적립금 사용 가능 여부를 설정합니다</p>
               </div>
+            </div>
             </div>
           </div>
         </div>
 
         {/* Discount Settings */}
         <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">할인 및 크레딧/적립금 설정</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-neutral-100 pb-8">
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="creditAvailable"
-                    value="true"
-                    checked={formData.creditAvailable === true}
-                    onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
-                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                  />
-                  <span className="text-sm text-neutral-900">가능</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="creditAvailable"
-                    value="false"
-                    checked={formData.creditAvailable === false}
-                    onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
-                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                  />
-                  <span className="text-sm text-neutral-900">불가능</span>
-                </label>
-              </div>
-              <p className="text-xs text-neutral-400">해당 상품 구매 시 크레딧 사용 가능 여부를 설정합니다</p>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block text-sm font-medium text-neutral-700">적립금 사용 가능여부</label>
-              <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pointsAvailable"
-                    value="true"
-                    checked={formData.pointsAvailable === true}
-                    onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
-                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                  />
-                  <span className="text-sm text-neutral-900">가능</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="pointsAvailable"
-                    value="false"
-                    checked={formData.pointsAvailable === false}
-                    onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
-                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                  />
-                  <span className="text-sm text-neutral-900">불가능</span>
-                </label>
-              </div>
-              <p className="text-xs text-neutral-400">해당 상품 구매 시 적립금 사용 가능 여부를 설정합니다</p>
-            </div>
-          </div>
+          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">할인 설정</h3>
 
           {/* Subscription Discount */}
           <div className="mb-8 p-4 bg-neutral-50 border border-neutral-200">
@@ -1073,51 +1076,83 @@ export function ProductRegisterPage() {
             </div>
           </div>
 
-          {/* Bulk Discounts */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-900 mb-3">
-              다량주문 할인률
-            </label>
-            <div className="space-y-3">
-              {formData.bulkDiscounts.map((discount) => (
-                <div key={discount.id} className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={discount.quantity}
-                    onChange={(e) => updateBulkDiscount(discount.id, 'quantity', e.target.value)}
-                    placeholder="0"
-                    className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                  />
-                  <span className="text-neutral-600">개 이상</span>
-                  <input
-                    type="text"
-                    value={discount.discountRate}
-                    onChange={(e) => updateBulkDiscount(discount.id, 'discountRate', e.target.value)}
-                    placeholder="0"
-                    className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                  />
-                  <span className="text-neutral-600">%</span>
-                  <button
-                    type="button"
-                    onClick={() => removeBulkDiscount(discount.id)}
-                    className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addBulkDiscount}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>할인 조건 추가</span>
-              </button>
+        </div>
+
+        {/* 세트 옵션 설정 섹터 */}
+        <div className="bg-white border border-neutral-200 p-8">
+          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
+            <div>
+              <h3 className="text-lg font-bold text-neutral-900">세트 옵션 설정</h3>
             </div>
-            <p className="text-xs text-neutral-500 mt-2">
-              구매 수량에 따른 할인률을 설정하세요
+            <button
+              type="button"
+              onClick={addQuantityOption}
+              className="px-4 py-2 text-sm font-medium border border-neutral-300 text-neutral-700 hover:bg-neutral-50 transition-colors flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              세트 옵션 추가
+            </button>
+          </div>
+          
+          <div className="space-y-6">
+            <p className="text-xs text-neutral-500 mb-6">
+              고객이 선택할 수 있는 지정 갯수 세트(예: 3개 SET, 50개 SET)를 만듭니다. 포함수량과 할인적용률을 지정할 수 있습니다. 
+              <br />* 주의: 세트 옵션이 하나라도 존재하는 경우, 고객 상세 화면에서는 낱개 수량 입력창이 사라지고 옵션 선택 드롭다운만 나타납니다.
             </p>
+            
+            {formData.quantityOptions.map((opt, index) => (
+                <div key={opt.id} className="border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-sm">옵션 {index + 1}</h4>
+                    <button
+                      type="button"
+                      onClick={() => removeQuantityOption(opt.id)}
+                      className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1">옵션 표기명 <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        placeholder="예) 5개 SET"
+                        value={opt.name}
+                        onChange={(e) => updateQuantityOption(opt.id, 'name', e.target.value)}
+                        className="w-full px-3 py-2 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm bg-white h-[40px]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1">포함 수량 (실제 제품 갯수) <span className="text-red-500">*</span></label>
+                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                        <input
+                          type="text"
+                          placeholder="5"
+                          value={opt.quantity}
+                          onChange={(e) => updateQuantityOption(opt.id, 'quantity', e.target.value.replace(/[^0-9]/g, ''))}
+                          className="flex-1 w-full pl-3 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none"
+                        />
+                        <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-3 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center">개</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1">할인 적용률 (기본가 대비)</label>
+                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                        <input
+                          type="text"
+                          placeholder="20"
+                          value={opt.discountRate}
+                          onChange={(e) => updateQuantityOption(opt.id, 'discountRate', e.target.value.replace(/[^0-9.]/g, ''))}
+                          className="flex-1 w-full pl-3 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none"
+                        />
+                        <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-3 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center">％</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            ))}
           </div>
         </div>
 
@@ -1129,7 +1164,7 @@ export function ProductRegisterPage() {
             <label className="block text-sm font-medium text-neutral-700 mb-2">
               상품 검색 및 추가
             </label>
-            <div className="relative group">
+              <div className="relative group">
               <div className="flex items-center w-full border border-neutral-300 bg-white focus-within:ring-2 focus-within:ring-neutral-900 focus-within:border-neutral-900 shadow-sm transition-all overflow-hidden group">
                 <div className="pl-4 flex-shrink-0">
                   <Search className="w-5 h-5 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
@@ -1300,7 +1335,7 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Action Buttons - Design System Token Based Styling */}
-        <div className="flex items-center justify-end gap-3 py-16 border-t border-neutral-100">
+        <div className="flex items-center justify-end gap-3 py-16 border-t border-neutral-100 mt-8">
           <button
             type="button"
             onClick={() => navigate('/admin/products')}
@@ -1342,8 +1377,8 @@ export function ProductRegisterPage() {
               <button
                 onClick={() => {
                   setResultModal(prev => ({...prev, isOpen: false}));
-                  if (resultModal.type === 'success' && !isEditMode) {
-                    navigate('/admin/products');
+                  if (resultModal.type === 'success') {
+                    navigate('/admin/products/set');
                   }
                 }}
                 className={`w-full py-4 px-6 font-bold transition-all text-sm tracking-widest uppercase rounded-sm shadow-md hover:shadow-lg active:scale-[0.98] ${
