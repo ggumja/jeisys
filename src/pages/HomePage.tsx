@@ -8,6 +8,8 @@ import { postService, Post } from "../services/postService";
 import { productService } from "../services/productService";
 import { Product } from "../types";
 import { Layout, Clock, ChevronLeft, ChevronRight, X, Package, Coins, ArrowRight } from "lucide-react";
+import useEmblaCarousel from 'embla-carousel-react';
+import { useCallback } from "react";
 
 export function HomePage() {
   const user = storage.getUser();
@@ -20,6 +22,12 @@ export function HomePage() {
   const [newsPosts, setNewsPosts] = useState<Post[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+    align: 'start',
+    containScroll: 'trimSnaps',
+    dragFree: true
+  });
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   // Fetch active ads
   useEffect(() => {
@@ -58,9 +66,9 @@ export function HomePage() {
         const activeProducts = products.filter(p => p.isActive);
         
         if (activeProducts.length > 0) {
-          setRecommendedProducts(activeProducts.slice(0, 6));
+          setRecommendedProducts(activeProducts.slice(0, 24));
         } else {
-          setRecommendedProducts(mockProducts.slice(0, 6));
+          setRecommendedProducts(mockProducts.slice(0, 24));
         }
       } catch (error) {
         console.error('Failed to fetch real products:', error);
@@ -127,6 +135,21 @@ export function HomePage() {
       localStorage.setItem(`hideHomePopup_${activePopup.id}`, 'true');
     }
   };
+
+  const onScroll = useCallback((emblaApi: any) => {
+    const progress = Math.max(0, Math.min(1, emblaApi.scrollProgress()));
+    setScrollProgress(progress * 100);
+  }, []);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onScroll(emblaApi);
+    emblaApi.on('scroll', () => onScroll(emblaApi));
+    emblaApi.on('reInit', () => onScroll(emblaApi));
+  }, [emblaApi, onScroll]);
+
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
 
   return (
     <div className="w-full bg-white">
@@ -232,95 +255,115 @@ export function HomePage() {
             </h2>
             <Link
               to="/products"
-              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/20 px-[24px] py-[10px] rounded-full hover:bg-neutral-50 transition-all font-sans"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-[36px] py-[12px] rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
             >
               전체보기
             </Link>
           </div>
 
-          <div 
-            className="grid gap-[16px] mb-[40px] w-full"
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(6, 1fr)',
-              gridAutoRows: 'auto'
-            }}
-          >
-            {isLoadingProducts ? (
-              [1, 2, 3, 4, 5, 6].map((n) => (
-                <div key={n} className="flex flex-col animate-pulse min-w-0">
-                  <div className="aspect-[4/5] bg-neutral-100 mb-[16px]" />
-                  <div className="h-3 bg-neutral-100 w-1/3 mb-[8px]" />
-                  <div className="h-5 bg-neutral-100 w-full mb-[10px]" />
-                  <div className="h-3 bg-neutral-100 w-1/2 mb-[10px]" />
-                  <div className="h-5 bg-neutral-100 w-1/3" />
+          <div className="overflow-hidden mb-[40px] w-full" ref={emblaRef}>
+            <div className="flex" style={{ marginLeft: '-20px' }}>
+              {isLoadingProducts ? (
+                [1, 2, 3, 4, 5, 6].map((n) => (
+                  <div key={n} style={{ flex: '0 0 223px', minWidth: '223px', paddingLeft: '20px' }} className="min-w-0 flex-shrink-0 flex flex-col animate-pulse">
+                    <div className="aspect-[4/5] bg-neutral-100 mb-[16px]" />
+                    <div className="h-3 bg-neutral-100 w-1/3 mb-[8px]" />
+                    <div className="h-5 bg-neutral-100 w-full mb-[10px]" />
+                    <div className="h-3 bg-neutral-100 w-1/2 mb-[10px]" />
+                    <div className="h-5 bg-neutral-100 w-1/3" />
+                  </div>
+                ))
+              ) : recommendedProducts.length > 0 ? (
+                recommendedProducts.map((product) => (
+                  <div key={product.id} style={{ flex: '0 0 223px', minWidth: '223px', paddingLeft: '20px' }} className="min-w-0 flex-shrink-0">
+                    <Link
+                      to={`/products/${product.id}`}
+                      className="flex flex-col group font-sans h-full w-full"
+                    >
+                      <div className="w-full aspect-[4/4.8] bg-[#F8F9FA] overflow-hidden mb-[16px] flex items-center justify-center relative transition-all duration-500 group-hover:bg-white group-hover:shadow-[0_15px_40px_rgba(0,0,0,0.05)] group-hover:-translate-y-1.5 focus-within:ring-2 focus-within:ring-[#1E3A8A]">
+                        <ProductImage
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="w-full h-full object-contain p-4"
+                          containerClassName="w-full h-full"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span 
+                          style={{
+                            fontSize: '13px',
+                            lineHeight: '18px',
+                            color: '#94A3B8',
+                            fontWeight: 500,
+                            marginBottom: '10px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '-0.025em'
+                          }}
+                          className="truncate"
+                        >
+                          {product.category || "JEISYS-PROD-001"}
+                        </span>
+                        <h3 
+                          style={{
+                            fontSize: '22px',
+                            lineHeight: '28px',
+                            color: '#1E293B',
+                            fontWeight: 700,
+                            marginBottom: '24px',
+                            minHeight: '56px'
+                          }}
+                          className="line-clamp-2 group-hover:text-[#21358D] transition-colors"
+                        >
+                          {product.name}
+                        </h3>
+                        <div className="flex items-center gap-[0px]" style={{ marginBottom: '12px' }}>
+                          <div className="flex items-center gap-[6px] text-[#64748B] overflow-hidden whitespace-nowrap">
+                            <Clock className="w-[14px] h-[14px] opacity-70 flex-shrink-0" />
+                            <span style={{ fontSize: '14px' }} className="truncate">2026-03-21</span>
+                          </div>
+                          <span style={{ color: '#64748B', margin: '0 8px', opacity: 0.5 }}>-</span>
+                          <div style={{ color: '#64748B', fontSize: '14px' }} className="flex-shrink-0">
+                            <span style={{ fontWeight: 500, color: '#1E293B' }}>8</span>회 구매
+                          </div>
+                        </div>
+                        <p style={{ fontSize: '20px', fontWeight: 700, color: '#21358D' }}>
+                          ₩{product.price.toLocaleString()}
+                        </p>
+                      </div>
+                    </Link>
+                  </div>
+                ))
+              ) : (
+                <div className="w-full py-20 text-center text-neutral-400">
+                  표시할 상품이 없습니다.
                 </div>
-              ))
-            ) : recommendedProducts.length > 0 ? (
-              recommendedProducts.map((product) => (
-                <Link
-                  key={product.id}
-                  to={`/products/${product.id}`}
-                  className="flex flex-col group font-sans min-w-0"
-                >
-                  <div className="aspect-[4/4.8] bg-[#F8F9FA] overflow-hidden mb-[16px] flex items-center justify-center relative transition-all duration-500 group-hover:bg-white group-hover:shadow-[0_15px_40px_rgba(0,0,0,0.05)] group-hover:-translate-y-1.5 focus-within:ring-2 focus-within:ring-[#1E3A8A]">
-                    <ProductImage
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-contain p-4"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[11px] leading-[16px] text-[#94A3B8] font-normal mb-[4px] uppercase tracking-tight truncate">
-                      {product.category || "Jeisys Product"}
-                    </span>
-                    <h3 className="text-[16px] leading-[22px] font-medium text-[#1E293B] mb-[8px] min-h-[44px] line-clamp-2 group-hover:text-[#21358D] transition-colors leading-snug">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center gap-[4px] mb-[10px]">
-                      <div className="flex items-center gap-[4px] text-[#64748B] overflow-hidden whitespace-nowrap">
-                        <Clock className="w-[12px] h-[12px] opacity-70 flex-shrink-0" />
-                        <span className="text-[12px] truncate">2026-03-21</span>
-                      </div>
-                      <span className="text-[#64748B] mx-[1px] opacity-50">·</span>
-                      <div className="text-[#64748B] text-[12px] flex-shrink-0">
-                        <span className="font-medium">8</span>회 구매
-                      </div>
-                    </div>
-                    <p className="text-[16px] font-bold text-[#21358D]">
-                      ₩{product.price.toLocaleString()}
-                    </p>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="col-span-full py-20 text-center text-neutral-400">
-                표시할 상품이 없습니다.
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-[20px] pt-[40px]">
             <div className="flex-1 h-[48px] flex items-center">
-              <div className="w-full h-[2px] bg-[#E2E8F0] relative">
+              <div className="w-full h-[2px] bg-[#E2E8F0] relative overflow-hidden">
                 <div 
-                  className="absolute left-0 top-0 h-full bg-[#1E293B] transition-all duration-500" 
-                  style={{ width: '109.67px' }}
+                  className="absolute left-0 top-0 h-full bg-[#21358D] transition-all duration-300 ease-out" 
+                  style={{ width: `${scrollProgress}%` }}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-[8px]">
+            <div className="flex items-center gap-[12px]">
               <button 
-                onClick={(e) => handlePrevSlide(e)}
-                className="w-[48px] h-[48px] bg-[#E2E8F0] rounded-full flex items-center justify-center text-[#21358D] hover:bg-neutral-200"
+                onClick={scrollPrev}
+                className="w-[56px] h-[56px] bg-white border border-[#21358D]/20 rounded-full flex items-center justify-center text-[#21358D] hover:bg-neutral-50 active:scale-95 shadow-lg shadow-black/5 transition-all"
+                aria-label="Previous products"
               >
-                <ChevronLeft className="w-[24px] h-[24px]" />
+                <ChevronLeft className="w-[28px] h-[28px]" />
               </button>
               <button 
-                onClick={(e) => handleNextSlide(e)}
-                className="w-[48px] h-[48px] bg-[#21358D] rounded-full flex items-center justify-center text-white hover:bg-[#1a2b75]"
+                onClick={scrollNext}
+                className="w-[56px] h-[56px] bg-[#21358D] rounded-full flex items-center justify-center text-white hover:bg-[#1a2b75] active:scale-95 shadow-lg shadow-[#21358D]/20 transition-all"
+                aria-label="Next products"
               >
-                <ChevronRight className="w-[24px] h-[24px]" />
+                <ChevronRight className="w-[28px] h-[28px]" />
               </button>
             </div>
           </div>
@@ -346,7 +389,7 @@ export function HomePage() {
             </h2>
             <Link
               to="/community"
-              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/20 px-[24px] py-[10px] rounded-full hover:bg-neutral-50 transition-all font-sans"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-[36px] py-[12px] rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
             >
               전체보기
             </Link>
