@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight, Package, Copy } from 'lucide-react';
 import { CategoryManager } from '../../components/CategoryManager';
-import { ProductPreviewModal } from '../../components/ProductPreviewModal';
 import { useProducts, useDeleteProduct } from '../../hooks/useProducts';
 import { useCategories, useSaveCategories } from '../../hooks/useCategories';
 import { Category } from '../../services/categoryService';
@@ -52,8 +51,6 @@ export function ProductManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-  const [previewProduct, setPreviewProduct] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -666,17 +663,16 @@ export function ProductManagementPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPreviewProduct(product);
-                              setIsPreviewModalOpen(true);
-                            }}
-                            className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+                          <a
+                            href={`/products/${product.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors inline-flex items-center justify-center"
                             title="미리보기"
                           >
                             <Eye className="w-4 h-4" />
-                          </button>
+                          </a>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -844,21 +840,6 @@ export function ProductManagementPage() {
         </div>
       )}
 
-      {/* Product Preview Modal */}
-      {isPreviewModalOpen && previewProduct && (
-        <ProductPreviewModal
-          product={previewProduct}
-          onClose={() => setIsPreviewModalOpen(false)}
-          onEdit={() => {
-            setIsPreviewModalOpen(false);
-            navigate(
-              isPackageView ? `/admin/products/package-edit/${previewProduct.id}` : 
-              isSetView ? `/admin/products/set-edit/${previewProduct.id}` : 
-              `/admin/products/edit/${previewProduct.id}`
-            );
-          }}
-        />
-      )}
 
       {/* Copy Confirmation Modal */}
       <ConfirmModal

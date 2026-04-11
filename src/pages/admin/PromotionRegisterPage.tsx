@@ -72,6 +72,8 @@ export function PromotionRegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
 
   const [resultModal, setResultModal] = useState<{
     isOpen: boolean;
@@ -129,6 +131,10 @@ export function PromotionRegisterPage() {
         });
         if (product.imageUrl) {
           setThumbnailPreview(product.imageUrl);
+        }
+        
+        if (product.additionalImages) {
+          setAdditionalImages(product.additionalImages);
         }
       }
     } catch (error) {
@@ -199,6 +205,34 @@ export function PromotionRegisterPage() {
     }
   };
 
+  const handleAdditionalImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileList = Array.from(files);
+      
+      // Limit to 5 images
+      if (additionalImages.length + fileList.length > 5) {
+        alert('추가 이미지는 최대 5개까지만 등록 가능합니다.');
+        return;
+      }
+
+      setAdditionalFiles((prev) => [...prev, ...fileList]);
+
+      fileList.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAdditionalImages((prev) => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index: number) => {
+    setAdditionalImages((prev) => prev.filter((_, i) => i !== index));
+    setAdditionalFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -248,10 +282,28 @@ export function PromotionRegisterPage() {
         promotion_item_ids: formData.items.map(item => item.productId)
       };
 
+      let productId: string;
+
       if (isEdit && id) {
         await productService.updatePromotionProduct(id, promotionData);
+        productId = id;
       } else {
-        await productService.createPromotionProduct(promotionData);
+        const newProduct = await productService.createPromotionProduct(promotionData);
+        productId = newProduct.id;
+      }
+
+      // 2. Upload and save additional images
+      const existingUrls = additionalImages.filter(img => img.startsWith('http'));
+      const newUploadedUrls = await Promise.all(
+        additionalFiles.map(file => productService.uploadProductImage(file))
+      );
+      const allUrls = [...existingUrls, ...newUploadedUrls];
+
+      if (isEdit) {
+        await productService.deleteProductImages(productId);
+      }
+      if (allUrls.length > 0) {
+        await productService.addProductImages(productId, allUrls);
       }
 
       setResultModal({
@@ -295,7 +347,7 @@ export function PromotionRegisterPage() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-6">
+    <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-6 pb-32">
       {/* Standard Header Format Matched with ProductRegisterPage */}
       <div className="flex items-center gap-4">
         <button
@@ -316,12 +368,19 @@ export function PromotionRegisterPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
-        {/* Image Upload Section */}
+        {/* Combined Product Images Section - Compact Single Line */}
         <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">대표 이미지</h3>
-          <div className="flex items-start gap-4">
-            <div className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden text-center cursor-pointer hover:bg-neutral-100 transition-colors"
-                 onClick={() => document.getElementById('thumbnail-upload')?.click()}>
+          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
+            <h3 className="text-lg font-bold text-neutral-900">상품 이미지 설정</h3>
+            <span className="text-xs text-neutral-500 font-medium">대표 이미지 1장 + 추가 이미지 최대 5장</span>
+          </div>
+          
+          <div className="flex flex-row flex-wrap gap-4 items-start">
+            {/* Primary Image Slot */}
+            <div 
+              className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden cursor-pointer hover:bg-neutral-100 transition-all group shadow-sm"
+              onClick={() => document.getElementById('thumbnail-upload')?.click()}
+            >
               {thumbnailPreview ? (
                 <>
                   <img
@@ -329,6 +388,8 @@ export function PromotionRegisterPage() {
                     alt="Thumbnail preview"
                     className="w-full h-full object-cover"
                   />
+                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-0 left-0 px-2 py-0.5 bg-neutral-900 text-white text-[9px] font-black uppercase tracking-widest shadow-md">Main</div>
                   <button
                     type="button"
                     onClick={(e) => {
@@ -337,35 +398,70 @@ export function PromotionRegisterPage() {
                       setThumbnailFile(null);
                       setFormData(prev => ({ ...prev, imageUrl: '' }));
                     }}
-                    className="absolute top-2 right-2 p-1 bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 transition-all z-10 shadow-md ring-2 ring-white"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                   </button>
                 </>
               ) : (
-                <div className="text-center p-4">
-                  <ImageIcon className="w-8 h-8 text-neutral-400 mx-auto mb-2" />
-                  <p className="text-xs text-neutral-500">프로모션 대표 이미지</p>
+                <div className="text-center group-hover:scale-105 transition-transform">
+                  <ImageIcon className="w-8 h-8 text-neutral-300 mx-auto mb-1 group-hover:text-neutral-900" />
+                  <p className="text-[10px] text-neutral-400 font-bold group-hover:text-neutral-900 leading-tight">프로모션 대표<br />이미지 업로드</p>
                 </div>
               )}
+              <input
+                id="thumbnail-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleThumbnailChange}
+                className="hidden"
+              />
             </div>
-            <div className="flex-1">
-              <label className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors cursor-pointer font-bold text-sm">
-                <Upload className="w-4 h-4" />
-                <span>이미지 업로드</span>
+
+            {/* Additional Images Grid - Directly Following */}
+            {additionalImages.map((image, index) => (
+              <div
+                key={index}
+                className="w-40 h-40 border border-neutral-200 relative overflow-hidden group bg-neutral-50 shadow-sm"
+              >
+                <img
+                  src={image}
+                  alt={`Additional ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                <button
+                  type="button"
+                  onClick={() => removeAdditionalImage(index)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-neutral-900/80 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all z-10 backdrop-blur-sm shadow-md ring-2 ring-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+                <div className="absolute top-0 left-0 bg-neutral-400/80 text-white text-[9px] px-1.5 py-0.5 font-bold tracking-tighter shadow-sm">Gallery {index + 1}</div>
+              </div>
+            ))}
+            
+            {/* Add Button Slot */}
+            {additionalImages.length < 5 && (
+              <label className="w-40 h-40 border-2 border-dashed border-neutral-200 flex items-center justify-center bg-neutral-50/30 cursor-pointer hover:bg-white hover:border-neutral-900 transition-all group shadow-inner">
+                <div className="text-center group-hover:scale-105 transition-transform">
+                  <Plus className="w-6 h-6 text-neutral-300 mx-auto mb-1 group-hover:text-neutral-900" />
+                  <p className="text-[10px] text-neutral-400 font-bold group-hover:text-neutral-900 leading-tight">추가 이미지<br />업로드</p>
+                </div>
                 <input
-                  id="thumbnail-upload"
                   type="file"
                   accept="image/*"
-                  onChange={handleThumbnailChange}
+                  multiple
+                  onChange={handleAdditionalImagesChange}
                   className="hidden"
                 />
               </label>
-              <p className="text-xs text-neutral-500 mt-4 leading-relaxed">
-                • 프로모션 번들을 대표하는 이미지를 권장합니다 (800x800px 권장).<br />
-                • 이미지는 썸네일과 상품 상세 리스트에서 사용됩니다.
-              </p>
-            </div>
+            )}
+          </div>
+          
+          <div className="mt-4 flex items-center gap-6 text-[10px] text-neutral-400 italic bg-neutral-50 p-2 border border-neutral-100">
+            <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-neutral-300 rounded-full" /> 800x800px 권장, 최대 5MB</span>
+            <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-neutral-300 rounded-full" /> 상세페이지 갤러리에 순서대로 노출됩니다 (최대 5장)</span>
           </div>
         </div>
         {/* Basic Info Section */}
@@ -570,8 +666,8 @@ export function PromotionRegisterPage() {
             </div>
           </div>
 
-          {/* Action Buttons at the bottom - Design System Token Based */}
-          <div className="flex items-center justify-end gap-3 py-16 border-t border-neutral-100">
+          {/* Action Buttons - Sticky Layer at the bottom */}
+          <div className="sticky bottom-0 z-50 bg-white/90 backdrop-blur-md border-t border-neutral-200 py-8 px-8 -mx-8 mt-12 flex items-center justify-end gap-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
             <button
               type="button"
               onClick={() => navigate('/admin/products/promotion')}

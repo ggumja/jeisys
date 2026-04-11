@@ -30,6 +30,7 @@ export function ProductDetailPage() {
   const [selections, setSelections] = useState<string[]>([]);
   const [inputQuantities, setInputQuantities] = useState<Record<string, number>>({});
   const [selectedOptionId, setSelectedOptionId] = useState<string>('');
+  const [activeImage, setActiveImage] = useState<string>('');
   
   // Promotion States
   const [promotionPool, setPromotionPool] = useState<Product[]>([]);
@@ -55,6 +56,9 @@ export function ProductDetailPage() {
       setLoading(true);
       const fetchedProduct = await productService.getProductById(productId);
       setProduct(fetchedProduct);
+      if (fetchedProduct?.imageUrl) {
+        setActiveImage(fetchedProduct.imageUrl);
+      }
 
       if (fetchedProduct) {
         // Load related data parallel
@@ -397,13 +401,36 @@ export function ProductDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
-        {/* Product Image */}
-        <div className="bg-neutral-100 overflow-hidden aspect-square">
-          <ProductImage
-            src={product.imageUrl}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
+        {/* Product Image & Gallery */}
+        <div className="space-y-4">
+          <div className="bg-neutral-100 overflow-hidden aspect-square border border-neutral-200">
+            <ProductImage
+              src={activeImage}
+              alt={product.name}
+              className="w-full h-full object-cover transition-all duration-300"
+            />
+          </div>
+          
+          {/* Thumbnails */}
+          {product.additionalImages && product.additionalImages.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <button
+                onClick={() => setActiveImage(product.imageUrl)}
+                className={`w-20 h-20 flex-shrink-0 border-2 transition-all ${activeImage === product.imageUrl ? 'border-neutral-900' : 'border-neutral-200 hover:border-neutral-400'}`}
+              >
+                <img src={product.imageUrl} alt="thumbnail main" className="w-full h-full object-cover" />
+              </button>
+              {product.additionalImages.map((imgUrl, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImage(imgUrl)}
+                  className={`w-20 h-20 flex-shrink-0 border-2 transition-all ${activeImage === imgUrl ? 'border-neutral-900' : 'border-neutral-200 hover:border-neutral-400'}`}
+                >
+                  <img src={imgUrl} alt={`thumbnail ${idx}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Product Info */}
@@ -915,20 +942,6 @@ export function ProductDetailPage() {
           />
         </div>
 
-        {/* Additional Images */}
-        {product.additionalImages && product.additionalImages.length > 0 && (
-          <div className="space-y-0">
-            {product.additionalImages.map((imgUrl, index) => (
-              <div key={index} className="w-full">
-                <img
-                  src={imgUrl}
-                  alt={`${product.name} 상세 이미지 ${index + 1}`}
-                  className="w-full h-auto"
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Shipping & Return Policy */}
