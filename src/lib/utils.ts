@@ -21,3 +21,15 @@ export function formatDate(dateString: string | null | undefined): string {
     return '-';
   }
 }
+
+export function formatWithCommas(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '';
+  const stringValue = value.toString().replace(/,/g, '');
+  if (isNaN(Number(stringValue))) return stringValue;
+  return Number(stringValue).toLocaleString('ko-KR');
+}
+
+export function unformatNumber(value: string): number {
+  if (!value) return 0;
+  return Number(value.replace(/,/g, '')) || 0;
+}

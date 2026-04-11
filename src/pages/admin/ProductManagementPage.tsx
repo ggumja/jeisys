@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { Search, Plus, Edit, Trash2, Eye, X, FolderTree, Loader2, ChevronLeft, ChevronRight, Package, Copy } from 'lucide-react';
 import { CategoryManager } from '../../components/CategoryManager';
@@ -37,7 +37,7 @@ export function ProductManagementPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: productsData = [], isLoading } = useProducts();
-  
+
   const isPackageView = location.pathname.includes('/admin/products/package');
   const isPromotionView = location.pathname.includes('/admin/products/promotion');
   const isSetView = location.pathname.includes('/admin/products/set');
@@ -55,6 +55,17 @@ export function ProductManagementPage() {
   const itemsPerPage = 15;
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'out-of-stock' | 'low-stock'>('all');
+
+  // Reset pagination and filters when the view type changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSearchTerm('');
+    setCategoryFilter('all');
+    setSelectedProductIds([]);
+    setStatusFilter('all');
+  }, [location.pathname]);
+
   const [copyConfirmInfo, setCopyConfirmInfo] = useState({
     isOpen: false,
     title: '',
@@ -64,7 +75,7 @@ export function ProductManagementPage() {
 
   const [tempCategoryList, setTempCategoryList] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
-  
+
   // Modal states
   const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{
     isOpen: boolean;
@@ -129,7 +140,13 @@ export function ProductManagementPage() {
       product.category.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
-    
+
+    const matchesStatus = 
+      statusFilter === 'all' || 
+      (statusFilter === 'active' && product.status === 'active') ||
+      (statusFilter === 'out-of-stock' && product.status === 'active' && product.stock === 0) ||
+      (statusFilter === 'low-stock' && product.status === 'active' && product.stock > 0 && product.stock < 100);
+
     let matchesType = false;
     if (isPackageView) {
       matchesType = !!product.isPackage && !product.isPromotion;
@@ -141,7 +158,7 @@ export function ProductManagementPage() {
       matchesType = !product.isPackage && !product.isPromotion && (product.quantityOptions?.length || 0) === 0;
     }
 
-    return matchesSearch && matchesCategory && matchesType;
+    return matchesSearch && matchesCategory && matchesType && matchesStatus;
   });
 
   // Pagination Logic
@@ -162,12 +179,15 @@ export function ProductManagementPage() {
     if (isPackageView) return !!p.isPackage && !p.isPromotion;
     if (isPromotionView) return !!p.isPromotion;
     if (isSetView) return !p.isPackage && !p.isPromotion && (p.quantityOptions?.length || 0) > 0;
-    return !p.isPackage && !p.isPromotion && (p.quantityOptions?.length || 0) === 0;
+    if (isSingleView) return !p.isPackage && !p.isPromotion && (p.quantityOptions?.length || 0) === 0;
+    return true;
   });
+  
   const totalCount = currentViewProducts.length;
   const activeCount = currentViewProducts.filter(p => p.status === 'active').length;
-  const outOfStockCount = currentViewProducts.filter(p => p.stock === 0).length;
-  const lowStockCount = currentViewProducts.filter(p => p.stock > 0 && p.stock < 100).length;
+  // Stock stats should only count ACTIVE products
+  const outOfStockCount = currentViewProducts.filter(p => p.status === 'active' && p.stock === 0).length;
+  const lowStockCount = currentViewProducts.filter(p => p.status === 'active' && p.stock > 0 && p.stock < 100).length;
 
   const handleOpenCategoryModal = () => {
     // Calculate product counts for each category
@@ -248,7 +268,7 @@ export function ProductManagementPage() {
 
   const handleCopyBulk = () => {
     if (selectedProductIds.length === 0) return;
-    
+
     setCopyConfirmInfo({
       isOpen: true,
       title: '선택 상품 복사',
@@ -260,7 +280,7 @@ export function ProductManagementPage() {
   const executeCopyBulk = async () => {
     setCopyConfirmInfo(prev => ({ ...prev, isOpen: false }));
     setIsDeletingBulk(true); // Reusing UI loading state
-    
+
     try {
       for (const id of selectedProductIds) {
         // 1. Get original product details
@@ -327,7 +347,7 @@ export function ProductManagementPage() {
           }));
           await productService.addBonusItems(newId, bonusItemsData);
         }
-        
+
         // 7. Copy Pricing Tiers
         if (original.tierPricing && original.tierPricing.length > 0) {
           const tiers = original.tierPricing.map(t => ({
@@ -340,7 +360,7 @@ export function ProductManagementPage() {
 
       setSelectedProductIds([]);
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      
+
       setCopyConfirmInfo({
         isOpen: true,
         title: '복사 완료',
@@ -380,16 +400,16 @@ export function ProductManagementPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
-            {isPromotionView ? '프로모션번들관리' : isPackageView ? '복합상품관리' : isSetView ? '셋트상품관리' : '일반상품관리'}
+            {isPromotionView ? '프로모션번들 관리' : isPackageView ? '복합상품 관리' : isSetView ? '셋트상품 관리' : '일반상품 관리'}
           </h2>
           <p className="text-sm text-neutral-600">
-            {isPromotionView 
-              ? '상품 유료 구매 시 무료 증정 구성인 프로모션 번들을 등록하고 관리합니다'
-              : isPackageView 
-                ? '복합(패키지) 상품 구성을 등록하고 관리합니다' 
-                : isSetView 
-                  ? '수량별 옵션이 포함된 셋트 상품을 등록하고 관리합니다' 
-                  : '개별 단품 상품을 등록하고 관리합니다'}
+            {isPromotionView
+              ? '3+1 같은 프로모션 상품을 등록/관리합니다'
+              : isPackageView
+                ? 'A,B,C 서로 다른 상품을 조합해서 구성되는 상품을 등록/관리합니다'
+                : isSetView
+                  ? '셋트상품은 5,10,20,30,50개 같은 불규칙적인 세트 상품을 등록/관리합니다.'
+                  : '단품 상품을 등록/관리합니다'}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -400,7 +420,7 @@ export function ProductManagementPage() {
             <FolderTree className="w-5 h-5" />
             <span>카테고리 관리</span>
           </button>
-          
+
           {isSingleView && (
             <button
               onClick={() => navigate('/admin/products/register')}
@@ -430,7 +450,7 @@ export function ProductManagementPage() {
               <span>복합상품 등록</span>
             </button>
           )}
-          
+
           {isPromotionView && (
             <button
               onClick={() => navigate('/admin/products/promotion-register')}
@@ -445,37 +465,65 @@ export function ProductManagementPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in duration-500">
-        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
-          <p className="text-sm font-bold text-neutral-600 tracking-tight">전체 상품</p>
+        <button 
+          onClick={() => { setStatusFilter('all'); setCurrentPage(1); }}
+          className={`p-3 border shadow-sm flex justify-between items-center transition-all ${
+            statusFilter === 'all' 
+            ? 'bg-neutral-900 border-neutral-900 text-white' 
+            : 'bg-white border-neutral-200 text-neutral-900 hover:border-neutral-400'
+          }`}
+        >
+          <p className={`text-sm font-bold tracking-tight ${statusFilter === 'all' ? 'text-neutral-300' : 'text-neutral-600'}`}>전체 상품</p>
           <div className="flex items-baseline gap-1">
-            <h3 className="text-2xl font-bold text-neutral-900">{totalCount}</h3>
-            <span className="text-xs text-neutral-500">개</span>
+            <h3 className="text-2xl font-bold">{totalCount}</h3>
+            <span className={`text-xs ${statusFilter === 'all' ? 'text-neutral-400' : 'text-neutral-500'}`}>개</span>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
-          <p className="text-sm font-bold text-neutral-600 tracking-tight">판매중</p>
+        <button 
+          onClick={() => { setStatusFilter('active'); setCurrentPage(1); }}
+          className={`p-3 border shadow-sm flex justify-between items-center transition-all ${
+            statusFilter === 'active' 
+            ? 'bg-green-600 border-green-600 text-white shadow-green-100' 
+            : 'bg-white border-neutral-200 text-neutral-900 hover:border-green-300'
+          }`}
+        >
+          <p className={`text-sm font-bold tracking-tight ${statusFilter === 'active' ? 'text-green-100' : 'text-neutral-600'}`}>판매중</p>
           <div className="flex items-baseline gap-1">
-            <h3 className="text-2xl font-bold text-green-600">{activeCount}</h3>
-            <span className="text-xs text-green-500">개</span>
+            <h3 className={`text-2xl font-bold ${statusFilter === 'active' ? 'text-white' : 'text-green-600'}`}>{activeCount}</h3>
+            <span className={`text-xs ${statusFilter === 'active' ? 'text-green-200' : 'text-green-500'}`}>개</span>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
-          <p className="text-sm font-bold text-neutral-600 tracking-tight">품절</p>
+        <button 
+          onClick={() => { setStatusFilter('out-of-stock'); setCurrentPage(1); }}
+          className={`p-3 border shadow-sm flex justify-between items-center transition-all ${
+            statusFilter === 'out-of-stock' 
+            ? 'bg-red-600 border-red-600 text-white shadow-red-100' 
+            : 'bg-white border-neutral-200 text-neutral-900 hover:border-red-300'
+          }`}
+        >
+          <p className={`text-sm font-bold tracking-tight ${statusFilter === 'out-of-stock' ? 'text-red-100' : 'text-neutral-600'}`}>품절</p>
           <div className="flex items-baseline gap-1">
-            <h3 className="text-2xl font-bold text-red-600">{outOfStockCount}</h3>
-            <span className="text-xs text-red-500">개</span>
+            <h3 className={`text-2xl font-bold ${statusFilter === 'out-of-stock' ? 'text-white' : 'text-red-600'}`}>{outOfStockCount}</h3>
+            <span className={`text-xs ${statusFilter === 'out-of-stock' ? 'text-red-200' : 'text-red-500'}`}>개</span>
           </div>
-        </div>
+        </button>
 
-        <div className="bg-white border border-neutral-200 p-3 shadow-sm flex justify-between items-center">
-          <p className="text-sm font-bold text-neutral-600 tracking-tight">품절임박</p>
+        <button 
+          onClick={() => { setStatusFilter('low-stock'); setCurrentPage(1); }}
+          className={`p-3 border shadow-sm flex justify-between items-center transition-all ${
+            statusFilter === 'low-stock' 
+            ? 'bg-orange-600 border-orange-600 text-white shadow-orange-100' 
+            : 'bg-white border-neutral-200 text-neutral-900 hover:border-orange-300'
+          }`}
+        >
+          <p className={`text-sm font-bold tracking-tight ${statusFilter === 'low-stock' ? 'text-orange-100' : 'text-neutral-600'}`}>품절임박</p>
           <div className="flex items-baseline gap-1">
-            <h3 className="text-2xl font-bold text-orange-500">{lowStockCount}</h3>
-            <span className="text-xs text-orange-400">개</span>
+            <h3 className={`text-2xl font-bold ${statusFilter === 'low-stock' ? 'text-white' : 'text-orange-600'}`}>{lowStockCount}</h3>
+            <span className={`text-xs ${statusFilter === 'low-stock' ? 'text-orange-100' : 'text-orange-600'}`}>개</span>
           </div>
-        </div>
+        </button>
       </div>
 
       {selectedProductIds.length > 0 && (
@@ -582,16 +630,16 @@ export function ProductManagementPage() {
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
                   {currentProducts.map((product, index) => (
-                      <tr 
-                        key={product.id} 
-                        className={`hover:bg-neutral-50 cursor-pointer ${selectedProductIds.includes(product.id) ? 'bg-neutral-50' : ''}`}
-                        onClick={() => navigate(
-                          isPackageView ? `/admin/products/package-edit/${product.id}` : 
-                          isSetView ? `/admin/products/set-edit/${product.id}` : 
-                          isPromotionView ? `/admin/products/promotion-edit/${product.id}` :
-                          `/admin/products/edit/${product.id}`
-                        )}
-                      >
+                    <tr
+                      key={product.id}
+                      className={`hover:bg-neutral-50 cursor-pointer ${selectedProductIds.includes(product.id) ? 'bg-neutral-50' : ''}`}
+                      onClick={() => navigate(
+                        isPackageView ? `/admin/products/package-edit/${product.id}` :
+                          isSetView ? `/admin/products/set-edit/${product.id}` :
+                            isPromotionView ? `/admin/products/promotion-edit/${product.id}` :
+                              `/admin/products/edit/${product.id}`
+                      )}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
@@ -609,7 +657,7 @@ export function ProductManagementPage() {
                             {product.name}
                           </span>
                           {!product.isVisible && (
-                            <span 
+                            <span
                               className="px-1 py-0 text-[10px] bg-orange-50 text-orange-600 border border-orange-200 rounded-sm font-bold whitespace-nowrap inline-flex items-center"
                               style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}
                             >
@@ -617,7 +665,7 @@ export function ProductManagementPage() {
                             </span>
                           )}
                           {product.baseProductId && (
-                            <span 
+                            <span
                               className="px-1 py-0 text-[10px] bg-blue-50 text-blue-600 border border-blue-100 rounded-sm font-bold whitespace-nowrap inline-flex items-center"
                               style={{ transform: 'scale(0.85)', transformOrigin: 'left center' }}
                             >
@@ -635,8 +683,8 @@ export function ProductManagementPage() {
                             <span
                               key={i}
                               className={`block truncate text-xs leading-tight ${i === 0
-                                  ? 'text-neutral-400 font-normal mb-0.5'
-                                  : 'text-neutral-900 font-medium'
+                                ? 'text-neutral-400 font-normal mb-0.5'
+                                : 'text-neutral-900 font-medium'
                                 }`}
                               title={part}
                             >
@@ -650,11 +698,11 @@ export function ProductManagementPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="inline-flex overflow-visible">
-                          <span 
+                          <span
                             className={`inline-flex px-1 py-0 text-[10px] font-bold rounded-sm whitespace-nowrap items-center ${product.status === 'active'
                               ? 'bg-green-50 text-green-700 border border-green-200'
                               : 'bg-red-50 text-red-700 border border-red-200'
-                            }`}
+                              }`}
                             style={{ transform: 'scale(0.85)', transformOrigin: 'center' }}
                           >
                             {product.status === 'active' ? '판매중' : '판매중지'}
@@ -677,10 +725,10 @@ export function ProductManagementPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(
-                                isPackageView ? `/admin/products/package-edit/${product.id}` : 
-                                isSetView ? `/admin/products/set-edit/${product.id}` : 
-                                isPromotionView ? `/admin/products/promotion-edit/${product.id}` :
-                                `/admin/products/edit/${product.id}`
+                                isPackageView ? `/admin/products/package-edit/${product.id}` :
+                                  isSetView ? `/admin/products/set-edit/${product.id}` :
+                                    isPromotionView ? `/admin/products/promotion-edit/${product.id}` :
+                                      `/admin/products/edit/${product.id}`
                               );
                             }}
                             className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"

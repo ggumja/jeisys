@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { FloatingButtons } from './FloatingButtons';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
-import brandsImage from '@/assets/b5662c9e081b390cfd4a0ad2846686cabac40eaf.png';
+
 
 export function RootLayout() {
   const navigate = useNavigate();
@@ -169,40 +169,84 @@ export function RootLayout() {
           </div>
         </nav>
 
-        <div className="hidden md:block bg-white w-full">
-          <div className="w-full px-4 border-t border-neutral-100 pt-12">
-            <img src={brandsImage} alt="Brands" className="w-full h-auto" />
-          </div>
-        </div>
 
-        <footer className="hidden md:block bg-neutral-100 text-neutral-600 border-t border-neutral-200 w-full mt-16">
-          <div className="w-full px-4 py-16">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div>
-                <h3 className="text-sm tracking-wide text-black mb-4 font-medium">(주)제이시스메디칼</h3>
-                <div className="text-sm leading-relaxed space-y-1">
-                  <p>대표자: 이라미</p>
-                  <p>대표번호: 070-7435-4927 | E-mail: webmaster@jeisys.com</p>
-                  <p>사업자등록번호: 424-87-00852 | 통신판매업 신고번호: 제 2022-서울금천-0845호</p>
-                  <p>개인정보관리책임자: 박종선</p>
+
+        <footer className="text-white w-full mt-16" style={{ backgroundColor: '#1A1F2C' }}>
+          {/* Top Divider & Links */}
+          <div className="border-b border-white/10">
+            <div className="max-w-[1440px] mx-auto px-4 h-16 flex items-center justify-between text-[13px] font-medium">
+              <div className="flex items-center gap-8 text-white/60">
+                <Link to="/cyber" className="hover:text-white transition-colors">사이버신문고</Link>
+                <Link to="/privacy" className="hover:text-white transition-colors">개인정보처리방침</Link>
+              </div>
+              <div className="relative group">
+                <button className="flex items-center gap-4 bg-white/5 border border-white/10 px-4 py-2 rounded-sm hover:bg-white/10 transition-colors">
+                  <span>Family site</span>
+                  <ChevronDown className="w-4 h-4 opacity-50" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-[1440px] mx-auto px-4 py-16">
+            <div className="flex flex-col lg:flex-row gap-16">
+              {/* Left Section: Company Logo & Info */}
+              <div className="flex-1">
+                <div 
+                  className="text-[40px] text-white/90 mb-8"
+                  style={{ fontFamily: "'Palatino', serif" }}
+                >
+                  Jeisys
+                </div>
+                <div className="text-[13px] leading-relaxed text-white/50 space-y-1">
+                  <p className="font-bold text-white/80 mb-2">(주)제이시스메디칼</p>
+                  <p>대표자: 이라미  |  대표번호: 070-7435-4927  |  E-mail: webmaster@jeisys.com  |  사업자등록번호: 424-87-00852</p>
+                  <p>통신판매업 신고번호: 제 2022-서울금천-0845호  |  개인정보관리책임자: 박종선</p>
                   <p>주소: 서울특별시 금천구 가마산로 96 대륭테크노타운6동</p>
                 </div>
               </div>
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm tracking-wide text-black mb-3 font-medium">고객지원센터 070-7435-4927</h4>
-                  <div className="text-sm space-y-1">
-                    <p>평일: 오전 9시 ~ 오후 5시 | 휴일: 토요일, 일요일, 공휴일</p>
-                    <p>주문마감: 오후 2시 30분 | 배달 및 제주(도) 오후 1시 마감</p>
+
+              {/* Right Section: Support Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-[13px] min-w-[600px]">
+                <div className="space-y-4">
+                  <h4 className="text-white/40 uppercase tracking-wider font-bold">고객지원센터</h4>
+                  <div className="space-y-2">
+                    <p className="text-[20px] font-bold text-white">070-7435-4927</p>
+                    <div className="text-white/50 leading-tight">
+                      <p>평일: 오전 9시 ~ 오후 5시</p>
+                      <p>휴일: 토요일, 일요일, 공휴일</p>
+                      <p>주문마감: 오후 2시 30분분</p>
+                      <p>배달 및 제주(도) 오후 1시 마감</p>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <h4 className="text-sm tracking-wide text-black mb-3 font-medium">AS고객센터 1544-1639</h4>
-                  <div className="text-sm space-y-1">
-                    <p>평일: 오전 10시 ~ 오후 4시 | 휴일: 토요일, 일요일, 공휴일</p>
+
+                <div className="space-y-4">
+                  <h4 className="text-white/40 uppercase tracking-wider font-bold">AS고객센터</h4>
+                  <div className="space-y-2">
+                    <p className="text-[20px] font-bold text-white">1544-1639</p>
+                    <div className="text-white/50 leading-tight">
+                      <p>평일: 오전 10시 ~ 오후 4시</p>
+                      <p>휴일: 토요일, 일요일, 공휴일</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-white/40 uppercase tracking-wider font-bold">입급계좌 우리은행</h4>
+                  <div className="space-y-2">
+                    <p className="text-[20px] font-bold text-white">1005-803-786090</p>
+                    <div className="text-white/50 leading-tight">
+                      <p>예금주: (주)제이시스메디칼</p>
+                    </div>
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Bottom Copyright */}
+            <div className="mt-16 pt-8 border-t border-white/5 text-[12px] text-white/30">
+              본 사이트의 이미지에 대한 모든 권한은 (주)제이시스메디칼에 있습니다. 무단 도용 시 법적 제재를 받으실 수 있습니다.
             </div>
           </div>
         </footer>

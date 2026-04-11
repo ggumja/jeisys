@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Search, Trash2, Loader2, Check, Upload, ImageIcon, X, Plus, Package } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 
@@ -79,6 +80,7 @@ interface PackageItemData {
 export function PackageRegisterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEditMode = !!id;
 
   const { data: existingProduct, isLoading: isLoadingProduct } = useProduct(id || '');
@@ -685,6 +687,9 @@ export function PackageRegisterPage() {
         description: isEditMode ? '패키지 정보가 성공적으로 수정되었습니다.' : '새로운 패키지가 성공적으로 등록되었습니다.',
         type: 'success'
       });
+
+      // Invalidate products query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     } catch (error) {
       console.error('Error saving package:', error);
       setResultModal({

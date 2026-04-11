@@ -465,28 +465,54 @@ export function ProductDetailPage() {
                   return (
                     <>
                       <div className="text-sm text-neutral-600 font-medium font-outfit">
-                        정가 <span className="line-through decoration-neutral-400">₩{regUnitPrice.toLocaleString()}원</span>
+                        <span className="line-through decoration-neutral-400">₩{basePrice.toLocaleString()}원</span>
                       </div>
                       <div className="flex flex-col">
                         <div className="text-2xl lg:text-4xl tracking-tight text-red-600 font-black flex items-center gap-2">
-                          ₩{unitPrice.toLocaleString()}
+                          ₩{discountedTotal.toLocaleString()}
                           <span className="text-sm lg:text-base font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-sm border border-blue-100 uppercase">
                             {currentOption.quantity}개 SET할인-{discountRate}% 적용
                           </span>
+                        </div>
+                        <div className="text-xs text-neutral-400 font-medium mt-1">
+                          (개당 단가: ₩{unitPrice.toLocaleString()}원)
                         </div>
                       </div>
                     </>
                   );
                 })() : (
                   <>
-                    {((product.discountRate || 0) > 0 && !product.isPackage && !(product.options && product.options.length > 0)) && (
-                      <div className="text-sm text-neutral-600 font-medium font-outfit">
-                        정가 <span className="line-through decoration-neutral-400">₩{product.price.toLocaleString()}원</span>
-                      </div>
-                    )}
-                    <div className="text-4xl lg:text-5xl tracking-tighter text-red-600 font-black font-outfit">
-                      ₩{((product.price || 0) * (1 - (product.discountRate || 0) / 100)).toLocaleString()}
-                    </div>
+                    {(() => {
+                      // If it's a package or has options, but nothing is selected yet, show 0 won
+                      if (((product.options && product.options.length > 0) || product.isPackage || product.isPromotion) && !currentOption && selectedPromotionPaid.length === 0) {
+                        return (
+                          <div className="text-4xl lg:text-5xl tracking-tighter text-red-600 font-black font-outfit">
+                            ₩0
+                          </div>
+                        );
+                      }
+
+                      const listPricePerPiece = product.price;
+                      const discountRate = product.discountRate || 0;
+                      
+                      const totalListPrice = listPricePerPiece * quantity;
+                      const totalDiscountedPrice = currentUnitPrice * quantity;
+                      const finalAmount = isSubscription ? Math.round(totalDiscountedPrice * (1 - (product.subscriptionDiscount || 0) / 100)) : totalDiscountedPrice;
+
+                      return (
+                        <>
+                          <div className="text-sm text-neutral-600 font-medium font-outfit">
+                            <span className="line-through decoration-neutral-400">₩{totalListPrice.toLocaleString()}원</span>
+                          </div>
+                          <div className="text-4xl lg:text-5xl tracking-tighter text-red-600 font-black font-outfit">
+                            ₩{finalAmount.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-neutral-400 font-medium mt-1">
+                            (개당 단가: ₩{currentUnitPrice.toLocaleString()}원)
+                          </div>
+                        </>
+                      );
+                    })()}
                   </>
                 )}
                   {isSubscription && !currentOption && (
@@ -501,6 +527,30 @@ export function ProductDetailPage() {
                   )}
                 </div>
               </div>
+              
+              {/* Tier Pricing Information Banner */}
+              {product.tierPricing && product.tierPricing.length > 0 && (
+                <div className="mt-4 p-4 bg-red-50/50 border border-red-100 rounded-sm">
+                  <div className="flex items-center gap-2 mb-1.5 border-l-2 border-red-500 pl-2">
+                    <span className="text-xs font-black text-red-600 uppercase tracking-widest">다량할인 안내</span>
+                  </div>
+                  <p className="text-sm text-neutral-600 font-medium leading-relaxed">
+                    {product.tierPricing.length === 1 ? (
+                      <span className="text-neutral-900">
+                        {product.tierPricing[0].quantity}개 이상 구매 시 <strong>{Math.round((1 - product.tierPricing[0].unitPrice / product.price) * 100)}%</strong> 할인이 됩니다.
+                      </span>
+                    ) : (
+                      <span className="text-neutral-900 flex flex-wrap gap-x-3 gap-y-1">
+                        {product.tierPricing.map((t, i) => (
+                          <span key={i} className="whitespace-nowrap">
+                            {t.quantity}개 이상 <span className="text-red-600 font-black">{Math.round((1 - t.unitPrice / product.price) * 100)}%</span>할인{i < product.tierPricing.length - 1 ? ',' : ''}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
 
 

@@ -107,7 +107,7 @@ export function CartPage() {
         const subProduct = productsMap[id];
         return sum + (subProduct?.price || 0);
       }, 0);
-      return paidTotal / salesUnit;
+      return paidTotal;
     }
 
     if (item.optionId) {
@@ -115,7 +115,7 @@ export function CartPage() {
       if (option) {
         const discountRate = (option.discountRate || 0) / 100;
         const basePrice = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
-        return (basePrice * (1 - discountRate)) / salesUnit;
+        return (basePrice * (1 - discountRate)) / (option.quantity || 1);
       }
     }
 
@@ -123,7 +123,7 @@ export function CartPage() {
       .sort((a, b) => b.quantity - a.quantity)
       .find(t => item.quantity >= t.quantity);
 
-    return (tier?.unitPrice || product.price) / salesUnit;
+    return (tier?.unitPrice || product.price);
   };
 
   const calculateTotal = () => {
@@ -227,11 +227,11 @@ export function CartPage() {
                                 ({unitPrice.toLocaleString()}원 × {item.quantity}개)
                               </span>
                             </div>
-                            {unitPrice < (product.price / (product.salesUnit || 1)) && (
+                            {unitPrice < (product.price) && (
                               <div className="flex items-center gap-2 text-xs">
-                                <span className="text-neutral-400 line-through">정상가(개당): ₩{(product.price / (product.salesUnit || 1)).toLocaleString()}</span>
+                                <span className="text-neutral-400 line-through">정상가(개당): ₩{(product.price).toLocaleString()}</span>
                                 <span className="text-red-500 font-bold">
-                                  {Math.round((1 - unitPrice / (product.price / (product.salesUnit || 1))) * 100)}% 할인 적용
+                                  {Math.round((1 - unitPrice / (product.price)) * 100)}% 할인 적용
                                 </span>
                               </div>
                             )}

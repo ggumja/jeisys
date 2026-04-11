@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Upload, ImageIcon, X, Plus, Trash2, Search, Loader2, ShieldAlert, Package } from 'lucide-react';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { useProduct, useProducts, useCreateProduct, useUpdateProduct, useAddPricingTiers } from '../../hooks/useProducts';
@@ -81,6 +82,7 @@ interface FormData {
 export function SetRegisterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEditMode = !!id;
 
   // React Query hooks
@@ -549,6 +551,9 @@ export function SetRegisterPage() {
         description: `상품이 성공적으로 ${isEditMode ? '수정' : '등록'}되었습니다.`,
         type: 'success'
       });
+
+      // Invalidate products query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     } catch (error: any) {
       console.error('Error saving product:', error);
       let errorMessage = error.message || '상품 저장 중 오류가 발생했습니다. 데이터 연결 상태를 확인해주세요.';

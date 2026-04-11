@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   ChevronLeft, 
   Save, 
@@ -44,11 +45,13 @@ interface PromotionFormData {
   getQuantity: number;
   items: PromotionItemData[];
   imageUrl: string;
+  stock: number;
 }
 
 export function PromotionRegisterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isEdit = !!id;
   
   const { data: categories = [] } = useCategories();
@@ -61,7 +64,8 @@ export function PromotionRegisterPage() {
     buyQuantity: 3,
     getQuantity: 1,
     items: [],
-    imageUrl: ''
+    imageUrl: '',
+    stock: 0
   });
 
   const [productsList, setProductsList] = useState<Product[]>([]);
@@ -113,7 +117,6 @@ export function PromotionRegisterPage() {
       if (product) {
         // Fetch promotion items
         const promotionItems = await productService.getPromotionItems(promotionId);
-        
         setFormData({
           name: product.name,
           sku: product.sku,
@@ -127,7 +130,8 @@ export function PromotionRegisterPage() {
             sku: item.sku,
             price: item.price
           })),
-          imageUrl: product.imageUrl || ''
+          imageUrl: product.imageUrl || '',
+          stock: product.stock || 0
         });
         if (product.imageUrl) {
           setThumbnailPreview(product.imageUrl);
@@ -279,6 +283,7 @@ export function PromotionRegisterPage() {
         image_url: finalImageUrl,
         is_active: true,
         is_visible: true,
+        stock: formData.stock,
         promotion_item_ids: formData.items.map(item => item.productId)
       };
 
@@ -312,6 +317,9 @@ export function PromotionRegisterPage() {
         description: `프로모션 상품이 성공적으로 ${isEdit ? '수정' : '등록'}되었습니다.`,
         type: 'success'
       });
+
+      // Invalidate products query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     } catch (error) {
       console.error('Failed to save promotion', error);
       setResultModal({
@@ -465,43 +473,58 @@ export function PromotionRegisterPage() {
           </div>
         </div>
         {/* Basic Info Section */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">기본 정보</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">프로모션 번들 명칭 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  placeholder="예) 필러 3+1 프로모션"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-base font-bold"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">상품 코드 (SKU) <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  placeholder="PROM-3PLUS1-001"
-                  value={formData.sku}
-                  onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold bg-neutral-50"
-                  readOnly={isEdit}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">카테고리</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold bg-white"
-                >
-                  <option value="">카테고리 선택</option>
-                  {renderCategoryOptions()}
-                </select>
-              </div>
+        <div className="bg-white border border-neutral-200 p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
+            <h3 className="text-lg font-bold text-neutral-900">기본 정보</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">프로모션 번들 명칭 <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                placeholder="예) 필러 3+1 프로모션"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-base font-bold"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">상품 코드 (SKU) <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                placeholder="PROM-3PLUS1-001"
+                value={formData.sku}
+                onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
+                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold bg-neutral-50"
+                readOnly={isEdit}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">카테고리</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold bg-white"
+              >
+                <option value="">카테고리 선택</option>
+                {renderCategoryOptions()}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">재고 수량 (Stock)</label>
+              <input
+                type="text"
+                placeholder="0"
+                value={formatWithCommas(formData.stock)}
+                onChange={(e) => setFormData(prev => ({ ...prev, stock: unformatNumber(e.target.value) }))}
+                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold text-right tabular-nums bg-white"
+              />
             </div>
           </div>
+        </div>
 
         <div className="bg-white border border-neutral-200 p-8">
           <h3 className="text-lg font-bold text-neutral-900 mb-10 border-l-4 border-neutral-900 pl-3">프로모션 규칙 설정</h3>

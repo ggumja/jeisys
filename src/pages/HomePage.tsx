@@ -7,7 +7,8 @@ import { ProductImage } from "../components/ui/ProductImage";
 import { postService, Post } from "../services/postService";
 import { productService } from "../services/productService";
 import { Product } from "../types";
-import { Layout, Clock, ChevronLeft, ChevronRight, X, Package, Coins, ArrowRight } from "lucide-react";
+import { Layout, Clock, ChevronLeft, ChevronRight, X, Package, Coins, ArrowRight, Zap } from "lucide-react";
+import { productImages } from "../lib/productImages";
 import useEmblaCarousel from 'embla-carousel-react';
 import { useCallback } from "react";
 
@@ -22,7 +23,7 @@ export function HomePage() {
   const [newsPosts, setNewsPosts] = useState<Post[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+  const [emblaRef, emblaApi] = useEmblaCarousel({
     align: 'start',
     containScroll: 'trimSnaps',
     dragFree: true
@@ -64,7 +65,7 @@ export function HomePage() {
         setIsLoadingProducts(true);
         const products = await productService.getProducts();
         const activeProducts = products.filter(p => p.isActive);
-        
+
         if (activeProducts.length > 0) {
           setRecommendedProducts(activeProducts.slice(0, 24));
         } else {
@@ -159,14 +160,14 @@ export function HomePage() {
           {activeBanners.length > 0 ? (
             <div className="relative w-full h-full group">
               <div className="h-full overflow-hidden">
-                <div 
+                <div
                   className="flex h-full transition-transform duration-700 ease-in-out"
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                 >
                   {activeBanners.map((banner) => (
                     <div key={banner.id} className="min-w-full h-full relative">
-                      <Link 
-                        to={banner.linkUrl} 
+                      <Link
+                        to={banner.linkUrl}
                         className="block w-full h-full group relative"
                         onClick={() => handleAdClick(banner)}
                       >
@@ -204,7 +205,7 @@ export function HomePage() {
                   </button>
                 </div>
               )}
-              
+
               {activeBanners.length > 1 && (
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-8 z-[100] flex gap-3">
                   {activeBanners.map((ad, index) => (
@@ -213,9 +214,8 @@ export function HomePage() {
                       type="button"
                       onClick={(e) => goToSlide(index, e)}
                       onMouseDown={(e) => e.stopPropagation()}
-                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
-                        index === currentSlide ? "bg-neutral-900 w-10" : "bg-neutral-900/20 hover:bg-neutral-900/40"
-                      }`}
+                      className={`w-2.5 h-2.5 rounded-full transition-all duration-300 cursor-pointer ${index === currentSlide ? "bg-neutral-900 w-10" : "bg-neutral-900/20 hover:bg-neutral-900/40"
+                        }`}
                       aria-label={`Go to slide ${index + 1}`}
                     />
                   ))}
@@ -225,9 +225,9 @@ export function HomePage() {
           ) : (
             <div className="w-full h-full">
               <Link to="/products" className="block w-full h-full group overflow-hidden">
-                <img 
-                  src="https://xbtnhnkwlioufpyeuyyg.supabase.co/storage/v1/object/public/marketing/hero_full_image.png" 
-                  alt="Main Banner" 
+                <img
+                  src="https://xbtnhnkwlioufpyeuyyg.supabase.co/storage/v1/object/public/marketing/hero_full_image.png"
+                  alt="Main Banner"
                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-[1.02]"
                 />
               </Link>
@@ -240,9 +240,9 @@ export function HomePage() {
       <section className="w-full bg-white py-20 md:py-[160px] border-t border-neutral-50">
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="text-center mb-[56px] relative">
-            <h1 
-              className="text-[54px] text-[#515151] mb-[12px] tracking-tight" 
-              style={{ 
+            <h1
+              className="text-[54px] text-[#515151] mb-[12px] tracking-tight"
+              style={{
                 fontFamily: "'Palatino', 'Palatino Linotype', 'Palatino LT STD', 'Book Antiqua', Georgia, serif",
                 lineHeight: '48px',
                 fontSize: '54px'
@@ -289,7 +289,7 @@ export function HomePage() {
                         />
                       </div>
                       <div className="flex flex-col">
-                        <span 
+                        <span
                           style={{
                             fontSize: '13px',
                             lineHeight: '18px',
@@ -303,7 +303,7 @@ export function HomePage() {
                         >
                           {product.category || "JEISYS-PROD-001"}
                         </span>
-                        <h3 
+                        <h3
                           style={{
                             fontSize: '22px',
                             lineHeight: '28px',
@@ -344,21 +344,21 @@ export function HomePage() {
           <div className="flex items-center gap-[20px] pt-[40px]">
             <div className="flex-1 h-[48px] flex items-center">
               <div className="w-full h-[2px] bg-[#E2E8F0] relative overflow-hidden">
-                <div 
-                  className="absolute left-0 top-0 h-full bg-[#21358D] transition-all duration-300 ease-out" 
+                <div
+                  className="absolute left-0 top-0 h-full bg-[#21358D] transition-all duration-300 ease-out"
                   style={{ width: `${scrollProgress}%` }}
                 />
               </div>
             </div>
             <div className="flex items-center gap-[12px]">
-              <button 
+              <button
                 onClick={scrollPrev}
                 className="w-[56px] h-[56px] bg-white border border-[#21358D]/20 rounded-full flex items-center justify-center text-[#21358D] hover:bg-neutral-50 active:scale-95 shadow-lg shadow-black/5 transition-all"
                 aria-label="Previous products"
               >
                 <ChevronLeft className="w-[28px] h-[28px]" />
               </button>
-              <button 
+              <button
                 onClick={scrollNext}
                 className="w-[56px] h-[56px] bg-[#21358D] rounded-full flex items-center justify-center text-white hover:bg-[#1a2b75] active:scale-95 shadow-lg shadow-[#21358D]/20 transition-all"
                 aria-label="Next products"
@@ -370,13 +370,14 @@ export function HomePage() {
         </div>
       </section>
 
+
       {/* 3. News Section - Boxed Content */}
-      <section className="w-full bg-white py-20 md:py-[160px] border-t border-neutral-50">
+      <section className="w-full bg-white py-20 md:py-[160px] border-t border-neutral-50 font-sans">
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="text-center mb-[56px] relative">
-            <h1 
-              className="text-[54px] text-[#515151] mb-[12px] tracking-tight" 
-              style={{ 
+            <h1
+              className="text-[54px] text-[#515151] mb-[12px] tracking-tight"
+              style={{
                 fontFamily: "'Palatino', 'Palatino Linotype', 'Palatino LT STD', 'Book Antiqua', Georgia, serif",
                 lineHeight: '48px',
                 fontSize: '54px'
@@ -388,8 +389,8 @@ export function HomePage() {
               제이시스 뉴스
             </h2>
             <Link
-              to="/community"
-              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-[36px] py-[12px] rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
+              to="/communication/news"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 p-5 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
             >
               전체보기
             </Link>
@@ -397,7 +398,7 @@ export function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {newsPosts.length > 0 ? (
               newsPosts.map((post) => (
-                <Link key={post.id} to={`/community/${post.id}`} className="group flex flex-col">
+                <Link key={post.id} to={`/communication/news/${post.id}`} className="group flex flex-col">
                   <div className="aspect-video bg-neutral-100 overflow-hidden mb-6 relative">
                     {post.imageUrl ? (
                       <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
@@ -430,6 +431,58 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* 4. Application Section */}
+      <section className="w-full bg-white py-20 md:py-[120px] border-t border-neutral-50 overflow-hidden font-sans">
+        <div className="max-w-[1440px] mx-auto px-4">
+          <div className="text-center mb-[56px] relative">
+            <h1
+              className="text-[54px] text-[#515151] mb-[12px] tracking-tight"
+              style={{
+                fontFamily: "'Palatino', 'Palatino Linotype', 'Palatino LT STD', 'Book Antiqua', Georgia, serif",
+                lineHeight: '48px',
+                fontSize: '54px'
+              }}
+            >
+              Application
+            </h1>
+            <h2 className="text-[24px] font-semibold mb-4" style={{ color: '#21358D' }}>
+              제이시스메디컬 장비 데모 신청
+            </h2>
+            <p className="text-[15px] text-neutral-400">
+              원하시는 데모 장비의 브랜드 로고를 클릭하시면 데모 신청 페이지로 이동됩니다.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 md:gap-8 pt-8 overflow-hidden">
+            {[
+              { id: 1, name: '리니어펌', img: productImages.linearfirm },
+              { id: 2, name: '셀레브이', img: productImages.ultracelQPlus },
+              { id: 3, name: '엣지원', img: productImages.intragen },
+              { id: 4, name: '덴서티', img: productImages.potenza },
+              { id: 5, name: '포텐자', img: productImages.potenza },
+              { id: 6, name: '리니어지', img: productImages.linearz },
+              { id: 7, name: '트라이빔', img: productImages.ultracelII }
+            ].map((brand) => (
+              <div
+                key={brand.id}
+                className="flex flex-col items-center gap-6 flex-1 min-w-0"
+              >
+                <div className="w-full aspect-[1/1.2] flex items-center justify-center">
+                  <img src={brand.img} alt={brand.name} className="max-w-full max-h-full object-contain" />
+                </div>
+                <div className="w-full text-center border-t border-neutral-100 pt-4">
+                  <span className="text-[15px] text-neutral-400 font-medium">
+                    {brand.name}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+
 
       {/* Popup */}
       {showPopup && activePopup && (
