@@ -24,3 +24,10 @@
 - **UI/UX Enhancement:** Replaced all native `alert()` with `Dialog` based layer popups in the admin registration page.
 - **PDCA Archiving:** Implemented permanent storage of implementation plans and results in `.agent/pdca/` for future reference.
 - **Tech Progress:** Updated `PRODUCT_FEATURE_PROGRESS.md` to reflect Step 4 completion.
+
+## 2026-04-11
+- **Official Brand Colors Defined:**
+    - **Primary Brand Color:** `#21358D` (Deep Blue)
+    - **Alpha Variants:** `#21358D` at 10% and 20% opacity.
+    - **Edge Color:** `#000000` at 8% opacity.
+    - These colors are the core of the **Jeisys Medical** identity and must be used for all UI components.

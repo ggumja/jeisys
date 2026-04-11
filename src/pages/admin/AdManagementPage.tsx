@@ -47,6 +47,34 @@ export function AdManagementPage() {
         displayOrder: 0,
     });
 
+    // Result Modal state for alerts and confirmations
+    const [resultModal, setResultModal] = useState<{
+        isOpen: boolean;
+        type: 'success' | 'error' | 'confirm';
+        title: string;
+        message: string;
+        onConfirm?: () => void;
+    }>({
+        isOpen: false,
+        type: 'success',
+        title: '',
+        message: '',
+    });
+
+    const showResult = (type: 'success' | 'error' | 'confirm', title: string, message: string, onConfirm?: () => void) => {
+        setResultModal({
+            isOpen: true,
+            type,
+            title,
+            message,
+            onConfirm,
+        });
+    };
+
+    const closeResult = () => {
+        setResultModal(prev => ({ ...prev, isOpen: false }));
+    };
+
     useEffect(() => {
         if (viewMode === 'list') {
             fetchAds();
@@ -157,7 +185,7 @@ export function AdManagementPage() {
             }));
         } catch (error) {
             console.error('Upload failed:', error);
-            alert('이미지 업로드에 실패했습니다.');
+            showResult('error', '업로드 실패', '이미지 업로드 중 오류가 발생했습니다.');
         } finally {
             setIsUploading(false);
         }
@@ -181,20 +209,25 @@ export function AdManagementPage() {
             }
             fetchAds();
             handleCloseModal();
+            showResult('success', '저장 완료', '광고 정보가 성공적으로 저장되었습니다.');
         } catch (error) {
             console.error('Failed to save ad:', error);
-            alert('저장 중 오류가 발생했습니다.');
+            showResult('error', '저장 실패', '정보 저장 중 오류가 발생했습니다.');
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('정말로 이 광고를 삭제하시겠습니까?')) return;
-        try {
-            await adService.deleteAd(id);
-            fetchAds();
-        } catch (error) {
-            console.error('Failed to delete ad:', error);
-        }
+    const handleDelete = (id: string) => {
+        showResult('confirm', '광고 삭제', '정말로 이 광고를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.', async () => {
+            try {
+                await adService.deleteAd(id);
+                fetchAds();
+                closeResult();
+                showResult('success', '삭제 완료', '광고가 삭제되었습니다.');
+            } catch (error) {
+                console.error('Failed to delete ad:', error);
+                showResult('error', '삭제 실패', '삭제 중 오류가 발생했습니다.');
+            }
+        });
     };
 
     const getPlacementLabel = (id: AdPlacement) => {
@@ -522,7 +555,11 @@ export function AdManagementPage() {
                                         <tr><td colSpan={6} className="px-6 py-10 text-center text-neutral-500 text-sm">등록된 광고가 없습니다.</td></tr>
                                     ) : (
                                         ads.map((ad) => (
-                                            <tr key={ad.id} className="hover:bg-neutral-50">
+                                            <tr 
+                                                key={ad.id} 
+                                                onClick={() => handleOpenModal(ad)}
+                                                className="hover:bg-neutral-50 cursor-pointer transition-colors"
+                                            >
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className="text-xs font-medium px-2 py-1 bg-neutral-100 text-neutral-700 rounded">
                                                         {getPlacementLabel(ad.placement)}
@@ -562,7 +599,7 @@ export function AdManagementPage() {
                                                     {ad.displayOrder}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                                         <button
                                                             onClick={() => handleOpenModal(ad)}
                                                             className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
@@ -765,30 +802,89 @@ export function AdManagementPage() {
                                 <label htmlFor="isActive" className="text-sm text-neutral-700">현재 광고 활성화 (노출 허용)</label>
                             </div>
                         </form>
-                        <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 bg-neutral-50">
-                            <button
-                                onClick={handleCloseModal}
-                                className="px-6 py-2.5 text-sm font-medium text-neutral-700 hover:text-neutral-900"
-                            >
-                                취소
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isUploading}
-                                className={`px-8 py-2.5 bg-neutral-900 text-white rounded text-sm font-medium flex items-center gap-2 ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-neutral-800'}`}
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        업로드 중...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="w-4 h-4" />
-                                        저장하기
-                                    </>
+                        <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-between bg-neutral-50 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] sticky bottom-0 z-10">
+                            <div>
+                                {editingAd && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDelete(editingAd.id)}
+                                        className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 font-medium text-sm px-2 py-1 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                        광고 삭제
+                                    </button>
                                 )}
-                            </button>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleCloseModal}
+                                    className="px-6 py-2.5 text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={isUploading}
+                                    className={`px-10 py-2.5 bg-neutral-900 text-white rounded-sm text-sm font-bold flex items-center gap-2 shadow-lg transition-all ${isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-black active:scale-[0.98]'}`}
+                                >
+                                    {isUploading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            업로드 중...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-4 h-4" />
+                                            데이터 저장하기
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Result Modal */}
+            {resultModal.isOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-8 text-center">
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${
+                                resultModal.type === 'success' ? 'bg-green-100 text-green-600' : 
+                                resultModal.type === 'error' ? 'bg-red-100 text-red-600' : 
+                                'bg-neutral-100 text-neutral-600'
+                            }`}>
+                                {resultModal.type === 'success' && <Save className="w-8 h-8" />}
+                                {resultModal.type === 'error' && <X className="w-8 h-8" />}
+                                {resultModal.type === 'confirm' && <Trash2 className="w-8 h-8" />}
+                            </div>
+                            <h5 className="text-xl font-bold text-neutral-900 mb-3">{resultModal.title}</h5>
+                            <p className="text-neutral-500 text-sm leading-relaxed">{resultModal.message}</p>
+                        </div>
+                        <div className="flex border-t border-neutral-100">
+                            {resultModal.type === 'confirm' ? (
+                                <>
+                                    <button
+                                        onClick={closeResult}
+                                        className="flex-1 px-6 py-4 text-sm font-bold text-neutral-400 hover:bg-neutral-50 border-r border-neutral-100 transition-colors uppercase tracking-widest"
+                                    >
+                                        아니오
+                                    </button>
+                                    <button
+                                        onClick={resultModal.onConfirm}
+                                        className="flex-1 px-6 py-4 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors uppercase tracking-widest"
+                                    >
+                                        예, 삭제합니다
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={closeResult}
+                                    className="w-full px-6 py-4 text-sm font-bold text-[#1e3a8a] hover:bg-neutral-50 transition-colors uppercase tracking-widest"
+                                >
+                                    확인
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
