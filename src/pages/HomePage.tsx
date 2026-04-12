@@ -305,8 +305,8 @@ export function HomePage() {
                         </span>
                         <h3
                           style={{
-                            fontSize: '22px',
-                            lineHeight: '28px',
+                            fontSize: '20px',
+                            lineHeight: '26px',
                             color: '#1E293B',
                             fontWeight: 700,
                             marginBottom: '24px',
@@ -326,7 +326,7 @@ export function HomePage() {
                             <span style={{ fontWeight: 500, color: '#1E293B' }}>8</span>회 구매
                           </div>
                         </div>
-                        <p style={{ fontSize: '20px', fontWeight: 700, color: '#21358D' }}>
+                        <p style={{ fontSize: '18px', fontWeight: 700, color: '#21358D' }}>
                           ₩{product.price.toLocaleString()}
                         </p>
                       </div>

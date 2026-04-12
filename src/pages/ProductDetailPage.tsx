@@ -710,7 +710,7 @@ export function ProductDetailPage() {
             <>
               {product.options && product.options.length > 0 ? (
                 <div className="mb-8">
-                  <label className="block text-xs tracking-wide text-neutral-700 mb-4 uppercase font-medium">
+                  <label className="block text-sm tracking-wide text-neutral-700 mb-4 uppercase font-medium">
                     구매 세트 선택 <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
@@ -739,8 +739,12 @@ export function ProductDetailPage() {
                 </div>
               ) : (
                 <div className="mb-8">
-                  <label className="block text-xs tracking-wide text-neutral-700 mb-4 uppercase font-medium">
-                    수량
+                  <label className="block text-sm tracking-wide text-neutral-700 mb-4 uppercase font-medium">
+                    수량 {product.salesUnit && product.salesUnit > 1 && (
+                      <span className="text-neutral-500 lowercase font-normal ml-1">
+                        (판매단위: {product.salesUnit}개)
+                      </span>
+                    )}
                   </label>
                   <div className="flex items-center gap-6">
                     {product.quantityInputType === 'list' ? (

@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { ADMIN_STYLES } from '../../constants/adminStyles';
 
 const formatWithCommas = (value: string | number) => {
   if (value === undefined || value === null || value === '') return '';
@@ -746,7 +747,7 @@ export function PackageRegisterPage() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-8 pb-32">
+    <div className={ADMIN_STYLES.PAGE_CONTAINER}>
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -767,16 +768,16 @@ export function PackageRegisterPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Combined Product Images Section - Compact Single Line */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
-            <h3 className="text-lg font-bold text-neutral-900">상품 이미지 설정</h3>
-            <span className="text-xs text-neutral-500 font-medium">대표 이미지 1장 + 추가 이미지 최대 5장</span>
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">이미지 설정</h3>
+            <span className="text-xs text-neutral-500 font-normal tracking-normal border-none p-0 inline-block">대표 이미지 1장 + 추가 이미지 최대 5장</span>
           </div>
           
           <div className="flex flex-row flex-wrap gap-4 items-start">
             {/* Primary Image Slot */}
             <div 
-              className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden cursor-pointer hover:bg-neutral-100 transition-all group shadow-sm"
+              className={ADMIN_STYLES.IMAGE_UPLOAD_BOX}
               onClick={() => document.getElementById('thumbnail-upload')?.click()}
             >
               {thumbnailPreview ? (
@@ -862,230 +863,221 @@ export function PackageRegisterPage() {
           </div>
         </div>
 
-        {/* Form Grid */}
-        <div className="bg-white border border-neutral-200 overflow-hidden">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">기본 정보</h3>
-          </div>
-          <div className="p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">
-                  패키지 상품명 <span className="text-red-500">*</span>
-                </label>
+        {/* Basic Info */}
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>기본 정보</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
+                패키지 상품명 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="패키지 상품명을 입력하세요"
+                className={ADMIN_STYLES.INPUT}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
+                카테고리 <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className={ADMIN_STYLES.SELECT}
+                required
+              >
+                <option value="">카테고리 선택</option>
+                {renderCategoryOptions()}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>상품코드 <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                name="productCode"
+                value={formData.productCode}
+                onChange={handleInputChange}
+                placeholder="상품코드를 입력하세요"
+                className={ADMIN_STYLES.INPUT}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>SAP SKU (ERP 매핑용)</label>
+              <input
+                type="text"
+                name="sapSku"
+                value={formData.sapSku}
+                onChange={handleInputChange}
+                placeholder="SAP 품번을 입력하세요"
+                className={ADMIN_STYLES.INPUT}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>제조사</label>
+              <input
+                type="text"
+                name="manufacturer"
+                value={formData.manufacturer}
+                onChange={handleInputChange}
+                placeholder="제조사를 입력하세요"
+                className={ADMIN_STYLES.INPUT}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>재고 수량</label>
+              <div className="relative">
                 <input
                   type="text"
-                  name="name"
-                  value={formData.name}
+                  name="stock"
+                  value={formData.stock}
                   onChange={handleInputChange}
-                  placeholder="패키지 상품명을 입력하세요"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                  required
+                  placeholder="재고 수량을 입력하세요"
+                  className={ADMIN_STYLES.INPUT + " pr-10"}
                 />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">개</span>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">
-                  카테고리 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent bg-white transition-all"
-                  required
-                >
-                  <option value="">카테고리 선택</option>
-                  {renderCategoryOptions()}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">상품코드 <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  name="productCode"
-                  value={formData.productCode}
-                  onChange={handleInputChange}
-                  placeholder="상품코드를 입력하세요"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">SAP SKU (ERP 매핑용)</label>
-                <input
-                  type="text"
-                  name="sapSku"
-                  value={formData.sapSku}
-                  onChange={handleInputChange}
-                  placeholder="SAP 품번을 입력하세요"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">제조사</label>
-                <input
-                  type="text"
-                  name="manufacturer"
-                  value={formData.manufacturer}
-                  onChange={handleInputChange}
-                  placeholder="제조사를 입력하세요"
-                  className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-neutral-700">재고 수량</label>
-                <div className="relative">
+            <div className="space-y-4">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>노출 여부 (고객 화면)</label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    name="stock"
-                    value={formData.stock}
-                    onChange={handleInputChange}
-                    placeholder="재고 수량을 입력하세요"
-                    className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all pr-10"
+                    type="radio"
+                    name="isVisible"
+                    value="true"
+                    checked={formData.isVisible === true}
+                    onChange={() => setFormData(prev => ({ ...prev, isVisible: true }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">개</span>
-                </div>
+                  <span className="text-sm text-neutral-900">노출</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="isVisible"
+                    value="false"
+                    checked={formData.isVisible === false}
+                    onChange={() => setFormData(prev => ({ ...prev, isVisible: false }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">미노출</span>
+                </label>
               </div>
+            </div>
 
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-700">노출 여부 (고객 화면)</label>
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="isVisible"
-                      value="true"
-                      checked={formData.isVisible === true}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isVisible: e.target.value === 'true' }))}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">노출</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="isVisible"
-                      value="false"
-                      checked={formData.isVisible === false}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isVisible: e.target.value === 'true' }))}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">미노출</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-700">판매 상태</label>
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="active"
-                      checked={formData.status === 'active'}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">판매중</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="inactive"
-                      checked={formData.status === 'inactive'}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">판매중지</span>
-                  </label>
-                </div>
+            <div className="space-y-4">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>판매 상태</label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="status"
+                    value="active"
+                    checked={formData.status === 'active'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">판매중</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="status"
+                    value="inactive"
+                    checked={formData.status === 'inactive'}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">판매중지</span>
+                </label>
               </div>
             </div>
           </div>
         </div>
 
         {/* Order Options */}
-        <div className="bg-white border border-neutral-200 overflow-hidden">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">주문 옵션</h3>
-          </div>
-          <div className="p-8 space-y-8">
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="creditAvailable"
-                      value="true"
-                      checked={formData.creditAvailable === true}
-                      onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">가능</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="creditAvailable"
-                      value="false"
-                      checked={formData.creditAvailable === false}
-                      onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">불가능</span>
-                  </label>
-                </div>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>주문 옵션</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>크레딧 사용 가능여부</label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="creditAvailable"
+                    value="true"
+                    checked={formData.creditAvailable === true}
+                    onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">가능</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="creditAvailable"
+                    value="false"
+                    checked={formData.creditAvailable === false}
+                    onChange={(e) => setFormData(prev => ({ ...prev, creditAvailable: e.target.value === 'true' }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">불가능</span>
+                </label>
               </div>
+            </div>
 
-              <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-700">적립금 사용 가능여부</label>
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pointsAvailable"
-                      value="true"
-                      checked={formData.pointsAvailable === true}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">가능</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pointsAvailable"
-                      value="false"
-                      checked={formData.pointsAvailable === false}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer"
-                    />
-                    <span className="text-sm text-neutral-900">불가능</span>
-                  </label>
-                </div>
+            <div className="space-y-4">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>적립금 사용 가능여부</label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pointsAvailable"
+                    value="true"
+                    checked={formData.pointsAvailable === true}
+                    onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">가능</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="pointsAvailable"
+                    value="false"
+                    checked={formData.pointsAvailable === false}
+                    onChange={(e) => setFormData(prev => ({ ...prev, pointsAvailable: e.target.value === 'true' }))}
+                    className="w-4 h-4 accent-neutral-900 cursor-pointer"
+                  />
+                  <span className="text-sm text-neutral-900">불가능</span>
+                </label>
               </div>
             </div>
           </div>
         </div>
 
         {/* Package Set Options Section */}
-        <div className="bg-white border border-neutral-200 overflow-visible">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">패키지 상품 구성옵션 <span className="text-red-500">*</span></h3>
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">패키지 상품 구성옵션 <span className="text-red-500">*</span></h3>
             <button
               type="button"
               onClick={addQuantityOption}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-all shadow-sm active:scale-95"
+              className={ADMIN_STYLES.BTN_PRIMARY}
             >
               <Plus className="w-4 h-4" />
               옵션 추가
@@ -1113,52 +1105,52 @@ export function PackageRegisterPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">옵션 표기명 <span className="text-red-500">*</span></label>
+                      <label className={ADMIN_STYLES.SECTION_LABEL}>옵션 표기명 <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         placeholder="예) 20개 패키지"
                         value={opt.name}
                         onChange={(e) => updateQuantityOption(opt.id, 'name', e.target.value)}
-                        className="w-full px-4 py-2 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm bg-white h-[40px] font-medium"
+                        className={ADMIN_STYLES.INPUT}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">패키지 총 구성 갯수 <span className="text-red-500">*</span></label>
-                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                      <label className={ADMIN_STYLES.SECTION_LABEL}>패키지 총 구성 갯수 <span className="text-red-500">*</span></label>
+                      <div className="relative">
                         <input
                           type="text"
                           placeholder="20"
                           value={opt.quantity}
                           onChange={(e) => updateQuantityOption(opt.id, 'quantity', e.target.value.replace(/[^0-9]/g, ''))}
-                          className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium"
+                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
                         />
-                        <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-4 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center uppercase">개</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">패키지 확정 상품금액 <span className="text-red-500">*</span></label>
-                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                      <label className={ADMIN_STYLES.SECTION_LABEL}>패키지 확정 상품금액 <span className="text-red-500">*</span></label>
+                      <div className="relative">
                         <input
                           type="text"
                           placeholder="10,000,000"
                           value={formatWithCommas(opt.price)}
                           onChange={(e) => updateQuantityOption(opt.id, 'price', e.target.value)}
-                          className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium"
+                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
                         />
-                        <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap bg-neutral-100 flex items-center px-4 h-full border-l border-neutral-200 select-none min-w-[3rem] justify-center uppercase">원</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">원</span>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">옵션별 할인율</label>
-                      <div className="flex items-center border border-neutral-300 bg-white focus-within:border-neutral-900 transition-colors overflow-hidden h-[40px]">
+                      <label className={ADMIN_STYLES.SECTION_LABEL}>옵션별 할인율</label>
+                      <div className="relative">
                         <input
                           type="text"
                           placeholder="0"
                           value={opt.discountRate}
                           onChange={(e) => updateQuantityOption(opt.id, 'discountRate', e.target.value.replace(/[^0-9]/g, ''))}
-                          className="flex-1 w-full pl-4 pr-2 py-2 text-right border-0 focus:ring-0 text-sm bg-transparent outline-none font-medium text-blue-600"
+                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold text-blue-600"}
                         />
-                        <span className="text-[10px] text-blue-600 font-bold whitespace-nowrap bg-blue-50 flex items-center px-4 h-full border-l border-blue-100 select-none min-w-[3rem] justify-center uppercase">%</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-blue-600 font-bold uppercase">%</span>
                       </div>
                     </div>
                   </div>
@@ -1214,12 +1206,12 @@ export function PackageRegisterPage() {
                     {/* Items Table for this Option */}
                     <div className="overflow-hidden border border-neutral-200">
                       <table className="w-full text-xs">
-                        <thead className="bg-neutral-50 border-b border-neutral-200">
-                          <tr>
-                            <th className="px-4 py-3 text-left font-bold text-neutral-700 uppercase tracking-tight">옵션 구성 상품명</th>
-                            <th className="px-4 py-3 text-right font-bold text-neutral-700 uppercase tracking-tight w-40 pr-6">금액 설정</th>
-                            <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-32">선택수량</th>
-                            <th className="px-4 py-3 text-center font-bold text-neutral-700 uppercase tracking-tight w-12">삭제</th>
+                        <thead>
+                          <tr className="bg-neutral-50/50">
+                            <th className={ADMIN_STYLES.TABLE_HEADER}>옵션 구성 상품명</th>
+                            <th className={ADMIN_STYLES.TABLE_HEADER + " text-right w-40 pr-6"}>금액 설정</th>
+                            <th className={ADMIN_STYLES.TABLE_HEADER + " text-center w-32"}>선택수량</th>
+                            <th className={ADMIN_STYLES.TABLE_HEADER + " text-center w-12"}>삭제</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-100 border-b border-neutral-100">
@@ -1281,22 +1273,22 @@ export function PackageRegisterPage() {
         </div>
 
         {/* Bonus Products Section */}
-        <div className="bg-white border border-neutral-200 overflow-visible">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">추가 증정 상품</h3>
-          </div>
-          <div className="p-8 space-y-8">
+        <div className={ADMIN_STYLES.CARD}>
+           <h3 className={ADMIN_STYLES.SECTION_TITLE}>추가 증정 상품</h3>
+           <div className="space-y-6">
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-neutral-700">상품 검색 및 추가</label>
+              <label className={ADMIN_STYLES.SECTION_LABEL}>상품 검색 및 추가</label>
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-                <input
-                  type="text"
-                  value={bonusSearchTerm}
-                  onChange={(e) => setBonusSearchTerm(e.target.value)}
-                  placeholder="상품명, 상품코드로 검색"
-                  className="w-full pl-12 pr-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent transition-all"
-                />
+                <div className="relative flex items-center">
+                  <Search className="w-5 h-5 text-neutral-400 absolute left-3" />
+                  <input
+                    type="text"
+                    value={bonusSearchTerm}
+                    onChange={(e) => setBonusSearchTerm(e.target.value)}
+                    placeholder="상품명, 상품코드로 검색"
+                    className={ADMIN_STYLES.INPUT + " pl-10"}
+                  />
+                </div>
                 
                 {isBonusDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 overflow-hidden max-h-[500px] overflow-y-auto">
@@ -1328,103 +1320,103 @@ export function PackageRegisterPage() {
             </div>
 
             <div>
-              <h4 className="text-sm font-medium text-neutral-900 mb-2">추가된 상품 목록</h4>
+              <h4 className={ADMIN_STYLES.SECTION_LABEL}>추가된 상품 목록</h4>
               <div className="border border-neutral-200">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-neutral-50 border-b border-neutral-200">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-32">금액</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-48 text-center">계산 방법</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정 수량</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {formData.bonusProducts.length > 0 ? (
-                    formData.bonusProducts.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-neutral-900">{item.name}</span>
-                            <span className="text-xs text-neutral-500">{item.sku}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            <input
-                              type="text"
-                              value={item.price}
-                              onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
-                              className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm text-sm"
-                            />
-                            <span className="text-neutral-500 text-xs">원</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-2 items-center justify-center">
-                            <label className="flex items-center gap-2 cursor-pointer">
+                  <thead>
+                    <tr className="bg-neutral-50/50">
+                      <th className={ADMIN_STYLES.TABLE_HEADER}>상품 정보</th>
+                      <th className={ADMIN_STYLES.TABLE_HEADER + " w-32"}>금액</th>
+                      <th className={ADMIN_STYLES.TABLE_HEADER + " w-48 text-center"}>계산 방법</th>
+                      <th className={ADMIN_STYLES.TABLE_HEADER + " w-32 text-center"}>증정 수량</th>
+                      <th className={ADMIN_STYLES.TABLE_HEADER + " w-20 text-center"}>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {formData.bonusProducts.length > 0 ? (
+                      formData.bonusProducts.map((item) => (
+                        <tr key={item.id} className={ADMIN_STYLES.TABLE_ROW_HOVER}>
+                          <td className={ADMIN_STYLES.TABLE_CELL}>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-neutral-900">{item.name}</span>
+                              <span className="text-[10px] text-neutral-400 font-medium">{item.sku}</span>
+                            </div>
+                          </td>
+                          <td className={ADMIN_STYLES.TABLE_CELL}>
+                            <div className="flex items-center justify-end gap-2 text-right">
                               <input
-                                type="radio"
-                                checked={item.calculationMethod === 'fixed'}
-                                onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'fixed')}
-                                className="w-3.5 h-3.5 accent-neutral-900"
+                                type="text"
+                                value={item.price}
+                                onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
+                                className={`${ADMIN_STYLES.INPUT} h-8 w-24 text-right px-2 font-bold`}
                               />
-                              <span className="text-xs">직접입력</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                checked={item.calculationMethod === 'ratio'}
-                                onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'ratio')}
-                                className="w-3.5 h-3.5 accent-neutral-900"
-                              />
-                              <span className="text-xs">비율계산</span>
-                            </label>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            {item.calculationMethod === 'fixed' ? (
-                              <div className="flex items-center gap-1">
+                              <span className="text-neutral-500 text-[10px] font-bold">원</span>
+                            </div>
+                          </td>
+                          <td className={ADMIN_STYLES.TABLE_CELL}>
+                            <div className="flex flex-col gap-2 items-center justify-center">
+                              <label className="flex items-center gap-2 cursor-pointer">
                                 <input
-                                  type="text"
-                                  value={item.quantity}
-                                  onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
-                                  className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                  type="radio"
+                                  checked={item.calculationMethod === 'fixed'}
+                                  onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'fixed')}
+                                  className="w-3.5 h-3.5 accent-neutral-900"
                                 />
-                                <span className="text-neutral-500 text-xs">개</span>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center gap-1">
+                                <span className="text-[10px] font-bold text-neutral-700">고정수량</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  checked={item.calculationMethod === 'ratio'}
+                                  onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'ratio')}
+                                  className="w-3.5 h-3.5 accent-neutral-900"
+                                />
+                                <span className="text-[10px] font-bold text-neutral-700">비율계산</span>
+                              </label>
+                            </div>
+                          </td>
+                          <td className={ADMIN_STYLES.TABLE_CELL}>
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              {item.calculationMethod === 'fixed' ? (
                                 <div className="flex items-center gap-1">
                                   <input
                                     type="text"
-                                    value={item.percentage}
-                                    onChange={(e) => updateBonusProduct(item.id, 'percentage', e.target.value)}
-                                    className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                    value={item.quantity}
+                                    onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
+                                    className={`${ADMIN_STYLES.INPUT} h-8 w-16 text-center font-bold`}
                                   />
-                                  <span className="text-neutral-500 text-xs">%</span>
+                                  <span className="text-neutral-500 text-[10px] font-bold">개</span>
                                 </div>
-                                <span className="text-[10px] text-blue-600 font-medium">구매량 비례</span>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeBonusProduct(item.id)}
-                            className="text-neutral-400 hover:text-red-600 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      value={item.percentage}
+                                      onChange={(e) => updateBonusProduct(item.id, 'percentage', e.target.value)}
+                                      className={`${ADMIN_STYLES.INPUT} h-8 w-16 text-center font-bold`}
+                                    />
+                                    <span className="text-neutral-500 text-[10px] font-bold">%</span>
+                                  </div>
+                                  <span className="text-[9px] text-blue-600 font-black uppercase tracking-tighter">Purchase Ratio</span>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className={ADMIN_STYLES.TABLE_CELL + " text-center"}>
+                            <button
+                              type="button"
+                              onClick={() => removeBonusProduct(item.id)}
+                              className={ADMIN_STYLES.BTN_GHOST}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-neutral-500">
+                        <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
                           추가된 증정 상품이 없습니다.
                         </td>
                       </tr>
@@ -1437,11 +1429,9 @@ export function PackageRegisterPage() {
         </div>
 
         {/* Product Description Section */}
-        <div className="bg-white border border-neutral-200 overflow-hidden">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">상품 설명</h3>
-          </div>
-          <div className="p-8">
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>상품 설명</h3>
+          <div className="border border-neutral-200">
             <RichTextEditor
               value={formData.description}
               onChange={(value) => setFormData((prev) => ({ ...prev, description: value }))}
@@ -1457,20 +1447,20 @@ export function PackageRegisterPage() {
             type="button"
             onClick={() => navigate('/admin/products/package')}
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 py-3 px-6 border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 font-medium text-xl tracking-tight transition-all active:scale-95 disabled:opacity-50"
+            className={ADMIN_STYLES.BTN_OUTLINE + " flex items-center gap-2"}
           >
-            <ArrowLeft className="w-6 h-6 stroke-[1.5]" />
+            <ArrowLeft className="w-5 h-5" />
             <span>취소</span>
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 py-3 px-6 bg-neutral-900 text-white hover:bg-black font-medium text-xl tracking-tight transition-all active:scale-95 shadow-md disabled:opacity-50"
+            className={ADMIN_STYLES.BTN_PRIMARY + " flex items-center gap-2"}
           >
             {isSubmitting ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Package className="w-6 h-6 stroke-[1.5]" />
+              <Package className="w-5 h-5" />
             )}
             <span>{isEditMode ? '수정 완료' : '등록 완료'}</span>
           </button>

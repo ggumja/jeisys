@@ -19,6 +19,7 @@ import { productService } from '../../services/productService';
 import { Product } from '../../types/product';
 import { useCategories } from '../../hooks/useCategories';
 import { formatWithCommas, unformatNumber } from '../../lib/utils';
+import { ADMIN_STYLES } from '../../constants/adminStyles';
 import { 
   Dialog,
   DialogContent,
@@ -355,20 +356,20 @@ export function PromotionRegisterPage() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-6 pb-32">
+    <div className={ADMIN_STYLES.PAGE_CONTAINER}>
       {/* Standard Header Format Matched with ProductRegisterPage */}
-      <div className="flex items-center gap-4">
+      <div className={ADMIN_STYLES.PAGE_HEADER}>
         <button
           onClick={() => navigate('/admin/products/promotion')}
-          className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+          className={ADMIN_STYLES.BTN_GHOST}
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
+          <h2 className={ADMIN_STYLES.PAGE_TITLE}>
             {isEdit ? '프로모션 번들 상품 수정' : '프로모션 번들 상품 등록'}
           </h2>
-          <p className="text-sm text-neutral-600">
+          <p className={ADMIN_STYLES.PAGE_SUBTITLE}>
             {isEdit ? '기존 프로모션 번들 구성을 수정합니다' : '"N+1" 같은 프로모션 번들 상품을 등록합니다'}
           </p>
         </div>
@@ -377,16 +378,16 @@ export function PromotionRegisterPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Combined Product Images Section - Compact Single Line */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
-            <h3 className="text-lg font-bold text-neutral-900">상품 이미지 설정</h3>
-            <span className="text-xs text-neutral-500 font-medium">대표 이미지 1장 + 추가 이미지 최대 5장</span>
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">상품 이미지 설정</h3>
+            <span className="text-xs text-neutral-500 font-medium ml-4">대표 이미지 1장 + 추가 이미지 최대 5장</span>
           </div>
           
           <div className="flex flex-row flex-wrap gap-4 items-start">
             {/* Primary Image Slot */}
             <div 
-              className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden cursor-pointer hover:bg-neutral-100 transition-all group shadow-sm"
+              className="w-40 h-40 border-2 border-dashed border-neutral-200 flex items-center justify-center bg-neutral-50 relative overflow-hidden cursor-pointer hover:bg-white hover:border-neutral-900 transition-all group shadow-sm"
               onClick={() => document.getElementById('thumbnail-upload')?.click()}
             >
               {thumbnailPreview ? (
@@ -473,40 +474,38 @@ export function PromotionRegisterPage() {
           </div>
         </div>
         {/* Basic Info Section */}
-        <div className="bg-white border border-neutral-200 p-8 shadow-sm">
-          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
-            <h3 className="text-lg font-bold text-neutral-900">기본 정보</h3>
-          </div>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>기본 정보</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">프로모션 번들 명칭 <span className="text-red-500">*</span></label>
+              <label className={ADMIN_STYLES.SECTION_LABEL}>프로모션 번들 명칭 <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 placeholder="예) 필러 3+1 프로모션"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-base font-bold"
+                className={ADMIN_STYLES.INPUT + " text-base font-bold"}
               />
             </div>
             
             <div>
-              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">상품 코드 (SKU) <span className="text-red-500">*</span></label>
+              <label className={ADMIN_STYLES.SECTION_LABEL}>상품 코드 (SKU) <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 placeholder="PROM-3PLUS1-001"
                 value={formData.sku}
                 onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
-                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold bg-neutral-50"
+                className={ADMIN_STYLES.INPUT + " font-bold bg-neutral-50 disabled:opacity-50"}
                 readOnly={isEdit}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">카테고리</label>
+              <label className={ADMIN_STYLES.SECTION_LABEL}>카테고리</label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold bg-white"
+                className={ADMIN_STYLES.INPUT + " font-bold bg-white"}
               >
                 <option value="">카테고리 선택</option>
                 {renderCategoryOptions()}
@@ -514,24 +513,27 @@ export function PromotionRegisterPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase">재고 수량 (Stock)</label>
-              <input
-                type="text"
-                placeholder="0"
-                value={formatWithCommas(formData.stock)}
-                onChange={(e) => setFormData(prev => ({ ...prev, stock: unformatNumber(e.target.value) }))}
-                className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:border-neutral-900 text-sm font-bold text-right tabular-nums bg-white"
-              />
+              <label className={ADMIN_STYLES.SECTION_LABEL}>재고 수량 (Stock)</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="0"
+                  value={formatWithCommas(formData.stock)}
+                  onChange={(e) => setFormData(prev => ({ ...prev, stock: unformatNumber(e.target.value) }))}
+                  className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold tabular-nums bg-white"}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-10 border-l-4 border-neutral-900 pl-3">프로모션 규칙 설정</h3>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>프로모션 규칙 설정</h3>
           <div className="flex flex-col items-center px-10 pb-4">
-            <div className="w-full max-w-2xl flex items-center justify-between py-12 px-16 bg-neutral-50 border border-neutral-200 shadow-sm">
+            <div className="w-full max-w-2xl flex items-center justify-between py-12 px-16 bg-neutral-50/50 border border-neutral-200">
               <div className="flex-1 text-center">
-                <label className="block text-xs font-bold text-neutral-400 mb-5 uppercase tracking-wider">구매 수량 (Paid)</label>
+                <label className="block text-[10px] font-black text-neutral-400 mb-6 uppercase tracking-[0.2em]">구매 수량 (Paid)</label>
                 <div className="flex items-center justify-center gap-6">
                   <button 
                     type="button"
@@ -554,7 +556,7 @@ export function PromotionRegisterPage() {
               <div className="px-6 text-4xl font-black text-neutral-300 transform translate-y-2">+</div>
 
               <div className="flex-1 text-center">
-                <label className="block text-xs font-bold text-blue-400 mb-5 uppercase tracking-wider">증정 수량 (Free)</label>
+                <label className="block text-[10px] font-black text-blue-500 mb-6 uppercase tracking-[0.2em]">증정 수량 (Free)</label>
                 <div className="flex items-center justify-center gap-6">
                   <button 
                     type="button"
@@ -574,181 +576,178 @@ export function PromotionRegisterPage() {
                 </div>
               </div>
             </div>
-            <p className="mt-10 text-sm text-neutral-500 flex items-center gap-2">
+            <p className="mt-10 text-[11px] text-neutral-500 flex items-center gap-2 font-medium bg-neutral-50 px-4 py-2 border border-neutral-100 italic">
               <Info className="w-4 h-4 text-neutral-400" />
-              <span>사용자가 <strong>{formData.buyQuantity}개</strong>를 선택하면, 추가로 <strong>{formData.getQuantity}개</strong>를 무료로 증정합니다.</span>
+              <span>사용자가 <strong className="text-neutral-900">{formData.buyQuantity}개</strong>를 선택하면, 추가로 <strong className="text-blue-600">{formData.getQuantity}개</strong>를 무료로 증정합니다.</span>
             </p>
           </div>
         </div>
 
-          {/* Promotion Items Pool Section (Matched with ProductRegisterPage Bonus Section CSS) */}
-          <div className="bg-white border border-neutral-200 p-8">
-            <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">프로모션 대상 상품 풀 (POOL)</h3>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                상품 검색 및 추가
-              </label>
-              <div className="relative group">
-                <div className="flex items-center w-full border border-neutral-300 bg-white focus-within:ring-2 focus-within:ring-neutral-900 focus-within:border-neutral-900 shadow-sm transition-all overflow-hidden group">
-                  <div className="pl-4 flex-shrink-0">
-                    <Search className="w-5 h-5 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
-                  </div>
-                  <input
-                    type="text"
-                    value={productSearch}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    onFocus={() => {
-                      if (productSearch.trim()) setShowSearchDropdown(true);
-                    }}
-                    placeholder="프로모션 대상에 포함할 상품을 검색하여 추가해 주세요"
-                    className="w-full px-4 py-3 border-0 focus:ring-0 text-neutral-900 placeholder:text-neutral-400 bg-transparent outline-none"
-                  />
-                </div>
-
-                {showSearchDropdown && productSearch.trim() && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 shadow-2xl max-h-[500px] overflow-y-auto rounded-sm">
-                    {isLoadingProducts ? (
-                      <div className="px-4 py-8 text-center text-neutral-500">
-                        <div className="w-5 h-5 border-2 border-neutral-900 border-t-transparent animate-spin mx-auto mb-2"></div>
-                        <p className="text-sm">상품 정보를 불러오고 있습니다...</p>
-                      </div>
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((product) => (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => {
-                            addItem(product);
-                            setProductSearch('');
-                            setShowSearchDropdown(false);
-                          }}
-                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
-                        >
-                          <div className="flex-1 min-w-0 flex items-center gap-2">
-                            <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
-                            <span className="text-xs text-neutral-400 flex-shrink-0 font-normal">({product.sku})</span>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-4 text-sm text-neutral-500 text-center">
-                        검색 결과가 없습니다.
-                      </div>
-                    )}
-                  </div>
-                )}
+        {/* Promotion Items Pool Section (Matched with ProductRegisterPage Bonus Section CSS) */}
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">프로모션 대상 상품 풀 (POOL)</h3>
+          </div>
+          
+          <div className="space-y-6">
+            <div className="space-y-3 relative">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>상품 검색 및 추가</label>
+              <div className="relative flex items-center">
+                <Search className="w-5 h-5 text-neutral-400 absolute left-3" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  onFocus={() => {
+                    if (productSearch.trim()) setShowSearchDropdown(true);
+                  }}
+                  placeholder="프로모션 대상에 포함할 상품을 검색하여 추가해 주세요"
+                  className={ADMIN_STYLES.INPUT + " pl-10 h-12"}
+                />
               </div>
-            </div>
 
-            <div>
-              <h4 className="text-sm font-medium text-neutral-900 mb-2">추가된 상품 목록</h4>
-              <div className="border border-neutral-200">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-neutral-50 border-b border-neutral-200">
+              {showSearchDropdown && productSearch.trim() && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-neutral-200 shadow-2xl max-h-[400px] overflow-y-auto rounded-sm">
+                  {isLoadingProducts ? (
+                    <div className="px-4 py-8 text-center text-neutral-500">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">상품 정보를 불러오고 있습니다...</p>
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => {
+                          addItem(product);
+                          setProductSearch('');
+                          setShowSearchDropdown(false);
+                        }}
+                        className="w-full px-4 py-2 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
+                      >
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className="text-sm font-bold text-neutral-900 truncate">{product.name}</span>
+                          <span className="text-[10px] text-neutral-400 font-medium flex-shrink-0">({product.sku})</span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-6 text-sm text-neutral-500 text-center font-medium">
+                      검색 결과가 없습니다.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <h4 className={ADMIN_STYLES.SECTION_LABEL}>추가된 상품 목록</h4>
+            <div className="border border-neutral-200 mt-3 overflow-hidden">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="bg-neutral-50/50">
+                    <th className={ADMIN_STYLES.TABLE_HEADER}>상품 정보</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-32 text-right"}>기준 단가</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-20 text-center"}>관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {formData.items.length === 0 ? (
                     <tr>
-                      <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
-                      <th className="px-4 py-3 font-medium text-neutral-700 w-32">기준 단가</th>
-                      <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
+                      <td colSpan={3} className="px-4 py-12 text-center text-neutral-500 font-medium italic">
+                        추가된 대상 상품이 없습니다. 위에서 검색하여 추가해 주세요.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {formData.items.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-12 text-center text-neutral-500 italic">
-                          추가된 대상 상품이 없습니다. 위에서 검색하여 추가해 주세요.
+                  ) : (
+                    formData.items.map((item) => (
+                      <tr key={item.productId} className={ADMIN_STYLES.TABLE_ROW_HOVER}>
+                        <td className={ADMIN_STYLES.TABLE_CELL}>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-neutral-900">{item.name}</span>
+                            <span className="text-[10px] text-neutral-400 font-medium mt-0.5">{item.sku}</span>
+                          </div>
+                        </td>
+                        <td className={ADMIN_STYLES.TABLE_CELL + " text-right"}>
+                          <span className="text-neutral-900 font-bold tabular-nums">₩{item.price.toLocaleString()}</span>
+                        </td>
+                        <td className={ADMIN_STYLES.TABLE_CELL + " text-center"}>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.id)}
+                            className={ADMIN_STYLES.BTN_GHOST}
+                          >
+                            <Trash2 className="w-4 h-4 text-neutral-400 hover:text-red-500 transition-colors" />
+                          </button>
                         </td>
                       </tr>
-                    ) : (
-                      formData.items.map((item) => (
-                        <tr key={item.id}>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-neutral-900">{item.name}</span>
-                              <span className="text-xs text-neutral-500 mt-0.5">{item.sku}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <span className="text-neutral-900 font-medium">₩{item.price.toLocaleString()}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.id)}
-                              className="text-neutral-400 hover:text-red-600 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons - Sticky Layer at the bottom */}
-          <div className="sticky bottom-0 z-50 bg-white/90 backdrop-blur-md border-t border-neutral-200 py-8 px-8 -mx-8 mt-12 flex items-center justify-end gap-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/products/promotion')}
-              className="inline-flex items-center gap-2 py-3 px-6 border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 font-medium text-xl tracking-tight transition-all active:scale-95 disabled:opacity-50"
-            >
-              <ArrowLeft className="w-6 h-6 stroke-[1.5]" />
-              <span>취소</span>
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 py-3 px-6 bg-neutral-900 text-white hover:bg-black font-medium text-xl tracking-tight transition-all active:scale-95 shadow-md disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <Package className="w-6 h-6 stroke-[1.5]" />
-              )}
-              <span>{isEdit ? '프로모션 번들 수정하기' : '프로모션 번들 등록하기'}</span>
-            </button>
-          </div>
+        {/* Action Buttons - Sticky Layer at the bottom */}
+        <div className="sticky bottom-0 z-50 bg-white/90 backdrop-blur-md border-t border-neutral-200 py-8 px-8 -mx-8 mt-12 flex items-center justify-end gap-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/products/promotion')}
+            disabled={isSubmitting}
+            className={ADMIN_STYLES.BTN_OUTLINE + " flex items-center gap-2"}
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>취소</span>
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={ADMIN_STYLES.BTN_PRIMARY + " flex items-center gap-2"}
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Package className="w-5 h-5" />
+            )}
+            <span>{isEdit ? '프로모션 번들 수정하기' : '프로모션 번들 등록하기'}</span>
+          </button>
+        </div>
         </form>
 
-        {/* Result Modal */}
-      {resultModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-neutral-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-sm p-8 shadow-2xl animate-in zoom-in-95 duration-300">
-            <div className="flex flex-col items-center text-center">
-              {resultModal.type === 'success' ? (
-                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-6">
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
-                </div>
-              ) : (
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
-                  <AlertCircle className="w-8 h-8 text-red-600" />
-                </div>
-              )}
-              <h3 className="text-xl font-black text-neutral-900 mb-3">{resultModal.title}</h3>
-              <p className="text-sm text-neutral-500 font-medium mb-8 leading-relaxed">
+      {/* Result Layer Popup */}
+      <Dialog open={resultModal.isOpen} onOpenChange={(open) => setResultModal(prev => ({...prev, isOpen: open}))}>
+        <DialogContent className="sm:max-w-[425px] p-0 overflow-hidden border-none shadow-2xl">
+          <div className={`h-2 ${resultModal.type === 'error' ? 'bg-red-500' : 'bg-neutral-900'}`} />
+          <div className="p-8">
+            <DialogHeader>
+              <DialogTitle className={`text-2xl font-black tracking-tight ${resultModal.type === 'error' ? 'text-red-600' : 'text-neutral-900'}`}>
+                {resultModal.title}
+              </DialogTitle>
+              <DialogDescription className="text-base text-neutral-600 pt-4 leading-relaxed whitespace-pre-wrap font-medium">
                 {resultModal.description}
-              </p>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-8 flex sm:justify-center">
               <button
                 onClick={() => {
-                  setResultModal(prev => ({ ...prev, isOpen: false }));
+                  setResultModal(prev => ({...prev, isOpen: false}));
                   if (resultModal.type === 'success') {
                     navigate('/admin/products/promotion');
                   }
                 }}
-                className={`w-full py-4 text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg ${
-                  resultModal.type === 'success' ? 'bg-neutral-900 text-white hover:bg-neutral-800' : 'bg-red-600 text-white hover:bg-red-700'
+                className={`w-full py-4 px-6 font-bold transition-all text-sm tracking-widest uppercase rounded-sm shadow-md hover:shadow-lg active:scale-[0.98] ${
+                  resultModal.type === 'error' 
+                    ? 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-neutral-200' 
+                    : 'bg-neutral-900 hover:bg-neutral-800 text-white'
                 }`}
               >
                 확인
               </button>
-            </div>
+            </DialogFooter>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

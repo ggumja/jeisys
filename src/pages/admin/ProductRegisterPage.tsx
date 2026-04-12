@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog';
+import { ADMIN_STYLES } from '../../constants/adminStyles';
 
 interface BulkDiscount {
   id: string;
@@ -540,7 +541,7 @@ export function ProductRegisterPage() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-8 pb-32">
+    <div className={ADMIN_STYLES.PAGE_CONTAINER}>
       {/* Header */}
       <div className="flex items-center gap-4">
         <button
@@ -561,16 +562,16 @@ export function ProductRegisterPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Combined Product Images Section - Compact Single Line */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <div className="flex items-center justify-between mb-6 border-l-4 border-neutral-900 pl-3">
-            <h3 className="text-lg font-bold text-neutral-900">상품 이미지 설정</h3>
-            <span className="text-xs text-neutral-500 font-medium">대표 이미지 1장 + 추가 이미지 최대 5장</span>
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">상품 이미지 설정</h3>
+            <span className="text-xs text-neutral-500 font-medium font-normal tracking-normal border-none p-0 inline-block">대표 이미지 1장 + 추가 이미지 최대 5장</span>
           </div>
           
           <div className="flex flex-row flex-wrap gap-4 items-start">
             {/* Primary Image Slot */}
             <div 
-              className="w-40 h-40 border-2 border-dashed border-neutral-300 flex items-center justify-center bg-neutral-50 relative overflow-hidden cursor-pointer hover:bg-neutral-100 transition-all group shadow-sm"
+              className={ADMIN_STYLES.IMAGE_UPLOAD_BOX}
               onClick={() => document.getElementById('thumbnail-upload')?.click()}
             >
               {thumbnailPreview ? (
@@ -657,11 +658,11 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Basic Info */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">기본 정보</h3>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>기본 정보</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 상품명 <span className="text-red-600">*</span>
               </label>
               <input
@@ -670,20 +671,20 @@ export function ProductRegisterPage() {
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="상품명을 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={ADMIN_STYLES.INPUT}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 카테고리 <span className="text-red-600">*</span>
               </label>
               <select
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={ADMIN_STYLES.SELECT}
                 required
               >
                 <option value="">카테고리 선택</option>
@@ -692,7 +693,7 @@ export function ProductRegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 상품코드 <span className="text-red-600">*</span>
               </label>
               <input
@@ -701,13 +702,13 @@ export function ProductRegisterPage() {
                 value={formData.productCode}
                 onChange={handleInputChange}
                 placeholder="상품코드를 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={ADMIN_STYLES.INPUT}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 SAP SKU (ERP 매핑용)
               </label>
               <input
@@ -716,12 +717,12 @@ export function ProductRegisterPage() {
                 value={formData.sapSku}
                 onChange={handleInputChange}
                 placeholder="SAP 품번을 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={ADMIN_STYLES.INPUT}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 제조사
               </label>
               <input
@@ -730,12 +731,12 @@ export function ProductRegisterPage() {
                 value={formData.manufacturer}
                 onChange={handleInputChange}
                 placeholder="제조사를 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={ADMIN_STYLES.INPUT}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 판매가 <span className="text-red-600">*</span>
               </label>
               <input
@@ -744,7 +745,7 @@ export function ProductRegisterPage() {
                 value={formData.price}
                 onChange={handleInputChange}
                 placeholder="판매가를 입력하세요"
-                className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className={ADMIN_STYLES.INPUT}
                 required
               />
             </div>
@@ -761,7 +762,7 @@ export function ProductRegisterPage() {
                 onChange={handleInputChange}
                 disabled={formData.isShareStock}
                 placeholder={formData.isShareStock ? "마스터 재고를 공유 중입니다" : "재고 수량을 입력하세요"}
-                className={`w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${formData.isShareStock ? 'bg-neutral-50 text-neutral-400 cursor-not-allowed' : ''}`}
+                className={`${ADMIN_STYLES.INPUT} ${formData.isShareStock ? 'bg-neutral-50 text-neutral-400 cursor-not-allowed' : ''}`}
               />
               {formData.isShareStock && <p className="text-[10px] text-neutral-500 mt-1">* 마스터 상품의 실제 재고를 추적합니다.</p>}
             </div>
@@ -782,7 +783,7 @@ export function ProductRegisterPage() {
                 <div className="bg-neutral-50 p-6 space-y-4 border border-neutral-200 shadow-sm">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="relative">
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase tracking-tighter">마스터 상품 (낱개/재고 보유 상품) 검색</label>
+                      <label className={ADMIN_STYLES.SECTION_LABEL}>마스터 상품 (낱개/재고 보유 상품) 검색</label>
                       <div className="relative">
                         <input
                           type="text"
@@ -792,7 +793,7 @@ export function ProductRegisterPage() {
                             setMasterSearchTerm(e.target.value);
                             setIsMasterSearchOpen(true);
                           }}
-                          className="w-full px-4 py-3 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 bg-white"
+                          className={ADMIN_STYLES.INPUT}
                         />
                         {isMasterSearchOpen && masterSearchTerm.trim() && (
                           <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-50 max-h-60 overflow-y-auto">
@@ -840,13 +841,13 @@ export function ProductRegisterPage() {
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-500 mb-2 uppercase tracking-tighter">재고 차감 배수 (판매 1개당 차감량)</label>
+                      <label className={ADMIN_STYLES.SECTION_LABEL}>재고 차감 배수 (판매 1개당 차감량)</label>
                       <input
                         type="number"
                         min="1"
                         value={formData.stockMultiplier}
                         onChange={(e) => setFormData(prev => ({ ...prev, stockMultiplier: e.target.value }))}
-                        className="w-full px-4 py-3 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 bg-white"
+                        className={ADMIN_STYLES.INPUT}
                       />
                       <p className="text-[10px] text-neutral-400 mt-1 leading-tight">* 예: 5개 세트면 5 입력 (1개 판매 시 마스터 재고 5개 차감)</p>
                     </div>
@@ -857,7 +858,7 @@ export function ProductRegisterPage() {
 
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-4">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 판매 상태
               </label>
               <div className="flex gap-6">
@@ -887,7 +888,7 @@ export function ProductRegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-4">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 노출 여부 (고객 화면)
               </label>
               <div className="flex gap-6">
@@ -919,14 +920,11 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Order Options */}
-        <div className="bg-white border border-neutral-200 overflow-hidden">
-          <div className="px-8 py-6 border-b border-neutral-100 bg-neutral-50/50">
-            <h3 className="text-lg font-bold text-neutral-900 border-l-4 border-neutral-900 pl-3">주문 옵션</h3>
-          </div>
-          <div className="p-8 space-y-8">
+        <div className={ADMIN_STYLES.CARD}>
+            <h3 className={ADMIN_STYLES.SECTION_TITLE}>주문 옵션</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-900">
+                <label className={ADMIN_STYLES.SECTION_LABEL}>
                   판매 단위 <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -935,13 +933,13 @@ export function ProductRegisterPage() {
                   value={formData.salesUnit}
                   onChange={handleInputChange}
                   placeholder="예: 10 (10개 묶음)"
-                  className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+                  className={ADMIN_STYLES.INPUT}
                   required
                 />
               </div>
 
               <div className="space-y-4">
-                <label className="block text-sm font-medium text-neutral-900">수량 입력방법</label>
+                <label className={ADMIN_STYLES.SECTION_LABEL}>수량 입력방법</label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -966,19 +964,18 @@ export function ProductRegisterPage() {
                     <span className="text-sm text-neutral-900">버튼형</span>
                   </label>
                 </div>
-                <p className="text-xs text-neutral-400 mt-2">수량입력 방법을 선택합니다.</p>
+                <p className={ADMIN_STYLES.HELPER_TEXT}>수량입력 방법을 선택합니다.</p>
               </div>
             </div>
-          </div>
         </div>
 
         {/* Discount Settings */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">할인 및 크레딧/적립금 설정</h3>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>할인 및 크레딧/적립금 설정</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-b border-neutral-100 pb-8">
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-neutral-700">크레딧 사용 가능여부</label>
+              <label className={ADMIN_STYLES.SECTION_LABEL}>크레딧 사용 가능여부</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1003,11 +1000,11 @@ export function ProductRegisterPage() {
                   <span className="text-sm text-neutral-900">불가능</span>
                 </label>
               </div>
-              <p className="text-xs text-neutral-400">해당 상품 구매 시 크레딧 사용 가능 여부를 설정합니다</p>
+              <p className={ADMIN_STYLES.HELPER_TEXT}>해당 상품 구매 시 크레딧 사용 가능 여부를 설정합니다</p>
             </div>
 
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-neutral-700">적립금 사용 가능여부</label>
+              <label className={ADMIN_STYLES.SECTION_LABEL}>적립금 사용 가능여부</label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1032,15 +1029,15 @@ export function ProductRegisterPage() {
                   <span className="text-sm text-neutral-900">불가능</span>
                 </label>
               </div>
-              <p className="text-xs text-neutral-400">해당 상품 구매 시 적립금 사용 가능 여부를 설정합니다</p>
+              <p className={ADMIN_STYLES.HELPER_TEXT}>해당 상품 구매 시 적립금 사용 가능 여부를 설정합니다</p>
             </div>
           </div>
 
           {/* Subscription Discount */}
-          <div className="mb-8 p-4 bg-neutral-50 border border-neutral-200">
+          <div className="mb-8 p-4 bg-neutral-50/50 border border-neutral-100">
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm font-semibold text-neutral-900 mb-3">
+                <label className={ADMIN_STYLES.SECTION_LABEL}>
                   정기주문 할인 설정
                 </label>
                 <div className="flex gap-4">
@@ -1069,7 +1066,7 @@ export function ProductRegisterPage() {
 
               {formData.useSubscriptionDiscount && (
                 <div className="animate-in fade-in slide-in-from-top-2">
-                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                  <label className={ADMIN_STYLES.SECTION_LABEL}>
                     정기주문 할인률 (%)
                   </label>
                   <div className="flex items-center gap-2">
@@ -1079,11 +1076,11 @@ export function ProductRegisterPage() {
                       value={formData.subscriptionDiscount}
                       onChange={handleInputChange}
                       placeholder="0"
-                      className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+                      className={`${ADMIN_STYLES.INPUT} w-32`}
                     />
                     <span className="text-neutral-600 font-medium">%</span>
                   </div>
-                  <p className="text-xs text-neutral-500 mt-2">
+                  <p className={ADMIN_STYLES.HELPER_TEXT}>
                     정기주문 시 적용될 할인율을 숫자로 입력하세요.
                   </p>
                 </div>
@@ -1093,7 +1090,7 @@ export function ProductRegisterPage() {
 
           {/* Bulk Discounts */}
           <div>
-            <label className="block text-sm font-medium text-neutral-900 mb-3">
+            <label className={ADMIN_STYLES.SECTION_LABEL}>
               다량주문 할인률
             </label>
             <div className="space-y-3">
@@ -1104,21 +1101,21 @@ export function ProductRegisterPage() {
                     value={discount.quantity}
                     onChange={(e) => updateBulkDiscount(discount.id, 'quantity', e.target.value)}
                     placeholder="0"
-                    className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className={`${ADMIN_STYLES.INPUT} w-32`}
                   />
-                  <span className="text-neutral-600">개 이상</span>
+                  <span className="text-neutral-600 text-sm">개 이상</span>
                   <input
                     type="text"
                     value={discount.discountRate}
                     onChange={(e) => updateBulkDiscount(discount.id, 'discountRate', e.target.value)}
                     placeholder="0"
-                    className="w-32 px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    className={`${ADMIN_STYLES.INPUT} w-32`}
                   />
-                  <span className="text-neutral-600">%</span>
+                  <span className="text-neutral-600 text-sm">%</span>
                   <button
                     type="button"
                     onClick={() => removeBulkDiscount(discount.id)}
-                    className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors"
+                    className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1127,31 +1124,29 @@ export function ProductRegisterPage() {
               <button
                 type="button"
                 onClick={addBulkDiscount}
-                className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+                className={ADMIN_STYLES.BTN_OUTLINE + " py-2 flex items-center gap-2"}
               >
                 <Plus className="w-4 h-4" />
                 <span>할인 조건 추가</span>
               </button>
             </div>
-            <p className="text-xs text-neutral-500 mt-2">
+            <p className={ADMIN_STYLES.HELPER_TEXT}>
               구매 수량에 따른 할인률을 설정하세요
             </p>
           </div>
         </div>
 
         {/* 추가 증정 상품 섹터 */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">추가 증정 상품</h3>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>추가 증정 상품</h3>
           
           <div className="mb-6">
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className={ADMIN_STYLES.SECTION_LABEL}>
               상품 검색 및 추가
             </label>
-            <div className="relative group">
-              <div className="flex items-center w-full border border-neutral-300 bg-white focus-within:ring-2 focus-within:ring-neutral-900 focus-within:border-neutral-900 shadow-sm transition-all overflow-hidden group">
-                <div className="pl-4 flex-shrink-0">
-                  <Search className="w-5 h-5 text-neutral-400 group-focus-within:text-neutral-900 transition-colors" />
-                </div>
+            <div className="relative">
+              <div className="relative flex items-center">
+                <Search className="w-5 h-5 text-neutral-400 absolute left-3" />
                 <input
                   type="text"
                   value={searchTerm}
@@ -1161,7 +1156,7 @@ export function ProductRegisterPage() {
                   }}
                   onFocus={() => setIsSearchDropdownOpen(true)}
                   placeholder="추가 증정상품에 포함할 상품을 검색하여 추가해 주세요"
-                  className="w-full px-4 py-3 border-0 focus:ring-0 text-neutral-900 placeholder:text-neutral-400 bg-transparent"
+                  className={`${ADMIN_STYLES.INPUT} pl-10`}
                 />
               </div>
             </div>
@@ -1200,40 +1195,40 @@ export function ProductRegisterPage() {
             </div>
 
           <div>
-            <h4 className="text-sm font-medium text-neutral-900 mb-2">추가된 상품 목록</h4>
+            <h4 className={ADMIN_STYLES.SECTION_LABEL}>추가된 상품 목록</h4>
             <div className="border border-neutral-200">
               <table className="w-full text-sm text-left">
-                <thead className="bg-neutral-50 border-b border-neutral-200">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-neutral-700">상품 정보</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-32">금액</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-48 text-center">계산 방법</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-32 text-center">증정 수량</th>
-                    <th className="px-4 py-3 font-medium text-neutral-700 w-20 text-center">관리</th>
+                <thead>
+                  <tr className="bg-neutral-50/50">
+                    <th className={ADMIN_STYLES.TABLE_HEADER}>상품 정보</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-32"}>금액</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-48 text-center"}>계산 방법</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-32 text-center"}>증정 수량</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-20 text-center"}>관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
                   {formData.bonusProducts.length > 0 ? (
                     formData.bonusProducts.map((item) => (
-                      <tr key={item.id}>
-                        <td className="px-4 py-3">
+                      <tr key={item.id} className={ADMIN_STYLES.TABLE_ROW_HOVER}>
+                        <td className={ADMIN_STYLES.TABLE_CELL}>
                           <div className="flex flex-col">
-                            <span className="font-medium text-neutral-900">{item.name}</span>
-                            <span className="text-xs text-neutral-500">{item.sku}</span>
+                            <span className="font-bold text-neutral-900">{item.name}</span>
+                            <span className="text-[10px] text-neutral-400 font-medium">{item.sku}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className={ADMIN_STYLES.TABLE_CELL}>
+                          <div className="flex items-center justify-end gap-2 text-right">
                             <input
                               type="text"
                               value={item.price}
                               onChange={(e) => updateBonusProduct(item.id, 'price', e.target.value)}
-                              className="w-24 text-right px-2 py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm text-sm"
+                              className={`${ADMIN_STYLES.INPUT} h-8 w-24 text-right px-2 font-bold`}
                             />
-                            <span className="text-neutral-500 text-xs">원</span>
+                            <span className="text-neutral-500 text-[10px] font-bold">원</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={ADMIN_STYLES.TABLE_CELL}>
                           <div className="flex flex-col gap-2 items-center justify-center">
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -1242,7 +1237,7 @@ export function ProductRegisterPage() {
                                 onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'fixed')}
                                 className="w-3.5 h-3.5 accent-neutral-900"
                               />
-                              <span className="text-xs">직접입력</span>
+                              <span className="text-[10px] font-bold text-neutral-700">고정수량</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -1251,11 +1246,11 @@ export function ProductRegisterPage() {
                                 onChange={() => updateBonusProduct(item.id, 'calculationMethod', 'ratio')}
                                 className="w-3.5 h-3.5 accent-neutral-900"
                               />
-                              <span className="text-xs">비율계산</span>
+                              <span className="text-[10px] font-bold text-neutral-700">비율계산</span>
                             </label>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className={ADMIN_STYLES.TABLE_CELL}>
                           <div className="flex flex-col items-center justify-center gap-1">
                             {item.calculationMethod === 'fixed' ? (
                               <div className="flex items-center gap-1">
@@ -1263,9 +1258,9 @@ export function ProductRegisterPage() {
                                   type="text"
                                   value={item.quantity}
                                   onChange={(e) => updateBonusProduct(item.id, 'quantity', e.target.value)}
-                                  className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                  className={`${ADMIN_STYLES.INPUT} h-8 w-16 text-center font-bold`}
                                 />
-                                <span className="text-neutral-500 text-xs">개</span>
+                                <span className="text-neutral-500 text-[10px] font-bold">개</span>
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-1">
@@ -1274,20 +1269,20 @@ export function ProductRegisterPage() {
                                     type="text"
                                     value={item.percentage}
                                     onChange={(e) => updateBonusProduct(item.id, 'percentage', e.target.value)}
-                                    className="w-16 text-center py-1 border border-neutral-300 focus:border-neutral-900 focus:outline-none rounded-sm"
+                                    className={`${ADMIN_STYLES.INPUT} h-8 w-16 text-center font-bold`}
                                   />
-                                  <span className="text-neutral-500 text-xs">%</span>
+                                  <span className="text-neutral-500 text-[10px] font-bold">%</span>
                                 </div>
-                                <span className="text-[10px] text-blue-600 font-medium">구매량 비례</span>
+                                <span className="text-[9px] text-blue-600 font-black uppercase tracking-tighter">Purchase Ratio</span>
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-center">
+                        <td className={ADMIN_STYLES.TABLE_CELL + " text-center"}>
                           <button
                             type="button"
                             onClick={() => removeBonusProduct(item.id)}
-                            className="text-neutral-400 hover:text-red-600 transition-colors"
+                            className={ADMIN_STYLES.BTN_GHOST}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1308,8 +1303,8 @@ export function ProductRegisterPage() {
         </div>
 
         {/* Description */}
-        <div className="bg-white border border-neutral-200 p-8">
-          <h3 className="text-lg font-bold text-neutral-900 mb-6 border-l-4 border-neutral-900 pl-3">상품 설명</h3>
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>상품 설명</h3>
           <RichTextEditor
             value={formData.description}
             onChange={(value) => setFormData((prev) => ({ ...prev, description: value }))}
@@ -1323,20 +1318,20 @@ export function ProductRegisterPage() {
             type="button"
             onClick={() => navigate('/admin/products')}
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 py-3 px-6 border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50 font-medium text-xl tracking-tight transition-all active:scale-95 disabled:opacity-50"
+            className={ADMIN_STYLES.BTN_OUTLINE + " flex items-center gap-2"}
           >
-            <ArrowLeft className="w-6 h-6 stroke-[1.5]" />
+            <ArrowLeft className="w-5 h-5" />
             <span>취소</span>
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 py-3 px-6 bg-neutral-900 text-white hover:bg-black font-medium text-xl tracking-tight transition-all active:scale-95 shadow-md disabled:opacity-50"
+            className={ADMIN_STYLES.BTN_PRIMARY + " flex items-center gap-2"}
           >
             {isSubmitting ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              <Package className="w-6 h-6 stroke-[1.5]" />
+              <Package className="w-5 h-5" />
             )}
             <span>{isEditMode ? '상품 수정하기' : '상품 등록하기'}</span>
           </button>

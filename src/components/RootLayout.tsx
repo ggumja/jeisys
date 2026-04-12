@@ -109,6 +109,15 @@ export function RootLayout() {
 
               {/* Right Section: User Utilities (Fixed Width Area) */}
               <div className="flex-1 flex items-center justify-end gap-6 z-10">
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    className="hidden md:block text-sm font-black tracking-tight text-[#21358D] hover:text-[#1a2b72] transition-colors uppercase whitespace-nowrap bg-blue-50 px-3 py-1 rounded-sm"
+                  >
+                    Admin
+                  </Link>
+                )}
+
                 <Link
                   to="/mypage/orders"
                   className="hidden md:block text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors uppercase whitespace-nowrap"

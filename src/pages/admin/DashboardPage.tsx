@@ -3,6 +3,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { adminService } from '../../services/adminService';
+import { orderService } from '../../services/orderService';
+import { authService } from '../../services/authService';
 
 // Mock chart data (to be replaced with real analytics later)
 const salesData = [
@@ -80,6 +82,62 @@ export function DashboardPage() {
     }
   };
 
+  const seedSampleOrders = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (!user) {
+        alert('Please log in first.');
+        return;
+      }
+
+      setLoading(true);
+      const productIds = [
+        'c95917c9-cc03-497c-bef3-1e2be6d57633',
+        'dbb78f79-1749-4d0f-a9e0-eafc2d3afd75',
+        'fcb06020-bb20-4d4c-b70f-361c18412b4f',
+        '59061b5e-a84d-4398-b768-5d0d388efb35',
+        '2bc3a720-99ea-481e-8026-949541505e02'
+      ];
+
+      for (let i = 1; i <= 10; i++) {
+        // Random 1-3 items
+        const count = Math.floor(Math.random() * 3) + 1;
+        const items = [];
+        let totalAmount = 0;
+
+        for (let j = 0; j < count; j++) {
+            const pId = productIds[Math.floor(Math.random() * productIds.length)];
+            const qty = Math.floor(Math.random() * 5) + 1;
+            const price = pId.includes('LinearZ') ? 3300000 : 400000;
+            
+            items.push({
+                productId: pId,
+                quantity: qty,
+                isSubscription: false
+            });
+            totalAmount += price * qty;
+        }
+
+        await orderService.createOrder({
+            userId: user.id,
+            items: items as any,
+            totalAmount,
+            paymentMethod: '카드 결제',
+            deliveryAddress: '서울시 강남구 테헤란로 123 제이시스 빌딩 5층'
+        });
+        console.log(`Seed: Created order ${i}`);
+      }
+
+      alert('Successfully generated 10 sample orders!');
+      loadDashboardData();
+    } catch (error) {
+      console.error('Failed to seed orders', error);
+      alert('Seeding failed. Check console.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGradeClick = (grade: string) => {
     navigate(`/admin/members?grade=${grade}`);
   };
@@ -108,9 +166,17 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-medium mb-2">대시보드</h1>
-        <p className="text-neutral-600">제이시스메디칼 운영 현황을 한눈에 확인하세요</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-medium mb-2">대시보드</h1>
+          <p className="text-neutral-600">제이시스메디칼 운영 현황을 한눈에 확인하세요</p>
+        </div>
+        <button 
+          onClick={seedSampleOrders}
+          className="px-4 py-2 bg-neutral-100 border border-neutral-300 rounded text-xs hover:bg-neutral-200 transition-colors"
+        >
+          샘플 데이터 생성 (10건)
+        </button>
       </div>
 
       {/* 주요 지표 카드 */}
