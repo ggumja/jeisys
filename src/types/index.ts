@@ -164,3 +164,27 @@ export interface Post {
   platform?: 'youtube' | 'instagram' | 'blog' | 'facebook'; // Added for Media
   category?: string; // Added for FAQ/Manual
 }
+
+export interface PaymentMethod {
+  id: string;
+  userId: string;
+  provider: string;
+  billingKey: string;
+  cardName: string;
+  cardNumberMasked: string;
+  alias?: string;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  originalOrderId?: string;
+  status: 'active' | 'paused' | 'cancelled' | 'expired';
+  billingKeyId: string;
+  cycleDays: number;
+  nextBillingDate: string;
+  lastBillingDate?: string;
+  createdAt: string;
+}

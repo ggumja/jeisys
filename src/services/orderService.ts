@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { CartItem, Order } from '../types';
 import { authService } from './authService';
+import { paymentService } from './paymentService';
 
 export interface OrderInput {
     userId: string;
@@ -9,6 +10,9 @@ export interface OrderInput {
     paymentMethod: string;
     deliveryAddress: string;
     trackingNumber?: string;
+    billingKeyId?: string; // KICC Billing Key ID from user_payment_methods
+    billingKey?: string;   // KICC Billing Key string
+    subscriptionCycle?: number; // Days (30, 60, 90)
 }
 
 export const orderService = {
@@ -134,38 +138,71 @@ export const orderService = {
 
     // Create a new order
     async createOrder(orderInput: OrderInput) {
-        const { userId, items, totalAmount, paymentMethod, deliveryAddress } = orderInput;
+        const { userId, items, totalAmount, paymentMethod, deliveryAddress, billingKeyId, billingKey, subscriptionCycle } = orderInput;
 
         if (!items || items.length === 0) {
             throw new Error('No items in order');
         }
 
-        // 1. Create Order Record
+        // 1. Handle Payment if Billing Key is provided (KICC EasyPay Integration)
+        let initialStatus = 'pending';
+        let paymentReference = '';
+
+        if (paymentMethod === 'credit' && billingKey) {
+            const paymentResult: any = await paymentService.requestPayment({
+                userId,
+                billingKey,
+                amount: totalAmount,
+                orderName: items.length > 1 ? `${items[0].productId} 외 ${items.length - 1}건` : `Order ${Date.now()}`,
+                orderNumber: `ORD-${Date.now()}`
+            });
+
+            if (paymentResult.success) {
+                initialStatus = 'paid';
+                paymentReference = paymentResult.tid;
+            } else {
+                throw new Error('Payment failed: ' + (paymentResult.message || 'Unknown error'));
+            }
+        }
+
+        // 2. Create Order Record
         const { data: order, error: orderError } = await supabase
             .from('orders')
             .insert({
                 user_id: userId,
-                order_number: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`, // Simple ID generation
-                status: 'pending',
+                order_number: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                status: initialStatus,
                 total_amount: totalAmount,
                 payment_method: paymentMethod,
-                delivery_address: deliveryAddress
+                delivery_address: deliveryAddress,
+                pg_tid: paymentReference // Store TID for reference/refunds
             })
             .select()
             .single();
 
         if (orderError) throw orderError;
 
-        // 2. Create Order Items
-        // We need product prices at this point to store in order_items for historical record.
-        // Ideally we shouldn't trust client-side total, but re-calculate.
-        // For this implementation, we will fetch prices again or rely on what's passed if we trust the context (for now, assume we fetch).
+        // 3. Create Subscription Records if applicable
+        const hasSubscriptionItems = items.some(i => i.isSubscription);
+        if (hasSubscriptionItems && billingKeyId && subscriptionCycle) {
+            const nextDate = new Date();
+            nextDate.setDate(nextDate.getDate() + subscriptionCycle);
 
-        // Optimisation: We can just use the prices passed if we assume the CartPage calculated them, 
-        // BUT for correctness we should re-fetch. To save time/complexity here, 
-        // I will fetch prices for all items.
+            const { error: subError } = await supabase
+                .from('subscriptions')
+                .insert({
+                    user_id: userId,
+                    original_order_id: order.id,
+                    status: 'active',
+                    billing_key_id: billingKeyId,
+                    cycle_days: subscriptionCycle,
+                    next_billing_date: nextDate.toISOString().split('T')[0]
+                });
 
-        // Get all product IDs
+            if (subError) console.error('Failed to create subscription record:', subError);
+        }
+
+        // 4. Create Order Items
         const productIds = items.map(i => i.productId);
         const { data: products, error: prodError } = await supabase
             .from('products')
@@ -178,16 +215,12 @@ export const orderService = {
             const product = products?.find(p => p.id === item.productId);
             let unitPrice = product?.price || 0;
 
-            // Calculate tier price if applicable
-            // Note: This logic duplicates CartPage logic. Ideally should be shared.
             if (product && product.product_pricing_tiers && product.product_pricing_tiers.length > 0) {
-                const tiers = product.product_pricing_tiers.sort((a: any, b: any) => b.min_quantity - a.min_quantity);
+                const tiers = [...product.product_pricing_tiers].sort((a: any, b: any) => b.min_quantity - a.min_quantity);
                 const tier = tiers.find((t: any) => item.quantity >= t.min_quantity);
                 if (tier) unitPrice = tier.unit_price;
             }
 
-            // Apply subscription discount if applicable
-            // Note: simple calc here
             const discount = item.isSubscription ? 0.95 : 1;
             const finalUnitPrice = unitPrice * discount;
 
@@ -206,10 +239,9 @@ export const orderService = {
 
         if (itemsError) throw itemsError;
 
-        // 3. Update Inventory (Real-time Stock Management)
+        // 5. Update Inventory
         for (const item of items) {
             try {
-                // Fetch current product to check for master linkage
                 const { data: product, error: fetchError } = await supabase
                     .from('products')
                     .select('id, stock, base_product_id, stock_multiplier')
@@ -221,15 +253,12 @@ export const orderService = {
                 const targetProductId = product.base_product_id || product.id;
                 const decrementAmount = (item.quantity || 1) * (product.stock_multiplier || 1);
 
-                // Use simple column decrement
                 const { error: stockError } = await supabase.rpc('decrement_stock', {
                     row_id: targetProductId,
                     amount: decrementAmount
                 });
 
-                // If RPC not available, fallback to manual update (less safe but works for now)
                 if (stockError) {
-                    console.warn('RPC decrement_stock failed, falling back to manual update', stockError);
                     const { data: targetProd } = await supabase
                         .from('products')
                         .select('stock')
@@ -245,11 +274,10 @@ export const orderService = {
                 }
             } catch (err) {
                 console.error('Failed to update stock for item', item.productId, err);
-                // Continue with other items even if one fails
             }
         }
 
-        // 4. Clear User's Cart
+        // 6. Clear User's Cart
         const { error: clearError } = await supabase
             .from('cart_items')
             .delete()

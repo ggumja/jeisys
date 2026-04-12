@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText } from 'lucide-react';
+import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText, AlertTriangle } from 'lucide-react';
 import { printInvoice, printPackingList } from '../../utils/printUtils';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
+import { OrderCancelModal } from '../../components/admin/OrderCancelModal';
 
 interface OrderItem {
   id: string;
@@ -40,7 +41,7 @@ interface DeliveryHistory {
   id: string;
   deliveryNumber: number;
   deliveryDate: string;
-  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_refunded';
   amount: number;
   trackingNumber?: string;
 }
@@ -52,7 +53,7 @@ interface Order {
   hospitalName: string;
   orderDate: string;
   totalAmount: number;
-  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped';
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'partially_refunded';
   items: number;
   orderItems?: OrderItem[];
   shippingInfo?: ShippingInfo;
@@ -65,6 +66,7 @@ interface Order {
   deliveryCount?: number;
   deliveryHistory?: DeliveryHistory[];
   trackingNumber?: string;
+  pgTid?: string;
   shipments?: Array<{
     id: string;
     trackingNumber: string;
@@ -84,6 +86,7 @@ export function OrderDetailPage() {
   const [boxCount, setBoxCount] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
+  const [showCancelModal, setShowCancelModal] = useState(false);
   // 발송 수량 상태: { [orderItemId]: shipQty }
   const [shipQtyMap, setShipQtyMap] = useState<Record<string, number>>({});
 
@@ -96,7 +99,7 @@ export function OrderDetailPage() {
   const loadOrder = async () => {
     try {
       setLoading(true);
-      const data = await adminService.getOrderById(id!);
+      const data = await adminService.getOrderById(id!) as any;
       setOrder(data);
       // 발송수량 초기값: 미발송 수량으로 세팅
       if (data.orderItems) {
@@ -230,6 +233,13 @@ export function OrderDetailPage() {
             취소
           </Badge>
         );
+      case 'partially_refunded':
+        return (
+          <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+            <RefreshCw className="w-3 h-3 mr-1" />
+            부분환불
+          </Badge>
+        );
       case 'partially_shipped':
         return (
           <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
@@ -273,6 +283,8 @@ export function OrderDetailPage() {
       case 'shipped': return '배송중';
       case 'delivered': return '배송완료';
       case 'cancelled': return '취소';
+      case 'partially_refunded': return '부분환불';
+      case 'partially_shipped': return '부분발송';
     }
   };
 
@@ -334,6 +346,16 @@ export function OrderDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {order.status !== 'cancelled' && order.status !== 'pending' && (
+            <Button
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+              onClick={() => setShowCancelModal(true)}
+            >
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              취소 / 환불 처리
+            </Button>
+          )}
           {order.status === 'pending' && (
             <Button
               variant="default"
@@ -914,6 +936,20 @@ export function OrderDetailPage() {
             </dl>
           </div>
         </div>
+      )}
+
+      {/* Refund/Cancel Modal */}
+      {showCancelModal && order && (
+        <OrderCancelModal
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            pgTid: order.pgTid
+          }}
+          onClose={() => setShowCancelModal(false)}
+          onSuccess={loadOrder}
+        />
       )}
     </div>
   );
