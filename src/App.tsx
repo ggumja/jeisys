@@ -3,6 +3,7 @@ import { router } from './routes';
 import { useEffect } from 'react';
 import { storage } from './lib/storage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ModalProvider } from './context/ModalContext';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -29,7 +30,9 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ModalProvider>
+        <RouterProvider router={router} />
+      </ModalProvider>
     </QueryClientProvider>
   );
 }

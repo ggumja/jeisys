@@ -131,6 +131,10 @@ export interface Order {
   totalAmount: number;
   paymentMethod: string;
   deliveryTrackingNumber?: string;
+  vactBankName?: string;
+  vactNum?: string;
+  vactName?: string;
+  vactInputDeadline?: string;
 }
 
 export interface Inquiry {

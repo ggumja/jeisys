@@ -31,3 +31,10 @@
     - **Alpha Variants:** `#21358D` at 10% and 20% opacity.
     - **Edge Color:** `#000000` at 8% opacity.
     - These colors are the core of the **Jeisys Medical** identity and must be used for all UI components.
+
+## 2026-04-12
+- **Global Modal System Implementation:**
+    - Established ModalContext and useModal hook providing a Promise-based async API for alert and confirm.
+    - Integrated ModalProvider in RootLayout for application-wide availability.
+    - Replaced native alert() and confirm() calls across all major user-facing (Cart, Product Detail, Signup, Login) and administrative (Member, Product, Order, FAQ, etc.) pages.
+    - Standardized on Radix UI AlertDialog for a premium, consistent design language.

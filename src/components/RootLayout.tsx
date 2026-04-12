@@ -3,10 +3,15 @@ import { Home, ShoppingCart, Package, User, Zap, Youtube, MessageSquare, Chevron
 import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { FloatingButtons } from './FloatingButtons';
+import { ModalProvider } from '../context/ModalContext';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
 
 
 export function RootLayout() {
+  return <RootLayoutContent />;
+}
+
+function RootLayoutContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [cartCount, setCartCount] = useState(0);

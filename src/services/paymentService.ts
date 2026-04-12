@@ -150,5 +150,32 @@ export const paymentService = {
       .eq('id', methodId);
 
     if (error) throw error;
+  },
+
+  /**
+   * 가상계좌 발급 요청 시뮬레이션 (KICC)
+   */
+  async issueVirtualAccount(params: {
+    amount: number;
+    orderNumber: string;
+    customerName: string;
+  }) {
+    console.log(`[KICC API CALL] Virtual Account Issue: ${params.orderNumber}, Amount: ${params.amount}`);
+    
+    return new Promise((resolve) => {
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + 7); // 7일 이내 입금
+
+      setTimeout(() => {
+        resolve({
+          success: true,
+          bankName: '국민은행',
+          accountNum: '601202-04-123456',
+          accountName: '(주)제이시스메디칼',
+          deadline: deadline.toISOString(),
+          tid: `KICC_VACT_${Date.now()}`
+        });
+      }, 1000);
+    });
   }
 };

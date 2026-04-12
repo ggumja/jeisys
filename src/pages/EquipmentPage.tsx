@@ -3,8 +3,10 @@ import { Link } from 'react-router';
 import { Calendar, Shield, TrendingUp, Plus, X, Loader2 } from 'lucide-react';
 import { equipmentService, EquipmentModel } from '../services/equipmentService';
 import { Equipment } from '../types';
+import { useModal } from '../context/ModalContext';
 
 export function EquipmentPage() {
+  const { alert } = useModal();
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +52,7 @@ export function EquipmentPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.equipmentId || !formData.serialNumber || !formData.installDate) {
-      alert('모든 필드를 입력해주세요.');
+      await alert('모든 필드를 입력해주세요.');
       return;
     }
 
@@ -61,13 +63,13 @@ export function EquipmentPage() {
         formData.serialNumber,
         formData.installDate
       );
-      alert('장비가 등록되었습니다.');
+      await alert('장비가 등록되었습니다.');
       setShowModal(false);
       setFormData({ equipmentId: '', serialNumber: '', installDate: '' });
       loadData(); // Refresh list
     } catch (error: any) {
       console.error('Registration failed:', error);
-      alert('장비 등록 실패: ' + (error.message || '알 수 없는 오류'));
+      await alert('장비 등록 실패: ' + (error.message || '알 수 없는 오류'));
     } finally {
       setSubmitting(false);
     }

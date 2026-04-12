@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Check } from 'lucide-react';
 import { inquiryService } from '../services/inquiryService';
+import { useModal } from '../context/ModalContext';
 import { authService } from '../services/authService';
 
 const INQUIRY_TYPES = [
@@ -13,6 +14,7 @@ const INQUIRY_TYPES = [
 ];
 
 export function InquiryWritePage() {
+  const { alert: globalAlert } = useModal();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     type: INQUIRY_TYPES[0],
@@ -70,7 +72,7 @@ export function InquiryWritePage() {
       }, 2000);
     } catch (error) {
       console.error('Failed to submit inquiry:', error);
-      alert('문의 등록 중 오류가 발생했습니다.');
+      await globalAlert('문의 등록 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }

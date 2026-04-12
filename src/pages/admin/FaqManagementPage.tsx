@@ -10,8 +10,10 @@ import {
 } from "../../components/ui/table";
 import { postService, Post, faqCategoryService, FaqCategory } from '../../services/postService';
 import { formatDate } from '../../lib/utils';
+import { useModal } from '../../context/ModalContext';
 
 export function FaqManagementPage() {
+  const { alert: globalAlert, confirm: globalConfirm } = useModal();
   const [faqs, setFaqs] = useState<Post[]>([]);
   const [categories, setCategories] = useState<FaqCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -104,12 +106,12 @@ export function FaqManagementPage() {
       handleCloseModal();
     } catch (error) {
       console.error('Failed to save FAQ:', error);
-      alert('저장 중 오류가 발생했습니다. 상세 내용은 콘솔을 확인해 주세요.');
+      await globalAlert('저장 중 오류가 발생했습니다. 상세 내용은 콘솔을 확인해 주세요.');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('정말로 이 FAQ를 삭제하시겠습니까?')) return;
+    if (!(await globalConfirm('정말로 이 FAQ를 삭제하시겠습니까?'))) return;
     try {
       await postService.deletePost(id);
       fetchData();
@@ -132,16 +134,16 @@ export function FaqManagementPage() {
       fetchData();
     } catch (error) {
       console.error("Failed to create category", error);
-      alert("카테고리 생성 실패");
+      await globalAlert("카테고리 생성 실패");
     }
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('이 카테고리를 삭제하시겠습니까?')) return;
+    if (!(await globalConfirm('이 카테고리를 삭제하시겠습니까?'))) return;
     // Check usage
     const isUsed = faqs.some(f => f.category === id);
     if (isUsed) {
-      alert('사용 중인 카테고리는 삭제할 수 없습니다.');
+      await globalAlert('사용 중인 카테고리는 삭제할 수 없습니다.');
       return;
     }
 

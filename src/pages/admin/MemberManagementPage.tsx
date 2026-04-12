@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useAdminUsers, useUpdateUserStatus, useUserEquipments } from '../../hooks/useAdmin';
+import { useModal } from '../../context/ModalContext';
 
 interface Member {
   id: string;
@@ -72,6 +73,7 @@ function UserEquipmentsList({ userId }: { userId: string }) {
 }
 
 export function MemberManagementPage() {
+  const { alert: globalAlert, confirm: globalConfirm } = useModal();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const gradeFilter = searchParams.get('grade') || 'all';
@@ -164,27 +166,27 @@ export function MemberManagementPage() {
 
   const handleApprove = async (memberId: string) => {
     try {
-      if (confirm('회원을 승인하시겠습니까?')) {
+      if (await globalConfirm('회원을 승인하시겠습니까?')) {
         await updateStatusMutation.mutateAsync({ userId: memberId, status: 'APPROVED' });
-        alert('회원 승인이 완료되었습니다.');
+        await globalAlert('회원 승인이 완료되었습니다.');
         setIsDetailModalOpen(false);
       }
     } catch (error) {
       console.error('Failed to approve member', error);
-      alert('회원 승인에 실패했습니다.');
+      await globalAlert('회원 승인에 실패했습니다.');
     }
   };
 
   const handleReject = async (memberId: string) => {
     try {
-      if (confirm('회원 가입을 거절하시겠습니까?')) {
+      if (await globalConfirm('회원 가입을 거절하시겠습니까?')) {
         await updateStatusMutation.mutateAsync({ userId: memberId, status: 'REJECTED' });
-        alert('회원 가입이 거절되었습니다.');
+        await globalAlert('회원 가입이 거절되었습니다.');
         setIsDetailModalOpen(false);
       }
     } catch (error) {
       console.error('Failed to reject member', error);
-      alert('회원 거절에 실패했습니다.');
+      await globalAlert('회원 거절에 실패했습니다.');
     }
   };
 
@@ -194,8 +196,8 @@ export function MemberManagementPage() {
     );
   };
 
-  const handleSaveGradeSettings = () => {
-    alert('회원등급 설정이 저장되었습니다.');
+  const handleSaveGradeSettings = async () => {
+    await globalAlert('회원등급 설정이 저장되었습니다.');
     setIsGradeSettingsOpen(false);
   };
 

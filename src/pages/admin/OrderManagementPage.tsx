@@ -23,7 +23,7 @@ interface Order {
   hospitalName: string;
   orderDate: string;
   totalAmount: number;
-  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped';
+  status: 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested';
   items: number;
   itemsSummary?: string;
   orderItems?: OrderItem[];
@@ -104,7 +104,6 @@ export function OrderManagementPage() {
     }
   };
 
-  // Stats for the tabs
   const stats = {
     all: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
@@ -113,6 +112,7 @@ export function OrderManagementPage() {
     shipped: orders.filter(o => o.status === 'shipped').length,
     delivered: orders.filter(o => o.status === 'delivered').length,
     cancelled: orders.filter(o => o.status === 'cancelled').length,
+    claims: orders.filter(o => ['cancel_requested', 'return_requested', 'returning', 'returned', 'exchange_requested'].includes(o.status)).length,
   };
 
   const getStatusBadge = (status: Order['status']) => {
@@ -129,6 +129,16 @@ export function OrderManagementPage() {
         return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">배송완료</Badge>;
       case 'cancelled':
         return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">취소됨</Badge>;
+      case 'cancel_requested':
+        return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-100 font-bold animate-pulse">취소요청</Badge>;
+      case 'return_requested':
+        return <Badge variant="outline" className="bg-orange-50 text-orange-600 border-orange-100 font-bold animate-pulse">반품요청</Badge>;
+      case 'returning':
+        return <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">반품수거중</Badge>;
+      case 'returned':
+        return <Badge variant="outline" className="bg-neutral-100 text-neutral-600 border-neutral-200">반품완료</Badge>;
+      case 'exchange_requested':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 font-bold animate-pulse">교환요청</Badge>;
       default:
         return null;
     }
@@ -140,7 +150,11 @@ export function OrderManagementPage() {
       order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.hospitalName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+    const matchesStatus = selectedStatus === 'all' 
+      ? true 
+      : selectedStatus === 'claims' 
+        ? ['cancel_requested', 'return_requested', 'returning', 'returned', 'exchange_requested'].includes(order.status)
+        : order.status === selectedStatus;
 
     return matchesSearch && matchesStatus;
   });
@@ -266,6 +280,7 @@ export function OrderManagementPage() {
           { id: 'shipped', label: '배송중', count: stats.shipped },
           { id: 'delivered', label: '배송완료', count: stats.delivered },
           { id: 'cancelled', label: '취소됨', count: stats.cancelled },
+          { id: 'claims', label: '취소/반품/교환', count: stats.claims },
         ].map(tab => (
           <button
             key={tab.id}

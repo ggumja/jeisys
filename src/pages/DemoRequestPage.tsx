@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, CheckCircle, Clock, Plus, X } from 'lucide-react';
+import { useModal } from '../context/ModalContext';
 import { demoService, DemoRequest } from '../services/demoService';
 import { authService } from '../services/authService';
 import { formatDate } from '../lib/utils';
@@ -17,6 +18,7 @@ const equipmentOptions = [
 ];
 
 export function DemoRequestPage() {
+  const { alert } = useModal();
   const [showForm, setShowForm] = useState(false);
   const [requests, setRequests] = useState<DemoRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,7 +84,7 @@ export function DemoRequestPage() {
         content: formData.content,
       });
 
-      alert('데모 신청이 완료되었습니다. 담당자가 확인 후 연락드리겠습니다.');
+      await alert('데모 신청이 완료되었습니다. 담당자가 확인 후 연락드리겠습니다.');
       setShowForm(false);
       setFormData(prev => ({ 
         ...prev,
@@ -93,7 +95,7 @@ export function DemoRequestPage() {
       fetchUserAndRequests();
     } catch (error) {
       console.error('Failed to submit demo request:', error);
-      alert('신청 중 오류가 발생했습니다.');
+      await alert('신청 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }

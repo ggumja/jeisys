@@ -3,6 +3,7 @@ import { X, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { ADMIN_STYLES } from '../../constants/adminStyles';
 import { paymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
+import { useModal } from '../../context/ModalContext';
 
 interface OrderCancelModalProps {
   order: {
@@ -10,12 +11,14 @@ interface OrderCancelModalProps {
     orderNumber: string;
     totalAmount: number;
     pgTid?: string;
+    paymentMethod?: string;
   };
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export function OrderCancelModal({ order, onClose, onSuccess }: OrderCancelModalProps) {
+  const { confirm } = useModal();
   const [cancelType, setCancelType] = useState<'full' | 'partial'>('full');
   const [cancelAmount, setCancelAmount] = useState<number>(order.totalAmount);
   const [reason, setReason] = useState('');
@@ -31,6 +34,17 @@ export function OrderCancelModal({ order, onClose, onSuccess }: OrderCancelModal
 
     if (!reason.trim()) {
       setError('취소 사유를 입력해주세요.');
+      return;
+    }
+
+    const confirmMessage = cancelType === 'full' 
+      ? '정말로 이 주문을 전액 취소하시겠습니까?' 
+      : `정말로 ₩${cancelAmount.toLocaleString()}을 환불하시겠습니까?`;
+
+    if (!(await confirm({ 
+      title: '취소 확인', 
+      description: confirmMessage + '\n이 작업은 되돌릴 수 없습니다.' 
+    }))) {
       return;
     }
 
@@ -64,6 +78,17 @@ export function OrderCancelModal({ order, onClose, onSuccess }: OrderCancelModal
         .eq('id', order.id);
 
       if (dbError) throw dbError;
+
+      // 3. 결제 히스토리 기록 추가
+      await supabase.from('payment_history').insert({
+        order_id: order.id,
+        transaction_type: cancelType === 'full' ? 'REFUND' : 'PARTIAL_REFUND',
+        amount: cancelAmount,
+        pg_tid: order.pgTid,
+        status: 'SUCCESS',
+        method: order.paymentMethod || (order.pgTid ? 'credit' : 'virtual'), 
+        reason: reason
+      });
 
       setIsSuccess(true);
       setTimeout(() => {
@@ -109,27 +134,37 @@ export function OrderCancelModal({ order, onClose, onSuccess }: OrderCancelModal
             <p className="font-bold text-neutral-900">{order.orderNumber} (₩{order.totalAmount.toLocaleString()})</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => {
-                setCancelType('full');
-                setCancelAmount(order.totalAmount);
-              }}
-              className={`py-3 text-sm font-bold border-2 transition-all ${
-                cancelType === 'full' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'
-              }`}
-            >
-              전액 취소
-            </button>
-            <button
-              onClick={() => setCancelType('partial')}
-              className={`py-3 text-sm font-bold border-2 transition-all ${
-                cancelType === 'partial' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'
-              }`}
-            >
-              부분 환불
-            </button>
-          </div>
+          {order.paymentMethod !== 'credit' && (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setCancelType('full');
+                  setCancelAmount(order.totalAmount);
+                }}
+                className={`py-3 text-sm font-bold border-2 transition-all ${
+                  cancelType === 'full' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'
+                }`}
+              >
+                전액 취소
+              </button>
+              <button
+                onClick={() => setCancelType('partial')}
+                className={`py-3 text-sm font-bold border-2 transition-all ${
+                  cancelType === 'partial' ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'
+                }`}
+              >
+                부분 환불
+              </button>
+            </div>
+          )}
+
+          {order.paymentMethod === 'credit' && (
+            <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+              <p className="text-sm font-bold text-blue-900 mb-1">신용카드 결제 주문</p>
+              <p className="text-xs text-blue-700">신용카드 결제는 부분 취소를 지원하지 않으며, 전액 취소만 가능합니다.</p>
+              <input type="hidden" value="full" />
+            </div>
+          )}
 
           {cancelType === 'partial' && (
             <div className="animate-in slide-in-from-top-2 duration-200">

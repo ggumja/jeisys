@@ -81,10 +81,6 @@ export function OrdersPage() {
                     </button>
                   </>
                 )}
-                <button className="flex items-center gap-2 px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium transition-colors">
-                  <FileText className="w-4 h-4" />
-                  거래명세서
-                </button>
               </div>
             </div>
 
@@ -145,13 +141,6 @@ export function OrdersPage() {
               </div>
             </div>
 
-            {/* Tracking Button */}
-            {order.deliveryTrackingNumber && (
-              <button className="w-full mt-6 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 py-4 font-medium flex items-center justify-center gap-2 transition-colors text-sm tracking-wide uppercase">
-                <Package className="w-5 h-5" />
-                실시간 배송 트래킹
-              </button>
-            )}
           </div>
         ))}
       </div>

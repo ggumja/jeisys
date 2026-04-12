@@ -54,7 +54,14 @@ CREATE INDEX idx_payment_methods_user ON public.user_payment_methods(user_id);
 CREATE INDEX idx_subscriptions_user ON public.subscriptions(user_id);
 CREATE INDEX idx_subscriptions_next_billing ON public.subscriptions(next_billing_date) WHERE status = 'active';
 
--- 5. Updated At Trigger for Subscriptions
+-- 6. Update Orders Table for Payments
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS pg_tid VARCHAR;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS vact_bank_name VARCHAR;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS vact_num VARCHAR;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS vact_name VARCHAR;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS vact_input_deadline TIMESTAMP;
+
+-- Updated At Trigger for Subscriptions
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

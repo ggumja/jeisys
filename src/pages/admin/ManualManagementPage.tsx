@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Plus, FileText, Download, Edit, Trash2, Eye, EyeOff, X, Save, Link as LinkIcon } from 'lucide-react';
 import { postService, Post } from '../../services/postService';
 import { formatDate } from '../../lib/utils';
+import { useModal } from '../../context/ModalContext';
 
 export function ManualManagementPage() {
+  const { alert: globalAlert, confirm: globalConfirm } = useModal();
   const [manuals, setManuals] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -82,12 +84,12 @@ export function ManualManagementPage() {
       handleCloseModal();
     } catch (error) {
       console.error('Failed to save manual:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      await globalAlert('저장 중 오류가 발생했습니다.');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('정말로 이 매뉴얼을 삭제하시겠습니까?')) return;
+    if (!(await globalConfirm('정말로 이 매뉴얼을 삭제하시겠습니까?'))) return;
     try {
       await postService.deletePost(id);
       fetchManuals();

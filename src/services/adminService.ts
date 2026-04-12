@@ -1,5 +1,28 @@
 import { supabase } from '../lib/supabaseClient';
 
+export interface PaymentHistory {
+    id: string;
+    orderId: string;
+    transactionType: 'PAYMENT' | 'REFUND' | 'PARTIAL_REFUND';
+    amount: number;
+    pgTid?: string;
+    status: 'SUCCESS' | 'FAILURE';
+    reason?: string;
+    method?: string;
+    createdAt: string;
+}
+
+export interface OrderHistory {
+    id: string;
+    orderId: string;
+    beforeStatus?: string;
+    afterStatus: string;
+    actionTitle: string;
+    actionDescription?: string;
+    adminId?: string;
+    createdAt: string;
+}
+
 export const adminService = {
     // Dashboard Stats
     async getDashboardStats() {
@@ -95,7 +118,10 @@ export const adminService = {
             hospitalName: order.user?.hospital_name || '',
             orderDate: new Date(order.ordered_at).toISOString().split('T')[0],
             totalAmount: Number(order.total_amount),
-            status: order.status,
+            paymentMethod: order.payment_method === 'virtual' ? '가상계좌결제' : 
+                          order.payment_method === 'credit' ? '신용카드결제' : 
+                          order.payment_method,
+            status: order.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: order.order_items?.length || 0,
             itemsSummary: order.order_items?.[0] 
                 ? (order.order_items.length > 1 
@@ -163,6 +189,28 @@ export const adminService = {
             console.error('Error fetching shipments:', shipmentsError);
         }
 
+        // 3. 결제 히스토리 조회
+        const { data: payHistoryData, error: payHistoryError } = await supabase
+            .from('payment_history')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: false });
+
+        if (payHistoryError) {
+            console.error('Error fetching payment history:', payHistoryError);
+        }
+
+        // 4. 주문 이력 조회 (통합 히스토리)
+        const { data: historyData, error: historyError } = await supabase
+            .from('order_status_history')
+            .select('*')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: false });
+
+        if (historyError) {
+            console.error('Error fetching order history:', historyError);
+        }
+
         return {
             id: orderData.id,
             orderNumber: orderData.order_number,
@@ -170,7 +218,7 @@ export const adminService = {
             hospitalName: orderData.user?.hospital_name || '',
             orderDate: new Date(orderData.ordered_at).toISOString().split('T')[0],
             totalAmount: Number(orderData.total_amount),
-            status: orderData.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped',
+            status: orderData.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: itemsData?.length || 0,
             orderItems: itemsData?.map((item: any) => ({
                 id: item.id,
@@ -192,8 +240,11 @@ export const adminService = {
                 email: orderData.user?.email
             },
             paymentInfo: {
-                method: orderData.payment_method
+                method: orderData.payment_method === 'virtual' ? '가상계좌결제' : 
+                        orderData.payment_method === 'credit' ? '신용카드결제' : 
+                        orderData.payment_method
             },
+            paymentMethod: orderData.payment_method,
             trackingNumber: orderData.tracking_number,
             shippedAt: orderData.shipped_at,
             isSubscription: orderData.is_subscription,
@@ -210,7 +261,37 @@ export const adminService = {
                     productName: item.product?.name || 'Unknown',
                     quantity: item.quantity
                 })) || []
-            })) || []
+            })) || [],
+            paymentHistory: payHistoryData?.map((h: any) => ({
+                id: h.id,
+                orderId: h.order_id,
+                transactionType: h.transaction_type,
+                amount: Number(h.amount),
+                pgTid: h.pg_tid,
+                status: h.status,
+                reason: h.reason,
+                method: h.method,
+                createdAt: h.created_at
+            })) || [],
+            orderHistory: historyData?.map((h: any) => ({
+                id: h.id,
+                orderId: h.order_id,
+                beforeStatus: h.before_status,
+                afterStatus: h.after_status,
+                actionTitle: h.action_title,
+                actionDescription: h.action_description,
+                adminId: h.admin_id,
+                createdAt: h.created_at
+            })) || [],
+            claimInfo: orderData.claim_type ? {
+                type: orderData.claim_type,
+                reason: orderData.claim_reason,
+                requestedAt: orderData.claim_requested_at,
+                processedAt: orderData.claim_processed_at,
+                rejectedReason: orderData.claim_rejected_reason,
+                returnTrackingNumber: orderData.return_tracking_number,
+                exchangeTrackingNumber: orderData.exchange_tracking_number
+            } : undefined
         };
     },
     async registerLogenInvoice(order: any, boxCount: number = 1) {
@@ -307,7 +388,7 @@ export const adminService = {
             } else {
                 console.error("Logen API Integration Failed:", e);
             }
-            return fallbackSlipNos.join(", ");
+            return fallbackSlipNos.join(", "); 
         }
     },
 
@@ -323,10 +404,41 @@ export const adminService = {
             .eq('id', orderId);
 
         if (error) throw error;
+
+        // 히스토리 기록
+        await this.logOrderHistory(orderId, status, 
+            status === 'paid' ? '입금 확인' : 
+            status === 'shipped' ? '배송 시작' : 
+            status === 'delivered' ? '배송 완료' : 
+            status === 'cancelled' ? '주문 취소' : '상태 변경',
+            trackingNumber ? `송장번호: ${trackingNumber}` : undefined
+        );
+    },
+
+    // 히스토리 기록 헬퍼
+    async logOrderHistory(orderId: string, afterStatus: string, title: string, description?: string) {
+        try {
+            // 현재 상태 가져오기 (before_status 기록용)
+            const { data: current } = await supabase.from('orders').select('status').eq('id', orderId).single();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            await supabase.from('order_status_history').insert({
+                order_id: orderId,
+                before_status: current?.status,
+                after_status: afterStatus,
+                action_title: title,
+                action_description: description,
+                admin_id: user?.id
+            });
+        } catch (e) {
+            console.error('Error logging order history:', e);
+        }
     },
 
     // 부분 발송 처리
     async partialShipOrder(params: {
+        deliveryHistory?: DeliveryHistory[];
+        paymentHistory?: PaymentHistory[];
         orderId: string;
         trackingNumber: string;
         userId?: string;
@@ -428,20 +540,11 @@ export const adminService = {
         
         console.log('[partialShipOrder] orders 상태 업데이트 성공:', newStatus, '/ 업데이트된 row:', updatedRows[0]);
 
-        // 4. 고객 알림 생성
-        if (userId) {
-            const message = allShipped
-                ? `주문번호 ${orderNumber}의 상품이 모두 발송되었습니다. 송장번호: ${trackingNumber}`
-                : `주문번호 ${orderNumber}의 상품 일부가 발송되었습니다. 나머지 상품은 재입고 후 발송 예정입니다. 송장번호: ${trackingNumber}`;
-
-            await supabase.from('notifications').insert({
-                user_id: userId,
-                order_id: orderId,
-                type: allShipped ? 'shipped' : 'partial_shipped',
-                title: allShipped ? '상품이 발송되었습니다' : '상품 일부가 발송되었습니다',
-                message
-            });
-        }
+        // 히스토리 기록
+        await this.logOrderHistory(orderId, newStatus, 
+            allShipped ? '전체 배송 시작' : '부분 배송 시작',
+            `송장번호: ${trackingNumber} / 대상 품목: ${items.length}종`
+        );
 
         return { status: newStatus };
     },
@@ -513,6 +616,9 @@ export const adminService = {
                 await supabase.from('orders').update({ tracking_number: latestShipment.tracking_number, status: 'partially_shipped' }).eq('id', orderId);
             }
         }
+
+        // 히스토리 기록
+        await this.logOrderHistory(orderId, 'paid', '배송 취소', `배송건(ID: ${shipmentId.slice(0, 8)})이 취소되어 상태가 롤백되었습니다.`);
     },
 
     // Users
@@ -608,6 +714,93 @@ export const adminService = {
             warrantyEndDate: ue.warranty_end_date,
             imageUrl: ue.equipment?.image_url
         }));
+    },
+
+    async processClaim(orderId: string, action: 'APPROVE' | 'REJECT', params: { 
+        claimType: 'CANCEL' | 'RETURN' | 'EXCHANGE',
+        reason?: string,
+        refundAmount?: number 
+    }) {
+        const { claimType, reason, refundAmount } = params;
+        let newStatus = '';
+
+        if (action === 'APPROVE') {
+            switch (claimType) {
+                case 'CANCEL': newStatus = 'cancelled'; break;
+                case 'RETURN': newStatus = 'returned'; break;
+                case 'EXCHANGE': newStatus = 'shipped'; break; // 교환 출고 시 다시 배송중으로
+            }
+        } else {
+            // 거절 시 이전 상태로 복구? 여기서는 단순하게 다시 이전 상태로 돌리는 로직이 필요할 수 있으나
+            // 우선은 현재 상태 유지하며 거절 사유만 기록
+            const { data: currentOrder } = await supabase.from('orders').select('status').eq('id', orderId).single();
+            newStatus = currentOrder?.status || 'paid'; 
+        }
+
+        const updateData: any = { 
+            status: newStatus,
+            claim_processed_at: new Date().toISOString()
+        };
+
+        if (action === 'REJECT') {
+            updateData.claim_rejected_reason = reason;
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('id', orderId);
+
+        if (error) throw error;
+
+        // 히스토리 기록
+        await this.logOrderHistory(orderId, newStatus, 
+            action === 'APPROVE' ? `클레임 승인 (${claimType})` : `클레임 거절 (${claimType})`,
+            action === 'REJECT' ? `거절 사유: ${reason}` : `상태가 ${newStatus}로 처리되었습니다.`
+        );
+
+        // 반품 완료(returned) 시 재고 환원 로직
+        if (action === 'APPROVE' && claimType === 'RETURN') {
+            const { data: items } = await supabase.from('order_items').select('product_id, quantity').eq('order_id', orderId);
+            if (items) {
+                for (const item of items) {
+                    if (item.product_id) {
+                        const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
+                        if (product && product.stock !== null) {
+                            await supabase.from('products').update({ stock: product.stock + item.quantity }).eq('id', item.product_id);
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    async requestClaim(orderId: string, params: {
+        type: 'CANCEL' | 'RETURN' | 'EXCHANGE',
+        reason: string
+    }) {
+        const { type, reason } = params;
+        let status = '';
+        switch (type) {
+            case 'CANCEL': status = 'cancel_requested'; break;
+            case 'RETURN': status = 'return_requested'; break;
+            case 'EXCHANGE': status = 'exchange_requested'; break;
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update({
+                status,
+                claim_type: type,
+                claim_reason: reason,
+                claim_requested_at: new Date().toISOString()
+            })
+            .eq('id', orderId);
+
+        if (error) throw error;
+
+        // 히스토리 기록
+        await this.logOrderHistory(orderId, status, `클레임 요청 (${type})`, `사유: ${reason}`);
     },
 
     async updateUserStatus(userId: string, status: 'APPROVED' | 'REJECTED') {

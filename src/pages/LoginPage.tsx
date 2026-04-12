@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { storage } from '../lib/storage';
 import { authService } from '../services/authService';
+import { useModal } from '../context/ModalContext';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
 import { HelpCircle, FileText, Newspaper, Video, ChevronLeft, ChevronRight } from 'lucide-react';
 import bannerImage1 from "@/assets/64532cd4dc417352b5d7e0c9ba765b439636e04f.png";
@@ -9,6 +10,7 @@ import bannerImage2 from "@/assets/0b54070218d9e3fce2c717fa5151d3a1cd8da40e.png"
 import bannerImage3 from "@/assets/7e526b8f5a164c84b13d3608733c8a229ef8f255.png";
 
 export function LoginPage() {
+  const { alert } = useModal();
   const navigate = useNavigate();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -38,7 +40,7 @@ export function LoginPage() {
         }
       }
     } catch (error: any) {
-      alert('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
+      await alert('로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.');
       console.error('Login failed:', error);
     }
   };

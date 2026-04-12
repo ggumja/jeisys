@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText, AlertTriangle, CreditCard } from 'lucide-react';
 import { printInvoice, printPackingList } from '../../utils/printUtils';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
 import { OrderCancelModal } from '../../components/admin/OrderCancelModal';
+import { OrderClaimModal } from '../../components/admin/OrderClaimModal';
+import { useModal } from '../../context/ModalContext';
 
 interface OrderItem {
   id: string;
@@ -46,6 +48,29 @@ interface DeliveryHistory {
   trackingNumber?: string;
 }
 
+interface PaymentHistory {
+  id: string;
+  orderId: string;
+  transactionType: 'PAYMENT' | 'REFUND' | 'PARTIAL_REFUND';
+  amount: number;
+  pgTid?: string;
+  status: 'SUCCESS' | 'FAILURE';
+  reason?: string;
+  method?: string;
+    createdAt: string;
+}
+
+interface OrderHistory {
+    id: string;
+    orderId: string;
+    beforeStatus?: string;
+    afterStatus: string;
+    actionTitle: string;
+    actionDescription?: string;
+    adminId?: string;
+    createdAt: string;
+}
+
 interface Order {
   id: string;
   orderNumber: string;
@@ -64,8 +89,10 @@ interface Order {
   subscriptionStatus?: 'active' | 'paused' | 'cancelled';
   subscriptionStartDate?: string;
   deliveryCount?: number;
-  deliveryHistory?: DeliveryHistory[];
-  trackingNumber?: string;
+    deliveryHistory?: DeliveryHistory[];
+    paymentHistory?: PaymentHistory[];
+    orderHistory?: OrderHistory[];
+    trackingNumber?: string;
   pgTid?: string;
   shipments?: Array<{
     id: string;
@@ -74,10 +101,21 @@ interface Order {
     isPartial: boolean;
     items: Array<{ productName: string; quantity: number }>;
   }>;
+  claimInfo?: {
+    type: 'CANCEL' | 'RETURN' | 'EXCHANGE';
+    reason: string;
+    requestedAt: string;
+    processedAt?: string;
+    rejectedReason?: string;
+    returnTrackingNumber?: string;
+    exchangeTrackingNumber?: string;
+  };
+  paymentMethod?: string;
 }
 
 
 export function OrderDetailPage() {
+  const { confirm, alert } = useModal();
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
@@ -87,6 +125,7 @@ export function OrderDetailPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showClaimModal, setShowClaimModal] = useState(false);
   // 발송 수량 상태: { [orderItemId]: shipQty }
   const [shipQtyMap, setShipQtyMap] = useState<Record<string, number>>({});
 
@@ -196,7 +235,25 @@ export function OrderDetailPage() {
     );
   }
 
-  const getStatusBadge = (status: Order['status']) => {
+  const getTransactionTypeText = (type: PaymentHistory['transactionType']) => {
+    switch (type) {
+      case 'PAYMENT': return '결제';
+      case 'REFUND': return '전체환불';
+      case 'PARTIAL_REFUND': return '부분환불';
+      default: return type;
+    }
+  };
+
+  const getTransactionTypeColor = (type: PaymentHistory['transactionType']) => {
+    switch (type) {
+      case 'PAYMENT': return 'text-blue-600 bg-blue-50 border-blue-100';
+      case 'REFUND': return 'text-red-600 bg-red-50 border-red-100';
+      case 'PARTIAL_REFUND': return 'text-orange-600 bg-orange-50 border-orange-100';
+      default: return 'text-gray-600 bg-gray-50 border-gray-100';
+    }
+  };
+
+  const getStatusBadge = (status: Order['status'] | any) => {
     switch (status) {
       case 'pending':
         return (
@@ -247,6 +304,18 @@ export function OrderDetailPage() {
             부분발송
           </Badge>
         );
+      case 'cancel_requested':
+        return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-100 font-bold animate-pulse">취소요청</Badge>;
+      case 'return_requested':
+        return <Badge variant="outline" className="bg-orange-50 text-orange-600 border-orange-100 font-bold animate-pulse">반품요청</Badge>;
+      case 'returning':
+        return <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">반품수거중</Badge>;
+      case 'returned':
+        return <Badge variant="outline" className="bg-neutral-100 text-neutral-600 border-neutral-200">반품완료</Badge>;
+      case 'exchange_requested':
+        return <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 font-bold animate-pulse">교환요청</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -275,8 +344,7 @@ export function OrderDetailPage() {
         );
     }
   };
-
-  const getStatusText = (status: Order['status']) => {
+  const getStatusText = (status: Order['status'] | any) => {
     switch (status) {
       case 'pending': return '입금대기';
       case 'paid': return '결제완료';
@@ -285,27 +353,33 @@ export function OrderDetailPage() {
       case 'cancelled': return '취소';
       case 'partially_refunded': return '부분환불';
       case 'partially_shipped': return '부분발송';
+      case 'cancel_requested': return '취소요청';
+      case 'return_requested': return '반품요청';
+      case 'returning': return '반품입고중';
+      case 'returned': return '반품완료';
+      case 'exchange_requested': return '교환요청';
+      default: return status;
     }
   };
 
-  const handlePauseSubscription = () => {
-    if (confirm('정기배송을 일시정지하시겠습니까?')) {
+  const handlePauseSubscription = async () => {
+    if (await confirm('정기배송을 일시정지하시겠습니까?')) {
       setSubscriptionStatus('paused');
-      alert('정기배송이 일시정지되었습니다.');
+      await alert('정기배송이 일시정지되었습니다.');
     }
   };
 
-  const handleResumeSubscription = () => {
-    if (confirm('정기배송을 재개하시겠습니까?')) {
+  const handleResumeSubscription = async () => {
+    if (await confirm('정기배송을 재개하시겠습니까?')) {
       setSubscriptionStatus('active');
-      alert('정기배송이 재개되었습니다.');
+      await alert('정기배송이 재개되었습니다.');
     }
   };
 
-  const handleCancelSubscription = () => {
-    if (confirm('정기배송을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+  const handleCancelSubscription = async () => {
+    if (await confirm('정기배송을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       setSubscriptionStatus('cancelled');
-      alert('정기배송이 취소되었습니다.');
+      await alert('정기배송이 취소되었습니다.');
     }
   };
 
@@ -346,16 +420,90 @@ export function OrderDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {order.status !== 'cancelled' && order.status !== 'pending' && (
-            <Button
-              variant="outline"
-              className="border-red-200 text-red-600 hover:bg-red-50"
-              onClick={() => setShowCancelModal(true)}
-            >
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              취소 / 환불 처리
-            </Button>
+          {/* 클레임 승인/거절 버튼 (요청 상태일 때만 노출) */}
+          {(order.status === 'cancel_requested' || order.status === 'return_requested' || order.status === 'exchange_requested') && (
+            <div className="flex items-center gap-2 bg-neutral-100 p-1.5 rounded-lg border border-neutral-200">
+              <span className="text-xs font-bold text-neutral-500 px-2 uppercase">Claim Action</span>
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 h-9"
+                onClick={async () => {
+                  if (await confirm(`${getStatusText(order.status)}을 승인하시겠습니까?`)) {
+                    try {
+                      setIsUpdating(true);
+                      const claimType = order.status === 'cancel_requested' ? 'CANCEL' : order.status === 'return_requested' ? 'RETURN' : 'EXCHANGE';
+                      await adminService.processClaim(order.id, 'APPROVE', { claimType });
+                      toast.success('클레임이 승인되었습니다.');
+                      await loadOrder();
+                    } catch (e) {
+                      toast.error('처리에 실패했습니다.');
+                    } finally {
+                      setIsUpdating(false);
+                    }
+                  }
+                }}
+              >
+                클레임 승인
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-200 text-red-600 hover:bg-red-50 h-9"
+                onClick={async () => {
+                  const reason = window.prompt('거절 사유를 입력해주세요:');
+                  if (reason) {
+                    try {
+                      setIsUpdating(true);
+                      const claimType = order.status === 'cancel_requested' ? 'CANCEL' : order.status === 'return_requested' ? 'RETURN' : 'EXCHANGE';
+                      await adminService.processClaim(order.id, 'REJECT', { claimType, reason });
+                      toast.success('클레임이 거절되었습니다.');
+                      await loadOrder();
+                    } catch (e) {
+                      toast.error('처리에 실패했습니다.');
+                    } finally {
+                      setIsUpdating(false);
+                    }
+                  }
+                }}
+              >
+                요청 거절
+              </Button>
+            </div>
           )}
+
+          {/* 기존 취소/환불 버튼: 배송 시작 전(paid) 단계에서만 '취소'로 동작 */}
+          {order.status !== 'cancelled' && order.status !== 'pending' && !order.status.includes('_requested') && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-50"
+                onClick={async () => {
+                  const isShipped = order.status === 'shipped' || order.status === 'delivered' || order.status === 'partially_shipped';
+                  if (isShipped) {
+                    await alert('이미 배송이 진행된 주문입니다. 취소 대신 [클레임(반품/교환) 등록] 버튼을 사용해 주세요.');
+                    return;
+                  }
+                  setShowCancelModal(true);
+                }}
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                주문 취소
+              </Button>
+
+              {(order.status === 'shipped' || order.status === 'delivered' || order.status === 'partially_shipped') && (
+                <Button
+                  variant="outline"
+                  className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                  onClick={() => setShowClaimModal(true)}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  반품/교환 등록
+                </Button>
+              )}
+            </div>
+          )}
+
           {order.status === 'pending' && (
             <Button
               variant="default"
@@ -367,7 +515,17 @@ export function OrderDetailPage() {
             </Button>
           )}
           {order.status === 'shipped' && (
-            <Button variant="outline" onClick={() => handleUpdateStatus('delivered')}>
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                if (await confirm({
+                  title: '배송 완료 처리',
+                  description: '정말로 이 주문을 배송 완료 상태로 변경하시겠습니까?'
+                })) {
+                  handleUpdateStatus('delivered');
+                }
+              }}
+            >
               배송 완료 처리
             </Button>
           )}
@@ -470,6 +628,70 @@ export function OrderDetailPage() {
                 정기배송 취소
               </Button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Claim Info Section - 클레임 정보가 있는 경우 최상단 노출 */}
+      {order.claimInfo && (
+        <div className="bg-red-50 border-2 border-red-200 p-6 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <h4 className="text-lg font-bold text-red-900">클레임 상세 정보 ({getStatusText(order.status)})</h4>
+            </div>
+            <div className="flex items-center gap-2">
+              {getStatusBadge(order.status)}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="bg-white p-4 border border-red-100 shadow-sm">
+                <dt className="text-xs font-bold text-red-700 mb-2 uppercase flex items-center gap-1">
+                  <Package className="w-3 h-3" /> 요청 유형
+                </dt>
+                <dd className="text-sm font-bold text-red-900">
+                  {order.claimInfo.type === 'CANCEL' ? '주문 취소' : order.claimInfo.type === 'RETURN' ? '반품/환불' : '상품 교환'}
+                </dd>
+              </div>
+              <div className="bg-white p-4 border border-red-100 shadow-sm">
+                <dt className="text-xs font-bold text-red-700 mb-2 uppercase flex items-center gap-1">
+                  <FileText className="w-3 h-3" /> 클레임 상세 사유
+                </dt>
+                <dd className="text-sm text-red-900 leading-relaxed whitespace-pre-wrap">
+                  {order.claimInfo.reason}
+                </dd>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-white p-4 border border-red-100 shadow-sm">
+                <dt className="text-xs font-bold text-neutral-500 mb-2 uppercase flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> 타임라인
+                </dt>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-neutral-500">요청 접수</span>
+                    <span className="font-medium text-neutral-900">{new Date(order.claimInfo.requestedAt).toLocaleString()}</span>
+                  </div>
+                  {order.claimInfo.processedAt && (
+                    <div className="flex justify-between text-xs border-t border-neutral-50 pt-2 font-bold text-green-700">
+                      <span>처리 완료</span>
+                      <span>{new Date(order.claimInfo.processedAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {order.claimInfo.rejectedReason && (
+                <div className="bg-red-600 p-4 border border-red-700 shadow-md">
+                  <dt className="text-xs font-bold text-white mb-2 uppercase flex items-center gap-1">
+                    <XCircle className="w-3 h-3" /> 거절 사유 (고객 안내됨)
+                  </dt>
+                  <dd className="text-sm font-bold text-white">
+                    {order.claimInfo.rejectedReason}
+                  </dd>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -587,6 +809,13 @@ export function OrderDetailPage() {
                           // 송장번호 자동 발급 (박스수량만큼)
                           toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
                           const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
+                          
+                          if (!finalTrackingNumber) {
+                            toast.error('송장 번호 발급에 실패했습니다. 데이터를 확인해주세요.');
+                            setIsUpdating(false);
+                            return;
+                          }
+
                           setTrackingNumber(finalTrackingNumber);
 
                           const result = await adminService.partialShipOrder({
@@ -718,7 +947,10 @@ export function OrderDetailPage() {
                   {order.isSubscription ? '회당 주문금액' : '총 주문금액'}
                 </td>
                 <td className="pt-4 text-right text-lg font-bold text-neutral-900">
-                  {order.totalAmount.toLocaleString()}원
+                  {(() => {
+                    const calculatedTotal = order.orderItems?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0;
+                    return calculatedTotal.toLocaleString();
+                  })()}원
                 </td>
               </tr>
             </tfoot>
@@ -896,16 +1128,44 @@ export function OrderDetailPage() {
       {order.paymentInfo && (
         <div className="bg-white border border-neutral-200">
           <div className="px-6 py-4 border-b border-neutral-200">
-            <h4 className="text-sm font-medium text-neutral-900 flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              결제 정보
+            <h4 className="text-sm font-medium text-neutral-900 flex items-center justify-between gap-2 w-full">
+              <span className="flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                결제 정보
+              </span>
+              {order.pgTid && (order.status === 'paid' || order.status === 'shipped' || order.status === 'partially_shipped') && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                  onClick={() => setShowCancelModal(true)}
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  결제 취소/환불
+                </Button>
+              )}
             </h4>
           </div>
           <div className="p-6">
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <dt className="text-xs font-medium text-neutral-600 mb-1">결제 방법</dt>
-                <dd className="text-sm text-neutral-900">{order.paymentInfo.method}</dd>
+                <dd className="text-sm text-neutral-900">
+                  {order.paymentInfo.method}
+                  <span className="ml-2 text-neutral-400 text-xs">
+                    ({(() => {
+                      const calculatedTotal = order.orderItems?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0;
+                      const amountStr = calculatedTotal.toLocaleString();
+                      
+                      if (order.paymentMethod === 'credit') {
+                        return `총 결제 완료: ${amountStr}원`;
+                      } else {
+                        const label = order.status === 'pending' ? '입금 예정' : '입금 완료';
+                        return `${label}: ${amountStr}원`;
+                      }
+                    })()})
+                  </span>
+                </dd>
               </div>
               {order.paymentInfo.bankName && (
                 <div>
@@ -938,6 +1198,107 @@ export function OrderDetailPage() {
         </div>
       )}
 
+      {/* Unified Order History List */}
+      <div className="bg-white border border-neutral-200">
+        <div className="px-6 py-4 border-b border-neutral-200 bg-neutral-50/50">
+          <h4 className="text-sm font-medium text-neutral-900 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            주문 처리 및 결제 통합 히스토리
+          </h4>
+        </div>
+        <div className="overflow-x-auto">
+          {(!order.orderHistory?.length && !order.paymentHistory?.length) ? (
+            <div className="py-8 text-center text-neutral-500 text-sm p-6">
+              기록된 활동 내역이 없습니다.
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">일시</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">구분</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">활동 내용</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider whitespace-nowrap">상세 / 상태</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-200">
+                {[
+                  ...(order.orderHistory || []).map(h => ({ ...h, type: 'status' as const })),
+                  ...(order.paymentHistory || []).map(p => {
+                    const methodLabel = p.method === 'credit' ? '신용카드' : p.method === 'virtual' ? '가상계좌' : p.method;
+                    return { 
+                      id: p.id, 
+                      orderId: p.orderId, 
+                      afterStatus: '', 
+                      actionTitle: getTransactionTypeText(p.transactionType),
+                      actionDescription: `${p.transactionType === 'PAYMENT' ? '+' : '-'} ${p.amount.toLocaleString()}원 (${methodLabel}) ${p.pgTid ? `[TID: ${p.pgTid}]` : ''} ${p.reason ? ` - ${p.reason}` : ''}`,
+                      createdAt: p.createdAt,
+                      type: 'payment' as const,
+                      transactionType: p.transactionType,
+                      method: p.method
+                    };
+                  })
+                ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map((item) => (
+                  <tr key={item.id} className="hover:bg-neutral-50/50 transition-colors">
+                    <td className="px-6 py-4 text-xs text-neutral-500 whitespace-nowrap font-mono">
+                      {new Date(item.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500">
+                          {item.type === 'payment' ? (
+                            <CreditCard className="w-3.5 h-3.5" />
+                          ) : item.actionTitle.includes('배송') ? (
+                            <Truck className="w-3.5 h-3.5" />
+                          ) : item.actionTitle.includes('클레임') ? (
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                          ) : (
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          )}
+                        </div>
+                        <span className="text-xs font-medium text-neutral-700">{item.actionTitle}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-xs text-neutral-600 max-w-md line-clamp-2">
+                        {item.actionDescription}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {item.afterStatus ? (
+                        getStatusBadge(item.afterStatus as any)
+                      ) : item.type === 'payment' ? (
+                        <Badge 
+                          variant="outline" 
+                          className={item.transactionType === 'PAYMENT' 
+                            ? "bg-green-100 text-green-800 border-green-200" 
+                            : "bg-red-100 text-red-800 border-red-200"
+                          }
+                        >
+                          {item.transactionType === 'PAYMENT' ? (
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                          ) : (
+                            <XCircle className="w-3 h-3 mr-1" />
+                          )}
+                          {item.transactionType === 'PAYMENT' ? (
+                            (item as any).method === 'credit' ? '결제완료' : '입금완료'
+                          ) : (
+                            (item as any).method === 'credit' ? '결제취소' : '환불완료'
+                          )}
+                        </Badge>
+                      ) : (
+                        <span className="text-neutral-300">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
       {/* Refund/Cancel Modal */}
       {showCancelModal && order && (
         <OrderCancelModal
@@ -945,9 +1306,24 @@ export function OrderDetailPage() {
             id: order.id,
             orderNumber: order.orderNumber,
             totalAmount: order.totalAmount,
-            pgTid: order.pgTid
+            pgTid: order.pgTid,
+            paymentMethod: order.paymentMethod
           }}
           onClose={() => setShowCancelModal(false)}
+          onSuccess={loadOrder}
+        />
+      )}
+
+      {/* Refund/Exchange Claim Modal */}
+      {showClaimModal && order && (
+        <OrderClaimModal
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            status: order.status
+          }}
+          onClose={() => setShowClaimModal(false)}
           onSuccess={loadOrder}
         />
       )}

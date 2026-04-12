@@ -52,6 +52,10 @@ export const orderService = {
             totalAmount: parseFloat(order.total_amount),
             paymentMethod: order.payment_method,
             deliveryTrackingNumber: order.tracking_number,
+            vactBankName: order.vact_bank_name,
+            vactNum: order.vact_num,
+            vactName: order.vact_name,
+            vactInputDeadline: order.vact_input_deadline,
             items: order.order_items?.map((item: any) => ({
                 product: item.product ? {
                     id: item.product.id,
@@ -105,6 +109,10 @@ export const orderService = {
             totalAmount: parseFloat(data.total_amount),
             paymentMethod: data.payment_method,
             deliveryTrackingNumber: data.tracking_number,
+            vactBankName: data.vact_bank_name,
+            vactNum: data.vact_num,
+            vactName: data.vact_name,
+            vactInputDeadline: data.vact_input_deadline,
             items: data.order_items?.map((item: any) => ({
                 product: item.product ? {
                     id: item.product.id,
@@ -134,6 +142,9 @@ export const orderService = {
             console.error('Error cancelling order:', error);
             throw error;
         }
+
+        // 히스토리 기록
+        await this.logOrderHistory(orderId, 'cancelled', '주문 취소 (사용자)', '사용자가 직접 주문을 취소하였습니다.');
     },
 
     // Create a new order
@@ -147,6 +158,7 @@ export const orderService = {
         // 1. Handle Payment if Billing Key is provided (KICC EasyPay Integration)
         let initialStatus = 'pending';
         let paymentReference = '';
+        let vactInfo: any = null;
 
         if (paymentMethod === 'credit' && billingKey) {
             const paymentResult: any = await paymentService.requestPayment({
@@ -163,6 +175,19 @@ export const orderService = {
             } else {
                 throw new Error('Payment failed: ' + (paymentResult.message || 'Unknown error'));
             }
+        } else if (paymentMethod === 'virtual') {
+            const vactResult: any = await paymentService.issueVirtualAccount({
+                amount: totalAmount,
+                orderNumber: `ORD-${Date.now()}`,
+                customerName: 'Customer' // In real app, fetch from user profile
+            });
+
+            if (vactResult.success) {
+                initialStatus = 'pending';
+                vactInfo = vactResult;
+            } else {
+                throw new Error('Virtual account issuance failed');
+            }
         }
 
         // 2. Create Order Record
@@ -175,12 +200,29 @@ export const orderService = {
                 total_amount: totalAmount,
                 payment_method: paymentMethod,
                 delivery_address: deliveryAddress,
-                pg_tid: paymentReference // Store TID for reference/refunds
+                pg_tid: vactInfo?.tid || paymentReference, // Store TID for reference/refunds
+                vact_bank_name: vactInfo?.bankName,
+                vact_num: vactInfo?.accountNum,
+                vact_name: vactInfo?.accountName,
+                vact_input_deadline: vactInfo?.deadline
             })
             .select()
             .single();
 
         if (orderError) throw orderError;
+
+        // 2-1. Record Initial Payment in History
+        if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo)) {
+            await supabase.from('payment_history').insert({
+                order_id: order.id,
+                transaction_type: 'PAYMENT',
+                amount: totalAmount,
+                pg_tid: vactInfo?.tid || paymentReference,
+                status: 'SUCCESS',
+                method: paymentMethod,
+                reason: paymentMethod === 'virtual' ? '가상계좌 발급 완료' : '신용카드 결제 완료'
+            });
+        }
 
         // 3. Create Subscription Records if applicable
         const hasSubscriptionItems = items.some(i => i.isSubscription);
@@ -285,6 +327,32 @@ export const orderService = {
 
         if (clearError) console.error('Failed to clear cart after order', clearError);
 
+        // 히스토리 기록
+        const methodLabel = paymentMethod === 'credit' ? '신용카드' : paymentMethod === 'virtual' ? '가상계좌' : paymentMethod;
+        await this.logOrderHistory(order.id, initialStatus, '주문 생성', 
+            `주문이 생성되었습니다. (결제수단: ${methodLabel})`
+        );
+
         return order;
+    },
+
+    // 히스토리 기록 헬퍼
+    async logOrderHistory(orderId: string, afterStatus: string, title: string, description?: string) {
+        try {
+            // 현재 상태 가져오기 (before_status 기록용)
+            const { data: current } = await supabase.from('orders').select('status').eq('id', orderId).single();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            await supabase.from('order_status_history').insert({
+                order_id: orderId,
+                before_status: current?.status,
+                after_status: afterStatus,
+                action_title: title,
+                action_description: description,
+                admin_id: user?.id
+            });
+        } catch (e) {
+            console.error('Error logging order history:', e);
+        }
     }
 };

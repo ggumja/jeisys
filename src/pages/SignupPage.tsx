@@ -18,8 +18,10 @@ declare global {
 }
 
 import { authService } from '../services/authService';
+import { useModal } from '../context/ModalContext';
 
 export function SignupPage() {
+  const { alert } = useModal();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
@@ -93,15 +95,15 @@ export function SignupPage() {
     if (step < 3) {
       if (step === 2) {
         if (!isIdChecked) {
-          alert('아이디 중복확인을 해주세요.');
+          await alert('아이디 중복확인을 해주세요.');
           return;
         }
         if (formData.password !== formData.passwordConfirm) {
-          alert('비밀번호가 일치하지 않습니다.');
+          await alert('비밀번호가 일치하지 않습니다.');
           return;
         }
         if (!validatePassword(formData.password)) {
-          alert('비밀번호는 영문, 숫자를 포함하여 8자 이상이어야 합니다.');
+          await alert('비밀번호는 영문, 숫자를 포함하여 8자 이상이어야 합니다.');
           return;
         }
       }
@@ -127,11 +129,11 @@ export function SignupPage() {
           holidayDay: formData.holidayDay,
           isPublicHoliday: formData.isPublicHoliday
         }, equipmentList, formData.businessCertificate);
-        alert('회원가입이 완료되었습니다. 로그인해주세요.');
+        await alert('회원가입이 완료되었습니다. 로그인해주세요.');
         navigate('/login');
       } catch (error: any) {
         console.error('Signup failed:', error);
-        alert('회원가입 실패: ' + (error.message || '알 수 없는 오류'));
+        await alert('회원가입 실패: ' + (error.message || '알 수 없는 오류'));
       }
     }
   };
@@ -203,21 +205,21 @@ export function SignupPage() {
 
   const handleCheckDuplicateId = async () => {
     if (!formData.userId) {
-      alert('아이디를 입력해주세요.');
+      await alert('아이디를 입력해주세요.');
       return;
     }
     try {
       const isAvailable = await authService.checkLoginIdAvailability(formData.userId);
       if (isAvailable) {
-        alert('사용 가능한 아이디입니다.');
+        await alert('사용 가능한 아이디입니다.');
         setIsIdChecked(true);
       } else {
-        alert('이미 사용 중인 아이디입니다.');
+        await alert('이미 사용 중인 아이디입니다.');
         setIsIdChecked(false);
       }
     } catch (error) {
       console.error('ID check failed:', error);
-      alert('중복 확인 중 오류가 발생했습니다.');
+      await alert('중복 확인 중 오류가 발생했습니다.');
     }
   };
 

@@ -16,8 +16,10 @@ import {
 } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { ProductImage } from '../components/ui/ProductImage';
+import { useModal } from '../context/ModalContext';
 
 export function ProductDetailPage() {
+  const { alert: globalAlert, confirm: globalConfirm } = useModal();
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
@@ -25,7 +27,6 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [isSubscription, setIsSubscription] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [showCartDialog, setShowCartDialog] = useState(false);
   const [packageItems, setPackageItems] = useState<PackageItem[]>([]);
   const [selections, setSelections] = useState<string[]>([]);
   const [inputQuantities, setInputQuantities] = useState<Record<string, number>>({});
@@ -39,11 +40,6 @@ export function ProductDetailPage() {
 
   const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const [alertDialog, setAlertDialog] = useState<{isOpen: boolean; title: string; description: string}>({
-    isOpen: false,
-    title: '',
-    description: ''
-  });
 
   useEffect(() => {
     if (id) {
@@ -274,16 +270,14 @@ export function ProductDetailPage() {
       if (product.itemInputType === 'input') {
         const totalSelected = Object.values(inputQuantities).reduce((a, b) => a + b, 0);
         if (totalSelected === 0) {
-          setAlertDialog({
-            isOpen: true,
+          await globalAlert({
             title: '상품 선택 필요',
             description: '최소 하나 이상의 상품을 선택해주세요.'
           });
           return;
         }
         if (totalSelected !== targetCount) {
-          setAlertDialog({
-            isOpen: true,
+          await globalAlert({
             title: '선택 수량 확인',
             description: `총 ${targetCount}개의 상품을 선택해야 합니다. (현재: ${totalSelected}개)`
           });
@@ -291,8 +285,7 @@ export function ProductDetailPage() {
         }
       } else {
         if (selections.some(s => !s)) {
-          setAlertDialog({
-            isOpen: true,
+          await globalAlert({
             title: '상품 옵션 선택',
             description: '모든 상품 옵션을 선택해주세요.'
           });
@@ -303,7 +296,7 @@ export function ProductDetailPage() {
 
     const currentUser = storage.getUser();
     if (!currentUser) {
-      if (window.confirm('로그인이 필요한 서비스입니다. 로그인 페이지로 이동하시겠습니까?')) {
+      if (await globalConfirm('로그인이 필요한 서비스입니다. 로그인 페이지로 이동하시겠습니까?')) {
         navigate('/login', { state: { from: location.pathname } });
       }
       return;
@@ -355,18 +348,24 @@ export function ProductDetailPage() {
       );
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
-      setShowCartDialog(true);
+      
+      const proceedToCart = await globalConfirm({
+          title: "장바구니에 담았습니다",
+          description: "장바구니로 이동하시겠습니까?"
+      });
+      if (proceedToCart) {
+          navigate('/cart');
+      }
     } catch (error: any) {
       console.error('Failed to add to cart', error);
       
       if (error.message === 'User not authenticated') {
         storage.clearAll();
-        if (window.confirm('세션이 만료되었습니다. 다시 로그인 해주시겠습니까?')) {
+        if (await globalConfirm('세션이 만료되었습니다. 다시 로그인 해주시겠습니까?')) {
           navigate('/login', { state: { from: location.pathname } });
         }
       } else {
-        setAlertDialog({
-          isOpen: true,
+        await globalAlert({
           title: '장바구니 담기 실패',
           description: '장바구니 담기에 실패했습니다. 잠시 후 다시 시도해주세요.'
         });
@@ -1129,54 +1128,6 @@ export function ProductDetailPage() {
         </div>
       )}
 
-      {/* Cart Dialog */}
-      <Dialog open={showCartDialog} onOpenChange={setShowCartDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-neutral-900">장바구니에 담았습니다</DialogTitle>
-            <DialogDescription className="text-base text-neutral-600">
-              장바구니로 이동하시겠습니까?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-3 sm:gap-3">
-            <button
-              onClick={() => setShowCartDialog(false)}
-              className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 py-3 px-6 font-medium transition-colors text-sm tracking-wide uppercase"
-            >
-              닫기
-            </button>
-            <button
-              onClick={() => {
-                setShowCartDialog(false);
-                navigate('/cart');
-              }}
-              className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white py-3 px-6 font-medium transition-colors text-sm tracking-wide uppercase"
-            >
-              장바구니 보기
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Alert Dialog */}
-      <Dialog open={alertDialog.isOpen} onOpenChange={(open) => setAlertDialog(prev => ({...prev, isOpen: open}))}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-neutral-900">{alertDialog.title}</DialogTitle>
-            <DialogDescription className="text-base text-neutral-600">
-              {alertDialog.description}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <button
-              onClick={() => setAlertDialog(prev => ({...prev, isOpen: false}))}
-              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-3 px-6 font-medium transition-colors text-sm tracking-wide uppercase"
-            >
-              확인
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

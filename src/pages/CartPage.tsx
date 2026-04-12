@@ -5,8 +5,10 @@ import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { CartItem, Product } from '../types';
 import { ProductImage } from '../components/ui/ProductImage';
+import { useModal } from '../context/ModalContext';
 
 export function CartPage() {
+  const { alert } = useModal();
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [productsMap, setProductsMap] = useState<Record<string, Product>>({});
@@ -55,11 +57,11 @@ export function CartPage() {
     const maxQty = product?.maxOrderQuantity;
 
     if (newQuantity < minQty) {
-      alert(`최소 주문 수량이 ${minQty}개인 상품입니다.`);
+      await alert(`최소 주문 수량이 ${minQty}개인 상품입니다.`);
       return;
     }
     if (maxQty !== undefined && newQuantity > maxQty) {
-      alert(`최대 주문 수량이 ${maxQty}개인 상품입니다.`);
+      await alert(`최대 주문 수량이 ${maxQty}개인 상품입니다.`);
       return;
     }
 
@@ -140,8 +142,8 @@ export function CartPage() {
     navigate('/checkout');
   };
 
-  const exportQuote = () => {
-    alert('견적서 PDF가 다운로드됩니다.');
+  const exportQuote = async () => {
+    await alert('견적서 PDF가 다운로드됩니다.');
   };
 
   if (loading) {

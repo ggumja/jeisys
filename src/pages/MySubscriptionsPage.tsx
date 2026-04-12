@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../components/ui/dialog';
+import { useModal } from '../context/ModalContext';
 
 interface Subscription {
   id: string;
@@ -122,6 +123,7 @@ const mockSubscriptions: Subscription[] = [
 ];
 
 export function MySubscriptionsPage() {
+  const { alert: globalAlert } = useModal();
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isPauseDialogOpen, setIsPauseDialogOpen] = useState(false);
@@ -154,20 +156,20 @@ export function MySubscriptionsPage() {
     }
   };
 
-  const handlePause = () => {
-    alert('정기배송이 일시정지되었습니다.');
+  const handlePause = async () => {
+    await globalAlert('정기배송이 일시정지되었습니다.');
     setIsPauseDialogOpen(false);
     setIsDetailOpen(false);
   };
 
-  const handleResume = () => {
-    alert('정기배송이 재개되었습니다.');
+  const handleResume = async () => {
+    await globalAlert('정기배송이 재개되었습니다.');
     setIsResumeDialogOpen(false);
     setIsDetailOpen(false);
   };
 
-  const handleCancel = () => {
-    alert('정기배송이 취소되었습니다.');
+  const handleCancel = async () => {
+    await globalAlert('정기배송이 취소되었습니다.');
     setIsCancelDialogOpen(false);
     setIsDetailOpen(false);
   };

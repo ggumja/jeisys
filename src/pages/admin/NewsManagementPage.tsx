@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Eye, EyeOff, X, Save, Image as ImageIcon } from 'lucide-react';
 import { postService, Post } from '../../services/postService';
 import { formatDate } from '../../lib/utils';
+import { useModal } from '../../context/ModalContext';
 
 export function NewsManagementPage() {
+  const { alert: globalAlert, confirm: globalConfirm } = useModal();
   const [newsList, setNewsList] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -82,12 +84,12 @@ export function NewsManagementPage() {
       handleCloseModal();
     } catch (error) {
       console.error('Failed to save news:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      await globalAlert('저장 중 오류가 발생했습니다.');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('정말로 이 뉴스를 삭제하시겠습니까?')) return;
+    if (!(await globalConfirm('정말로 이 뉴스를 삭제하시겠습니까?'))) return;
     try {
       await postService.deletePost(id);
       fetchNews();

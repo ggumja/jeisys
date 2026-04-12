@@ -8,6 +8,7 @@ import { Category } from '../../services/categoryService';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { productService } from '../../services/productService';
 import { useQueryClient } from '@tanstack/react-query';
+import { useModal } from '../../context/ModalContext';
 
 
 
@@ -34,6 +35,7 @@ interface Product {
 }
 
 export function ProductManagementPage() {
+  const { alert: globalAlert } = useModal();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: productsData = [], isLoading } = useProducts();
@@ -211,10 +213,10 @@ export function ProductManagementPage() {
       await saveCategories.mutateAsync(tempCategoryList);
       setIsCategoryModalOpen(false);
       setNewCategoryName('');
-      alert('카테고리 정보가 저장되었습니다.');
+      await globalAlert('카테고리 정보가 저장되었습니다.');
     } catch (err) {
       console.error('Error saving categories:', err);
-      alert('카테고리 저장 중 오류가 발생했습니다.');
+      await globalAlert('카테고리 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -389,7 +391,7 @@ export function ProductManagementPage() {
       // alert('선택한 상품들이 삭제되었습니다.'); // Optional: Can use a snackbar instead
     } catch (err) {
       console.error('Error deleting products:', err);
-      alert('일부 상품 삭제 중 오류가 발생했습니다.');
+      await globalAlert('일부 상품 삭제 중 오류가 발생했습니다.');
     } finally {
       setIsDeletingBulk(false);
     }
