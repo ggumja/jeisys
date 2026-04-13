@@ -1,7 +1,8 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
-import { Home, ShoppingCart, Package, User, Zap, Youtube, MessageSquare, ChevronDown } from 'lucide-react';
+import { Home, ShoppingCart, Package, User, Zap, Youtube, MessageSquare, ChevronDown, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
+import { cartService } from '../services/cartService';
 import { FloatingButtons } from './FloatingButtons';
 import { ModalProvider } from '../context/ModalContext';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
@@ -24,8 +25,9 @@ function RootLayoutContent() {
       return;
     }
 
-    const cart = storage.getCart();
-    setCartCount(cart.reduce((sum, item) => sum + item.quantity, 0));
+    cartService.getCart()
+      .then(items => setCartCount(items.length))
+      .catch(() => setCartCount(0));
   }, [user, navigate, location]);
 
   const handleLogout = () => {
@@ -132,16 +134,17 @@ function RootLayoutContent() {
 
                 <button
                   onClick={handleLogout}
-                  className="hidden md:block text-sm font-bold tracking-tight text-neutral-400 hover:text-neutral-900 transition-colors uppercase whitespace-nowrap"
+                  title="로그아웃"
+                  className="hidden md:flex items-center justify-center p-1.5 text-neutral-400 hover:text-red-500 transition-colors"
                 >
-                  로그아웃
+                  <LogOut className="w-5 h-5" />
                 </button>
 
                 <Link to="/cart" className="relative group p-1 flex-shrink-0">
                   <ShoppingCart className="w-5 h-5 text-neutral-900 hover:text-neutral-500 transition-colors" />
                   {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#21358D] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                      {cartCount}
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                      {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
                 </Link>
@@ -150,8 +153,8 @@ function RootLayoutContent() {
                 <Link to="/cart" className="md:hidden relative p-1 flex-shrink-0">
                   <ShoppingCart className="w-6 h-6 text-neutral-700" />
                   {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-[#21358D] text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                      {cartCount}
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {cartCount > 99 ? '99+' : cartCount}
                     </span>
                   )}
                 </Link>

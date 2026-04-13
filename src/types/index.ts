@@ -72,6 +72,7 @@ export interface Product {
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
   quantityInputType?: 'button' | 'list';
+  discountRate?: number;
   bonusItems?: BonusItem[];
   options?: ProductQuantityOption[];
 }

@@ -61,13 +61,13 @@ export function MyPageLayout() {
               })}
             </nav>
 
-            <div className="mt-6 pt-6 border-t border-neutral-200">
+            <div className="mt-6 pt-6 border-t border-neutral-200 flex justify-end">
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3 text-neutral-900 hover:bg-neutral-100 w-full transition-colors text-sm"
+                title="로그아웃"
+                className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
               >
                 <LogOut className="w-5 h-5" />
-                <span>로그아웃</span>
               </button>
             </div>
           </div>

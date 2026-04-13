@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Trash2, Plus, Minus, FileDown, ShoppingBag, Loader2, Package, Check } from 'lucide-react';
+import { Trash2, Plus, Minus, Printer, ShoppingBag, Loader2, Package, Check } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { CartItem, Product } from '../types';
@@ -115,7 +115,10 @@ export function CartPage() {
     if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
-        const discountRate = (option.discountRate || 0) / 100;
+        // option에 discountRate가 없으면 product 레벨 discountRate로 폴백
+        const discountRate = ((option.discountRate || 0) > 0
+          ? option.discountRate
+          : (product.discountRate || 0)) / 100;
         const basePrice = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
         return (basePrice * (1 - discountRate)) / (option.quantity || 1);
       }
@@ -125,7 +128,10 @@ export function CartPage() {
       .sort((a, b) => b.quantity - a.quantity)
       .find(t => item.quantity >= t.quantity);
 
-    return (tier?.unitPrice || product.price);
+    const basePrice = tier?.unitPrice || product.price;
+    // product-level discountRate 적용 (패키지 또는 일반 상품)
+    const productDiscountRate = (product.discountRate || 0) / 100;
+    return basePrice * (1 - productDiscountRate);
   };
 
   const calculateTotal = () => {
@@ -142,8 +148,260 @@ export function CartPage() {
     navigate('/checkout');
   };
 
-  const exportQuote = async () => {
-    await alert('견적서 PDF가 다운로드됩니다.');
+  const printQuote = () => {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}년 ${today.getMonth()+1}월 ${today.getDate()}일`;
+    const quoteNo = `JES-${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}-${String(today.getHours()).padStart(2,'0')}${String(today.getMinutes()).padStart(2,'0')}`;
+
+    const rowsHtml = cart.map((item, idx) => {
+      const product = productsMap[item.productId];
+      if (!product) return '';
+      const unitPrice = getTierPrice(item);
+      const subDiscount = (product.subscriptionDiscount || 0) / 100;
+      const itemTotal = Math.round(unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1));
+
+      // option discount rate
+      let mainDiscountRate = 0;
+      let baseUnitPrice = product.price;
+      if (item.optionId) {
+        const opt = product.options?.find(o => o.id === item.optionId);
+        if (opt) {
+          const bt = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
+          baseUnitPrice = Math.round(bt / (opt.quantity || 1));
+          mainDiscountRate = (opt.discountRate || 0) > 0 ? (opt.discountRate || 0) : (product.discountRate || 0);
+        }
+      } else {
+        mainDiscountRate = product.discountRate || 0;
+      }
+
+      // sub-rows for bundle
+      const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
+      const buyQty = product.buyQuantity || 0;
+      const paidIds = item.selectedProductIds?.slice(0, buyQty > 0 ? buyQty : (item.selectedProductIds?.length || 0)) || [];
+      const freeIds = buyQty > 0 ? (item.selectedProductIds?.slice(buyQty) || []) : [];
+      const grouped = paidIds.reduce((acc, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {} as Record<string, number>);
+      const freeGrouped = freeIds.reduce((acc, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {} as Record<string, number>);
+
+      // 구성 행
+      const subRowsHtml = Object.entries(grouped).map(([id, count]) => {
+        const sub = productsMap[id];
+        const sp = sub?.price ?? 0;
+        return `<tr class="sub-row">
+          <td></td>
+          <td>${sub?.name || id} <span class="badge badge-comp">구성</span></td>
+          <td class="center">${count}</td>
+          <td class="right">${sp > 0 ? '\u20a9'+sp.toLocaleString() : '-'}</td>
+          <td class="right bold">${sp > 0 ? '\u20a9'+(sp * count).toLocaleString() : '-'}</td>
+        </tr>`;
+      }).join('');
+
+      // 프로모션 무료 증정 행
+      const freeRowsHtml = Object.entries(freeGrouped).map(([id, count]) => {
+        const sub = productsMap[id];
+        return `<tr class="gift-row">
+          <td></td>
+          <td>${sub?.name || id} <span class="badge badge-gift">증정</span></td>
+          <td class="center">${count}</td>
+          <td class="right gray">-</td>
+          <td class="right bold gray">-</td>
+        </tr>`;
+      }).join('');
+
+      // 보너스 증정 행 (product.bonusItems)
+      const relevantBonus = (product.bonusItems || []).filter(bi => bi.optionId === (item.optionId || null));
+      const bonusRowsHtml = relevantBonus.map(bi => {
+        const qty = bi.calculationMethod === 'ratio'
+          ? Math.ceil(item.quantity * (bi.percentage || 0) / 100)
+          : bi.quantity;
+        return `<tr class="gift-row">
+          <td></td>
+          <td>${bi.product?.name || '증정품'} <span class="badge badge-gift">증정</span></td>
+          <td class="center">${qty}</td>
+          <td class="right gray">-</td>
+          <td class="right bold gray">-</td>
+        </tr>`;
+      }).join('');
+
+      // tfoot discount
+      let tfBaseUnitPrice = product.price;
+      let tfDiscountRate = 0;
+      if (item.optionId) {
+        const opt = product.options?.find(o => o.id === item.optionId);
+        if (opt) {
+          const bt = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
+          tfBaseUnitPrice = Math.round(bt / (opt.quantity || 1));
+          tfDiscountRate = (opt.discountRate || 0) > 0 ? (opt.discountRate || 0) : (product.discountRate || 0);
+        }
+      } else {
+        tfDiscountRate = product.discountRate || 0;
+      }
+      const tfNormalTotal = tfBaseUnitPrice * item.quantity;
+      const tfDiscountAmt = tfNormalTotal - itemTotal;
+
+      const discountRowHtml = tfDiscountAmt > 0 ? `
+        <tr class="discount-row">
+          <td colspan="4" class="right">정상가</td>
+          <td class="right bold">\u20a9${tfNormalTotal.toLocaleString()}</td>
+        </tr>
+        <tr class="discount-row">
+          <td colspan="4" class="right red bold">-${tfDiscountRate > 0 ? tfDiscountRate : Math.round(tfDiscountAmt / tfNormalTotal * 100)}% 할인</td>
+          <td class="right red bold">-\u20a9${tfDiscountAmt.toLocaleString()}</td>
+        </tr>` : '';
+
+      const unitPriceDisplay = hasBundle ? '-' :
+        mainDiscountRate > 0
+          ? `<span class="line-through gray">\u20a9${baseUnitPrice.toLocaleString()}</span><br>\u20a9${unitPrice.toLocaleString()} <span class="red small">(-${mainDiscountRate}%)</span>`
+          : `\u20a9${unitPrice.toLocaleString()}`;
+
+      return `
+        <tr class="main-row">
+          <td class="center">${idx + 1}</td>
+          <td>${product.name}${item.optionName ? ` (${item.optionName})` : ''} <span class="badge badge-buy">구매</span></td>
+          <td class="center bold">${item.quantity}</td>
+          <td class="right">${hasBundle ? '' : unitPriceDisplay}</td>
+          <td class="right bold">${hasBundle ? '' : '\u20a9'+itemTotal.toLocaleString()}</td>
+        </tr>
+        ${subRowsHtml}
+        ${freeRowsHtml}
+        ${bonusRowsHtml}
+        ${discountRowHtml}
+        <tr class="total-row">
+          <td colspan="4" class="right bold">합계</td>
+          <td class="right bold large">\u20a9${itemTotal.toLocaleString()}</td>
+        </tr>`;
+    }).join('');
+
+    const grandTotal = calculateTotal();
+
+    const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>견적서 ${quoteNo}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size: 12px; color: #111; background: #fff; }
+    .page { max-width: 800px; margin: 0 auto; padding: 40px 40px 60px; }
+    /* Header */
+    .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #111; padding-bottom: 16px; margin-bottom: 24px; }
+    .company-name { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+    .company-sub { font-size: 11px; color: #555; margin-top: 2px; }
+    .quote-meta { text-align: right; }
+    .quote-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .quote-no { font-size: 11px; color: #555; }
+    /* Info box */
+    .info-box { display: flex; gap: 24px; margin-bottom: 24px; padding: 14px 16px; background: #f9f9f9; border: 1px solid #e0e0e0; }
+    .info-box .label { font-size: 10px; color: #666; margin-bottom: 2px; }
+    .info-box .value { font-size: 12px; font-weight: 600; }
+    /* Table */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+    thead tr { background: #111; color: #fff; }
+    thead th { padding: 8px 10px; font-size: 11px; font-weight: 600; text-align: left; }
+    thead th.center { text-align: center; }
+    thead th.right { text-align: right; }
+    tbody tr { border-bottom: 1px solid #e8e8e8; }
+    tbody td { padding: 8px 10px; font-size: 11px; vertical-align: middle; }
+    td.center { text-align: center; }
+    td.right { text-align: right; }
+    td.bold { font-weight: 700; }
+    td.large { font-size: 13px; }
+    td.red { color: #ef4444; }
+    td.gray { color: #999; }
+    span.red { color: #ef4444; }
+    span.gray { color: #999; }
+    span.small { font-size: 10px; }
+    span.line-through { text-decoration: line-through; }
+    .main-row { background: #fff; }
+    .sub-row { background: #f9f9f9; color: #444; }
+    .discount-row { background: #fafafa; }
+    .total-row { background: #f0f0f0; border-top: 2px solid #ccc; }
+    .badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; margin-left: 4px; }
+    .badge-buy { background: #111; color: #fff; }
+    .badge-comp { background: #e5e7eb; color: #374151; border: 1px solid #d1d5db; }
+    .badge-gift { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .gift-row { background: #f0f9ff; color: #1e40af; }
+    /* Grand total */
+    .grand-total { border-top: 3px solid #111; padding-top: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 24px; margin-bottom: 32px; }
+    .grand-total .label { font-size: 13px; font-weight: 700; }
+    .grand-total .amount { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+    /* Footer */
+    .footer { border-top: 1px solid #e0e0e0; padding-top: 16px; font-size: 10px; color: #888; line-height: 1.8; }
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page { padding: 0; }
+      thead tr { background: #111 !important; -webkit-print-color-adjust: exact; }
+      .total-row { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div>
+      <div class="company-name">JEISYS MEDICAL</div>
+      <div class="company-sub">제이시스메디컬 주식회사</div>
+    </div>
+    <div class="quote-meta">
+      <div class="quote-title">견 적 서</div>
+      <div class="quote-no">No. ${quoteNo}</div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div>
+      <div class="label">견적일</div>
+      <div class="value">${dateStr}</div>
+    </div>
+    <div>
+      <div class="label">유효기간</div>
+      <div class="value">견적일로부터 30일</div>
+    </div>
+    <div>
+      <div class="label">담당자</div>
+      <div class="value">제이시스메디컬 영업팀</div>
+    </div>
+    <div>
+      <div class="label">연락처</div>
+      <div class="value">02-000-0000</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="center" style="width:40px">No.</th>
+        <th>상품명</th>
+        <th class="center" style="width:60px">수량</th>
+        <th class="right" style="width:120px">단가</th>
+        <th class="right" style="width:120px">소계</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+
+  <div class="grand-total">
+    <div class="label">총 합계 금액 (VAT 포함)</div>
+    <div class="amount">\u20a9${grandTotal.toLocaleString()}</div>
+  </div>
+
+  <div class="footer">
+    <p>• 본 견적서는 재고 상황에 따라 납기가 변동될 수 있습니다.</p>
+    <p>• 표시된 금액은 부가세(VAT 10%) 포함 금액입니다.</p>
+    <p>• 50만원 이상 구매 시 무료 배송 (도서·산간 지역 제외)</p>
+    <p>• 유효기간 경과 시 가격이 변동될 수 있으니 재문의 바랍니다.</p>
+  </div>
+</div>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   if (loading) {
@@ -215,46 +473,16 @@ export function CartPage() {
                     <div className="flex flex-col gap-1 mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xl font-bold text-neutral-900">₩{itemTotal.toLocaleString()}</span>
-                        <span className="text-sm text-neutral-500 font-medium">
-                          ({unitPrice.toLocaleString()}원 × {item.quantity}개)
-                        </span>
                       </div>
-                      {(() => {
-                        if (item.optionId) {
-                          const option = product.options?.find(o => o.id === item.optionId);
-                          if (!option) return null;
-                          const baseTotal = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
-                          const baseUnitPrice = Math.round(baseTotal / (option.quantity || 1));
-                          const discountRate = option.discountRate || 0;
-                          if (discountRate <= 0) return null;
-                          return (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-neutral-400 line-through">정상가(개당): ₩{baseUnitPrice.toLocaleString()}</span>
-                              <span className="text-red-500 font-bold">{discountRate}% 할인 적용</span>
-                            </div>
-                          );
-                        }
-                        if (unitPrice < product.price) {
-                          return (
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-neutral-400 line-through">정상가(개당): ₩{product.price.toLocaleString()}</span>
-                              <span className="text-red-500 font-bold">
-                                {Math.round((1 - unitPrice / product.price) * 100)}% 할인 적용
-                              </span>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
                     </div>
 
-                    {/* 수량 컨트롤 */}
-                    {!item.optionId && (
-                      <div className="flex items-center gap-3 mb-3">
+                    {/* 수량 컨트롤: optionId나 selectedProductIds가 있는 상품은 구성이 고정이므로 숨김 */}
+                    {!item.optionId && !(item.selectedProductIds && item.selectedProductIds.length > 0) && (
+                      <div className="flex items-center gap-2 mb-3">
                         <button
                           onClick={() => updateQuantity(item, item.quantity - (product.salesUnit || 1))}
                           disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
-                          className={`w-9 h-9 border border-neutral-300 flex items-center justify-center transition-colors ${
+                          className={`w-8 h-8 border border-neutral-300 flex items-center justify-center transition-colors flex-shrink-0 ${
                             item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
                               ? 'opacity-50 cursor-not-allowed'
                               : 'hover:border-neutral-900'
@@ -262,11 +490,11 @@ export function CartPage() {
                         >
                           <Minus className="w-3 h-3 text-neutral-700" />
                         </button>
-                        <span className="w-10 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
+                        <span className="w-8 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item, item.quantity + (product.salesUnit || 1))}
                           disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
-                          className={`w-9 h-9 flex items-center justify-center transition-colors ${
+                          className={`w-8 h-8 flex items-center justify-center transition-colors flex-shrink-0 ${
                             (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
                               ? 'bg-neutral-200 cursor-not-allowed opacity-50'
                               : 'bg-neutral-900 hover:bg-neutral-800 text-white'
@@ -274,6 +502,9 @@ export function CartPage() {
                         >
                           <Plus className={`w-3 h-3 ${((product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)) ? 'text-neutral-500' : 'text-white'}`} />
                         </button>
+                        {(product.salesUnit || 1) > 1 && (
+                          <span className="text-xs text-neutral-400 ml-1">(구매단위: {product.salesUnit}개)</span>
+                        )}
                       </div>
                     )}
 
@@ -299,9 +530,9 @@ export function CartPage() {
 
                 {/* ── Row 2: 번들 구성 테이블 (전폭) ── */}
                 {(() => {
-                  const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
+                   const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
                   const relevantBonus = (product.bonusItems || []).filter(bi => bi.optionId === (item.optionId || null));
-                  if (!hasBundle && relevantBonus.length === 0) return null;
+                  // 항상 테이블 표시 (일반 상품도 동일 레이아웃)
 
                   const buyQty = product.buyQuantity || 0;
                   const paidIds = item.selectedProductIds?.slice(0, buyQty > 0 ? buyQty : (item.selectedProductIds?.length || 0)) || [];
@@ -331,7 +562,6 @@ export function CartPage() {
                         <td className="px-3 py-1.5 text-right text-neutral-600 text-[11px]">
                           {subPrice > 0 ? `₩${subPrice.toLocaleString()}` : '-'}
                         </td>
-                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]">-</td>
                         <td className="px-3 py-1.5 text-right font-bold text-neutral-800 text-[11px]">
                           {subPrice > 0 ? `₩${(subPrice * count).toLocaleString()}` : '-'}
                         </td>
@@ -352,8 +582,7 @@ export function CartPage() {
                         </td>
                         <td className="px-3 py-1.5 text-center font-bold text-blue-700 text-[11px]">{count}</td>
                         <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
-                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]">-</td>
-                        <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-right font-bold text-neutral-400 text-[11px]">-</td>
                       </tr>
                     );
                   });
@@ -373,8 +602,7 @@ export function CartPage() {
                         </td>
                         <td className="px-3 py-1.5 text-center font-bold text-amber-800 text-[11px]">{qty}</td>
                         <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
-                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]">-</td>
-                        <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-right font-bold text-neutral-400 text-[11px]">-</td>
                       </tr>
                     );
                   });
@@ -388,7 +616,6 @@ export function CartPage() {
                             <th className="px-3 py-2 text-left font-medium text-neutral-500">상품명</th>
                             <th className="px-3 py-2 text-center font-medium text-neutral-500 w-14">수량</th>
                             <th className="px-3 py-2 text-right font-medium text-neutral-500 w-28">단가</th>
-                            <th className="px-3 py-2 text-center font-medium text-neutral-500 w-16">할인</th>
                             <th className="px-3 py-2 text-right font-medium text-neutral-500 w-28">소계</th>
                           </tr>
                         </thead>
@@ -402,10 +629,13 @@ export function CartPage() {
                               if (opt) {
                                 const baseTotal = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
                                 baseUnitPrice = Math.round(baseTotal / (opt.quantity || 1));
-                                mainDiscountRate = opt.discountRate || 0;
+                                // option에 discountRate가 없으면 product 레벨로 폴백
+                                mainDiscountRate = (opt.discountRate || 0) > 0
+                                  ? (opt.discountRate || 0)
+                                  : (product.discountRate || 0);
                               }
                             } else {
-                              mainDiscountRate = (product as any).discountRate || 0;
+                              mainDiscountRate = product.discountRate || 0;
                             }
                             return (
                               <tr className="bg-white">
@@ -417,22 +647,27 @@ export function CartPage() {
                                   </div>
                                 </td>
                                 <td className="px-3 py-2 text-center font-bold text-neutral-900 text-[11px]">{item.quantity}</td>
-                                <td className="px-3 py-2 text-right text-[11px]">
-                                  {mainDiscountRate > 0 ? (
-                                    <div className="flex flex-col items-end gap-0.5">
-                                      <span className="text-neutral-400 line-through text-[10px]">₩{baseUnitPrice.toLocaleString()}</span>
-                                      <span className="text-neutral-700 font-medium">₩{unitPrice.toLocaleString()}</span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-neutral-600">₩{unitPrice.toLocaleString()}</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-center text-[11px]">
-                                  {mainDiscountRate > 0 ? (
-                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 border border-red-200 text-[9px] font-black rounded">{mainDiscountRate}%</span>
-                                  ) : <span className="text-neutral-300">-</span>}
-                                </td>
-                                <td className="px-3 py-2 text-right font-black text-neutral-900 text-[11px]">₩{itemTotal.toLocaleString()}</td>
+                                {hasBundle ? (
+                                  /* 번들/프로모션: 단가·소계 빈칸 (하위행+tfoot에서 표시) */
+                                  <>
+                                    <td className="px-3 py-2"></td>
+                                    <td className="px-3 py-2"></td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="px-3 py-2 text-right text-[11px]">
+                                      {mainDiscountRate > 0 ? (
+                                        <div className="flex flex-col items-end gap-0.5">
+                                          <span className="text-neutral-400 line-through text-[10px]">₩{baseUnitPrice.toLocaleString()}</span>
+                                          <span className="text-neutral-700 font-medium">₩{unitPrice.toLocaleString()} <span className="text-red-500 text-[9px] font-black">(-{mainDiscountRate}%)</span></span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-neutral-600">₩{unitPrice.toLocaleString()}</span>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-bold text-neutral-900 text-xs">₩{itemTotal.toLocaleString()}</td>
+                                  </>
+                                )}
                               </tr>
                             );
                           })()}
@@ -440,51 +675,53 @@ export function CartPage() {
                           {freeRows}
                           {bonusRows}
                         </tbody>
+                        <tfoot>
+                          {(() => {
+                            let tfBaseUnitPrice = product.price;
+                            let tfDiscountRate = 0;
+                            if (item.optionId) {
+                              const opt = product.options?.find(o => o.id === item.optionId);
+                              if (opt) {
+                                const bt = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
+                                tfBaseUnitPrice = Math.round(bt / (opt.quantity || 1));
+                                // option에 discountRate가 없으면 product 레벨로 폴백
+                                tfDiscountRate = (opt.discountRate || 0) > 0
+                                  ? (opt.discountRate || 0)
+                                  : (product.discountRate || 0);
+                              }
+                            } else {
+                              tfDiscountRate = product.discountRate || 0;
+                            }
+                            const tfNormalTotal = tfBaseUnitPrice * item.quantity;
+                            const tfDiscountAmt = tfNormalTotal - itemTotal;
+                            return (
+                              <>
+                                {tfDiscountAmt > 0 && (
+                                  <>
+                                    <tr className="border-t border-neutral-200 bg-neutral-50">
+                                      <td colSpan={4} className="px-3 py-1.5 text-right font-bold text-neutral-700 text-[11px]">정상가</td>
+                                      <td colSpan={1} className="px-3 py-1.5 text-right font-bold text-neutral-700 text-[11px]">₩{tfNormalTotal.toLocaleString()}</td>
+                                    </tr>
+                                    <tr className="bg-neutral-50">
+                                      <td colSpan={4} className="px-3 py-1.5 text-right font-bold text-[11px]" style={{color:'#ef4444'}}>-{tfDiscountRate > 0 ? tfDiscountRate : Math.round(tfDiscountAmt / tfNormalTotal * 100)}% 할인</td>
+                                      <td colSpan={1} className="px-3 py-1.5 text-right font-bold text-[11px]" style={{color:'#ef4444'}}>-₩{tfDiscountAmt.toLocaleString()}</td>
+                                    </tr>
+                                  </>
+                                )}
+                                <tr className="bg-neutral-100 border-t-2 border-neutral-300">
+                                  <td colSpan={4} className="px-3 py-2 text-right font-bold text-neutral-900 text-xs">합계</td>
+                                  <td colSpan={1} className="px-3 py-2 text-right font-bold text-neutral-900 text-base">₩{itemTotal.toLocaleString()}</td>
+                                </tr>
+                              </>
+                            );
+                          })()}
+                        </tfoot>
                       </table>
                     </div>
                   );
                 })()}
 
-                {/* ── Row 3: 소계 (할인 내역 포함) ── */}
-                {(() => {
-                  let baseUnitPrice2 = product.price;
-                  let finalDiscountRate = 0;
-                  if (item.optionId) {
-                    const opt = product.options?.find(o => o.id === item.optionId);
-                    if (opt) {
-                      const baseTotal = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
-                      baseUnitPrice2 = Math.round(baseTotal / (opt.quantity || 1));
-                      finalDiscountRate = opt.discountRate || 0;
-                    }
-                  } else {
-                    finalDiscountRate = (product as any).discountRate || 0;
-                  }
-                  const normalTotal = baseUnitPrice2 * item.quantity;
-                  const discountAmt = normalTotal - itemTotal;
-                  return finalDiscountRate > 0 ? (
-                    <div className="pt-4 mt-4 border-t border-neutral-200 space-y-1">
-                      <div className="flex items-center justify-between text-xs text-neutral-500">
-                        <span>정상가 ({baseUnitPrice2.toLocaleString()}원 × {item.quantity}개)</span>
-                        <span>₩{normalTotal.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-red-500 font-bold">-{finalDiscountRate}% 할인</span>
-                        </div>
-                        <span className="text-red-500 font-bold">-₩{discountAmt.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between pt-1 border-t border-neutral-100">
-                        <span className="text-sm font-bold text-neutral-900">소계</span>
-                        <span className="text-lg font-black tracking-tight text-neutral-900">₩{itemTotal.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-neutral-200">
-                      <span className="text-sm text-neutral-600">소계</span>
-                      <span className="text-lg tracking-tight text-neutral-900">₩{itemTotal.toLocaleString()}</span>
-                    </div>
-                  );
-                })()}
+
               </div>
             );
           })}
@@ -521,11 +758,11 @@ export function CartPage() {
             </button>
 
             <button
-              onClick={exportQuote}
+              onClick={printQuote}
               className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-900 py-3 font-medium flex items-center justify-center gap-2 transition-colors text-sm"
             >
-              <FileDown className="w-5 h-5" />
-              견적서 다운로드
+              <Printer className="w-5 h-5" />
+              견적서 인쇄하기
             </button>
 
             <div className="mt-6 pt-6 border-t border-neutral-200">

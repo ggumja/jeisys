@@ -349,6 +349,7 @@ export const productService = {
       minOrderQuantity: item.min_order_quantity || 1,
       maxOrderQuantity: item.max_order_quantity || undefined,
       quantityInputType: item.quantity_input_type || 'button',
+      discountRate: item.discount_rate || 0,
       bonusItems: item.product_bonus_items?.map((bi: any) => ({
         id: bi.id,
         productId: bi.bonus_product_id,
