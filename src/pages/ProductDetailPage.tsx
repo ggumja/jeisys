@@ -200,7 +200,7 @@ export function ProductDetailPage() {
           if (product.itemInputType === 'input') {
             const initQtys: Record<string, number> = {};
             items.forEach(item => {
-              initQtys[item.productId] = 0;
+              initQtys[item.productId] = item.maxQuantity || 0; // 옵션별 고정 수량 자동 채움
             });
             setInputQuantities(initQtys);
           } else {
@@ -302,14 +302,15 @@ export function ProductDetailPage() {
       return;
     }
 
-    if (product.isPackage) {
-      if (product.itemInputType === 'input') {
-        const totalInputQty = Object.values(inputQuantities).reduce((a, b) => a + b, 0);
-        if (totalInputQty !== (product.selectableCount || 0)) {
-          toast.error(`총 ${product.selectableCount}개의 상품을 선택해야 합니다.`);
-          return;
-        }
-      } else if (selections.some(id => !id)) {
+      if (product.isPackage) {
+        if (product.itemInputType === 'input') {
+          const totalInputQty = Object.values(inputQuantities).reduce((a, b) => a + b, 0);
+          const targetQty = currentOption ? (currentOption.quantity || 0) : (product.selectableCount || 0);
+          if (totalInputQty !== targetQty) {
+            toast.error(`총 ${targetQty}개의 상품을 선택해야 합니다.`);
+            return;
+          }
+        } else if (selections.some(id => !id)) {
         toast.error('모든 패키지 구성을 선택해주세요.');
         return;
       }

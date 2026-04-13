@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { Package, Copy, Loader2, AlertTriangle, RefreshCw, Truck, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
@@ -36,7 +37,7 @@ function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white w-full max-w-md mx-4 shadow-2xl">
         <div className="px-6 py-5 border-b border-neutral-200 flex items-center justify-between">
@@ -76,7 +77,8 @@ function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

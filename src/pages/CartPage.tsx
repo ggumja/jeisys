@@ -192,190 +192,299 @@ export function CartPage() {
             const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
 
             return (
-              <div
-                key={getItemKey(item)}
-                className="bg-white border border-neutral-200 p-6"
-              >
-                <div className="flex flex-col sm:flex-row gap-6">
+              <div key={getItemKey(item)} className="bg-white border border-neutral-200 p-6">
+
+                {/* ── Row 1: 썸네일 + 정보 + 휴지통 ── */}
+                <div className="flex items-start gap-5">
                   <Link
                     to={`/products/${product.id}`}
-                    className="w-full sm:w-24 aspect-square sm:aspect-auto sm:h-24 bg-neutral-100 overflow-hidden flex-shrink-0"
+                    className="w-20 h-20 sm:w-24 sm:h-24 bg-neutral-100 overflow-hidden flex-shrink-0"
                   >
-                    <ProductImage
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
+                    <ProductImage src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                   </Link>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-neutral-500 mb-2 tracking-wide uppercase">{product.sku}</p>
-                        <Link
-                          to={`/products/${product.id}`}
-                          className="text-lg font-bold tracking-tight text-neutral-900 hover:text-neutral-700 block mb-2"
-                        >
-                          {product.name}
-                        </Link>
-                        
-                        <div className="text-sm mb-4">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl font-bold text-neutral-900">
-                                ₩{itemTotal.toLocaleString()}
-                              </span>
-                              <span className="text-sm text-neutral-500 font-medium">
-                                ({unitPrice.toLocaleString()}원 × {item.quantity}개)
-                              </span>
-                            </div>
-                            {unitPrice < (product.price) && (
-                              <div className="flex items-center gap-2 text-xs">
-                                <span className="text-neutral-400 line-through">정상가(개당): ₩{(product.price).toLocaleString()}</span>
-                                <span className="text-red-500 font-bold">
-                                  {Math.round((1 - unitPrice / (product.price)) * 100)}% 할인 적용
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                    <p className="text-xs text-neutral-500 mb-1 tracking-wide uppercase">{product.sku}</p>
+                    <Link
+                      to={`/products/${product.id}`}
+                      className="text-base font-bold tracking-tight text-neutral-900 hover:text-neutral-700 block mb-2"
+                    >
+                      {product.name}
+                    </Link>
 
-                        {item.selectedProductIds && item.selectedProductIds.length > 0 && (
-                          <div className="mt-4 p-4 bg-neutral-50 border border-neutral-100">
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="w-1 h-3 bg-neutral-900" />
-                              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-900">Bundle Composition</p>
-                            </div>
-                            <div className="grid grid-cols-1 gap-2">
-                              {(() => {
-                                const buyQty = product.buyQuantity || 0;
-                                let paidCount = 0;
-                                let freeCount = 0;
-
-                                return item.selectedProductIds?.map((id, idx) => {
-                                  const subProduct = productsMap[id];
-                                  const name = subProduct?.name || '로딩 중...';
-                                  const isPaid = idx < buyQty;
-                                  
-                                  return (
-                                    <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-neutral-100 last:border-0 group">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <span className={`text-[8px] ${isPaid ? 'text-neutral-900 font-black' : 'text-blue-400'}`}>●</span>
-                                        <span className={`truncate font-medium ${isPaid ? 'text-neutral-900' : 'text-blue-600'}`}>{name}</span>
-                                        {product.isPromotion && (
-                                          <span className={`text-[9px] font-black px-1.5 py-0.5 uppercase tracking-tighter ${
-                                            isPaid ? 'bg-neutral-100 text-neutral-600' : 'bg-blue-600 text-white'
-                                          }`}>
-                                            {isPaid ? 'Paid' : 'Free Gift'}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className={`flex-shrink-0 font-black ml-4 tabular-nums ${isPaid ? 'text-neutral-900' : 'text-blue-600'}`}>
-                                        1 EA
-                                      </div>
-                                    </div>
-                                  );
-                                });
-                              })()}
-                            </div>
-                          </div>
-                        )}
+                    <div className="flex flex-col gap-1 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-neutral-900">₩{itemTotal.toLocaleString()}</span>
+                        <span className="text-sm text-neutral-500 font-medium">
+                          ({unitPrice.toLocaleString()}원 × {item.quantity}개)
+                        </span>
                       </div>
-                      <button
-                        onClick={() => removeItem(item)}
-                        className="text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
-                      >
-                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
+                      {(() => {
+                        if (item.optionId) {
+                          const option = product.options?.find(o => o.id === item.optionId);
+                          if (!option) return null;
+                          const baseTotal = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
+                          const baseUnitPrice = Math.round(baseTotal / (option.quantity || 1));
+                          const discountRate = option.discountRate || 0;
+                          if (discountRate <= 0) return null;
+                          return (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-neutral-400 line-through">정상가(개당): ₩{baseUnitPrice.toLocaleString()}</span>
+                              <span className="text-red-500 font-bold">{discountRate}% 할인 적용</span>
+                            </div>
+                          );
+                        }
+                        if (unitPrice < product.price) {
+                          return (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-neutral-400 line-through">정상가(개당): ₩{product.price.toLocaleString()}</span>
+                              <span className="text-red-500 font-bold">
+                                {Math.round((1 - unitPrice / product.price) * 100)}% 할인 적용
+                              </span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-4">
-                      {!item.optionId && (
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => updateQuantity(item, item.quantity - (product.salesUnit || 1))}
-                            disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
-                            className={`w-10 h-10 border border-neutral-300 flex items-center justify-center transition-colors ${
-                              item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
-                                ? 'opacity-50 cursor-not-allowed' 
-                                : 'hover:border-neutral-900 group-hover:bg-neutral-50'
-                            }`}
-                          >
-                            <Minus className="w-4 h-4 text-neutral-700" />
-                          </button>
-                          <span className="w-12 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item, item.quantity + (product.salesUnit || 1))}
-                            disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
-                            className={`w-10 h-10 flex items-center justify-center transition-colors ${
-                              (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
-                                ? 'bg-neutral-200 cursor-not-allowed opacity-50' 
-                                : 'bg-neutral-900 hover:bg-neutral-800 text-white'
-                            }`}
-                          >
-                            <Plus className={`w-4 h-4 ${((product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)) ? 'text-neutral-500' : 'text-white'}`} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {product.bonusItems && product.bonusItems.filter(bi => bi.optionId === (item.optionId || null)).length > 0 && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-sm">
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <Package className="w-3.5 h-3.5 text-blue-600" />
-                          <h4 className="text-xs font-bold text-blue-900">
-                            {item.optionId ? 'SET 전용 추가 증정' : '추가 증정 혜택'}
-                          </h4>
-                        </div>
-                        <ul className="space-y-1">
-                          {product.bonusItems
-                            .filter(bi => bi.optionId === (item.optionId || null))
-                            .map((bi) => {
-                              const displayQuantity = bi.calculationMethod === 'ratio'
-                                ? Math.ceil(item.quantity * (bi.percentage || 0) / 100)
-                                : bi.quantity;
-                                
-                              return (
-                                <li key={bi.id} className="text-[11px] text-blue-800 flex items-center justify-between">
-                                  <div className="flex items-center gap-1">
-                                    <Check className="w-3 h-3 text-blue-500" />
-                                    <span>{bi.product?.name}</span>
-                                  </div>
-                                  <span className="font-bold ml-2">
-                                    {displayQuantity} EA
-                                    {bi.calculationMethod === 'ratio' && (
-                                      <span className="text-[9px] ml-1 opacity-70">(비율)</span>
-                                    )}
-                                  </span>
-                                </li>
-                              );
-                            })}
-                        </ul>
+                    {/* 수량 컨트롤 */}
+                    {!item.optionId && (
+                      <div className="flex items-center gap-3 mb-3">
+                        <button
+                          onClick={() => updateQuantity(item, item.quantity - (product.salesUnit || 1))}
+                          disabled={item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
+                          className={`w-9 h-9 border border-neutral-300 flex items-center justify-center transition-colors ${
+                            item.quantity <= (product.minOrderQuantity || 1) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
+                              ? 'opacity-50 cursor-not-allowed'
+                              : 'hover:border-neutral-900'
+                          }`}
+                        >
+                          <Minus className="w-3 h-3 text-neutral-700" />
+                        </button>
+                        <span className="w-10 text-center text-sm font-medium text-neutral-900">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item, item.quantity + (product.salesUnit || 1))}
+                          disabled={(product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)}
+                          className={`w-9 h-9 flex items-center justify-center transition-colors ${
+                            (product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)
+                              ? 'bg-neutral-200 cursor-not-allowed opacity-50'
+                              : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                          }`}
+                        >
+                          <Plus className={`w-3 h-3 ${((product.maxOrderQuantity !== undefined && item.quantity >= product.maxOrderQuantity) || (product.maxOrderQuantity !== undefined && product.minOrderQuantity === product.maxOrderQuantity)) ? 'text-neutral-500' : 'text-white'}`} />
+                        </button>
                       </div>
                     )}
 
+                    {/* 정기배송 */}
                     {(product.subscriptionDiscount ?? 0) > 0 && (
-                      <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={item.isSubscription}
                           onChange={() => toggleSubscription(item)}
                           className="w-4 h-4 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
                         />
-                        <span className="text-sm text-neutral-700">
-                          정기 배송 ({product.subscriptionDiscount}% 추가 할인)
-                        </span>
+                        <span className="text-xs text-neutral-700">정기 배송 ({product.subscriptionDiscount}% 추가 할인)</span>
                       </label>
                     )}
-
-                    <div className="flex items-center justify-between pt-4 border-t border-neutral-200">
-                      <span className="text-sm text-neutral-600">소계</span>
-                      <span className="text-lg tracking-tight text-neutral-900">
-                        ₩{itemTotal.toLocaleString()}
-                      </span>
-                    </div>
                   </div>
+
+                  {/* 휴지통 */}
+                  <button onClick={() => removeItem(item)} className="text-gray-400 hover:text-red-600 transition-colors flex-shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
+
+                {/* ── Row 2: 번들 구성 테이블 (전폭) ── */}
+                {(() => {
+                  const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
+                  const relevantBonus = (product.bonusItems || []).filter(bi => bi.optionId === (item.optionId || null));
+                  if (!hasBundle && relevantBonus.length === 0) return null;
+
+                  const buyQty = product.buyQuantity || 0;
+                  const paidIds = item.selectedProductIds?.slice(0, buyQty > 0 ? buyQty : (item.selectedProductIds?.length || 0)) || [];
+                  const freeIds = buyQty > 0 ? (item.selectedProductIds?.slice(buyQty) || []) : [];
+                  const groupIds = (ids: string[]) =>
+                    ids.reduce((acc, id) => { acc[id] = (acc[id] || 0) + 1; return acc; }, {} as Record<string, number>);
+                  const paidGrouped = groupIds(paidIds);
+                  const freeGrouped = groupIds(freeIds);
+
+                  let counter = 0;
+                  const paidRows = Object.entries(paidGrouped).map(([id, count]) => {
+                    counter++;
+                    const sub = productsMap[id];
+                    const subPrice = sub?.price ?? 0;
+                    return (
+                      <tr key={`paid-${id}`} className="bg-neutral-50">
+                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]"></td>
+                        <td className="px-3 py-1.5 text-[11px]">
+                          <div className="flex items-center gap-1.5 text-neutral-700">
+                            <span>{sub?.name || '로딩 중...'}</span>
+                            <span className="px-1 py-0.5 bg-neutral-100 text-neutral-500 border border-neutral-200 text-[9px] font-medium rounded">
+                              {product.isPromotion ? '구매' : '구성'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5 text-center font-bold text-neutral-700 text-[11px]">{count}</td>
+                        <td className="px-3 py-1.5 text-right text-neutral-600 text-[11px]">
+                          {subPrice > 0 ? `₩${subPrice.toLocaleString()}` : '-'}
+                        </td>
+                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-right font-bold text-neutral-800 text-[11px]">
+                          {subPrice > 0 ? `₩${(subPrice * count).toLocaleString()}` : '-'}
+                        </td>
+                      </tr>
+                    );
+                  });
+                  const freeRows = Object.entries(freeGrouped).map(([id, count]) => {
+                    counter++;
+                    const sub = productsMap[id];
+                    return (
+                      <tr key={`free-${id}`} className="bg-blue-50">
+                        <td className="px-3 py-1.5 text-center text-blue-200 text-[11px]"></td>
+                        <td className="px-3 py-1.5 text-[11px]">
+                          <div className="flex items-center gap-1.5 text-blue-700">
+                            <span>{sub?.name || '로딩 중...'}</span>
+                            <span className="px-1 py-0.5 bg-blue-100 text-blue-700 border border-blue-300 text-[9px] font-bold rounded">증정</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5 text-center font-bold text-blue-700 text-[11px]">{count}</td>
+                        <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
+                      </tr>
+                    );
+                  });
+                  const bonusRows = relevantBonus.map((bi) => {
+                    counter++;
+                    const qty = bi.calculationMethod === 'ratio'
+                      ? Math.ceil(item.quantity * (bi.percentage || 0) / 100)
+                      : bi.quantity;
+                    return (
+                      <tr key={`bonus-${bi.id}`} className="bg-amber-50">
+                        <td className="px-3 py-1.5 text-center text-amber-200 text-[11px]"></td>
+                        <td className="px-3 py-1.5 text-[11px]">
+                          <div className="flex items-center gap-1.5 text-amber-800">
+                            <span>{bi.product?.name}</span>
+                            <span className="px-1 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold rounded">증정</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5 text-center font-bold text-amber-800 text-[11px]">{qty}</td>
+                        <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-center text-neutral-300 text-[11px]">-</td>
+                        <td className="px-3 py-1.5 text-right text-neutral-400 text-[11px]">-</td>
+                      </tr>
+                    );
+                  });
+
+                  return (
+                    <div className="mt-4 border border-neutral-200 overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-neutral-50 border-b border-neutral-200">
+                            <th className="px-3 py-2 text-left font-medium text-neutral-500 w-10">No.</th>
+                            <th className="px-3 py-2 text-left font-medium text-neutral-500">상품명</th>
+                            <th className="px-3 py-2 text-center font-medium text-neutral-500 w-14">수량</th>
+                            <th className="px-3 py-2 text-right font-medium text-neutral-500 w-28">단가</th>
+                            <th className="px-3 py-2 text-center font-medium text-neutral-500 w-16">할인</th>
+                            <th className="px-3 py-2 text-right font-medium text-neutral-500 w-28">소계</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                          {/* ── 메인 상품 행 (1.) ── */}
+                          {(() => {
+                            let baseUnitPrice = product.price;
+                            let mainDiscountRate = 0;
+                            if (item.optionId) {
+                              const opt = product.options?.find(o => o.id === item.optionId);
+                              if (opt) {
+                                const baseTotal = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
+                                baseUnitPrice = Math.round(baseTotal / (opt.quantity || 1));
+                                mainDiscountRate = opt.discountRate || 0;
+                              }
+                            } else {
+                              mainDiscountRate = (product as any).discountRate || 0;
+                            }
+                            return (
+                              <tr className="bg-white">
+                                <td className="px-3 py-2 text-center text-neutral-500 text-[11px] font-bold">1</td>
+                                <td className="px-3 py-2 text-[11px]">
+                                  <div className="flex items-center gap-1.5 text-neutral-900 font-semibold">
+                                    <span>{product.name}{item.optionName ? ` (${item.optionName})` : ''}</span>
+                                    <span className="px-1 py-0.5 bg-neutral-900 text-white text-[9px] font-bold rounded">구매</span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-center font-bold text-neutral-900 text-[11px]">{item.quantity}</td>
+                                <td className="px-3 py-2 text-right text-[11px]">
+                                  {mainDiscountRate > 0 ? (
+                                    <div className="flex flex-col items-end gap-0.5">
+                                      <span className="text-neutral-400 line-through text-[10px]">₩{baseUnitPrice.toLocaleString()}</span>
+                                      <span className="text-neutral-700 font-medium">₩{unitPrice.toLocaleString()}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-neutral-600">₩{unitPrice.toLocaleString()}</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-center text-[11px]">
+                                  {mainDiscountRate > 0 ? (
+                                    <span className="px-1.5 py-0.5 bg-red-100 text-red-600 border border-red-200 text-[9px] font-black rounded">{mainDiscountRate}%</span>
+                                  ) : <span className="text-neutral-300">-</span>}
+                                </td>
+                                <td className="px-3 py-2 text-right font-black text-neutral-900 text-[11px]">₩{itemTotal.toLocaleString()}</td>
+                              </tr>
+                            );
+                          })()}
+                          {paidRows}
+                          {freeRows}
+                          {bonusRows}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+
+                {/* ── Row 3: 소계 (할인 내역 포함) ── */}
+                {(() => {
+                  let baseUnitPrice2 = product.price;
+                  let finalDiscountRate = 0;
+                  if (item.optionId) {
+                    const opt = product.options?.find(o => o.id === item.optionId);
+                    if (opt) {
+                      const baseTotal = (opt.price && opt.price > 0) ? opt.price : (product.price * (opt.quantity || 1));
+                      baseUnitPrice2 = Math.round(baseTotal / (opt.quantity || 1));
+                      finalDiscountRate = opt.discountRate || 0;
+                    }
+                  } else {
+                    finalDiscountRate = (product as any).discountRate || 0;
+                  }
+                  const normalTotal = baseUnitPrice2 * item.quantity;
+                  const discountAmt = normalTotal - itemTotal;
+                  return finalDiscountRate > 0 ? (
+                    <div className="pt-4 mt-4 border-t border-neutral-200 space-y-1">
+                      <div className="flex items-center justify-between text-xs text-neutral-500">
+                        <span>정상가 ({baseUnitPrice2.toLocaleString()}원 × {item.quantity}개)</span>
+                        <span>₩{normalTotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-red-500 font-bold">-{finalDiscountRate}% 할인</span>
+                        </div>
+                        <span className="text-red-500 font-bold">-₩{discountAmt.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-neutral-100">
+                        <span className="text-sm font-bold text-neutral-900">소계</span>
+                        <span className="text-lg font-black tracking-tight text-neutral-900">₩{itemTotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-neutral-200">
+                      <span className="text-sm text-neutral-600">소계</span>
+                      <span className="text-lg tracking-tight text-neutral-900">₩{itemTotal.toLocaleString()}</span>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
