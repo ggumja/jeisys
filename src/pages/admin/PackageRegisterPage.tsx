@@ -146,7 +146,7 @@ export function PackageRegisterPage() {
     const fetchProducts = async () => {
       try {
         const data = await productService.getProducts();
-        setProductsList(data.filter(p => !p.isPackage)); // Don't allow packages inside packages for now
+        setProductsList(data.filter(p => !p.isPackage && !p.isPromotion && (!p.options || p.options.length === 0))); 
       } catch (err) {
         console.error('Error fetching products:', err);
       }
@@ -944,9 +944,9 @@ export function PackageRegisterPage() {
                   value={formData.stock}
                   onChange={handleInputChange}
                   placeholder="재고 수량을 입력하세요"
-                  className={ADMIN_STYLES.INPUT + " pr-10"}
+                  className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">개</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
               </div>
             </div>
 
@@ -1122,9 +1122,9 @@ export function PackageRegisterPage() {
                           placeholder="20"
                           value={opt.quantity}
                           onChange={(e) => updateQuantityOption(opt.id, 'quantity', e.target.value.replace(/[^0-9]/g, ''))}
-                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
+                          className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
                       </div>
                     </div>
                     <div>
@@ -1135,9 +1135,9 @@ export function PackageRegisterPage() {
                           placeholder="10,000,000"
                           value={formatWithCommas(opt.price)}
                           onChange={(e) => updateQuantityOption(opt.id, 'price', e.target.value)}
-                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
+                          className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">원</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">원</span>
                       </div>
                     </div>
                     <div>
@@ -1148,9 +1148,9 @@ export function PackageRegisterPage() {
                           placeholder="0"
                           value={opt.discountRate}
                           onChange={(e) => updateQuantityOption(opt.id, 'discountRate', e.target.value.replace(/[^0-9]/g, ''))}
-                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold text-blue-600"}
+                          className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold text-blue-600"}
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-blue-600 font-bold uppercase">%</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-blue-500 font-bold uppercase">%</span>
                       </div>
                     </div>
                   </div>

@@ -104,7 +104,7 @@ export function PromotionRegisterPage() {
       setIsLoadingProducts(true);
       const data = await productService.getProducts();
       // Only include simple products
-      setProductsList(data.filter(p => !p.isPackage && !p.isPromotion));
+      setProductsList(data.filter(p => !p.isPackage && !p.isPromotion && (!p.options || p.options.length === 0)));
     } catch (error) {
       console.error('Failed to load products', error);
     } finally {
@@ -357,19 +357,18 @@ export function PromotionRegisterPage() {
 
   return (
     <div className={ADMIN_STYLES.PAGE_CONTAINER}>
-      {/* Standard Header Format Matched with ProductRegisterPage */}
-      <div className={ADMIN_STYLES.PAGE_HEADER}>
+      <div className="flex items-center gap-4">
         <button
           onClick={() => navigate('/admin/products/promotion')}
-          className={ADMIN_STYLES.BTN_GHOST}
+          className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className={ADMIN_STYLES.PAGE_TITLE}>
+          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
             {isEdit ? '프로모션 번들 상품 수정' : '프로모션 번들 상품 등록'}
           </h2>
-          <p className={ADMIN_STYLES.PAGE_SUBTITLE}>
+          <p className="text-sm text-neutral-600">
             {isEdit ? '기존 프로모션 번들 구성을 수정합니다' : '"N+1" 같은 프로모션 번들 상품을 등록합니다'}
           </p>
         </div>
@@ -520,9 +519,9 @@ export function PromotionRegisterPage() {
                   placeholder="0"
                   value={formatWithCommas(formData.stock)}
                   onChange={(e) => setFormData(prev => ({ ...prev, stock: unformatNumber(e.target.value) }))}
-                  className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold tabular-nums bg-white"}
+                  className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold tabular-nums bg-white"}
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
               </div>
             </div>
           </div>

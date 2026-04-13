@@ -208,7 +208,10 @@ export function ProductRegisterPage() {
         (p.sku || '').toLowerCase().includes(searchLower) ||
         (p.category || '').toLowerCase().includes(searchLower)
       ) &&
-      !formData.bonusProducts.some(bp => bp.productId === p.id) 
+      !formData.bonusProducts.some(bp => bp.productId === p.id) &&
+      !p.isPackage &&
+      !p.isPromotion &&
+      (!p.options || p.options.length === 0)
     );
   }).slice(0, 20);
 
@@ -739,123 +742,37 @@ export function ProductRegisterPage() {
               <label className={ADMIN_STYLES.SECTION_LABEL}>
                 판매가 <span className="text-red-600">*</span>
               </label>
-              <input
-                type="text"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                placeholder="판매가를 입력하세요"
-                className={ADMIN_STYLES.INPUT}
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleInputChange}
+                  placeholder="판매가를 입력하세요"
+                  className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
+                  required
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">원</span>
+              </div>
             </div>
 
 
             <div>
-              <label className="block text-sm font-medium text-neutral-900 mb-2">
+              <label className={ADMIN_STYLES.SECTION_LABEL}>
                 재고 수량
               </label>
-              <input
-                type="text"
-                name="stock"
-                value={formData.stock}
-                onChange={handleInputChange}
-                disabled={formData.isShareStock}
-                placeholder={formData.isShareStock ? "마스터 재고를 공유 중입니다" : "재고 수량을 입력하세요"}
-                className={`${ADMIN_STYLES.INPUT} ${formData.isShareStock ? 'bg-neutral-50 text-neutral-400 cursor-not-allowed' : ''}`}
-              />
-              {formData.isShareStock && <p className="text-[10px] text-neutral-500 mt-1">* 마스터 상품의 실제 재고를 추적합니다.</p>}
-            </div>
-
-            {/* 재고 공유 설정 추가 (복구) */}
-            <div className="col-span-2 pt-4 border-t border-neutral-100">
-              <label className="flex items-center gap-2 cursor-pointer mb-4">
+              <div className="relative">
                 <input
-                  type="checkbox"
-                  checked={formData.isShareStock}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isShareStock: e.target.checked }))}
-                  className="w-4 h-4 accent-neutral-900"
+                  type="text"
+                  name="stock"
+                  value={formData.stock}
+                  onChange={handleInputChange}
+                  placeholder="재고 수량을 입력하세요"
+                  className={`${ADMIN_STYLES.INPUT} text-right pr-16 font-bold`}
                 />
-                <span className="text-sm font-bold text-neutral-900">다른 상품과 재고를 공유하시겠습니까? (세트 상품 등)</span>
-              </label>
-
-              {formData.isShareStock && (
-                <div className="bg-neutral-50 p-6 space-y-4 border border-neutral-200 shadow-sm">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="relative">
-                      <label className={ADMIN_STYLES.SECTION_LABEL}>마스터 상품 (낱개/재고 보유 상품) 검색</label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="상품명 또는 SKU 검색"
-                          value={masterSearchTerm}
-                          onChange={(e) => {
-                            setMasterSearchTerm(e.target.value);
-                            setIsMasterSearchOpen(true);
-                          }}
-                          className={ADMIN_STYLES.INPUT}
-                        />
-                        {isMasterSearchOpen && masterSearchTerm.trim() && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-50 max-h-60 overflow-y-auto">
-                            {allProducts
-                              .filter(p => !p.baseProductId && p.id !== id && (p.name.toLowerCase().includes(masterSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(masterSearchTerm.toLowerCase())))
-                              .map(p => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setFormData(prev => ({ ...prev, baseProductId: p.id }));
-                                    setMasterSearchTerm(p.name);
-                                    setIsMasterSearchOpen(false);
-                                  }}
-                                  className="w-full text-left px-4 py-3 hover:bg-neutral-50 text-sm border-b border-neutral-100 flex justify-between items-center transition-colors"
-                                >
-                                  <div className="flex flex-col">
-                                    <span className="font-bold">{p.name}</span>
-                                    <span className="text-[10px] text-neutral-400">{p.sku}</span>
-                                  </div>
-                                  <span className="text-xs font-bold text-blue-600">재고: {p.stock}</span>
-                                </button>
-                              ))
-                            }
-                          </div>
-                        )}
-                      </div>
-                      {formData.baseProductId && (
-                        <div className="mt-2 p-2 bg-white border border-neutral-900 inline-flex items-center gap-2 rounded-sm shadow-sm animate-in fade-in zoom-in duration-200">
-                          <span className="text-xs font-bold">연결됨:</span>
-                          <span className="text-xs text-neutral-700">
-                            {allProducts.find(p => p.id === formData.baseProductId)?.name || "선택된 상품"}
-                          </span>
-                          <button 
-                            type="button" 
-                            onClick={() => {
-                              setFormData(prev => ({ ...prev, baseProductId: '' }));
-                              setMasterSearchTerm('');
-                            }}
-                            className="text-neutral-400 hover:text-red-500 font-black px-1"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className={ADMIN_STYLES.SECTION_LABEL}>재고 차감 배수 (판매 1개당 차감량)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={formData.stockMultiplier}
-                        onChange={(e) => setFormData(prev => ({ ...prev, stockMultiplier: e.target.value }))}
-                        className={ADMIN_STYLES.INPUT}
-                      />
-                      <p className="text-[10px] text-neutral-400 mt-1 leading-tight">* 예: 5개 세트면 5 입력 (1개 판매 시 마스터 재고 5개 차감)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
+              </div>
             </div>
-
 
             <div>
               <label className={ADMIN_STYLES.SECTION_LABEL}>
@@ -1159,7 +1076,6 @@ export function ProductRegisterPage() {
                   className={`${ADMIN_STYLES.INPUT} pl-10`}
                 />
               </div>
-            </div>
 
               {isSearchDropdownOpen && searchTerm.trim() && (
                 <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 shadow-2xl max-h-[500px] overflow-y-auto rounded-sm">
@@ -1180,9 +1096,6 @@ export function ProductRegisterPage() {
                           <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
                           <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
                         </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-1">증정전용</span>
-                        </div>
                       </button>
                     ))
                   ) : (
@@ -1193,6 +1106,7 @@ export function ProductRegisterPage() {
                 </div>
               )}
             </div>
+          </div>
 
           <div>
             <h4 className={ADMIN_STYLES.SECTION_LABEL}>추가된 상품 목록</h4>

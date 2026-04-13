@@ -53,7 +53,8 @@ export const cartService = {
             .eq('product_id', productId);
 
         if (selectedProductIds && selectedProductIds.length > 0) {
-            query = query.eq('selected_product_ids', selectedProductIds);
+            // Use PostgREST array literal format: {"uuid","uuid"}
+            query = query.filter('selected_product_ids', 'eq', `{"${selectedProductIds.join('","')}"}`);
         } else {
             query = query.is('selected_product_ids', null);
         }

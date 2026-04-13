@@ -127,6 +127,7 @@ export interface Order {
     quantity: number;
     optionId?: string;
     optionName?: string;
+    selectedProductIds?: string[];
   }[];
   totalAmount: number;
   paymentMethod: string;

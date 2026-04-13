@@ -1,10 +1,39 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { Package, FileText, Copy, Loader2 } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
 import { ProductImage } from '../components/ui/ProductImage';
+import { productService } from '../services/productService';
+import { Product } from '../types';
 
 export function OrdersPage() {
   const { data: orders = [], isLoading } = useOrders();
+  const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
+
+  useEffect(() => {
+    const loadSubProducts = async () => {
+      const allSubProductIds = new Set<string>();
+      orders.forEach(order => {
+        order.items.forEach(item => {
+          item.selectedProductIds?.forEach(id => allSubProductIds.add(id));
+        });
+      });
+
+      if (allSubProductIds.size > 0) {
+        const productPromises = Array.from(allSubProductIds).map(id => productService.getProductById(id));
+        const products = await Promise.all(productPromises);
+        const map: Record<string, Product> = {};
+        products.forEach(p => {
+          if (p) map[p.id] = p;
+        });
+        setSubProductsMap(prev => ({ ...prev, ...map }));
+      }
+    };
+
+    if (orders.length > 0) {
+      loadSubProducts();
+    }
+  }, [orders]);
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -111,9 +140,37 @@ export function OrdersPage() {
                       <p className="text-sm text-neutral-600 mt-1">
                         {item.quantity}개 × ₩{item.product.price.toLocaleString()}
                       </p>
+                      {item.selectedProductIds && item.selectedProductIds.length > 0 && (
+                        <div className="mt-3 bg-neutral-50 border border-neutral-100 p-3 rounded space-y-1.5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-1">Bundle Composition</p>
+                          {(() => {
+                            const buyQty = item.product?.buyQuantity || 0;
+                            return item.selectedProductIds.map((id, idx) => {
+                              const subProd = subProductsMap[id];
+                              const isPaid = idx < buyQty;
+                              return (
+                                <div key={idx} className="flex items-center justify-between text-[11px] leading-tight group">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className={`w-1 h-1 rounded-full ${isPaid ? 'bg-neutral-400' : 'bg-blue-400'}`} />
+                                    <span className={`truncate ${isPaid ? 'text-neutral-600' : 'text-blue-600 font-bold'}`}>
+                                      {subProd?.name || '로딩 중...'}
+                                    </span>
+                                    {!isPaid && (
+                                      <span className="text-[8px] font-black px-1 py-0.5 bg-blue-600 text-white uppercase tracking-tighter ml-1">Gift</span>
+                                    )}
+                                  </div>
+                                  <div className={`flex-shrink-0 font-bold ml-4 tabular-nums ${isPaid ? 'text-neutral-400' : 'text-blue-400'}`}>
+                                    1 EA
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      )}
                     </div>
                     <p className="text-lg tracking-tight text-neutral-900">
-                      ₩{(item.quantity * item.product.price).toLocaleString()}
+                      ₩{(item.quantity * item.price).toLocaleString()}
                     </p>
                   </div>
                 );

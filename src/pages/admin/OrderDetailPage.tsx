@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { OrderCancelModal } from '../../components/admin/OrderCancelModal';
 import { OrderClaimModal } from '../../components/admin/OrderClaimModal';
 import { useModal } from '../../context/ModalContext';
+import { Product } from '../../types';
+import { productService } from '../../services/productService';
 
 interface OrderItem {
   id: string;
@@ -124,10 +126,13 @@ export function OrderDetailPage() {
   const [boxCount, setBoxCount] = useState(1);
   const [isUpdating, setIsUpdating] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'paused' | 'cancelled'>('active');
+  const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   // 발송 수량 상태: { [orderItemId]: shipQty }
   const [shipQtyMap, setShipQtyMap] = useState<Record<string, number>>({});
+  // 번들 상품의 발송 대상 인덱스 상태: { [orderItemId]: [index1, index2, ...] }
+  const [bundleShipIndicesMap, setBundleShipIndicesMap] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
     if (id) {
@@ -140,12 +145,27 @@ export function OrderDetailPage() {
       setLoading(true);
       const data = await adminService.getOrderById(id!) as any;
       setOrder(data);
-      // 발송수량 초기값: 미발송 수량으로 세팅
+      
+      // Load bundled sub-products if any
       if (data.orderItems) {
+        const allSubProductIds = new Set<string>();
+        data.orderItems.forEach((item: any) => {
+          item.selected_product_ids?.forEach((id: string) => allSubProductIds.add(id));
+        });
+
+        if (allSubProductIds.size > 0) {
+          const productPromises = Array.from(allSubProductIds).map(id => productService.getProductById(id));
+          const products = await Promise.all(productPromises);
+          const map: Record<string, Product> = {};
+          products.forEach(p => {
+            if (p) map[p.id] = p;
+          });
+          setSubProductsMap(prev => ({ ...prev, ...map }));
+        }
+
         const initMap: Record<string, number> = {};
         data.orderItems.forEach((item: OrderItem) => {
-          const remaining = item.quantity - (item.shippedQuantity || 0);
-          initMap[item.id] = remaining > 0 ? remaining : 0;
+          initMap[item.id] = 0; // 초기값을 0으로 설정하여 명시적 입력을 유도
         });
         setShipQtyMap(initMap);
 
@@ -778,7 +798,8 @@ export function OrderDetailPage() {
                           productId: item.productId!,
                           shipQty: shipQtyMap[item.id] ?? 0,
                           stock: item.stock,
-                          productName: item.productName
+                          productName: item.productName,
+                          shippedSelectedIndices: bundleShipIndicesMap[item.id] || []
                         })) || [];
 
                         if (itemsToShip.length === 0) {
@@ -831,6 +852,7 @@ export function OrderDetailPage() {
                           setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
                           setTrackingNumber('');
                           setBoxCount(1);
+                          setBundleShipIndicesMap({});
                           // loadOrder 후에도 확정 상태 재적용 (Supabase 캐시로 stale 데이터 방지)
                           await loadOrder();
                           setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
@@ -843,7 +865,13 @@ export function OrderDetailPage() {
                       className=""
                     >
                       {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
-                      {order.orderItems?.some(item => (shipQtyMap[item.id] ?? 0) < item.quantity - (item.shippedQuantity || 0))
+                      {order.orderItems?.some(item => {
+                        const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
+                        const totalPossible = isBundle ? item.quantity * item.selected_product_ids.length : item.quantity;
+                        const shippedTotal = item.shippedQuantity || (item as any).shipped_quantity || 0;
+                        const shipTarget = shipQtyMap[item.id] ?? 0;
+                        return shipTarget < (totalPossible - shippedTotal);
+                      })
                         ? '부분 발송 처리'
                         : '전체 발송 처리'}
                     </Button>
@@ -878,10 +906,95 @@ export function OrderDetailPage() {
                   return (
                     <tr key={item.id}>
                       <td className="py-4 text-sm text-neutral-900">
-                        {item.productName}
+                        <div className="flex flex-col">
+                          <span className="font-bold">{item.productName}</span>
+                          {item.selected_product_ids && item.selected_product_ids.length > 0 && (
+                            <div className="mt-2 ml-2 pl-3 border-l-2 border-neutral-100 space-y-3">
+                              {(() => {
+                                // 1. 전체 구성품 (세트 수만큼 복제)
+                                const totalItems: { id: string, index: number }[] = [];
+                                for (let s = 0; s < item.quantity; s++) {
+                                  item.selected_product_ids.forEach((pid: string, idx: number) => {
+                                    totalItems.push({ id: pid, index: s * item.selected_product_ids.length + idx });
+                                  });
+                                }
+
+                                // 2. 제품 종류별로 그룹화
+                                const grouped: Record<string, { id: string, name: string, items: number[] }> = {};
+                                totalItems.forEach(({ id, index }) => {
+                                  const name = subProductsMap[id]?.name || '로딩 중...';
+                                  if (!grouped[id]) grouped[id] = { id, name, items: [] };
+                                  grouped[id].items.push(index);
+                                });
+
+                                const alreadyShipped = (item as any).shipped_selected_indices || [];
+                                const currentSelected = bundleShipIndicesMap[item.id] || [];
+
+                                return Object.values(grouped).map(group => {
+                                  const alreadyShippedInGroup = group.items.filter(idx => alreadyShipped.includes(idx));
+                                  const remainingInGroup = group.items.filter(idx => !alreadyShipped.includes(idx));
+                                  const selectedInGroup = group.items.filter(idx => currentSelected.includes(idx));
+                                  
+                                  const groupShippedQty = alreadyShippedInGroup.length;
+                                  const groupRemainingQty = remainingInGroup.length;
+                                  const groupSelectedQty = selectedInGroup.length;
+
+                                  return (
+                                    <div key={group.id} className="space-y-2 pb-2 border-b border-neutral-50 last:border-0">
+                                      <div className="flex items-center justify-between text-[11px]">
+                                        <div className="flex flex-col">
+                                          <span className="font-bold text-neutral-900">{group.name}</span>
+                                          <span className="text-neutral-500">
+                                            잔여: {groupRemainingQty}개 (총 {group.items.length}개 중 {groupShippedQty}개 발송완료)
+                                          </span>
+                                        </div>
+                                        {canEdit && groupRemainingQty > 0 ? (
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-neutral-400">발송할 수량:</span>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              max={groupRemainingQty}
+                                              value={groupSelectedQty}
+                                              onChange={(e) => {
+                                                const val = Math.max(0, Math.min(groupRemainingQty, parseInt(e.target.value) || 0));
+                                                // 해당 그룹의 미발송 인덱스들 중 입력한 수량만큼 선택
+                                                const newIndicesInGroup = remainingInGroup.slice(0, val);
+                                                
+                                                setBundleShipIndicesMap(prev => {
+                                                  const otherGroupsIndices = (prev[item.id] || []).filter(idx => !group.items.includes(idx));
+                                                  const newBundleIndices = [...otherGroupsIndices, ...newIndicesInGroup];
+                                                  
+                                                  // 동기화: 메인 발송 수량 업데이트
+                                                  setShipQtyMap(sqm => ({ ...sqm, [item.id]: newBundleIndices.length }));
+                                                  
+                                                  return { ...prev, [item.id]: newBundleIndices };
+                                                });
+                                              }}
+                                              className="w-12 h-7 text-right border border-neutral-300 px-1 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+                                            />
+                                          </div>
+                                        ) : groupRemainingQty === 0 ? (
+                                          <span className="text-green-600 font-bold">발송 완료</span>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          )}
+                        </div>
                         {shippedQty > 0 && (
-                          <span className="ml-2 text-xs text-purple-600">
-                            {shippedQty >= item.quantity ? '(전체 발송완료)' : `(${shippedQty}개 발송완료)`}
+                          <span className="mt-1 text-xs text-purple-600 block">
+                            {(() => {
+                              const totalPossible = item.selected_product_ids && item.selected_product_ids.length > 0 
+                                ? item.quantity * item.selected_product_ids.length 
+                                : item.quantity;
+                              return shippedQty >= totalPossible 
+                                ? '(전체 발송완료)' 
+                                : `(${shippedQty}개 발송완료)`;
+                            })()}
                           </span>
                         )}
                       </td>
@@ -890,7 +1003,11 @@ export function OrderDetailPage() {
                           {item.category}
                         </span>
                       </td>
-                      <td className="py-4 text-sm text-neutral-900 text-right">{item.quantity}개</td>
+                      <td className="py-4 text-sm text-neutral-900 text-right">
+                        {item.selected_product_ids && item.selected_product_ids.length > 0 
+                          ? `${item.quantity * item.selected_product_ids.length}개` 
+                          : `${item.quantity}개`}
+                      </td>
                       <td className="py-4 text-right">
                         {stock === null || stock === undefined ? (
                           <span className="text-xs text-neutral-400">-</span>
@@ -903,28 +1020,44 @@ export function OrderDetailPage() {
                         )}
                       </td>
                       <td className="py-4 text-right">
-                        {canEdit && remaining > 0 ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <input
-                              type="number"
-                              min={0}
-                              max={remaining}
-                              disabled={isOutOfStock}
-                              value={shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remaining)}
-                              onChange={(e) => {
-                                const v = Math.min(Number(e.target.value), remaining);
-                                setShipQtyMap(prev => ({ ...prev, [item.id]: v }));
-                              }}
-                              className={`w-16 text-right border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 ${isOutOfStock ? 'bg-neutral-100 border-neutral-200 text-neutral-400' : 'border-neutral-300'
-                                }`}
-                            />
-                            {stock !== null && stock !== undefined && stock < (shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remaining)) && (
-                              <span className="text-[10px] text-red-500 font-bold animate-pulse">재고 부족</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-sm text-neutral-500">{remaining === 0 ? '완료' : `${remaining}개`}</span>
-                        )}
+                        {(() => {
+                          const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
+                          const totalPossible = isBundle 
+                            ? item.quantity * item.selected_product_ids.length 
+                            : item.quantity;
+                          const remainingItems = totalPossible - shippedQty;
+
+                          if (canEdit && remainingItems > 0) {
+                            return (
+                              <div className="flex flex-col items-end gap-1">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={remainingItems}
+                                  disabled={isOutOfStock || isBundle} // 번들은 수동 입력 방지 (자동 동기화)
+                                  value={shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remainingItems)}
+                                  onChange={(e) => {
+                                    if (!isBundle) {
+                                      const v = Math.min(Number(e.target.value), remainingItems);
+                                      setShipQtyMap(prev => ({ ...prev, [item.id]: v }));
+                                    }
+                                  }}
+                                  className={`w-16 text-right border px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900 ${
+                                    (isOutOfStock || isBundle) ? 'bg-neutral-100 border-neutral-200 text-neutral-400' : 'border-neutral-300'
+                                  }`}
+                                />
+                                {stock !== null && stock !== undefined && stock < (shipQtyMap[item.id] ?? (isOutOfStock ? 0 : remainingItems)) && (
+                                  <span className="text-[10px] text-red-500 font-bold animate-pulse">재고 부족</span>
+                                )}
+                              </div>
+                            );
+                          }
+                          return (
+                            <span className="text-sm text-neutral-500">
+                              {remainingItems === 0 ? '완료' : `${remainingItems}개`}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-4 text-sm text-neutral-900 text-right">{item.price.toLocaleString()}원</td>
                       <td className="py-4 text-sm font-medium text-neutral-900 text-right">

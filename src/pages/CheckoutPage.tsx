@@ -91,7 +91,13 @@ export function CheckoutPage() {
       }
 
       if (items.length > 0) {
-        const productPromises = items.map(item => productService.getProductById(item.productId));
+        const allProductIds = new Set<string>();
+        items.forEach(item => {
+          allProductIds.add(item.productId);
+          item.selectedProductIds?.forEach(id => allProductIds.add(id));
+        });
+
+        const productPromises = Array.from(allProductIds).map(id => productService.getProductById(id));
         const products = await Promise.all(productPromises);
 
         const map: Record<string, Product> = {};
@@ -184,16 +190,27 @@ export function CheckoutPage() {
     if (!product) return 0;
     const salesUnit = product.salesUnit || 1;
 
+    if (product.isPromotion && item.selectedProductIds) {
+      const buyQty = product.buyQuantity || 0;
+      const paidItemIds = item.selectedProductIds.slice(0, buyQty);
+      const paidTotal = paidItemIds.reduce((sum, id) => {
+        const subProduct = productsMap[id];
+        return sum + (subProduct?.price || 0);
+      }, 0);
+      return paidTotal;
+    }
+
     if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
-        const discountRate = option.discountRate / 100;
-        return (product.price * (1 - discountRate)) / salesUnit;
+        const discountRate = (option.discountRate || 0) / 100;
+        const basePrice = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
+        return (basePrice * (1 - discountRate)) / (option.quantity || 1);
       }
     }
 
     const tier = [...product.tierPricing]
-      .reverse()
+      .sort((a, b) => b.quantity - a.quantity)
       .find(t => item.quantity >= t.quantity);
 
     const basePrice = tier?.unitPrice || product.price;
@@ -575,6 +592,37 @@ export function CheckoutPage() {
                           <p className="text-[10px] text-neutral-500 font-medium">{item.quantity}개 / ₩{unitPrice.toLocaleString()}</p>
                         </div>
                       </div>
+
+                      {item.selectedProductIds && item.selectedProductIds.length > 0 && (
+                        <div className="mt-3 p-3 bg-neutral-50 border border-neutral-100">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Bundle Composition</p>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {(() => {
+                              const buyQty = product.buyQuantity || 0;
+                              return item.selectedProductIds?.map((id, idx) => {
+                                const subProduct = productsMap[id];
+                                const name = subProduct?.name || '로딩 중...';
+                                const isPaid = idx < buyQty;
+                                
+                                return (
+                                  <div key={idx} className="flex items-center justify-between text-[11px] leading-tight group">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className={`w-1 h-1 rounded-full ${isPaid ? 'bg-neutral-400' : 'bg-blue-400'}`} />
+                                      <span className={`truncate ${isPaid ? 'text-neutral-600' : 'text-blue-600 font-bold'}`}>{name}</span>
+                                      {product.isPromotion && !isPaid && (
+                                        <span className="text-[8px] font-black px-1 py-0.5 bg-blue-600 text-white uppercase tracking-tighter">Gift</span>
+                                      )}
+                                    </div>
+                                    <div className={`flex-shrink-0 font-bold ml-4 tabular-nums ${isPaid ? 'text-neutral-400' : 'text-blue-400'}`}>
+                                      1 EA
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
 
                       {item.isSubscription && (
                         <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100">

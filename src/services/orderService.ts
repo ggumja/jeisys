@@ -32,7 +32,10 @@ export const orderService = {
                         name,
                         sku,
                         price,
-                        image_url
+                        image_url,
+                        is_promotion,
+                        buy_quantity,
+                        get_quantity
                     )
                 )
             `)
@@ -63,9 +66,13 @@ export const orderService = {
                     sku: item.product.sku,
                     price: parseFloat(item.product.price),
                     imageUrl: item.product.image_url,
+                    isPromotion: item.product.is_promotion,
+                    buyQuantity: item.product.buy_quantity,
+                    getQuantity: item.product.get_quantity,
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),
+                selectedProductIds: item.selected_product_ids
             })) || []
         }));
     },
@@ -86,7 +93,10 @@ export const orderService = {
                         name,
                         sku,
                         price,
-                        image_url
+                        image_url,
+                        is_promotion,
+                        buy_quantity,
+                        get_quantity
                     )
                 )
             `)
@@ -120,9 +130,13 @@ export const orderService = {
                     sku: item.product.sku,
                     price: parseFloat(item.product.price),
                     imageUrl: item.product.image_url,
+                    isPromotion: item.product.is_promotion,
+                    buyQuantity: item.product.buy_quantity,
+                    getQuantity: item.product.get_quantity,
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),
+                selectedProductIds: item.selected_product_ids
             })) || []
         };
     },
@@ -245,22 +259,39 @@ export const orderService = {
         }
 
         // 4. Create Order Items
-        const productIds = items.map(i => i.productId);
+        const allProductIds = new Set<string>();
+        items.forEach(item => {
+            allProductIds.add(item.productId);
+            item.selectedProductIds?.forEach(id => allProductIds.add(id));
+        });
+
         const { data: products, error: prodError } = await supabase
             .from('products')
-            .select('id, price, product_pricing_tiers(min_quantity, unit_price)')
-            .in('id', productIds);
+            .select('id, price, is_promotion, buy_quantity, product_pricing_tiers(min_quantity, unit_price)')
+            .in('id', Array.from(allProductIds));
 
         if (prodError) throw prodError;
 
         const orderItems = items.map(item => {
             const product = products?.find(p => p.id === item.productId);
-            let unitPrice = product?.price || 0;
+            let unitPrice = 0;
 
-            if (product && product.product_pricing_tiers && product.product_pricing_tiers.length > 0) {
-                const tiers = [...product.product_pricing_tiers].sort((a: any, b: any) => b.min_quantity - a.min_quantity);
-                const tier = tiers.find((t: any) => item.quantity >= t.min_quantity);
-                if (tier) unitPrice = tier.unit_price;
+            if (product?.is_promotion && item.selectedProductIds) {
+                // Promotion Bundle: Price is sum of paid constitutive items
+                const buyQty = product.buy_quantity || 0;
+                const paidItemIds = item.selectedProductIds.slice(0, buyQty);
+                unitPrice = paidItemIds.reduce((sum, id) => {
+                    const subProd = products?.find(p => p.id === id);
+                    return sum + (subProd?.price || 0);
+                }, 0);
+            } else {
+                // Regular Product
+                unitPrice = product?.price || 0;
+                if (product && product.product_pricing_tiers && product.product_pricing_tiers.length > 0) {
+                    const tiers = [...product.product_pricing_tiers].sort((a: any, b: any) => b.min_quantity - a.min_quantity);
+                    const tier = tiers.find((t: any) => item.quantity >= t.min_quantity);
+                    if (tier) unitPrice = tier.unit_price;
+                }
             }
 
             const discount = item.isSubscription ? 0.95 : 1;
@@ -271,7 +302,8 @@ export const orderService = {
                 product_id: item.productId,
                 quantity: item.quantity,
                 unit_price: finalUnitPrice,
-                total_price: finalUnitPrice * item.quantity
+                total_price: finalUnitPrice * item.quantity,
+                selected_product_ids: item.selectedProductIds
             };
         });
 
@@ -284,34 +316,51 @@ export const orderService = {
         // 5. Update Inventory
         for (const item of items) {
             try {
-                const { data: product, error: fetchError } = await supabase
-                    .from('products')
-                    .select('id, stock, base_product_id, stock_multiplier')
-                    .eq('id', item.productId)
-                    .single();
+                // Determine which products to decrement
+                const decrementList: { id: string, amount: number }[] = [];
+                
+                if (item.selectedProductIds && item.selectedProductIds.length > 0) {
+                    // Bundle: Decrement each selected product
+                    item.selectedProductIds.forEach(id => {
+                        decrementList.push({ id, amount: item.quantity });
+                    });
+                } else {
+                    // Regular: Decrement main product
+                    decrementList.push({ id: item.productId, amount: item.quantity });
+                }
 
-                if (fetchError || !product) continue;
-
-                const targetProductId = product.base_product_id || product.id;
-                const decrementAmount = (item.quantity || 1) * (product.stock_multiplier || 1);
-
-                const { error: stockError } = await supabase.rpc('decrement_stock', {
-                    row_id: targetProductId,
-                    amount: decrementAmount
-                });
-
-                if (stockError) {
-                    const { data: targetProd } = await supabase
+                for (const dec of decrementList) {
+                    const { data: product, error: fetchError } = await supabase
                         .from('products')
-                        .select('stock')
-                        .eq('id', targetProductId)
+                        .select('id, stock, base_product_id, stock_multiplier')
+                        .eq('id', dec.id)
                         .single();
 
-                    if (targetProd) {
-                        await supabase
+                    if (fetchError || !product) continue;
+
+                    const targetProductId = product.base_product_id || product.id;
+                    const decrementAmount = (dec.amount || 1) * (product.stock_multiplier || 1);
+
+                    const { error: stockError } = await supabase.rpc('decrement_stock', {
+                        row_id: targetProductId,
+                        amount: decrementAmount
+                    });
+
+                    if (stockError) {
+                        console.error('Failed to decrement stock via RPC:', stockError);
+                        // Fallback: Manual update
+                        const { data: targetProd } = await supabase
                             .from('products')
-                            .update({ stock: Math.max(0, targetProd.stock - decrementAmount) })
-                            .eq('id', targetProductId);
+                            .select('stock')
+                            .eq('id', targetProductId)
+                            .single();
+
+                        if (targetProd) {
+                            await supabase
+                                .from('products')
+                                .update({ stock: Math.max(0, targetProd.stock - decrementAmount) })
+                                .eq('id', targetProductId);
+                        }
                     }
                 }
             } catch (err) {

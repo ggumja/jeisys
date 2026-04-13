@@ -215,7 +215,10 @@ export function SetRegisterPage() {
         (p.sku || '').toLowerCase().includes(searchLower) ||
         (p.category || '').toLowerCase().includes(searchLower)
       ) &&
-      !formData.bonusProducts.some(bp => bp.productId === p.id) 
+      !formData.bonusProducts.some(bp => bp.productId === p.id) &&
+      !p.isPackage &&
+      !p.isPromotion &&
+      (!p.options || p.options.length === 0)
     );
   }).slice(0, 20);
 
@@ -585,19 +588,19 @@ export function SetRegisterPage() {
   return (
     <div className={ADMIN_STYLES.PAGE_CONTAINER}>
       {/* Header */}
-      <div className={ADMIN_STYLES.PAGE_HEADER}>
+      <div className="flex items-center gap-4">
         <button
           onClick={() => navigate('/admin/products')}
-          className={ADMIN_STYLES.BTN_GHOST}
+          className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className={ADMIN_STYLES.PAGE_TITLE}>
+          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2 font-medium">
             {isEditMode ? '셋트 상품 수정' : '셋트 상품 등록'}
           </h2>
-          <p className={ADMIN_STYLES.PAGE_SUBTITLE}>
-            {isEditMode ? '셋트 상품 정보를 수정합니다' : '새로운 상품 세트를 등록합니다'}
+          <p className="text-sm text-neutral-600">
+            {isEditMode ? '기존 셋트 구성을 수정합니다' : '여러 상품을 묶어 새로운 셋트로 등록합니다'}
           </p>
         </div>
       </div>
@@ -788,10 +791,10 @@ export function SetRegisterPage() {
                   value={formData.price}
                   onChange={handleInputChange}
                   placeholder="판매가를 입력하세요"
-                  className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
+                  className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
                   required
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold">원</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold">원</span>
               </div>
             </div>
 
@@ -805,15 +808,14 @@ export function SetRegisterPage() {
                     name="maxOrderQuantity"
                     value={formData.maxOrderQuantity}
                     onChange={handleInputChange}
-                    className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
-                    placeholder="제한 없음"
+                    className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
+                    placeholder="제환 없음"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
                 </div>
                 <p className="text-[10px] text-neutral-400 mt-2 italic">* 주문 시 허용되는 최대 수량 (0 입력 시 제한 없음)</p>
               </div>
             </div>
-
             <div>
               <label className={ADMIN_STYLES.SECTION_LABEL}>재고 수량</label>
               <div className="relative">
@@ -822,101 +824,11 @@ export function SetRegisterPage() {
                   name="stock"
                   value={formData.stock}
                   onChange={handleInputChange}
-                  disabled={formData.isShareStock}
-                  placeholder={formData.isShareStock ? "마스터 재고를 공유 중입니다" : "재고 수량을 입력하세요"}
-                  className={ADMIN_STYLES.INPUT + ` text-right pr-12 font-bold ${formData.isShareStock ? 'bg-neutral-50 text-neutral-400 cursor-not-allowed border-dashed' : ''}`}
+                  placeholder="재고 수량을 입력하세요"
+                  className={ADMIN_STYLES.INPUT + ` text-right pr-16 font-bold`}
                 />
-                {!formData.isShareStock && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>}
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
               </div>
-              {formData.isShareStock && <p className="text-[10px] text-blue-600 font-black mt-2 uppercase tracking-tighter">Shared via Master Resource</p>}
-            </div>
-
-            {/* 재고 공유 설정 추가 */}
-            <div className="col-span-2 pt-6 border-t border-neutral-100">
-              <label className="flex items-center gap-3 cursor-pointer group mb-6">
-                <input
-                  type="checkbox"
-                  checked={formData.isShareStock}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isShareStock: e.target.checked }))}
-                  className="w-5 h-5 accent-neutral-900 cursor-pointer"
-                />
-                <span className="text-sm font-bold text-neutral-900 group-hover:text-black transition-colors">다른 상품과 재고를 공유하시겠습니까? (세트 상품 등)</span>
-              </label>
-
-              {formData.isShareStock && (
-                <div className="bg-neutral-50/50 p-8 border border-neutral-200">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="relative">
-                      <label className={ADMIN_STYLES.SECTION_LABEL}>마스터 상품 (낱개/재고 보유 상품) 검색</label>
-                      <div className="relative flex items-center">
-                        <Search className="w-4 h-4 text-neutral-400 absolute left-3" />
-                        <input
-                          type="text"
-                          placeholder="상품명 또는 SKU 검색"
-                          value={masterSearchTerm}
-                          onChange={(e) => {
-                            setMasterSearchTerm(e.target.value);
-                            setIsMasterSearchOpen(true);
-                          }}
-                          className={ADMIN_STYLES.INPUT + " pl-10 h-10 text-sm"}
-                        />
-                        {isMasterSearchOpen && masterSearchTerm.trim() && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-2xl z-50 max-h-60 overflow-y-auto">
-                            {allProducts
-                              .filter(p => !p.baseProductId && p.id !== id && (p.name.toLowerCase().includes(masterSearchTerm.toLowerCase()) || p.sku.toLowerCase().includes(masterSearchTerm.toLowerCase())))
-                              .map(p => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setFormData(prev => ({ ...prev, baseProductId: p.id }));
-                                    setMasterSearchTerm(p.name);
-                                    setIsMasterSearchOpen(false);
-                                  }}
-                                  className="w-full text-left px-4 py-2 hover:bg-neutral-50 text-sm border-b border-neutral-100 flex justify-between items-center transition-colors"
-                                >
-                                  <span className="font-medium text-neutral-900">{p.name} <span className="text-[10px] text-neutral-400 ml-1 font-normal tracking-tight">{p.sku}</span></span>
-                                  <span className="text-[10px] font-bold text-neutral-500 bg-neutral-100 px-1.5 py-0.5">재고: {p.stock}</span>
-                                </button>
-                              ))
-                            }
-                          </div>
-                        )}
-                      </div>
-                      {formData.baseProductId && (
-                        <div className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-neutral-900 text-white rounded-sm shadow-sm animate-in fade-in duration-300 w-fit">
-                          <Check className="w-3.5 h-3.5" />
-                          <span className="text-[10px] font-black uppercase tracking-widest mr-1 opacity-60">Linked:</span>
-                          <span className="text-[11px] font-bold">
-                            {allProducts.find(p => p.id === formData.baseProductId)?.name || "선택된 상품"}
-                          </span>
-                          <button 
-                            type="button" 
-                            onClick={() => setFormData(prev => ({ ...prev, baseProductId: '' }))}
-                            className="ml-2 p-0.5 hover:bg-white/20 transition-colors"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className={ADMIN_STYLES.SECTION_LABEL}>재고 차감 배수 (판매 1개당 차감량)</label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="1"
-                          value={formData.stockMultiplier}
-                          onChange={(e) => setFormData(prev => ({ ...prev, stockMultiplier: e.target.value }))}
-                          className={ADMIN_STYLES.INPUT + " h-10 text-right pr-12 font-bold"}
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">배</span>
-                      </div>
-                      <p className="text-[10px] text-neutral-400 mt-2 italic">* 예: 5개 세트면 5 입력 (1개 판매 시 마스터 재고 5개 차감)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div>
@@ -1084,9 +996,9 @@ export function SetRegisterPage() {
                       value={formData.subscriptionDiscount}
                       onChange={handleInputChange}
                       placeholder="0"
-                      className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
+                      className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold text-blue-600"}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold">%</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-blue-500 font-bold">%</span>
                   </div>
                   <p className="text-[10px] text-neutral-400 mt-2 italic">
                     * 정기주문 시 적용될 할인율을 숫자로 입력하세요.
@@ -1149,9 +1061,9 @@ export function SetRegisterPage() {
                           placeholder="5"
                           value={opt.quantity}
                           onChange={(e) => updateQuantityOption(opt.id, 'quantity', e.target.value.replace(/[^0-9]/g, ''))}
-                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold"}
+                          className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold"}
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 font-bold uppercase">개</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-neutral-400 font-bold uppercase">개</span>
                       </div>
                     </div>
                     <div>
@@ -1162,9 +1074,9 @@ export function SetRegisterPage() {
                           placeholder="20"
                           value={opt.discountRate}
                           onChange={(e) => updateQuantityOption(opt.id, 'discountRate', e.target.value.replace(/[^0-9.]/g, ''))}
-                          className={ADMIN_STYLES.INPUT + " text-right pr-12 font-bold text-blue-600"}
+                          className={ADMIN_STYLES.INPUT + " text-right pr-16 font-bold text-blue-600"}
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-blue-600 font-bold uppercase">％</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-blue-500 font-bold uppercase">％</span>
                       </div>
                     </div>
                   </div>
@@ -1213,9 +1125,6 @@ export function SetRegisterPage() {
                         <div className="flex-1 min-w-0 flex items-center gap-2">
                           <span className="text-sm font-bold text-neutral-900 truncate">{product.name}</span>
                           <span className="text-[10px] text-neutral-400 font-medium flex-shrink-0">({product.sku})</span>
-                        </div>
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <span className="text-[10px] text-blue-600 font-black bg-blue-50 px-2 py-0.5 uppercase tracking-tighter">Bonus Ready</span>
                         </div>
                       </button>
                     ))

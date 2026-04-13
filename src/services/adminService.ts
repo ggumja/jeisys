@@ -118,13 +118,13 @@ export const adminService = {
             hospitalName: order.user?.hospital_name || '',
             orderDate: new Date(order.ordered_at).toISOString().split('T')[0],
             totalAmount: Number(order.total_amount),
-            paymentMethod: order.payment_method === 'virtual' ? '가상계좌결제' : 
-                          order.payment_method === 'credit' ? '신용카드결제' : 
-                          order.payment_method,
+            paymentMethod: order.payment_method === 'virtual' ? '가상계좌결제' :
+                order.payment_method === 'credit' ? '신용카드결제' :
+                    order.payment_method,
             status: order.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: order.order_items?.length || 0,
-            itemsSummary: order.order_items?.[0] 
-                ? (order.order_items.length > 1 
+            itemsSummary: order.order_items?.[0]
+                ? (order.order_items.length > 1
                     ? `${order.order_items[0].product?.name} 외 ${order.order_items.length - 1}건`
                     : order.order_items[0].product?.name)
                 : '상품 정보 없음',
@@ -165,7 +165,8 @@ export const adminService = {
             .from('order_items')
             .select(`
                 *,
-                product:products(name, category, image_url, sku, stock)
+                selected_product_ids,
+                product:products(name, category, image_url, sku, stock, is_promotion, buy_quantity)
             `)
             .eq('order_id', orderId);
 
@@ -229,7 +230,11 @@ export const adminService = {
                 shippedQuantity: item.shipped_quantity || 0,
                 stock: item.product?.stock ?? null,
                 price: Number(item.unit_price),
-                sku: item.product?.sku
+                sku: item.product?.sku,
+                selected_product_ids: item.selected_product_ids,
+                product: item.product,
+                shipped_selected_indices: item.shipped_selected_indices,
+                shipped_quantity: item.shipped_quantity
             })) || [],
             shippingInfo: {
                 recipient: orderData.user?.name || '',
@@ -240,8 +245,8 @@ export const adminService = {
                 email: orderData.user?.email
             },
             paymentInfo: {
-                method: orderData.payment_method === 'virtual' ? '가상계좌결제' : 
-                        orderData.payment_method === 'credit' ? '신용카드결제' : 
+                method: orderData.payment_method === 'virtual' ? '가상계좌결제' :
+                    orderData.payment_method === 'credit' ? '신용카드결제' :
                         orderData.payment_method
             },
             paymentMethod: orderData.payment_method,
@@ -312,7 +317,7 @@ export const adminService = {
             const randomSuffix = Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
             const slipNo = `9${randomSuffix}`;
             fallbackSlipNos.push(slipNo);
-            
+
             payloadData.push({
                 printYn: "Y",
                 slipNo,
@@ -330,9 +335,9 @@ export const adminService = {
                 fareTy,
                 qty: 1, // 각 박스의 단위
                 rcvBranCd,
-                goodsNm: order.orderItems && order.orderItems.length > 0 
-                  ? `${order.orderItems[0].productName} 외 ${order.orderItems.length - 1}건 (박스 ${i+1}/${boxCount})` 
-                  : `의료기기 소모품 (박스 ${i+1}/${boxCount})`,
+                goodsNm: order.orderItems && order.orderItems.length > 0
+                    ? `${order.orderItems[0].productName} 외 ${order.orderItems.length - 1}건 (박스 ${i + 1}/${boxCount})`
+                    : `의료기기 소모품 (박스 ${i + 1}/${boxCount})`,
                 dlvFare: 3000,
                 extraFare: 0,
                 goodsAmt: 0,
@@ -359,17 +364,17 @@ export const adminService = {
                 body: JSON.stringify(payload),
                 signal: controller.signal
             });
-            
+
             clearTimeout(timeoutId);
 
             if (!response.ok) {
                 console.warn("Logen API Fetch Error:", response.statusText);
-                return fallbackSlipNos.join(", "); 
+                return fallbackSlipNos.join(", ");
             }
 
             const data = await response.json();
             console.log("Logen API Response:", data);
-            
+
             // 로젠 API 성공 응답 파싱. 단일 혹은 복수 처리를 대응
             if (data.data) {
                 if (Array.isArray(data.data)) {
@@ -380,7 +385,7 @@ export const adminService = {
                     return data.data.slipNo;
                 }
             }
-            
+
             return fallbackSlipNos.join(", ");
         } catch (e: any) {
             if (e.name === 'AbortError') {
@@ -388,7 +393,7 @@ export const adminService = {
             } else {
                 console.error("Logen API Integration Failed:", e);
             }
-            return fallbackSlipNos.join(", "); 
+            return fallbackSlipNos.join(", ");
         }
     },
 
@@ -406,11 +411,11 @@ export const adminService = {
         if (error) throw error;
 
         // 히스토리 기록
-        await this.logOrderHistory(orderId, status, 
-            status === 'paid' ? '입금 확인' : 
-            status === 'shipped' ? '배송 시작' : 
-            status === 'delivered' ? '배송 완료' : 
-            status === 'cancelled' ? '주문 취소' : '상태 변경',
+        await this.logOrderHistory(orderId, status,
+            status === 'paid' ? '입금 확인' :
+                status === 'shipped' ? '배송 시작' :
+                    status === 'delivered' ? '배송 완료' :
+                        status === 'cancelled' ? '주문 취소' : '상태 변경',
             trackingNumber ? `송장번호: ${trackingNumber}` : undefined
         );
     },
@@ -443,7 +448,12 @@ export const adminService = {
         trackingNumber: string;
         userId?: string;
         orderNumber?: string;
-        items: { orderItemId: string; productId: string; shipQty: number }[];
+        items: {
+            orderItemId: string;
+            productId: string;
+            shipQty: number;
+            shippedSelectedIndices?: number[];
+        }[];
     }) {
         const { orderId, trackingNumber, userId, orderNumber, items } = params;
 
@@ -462,27 +472,39 @@ export const adminService = {
 
         if (shipErr) throw shipErr;
 
-        // 2. shipment_items 생성 + order_items.shipped_quantity 업데이트 + 재고 차감
+        // 2. shipment_items 생성 + order_items 업데이트 + 재고 차감
         for (const item of items) {
             // shipment_items INSERT
             await supabase.from('shipment_items').insert({
                 shipment_id: shipment.id,
                 order_item_id: item.orderItemId,
                 product_id: item.productId,
-                shipped_quantity: item.shipQty
+                shipped_quantity: item.shipQty,
+                shipped_selected_indices: item.shippedSelectedIndices || []
             });
 
-            // order_items shipped_quantity 업데이트 (RPC 없이 현재값 가져와서 더하기)
+            // order_items 정보 가져오기
             const { data: currentItem } = await supabase
                 .from('order_items')
-                .select('shipped_quantity, quantity')
+                .select('shipped_quantity, quantity, selected_product_ids, shipped_selected_indices')
                 .eq('id', item.orderItemId)
                 .single();
 
-            const newShipped = (currentItem?.shipped_quantity || 0) + item.shipQty;
+            // 3a. 전체 수량 업데이트
+            const newShippedQty = (currentItem?.shipped_quantity || 0) + item.shipQty;
+
+            // 3b. 번들 세부 인덱스 업데이트
+            let newIndices = currentItem?.shipped_selected_indices || [];
+            if (item.shippedSelectedIndices && item.shippedSelectedIndices.length > 0) {
+                newIndices = [...newIndices, ...item.shippedSelectedIndices];
+            }
+
             await supabase
                 .from('order_items')
-                .update({ shipped_quantity: newShipped })
+                .update({
+                    shipped_quantity: newShippedQty,
+                    shipped_selected_indices: newIndices
+                })
                 .eq('id', item.orderItemId);
 
             // products.stock 재고 차감
@@ -503,10 +525,14 @@ export const adminService = {
         // 3. 전체 발송 완료 여부 판단 → 주문 상태 업데이트
         const { data: allItems } = await supabase
             .from('order_items')
-            .select('quantity, shipped_quantity')
+            .select('quantity, shipped_quantity, selected_product_ids')
             .eq('order_id', orderId);
 
-        const allShipped = allItems?.every(i => (i.shipped_quantity || 0) >= i.quantity);
+        const allShipped = allItems?.every(i => {
+            const isBundle = i.selected_product_ids && i.selected_product_ids.length > 0;
+            const targetQty = isBundle ? i.quantity * i.selected_product_ids.length : i.quantity;
+            return (i.shipped_quantity || 0) >= targetQty;
+        });
         const newStatus = allShipped ? 'shipped' : 'partially_shipped';
 
         // 이번 배송 이력의 is_partial 상태 업데이트 (전체 발급인 경우 false로)
@@ -519,7 +545,7 @@ export const adminService = {
 
         const { data: updatedRows, error: orderUpdateError } = await supabase
             .from('orders')
-            .update({ 
+            .update({
                 status: newStatus,
                 tracking_number: trackingNumber,
                 ...(allShipped ? { shipped_at: new Date().toISOString() } : {})
@@ -531,17 +557,17 @@ export const adminService = {
             console.error('[partialShipOrder] orders 상태 업데이트 실패 (에러):', orderUpdateError);
             throw new Error(`주문 상태 업데이트 실패: ${orderUpdateError.message}`);
         }
-        
+
         // 실제로 업데이트된 행이 있는지 확인
         if (!updatedRows || updatedRows.length === 0) {
             console.error('[partialShipOrder] ⚠️ orderId와 매칭되는 행 없음 - RLS 정책 또는 잘못된 ID:', orderId);
             throw new Error('주문 상태 업데이트 실패: 해당 주문을 찾을 수 없거나 권한이 없습니다.');
         }
-        
+
         console.log('[partialShipOrder] orders 상태 업데이트 성공:', newStatus, '/ 업데이트된 row:', updatedRows[0]);
 
         // 히스토리 기록
-        await this.logOrderHistory(orderId, newStatus, 
+        await this.logOrderHistory(orderId, newStatus,
             allShipped ? '전체 배송 시작' : '부분 배송 시작',
             `송장번호: ${trackingNumber} / 대상 품목: ${items.length}종`
         );
@@ -556,20 +582,28 @@ export const adminService = {
             .from('shipment_items')
             .select('*')
             .eq('shipment_id', shipmentId);
-            
+
         if (items && items.length > 0) {
             for (const item of items) {
-                // order_items.shipped_quantity 차감
+                // order_items 수량 및 인덱스 복구
                 const { data: orderItem } = await supabase
                     .from('order_items')
-                    .select('shipped_quantity')
+                    .select('shipped_quantity, shipped_selected_indices')
                     .eq('id', item.order_item_id)
                     .single();
-                
+
                 if (orderItem) {
+                    const currentIndices = orderItem.shipped_selected_indices || [];
+                    const cancelledIndices = item.shipped_selected_indices || [];
+                    // 취소된 인덱스들을 제외한 나머지로 업데이트
+                    const restoredIndices = currentIndices.filter((idx: number) => !cancelledIndices.includes(idx));
+
                     await supabase
                         .from('order_items')
-                        .update({ shipped_quantity: Math.max(0, (orderItem.shipped_quantity || 0) - item.shipped_quantity) })
+                        .update({
+                            shipped_quantity: Math.max(0, (orderItem.shipped_quantity || 0) - item.shipped_quantity),
+                            shipped_selected_indices: restoredIndices
+                        })
                         .eq('id', item.order_item_id);
                 }
 
@@ -580,7 +614,7 @@ export const adminService = {
                         .select('stock')
                         .eq('id', item.product_id)
                         .single();
-                        
+
                     if (product && product.stock !== null) {
                         await supabase
                             .from('products')
@@ -599,13 +633,13 @@ export const adminService = {
             .from('shipments')
             .select('*', { count: 'exact', head: true })
             .eq('order_id', orderId);
-            
+
         if (count === 0) {
             // 발송이 아예 없으면 결제완료 상태로 복구
             await supabase.from('orders').update({ status: 'paid', tracking_number: null }).eq('id', orderId);
         } else {
             // 남은 발송 건이 있으면 가장 최근 발송건 기준으로 송장번호 업데이트
-             const { data: latestShipment } = await supabase
+            const { data: latestShipment } = await supabase
                 .from('shipments')
                 .select('tracking_number')
                 .eq('order_id', orderId)
@@ -716,10 +750,10 @@ export const adminService = {
         }));
     },
 
-    async processClaim(orderId: string, action: 'APPROVE' | 'REJECT', params: { 
+    async processClaim(orderId: string, action: 'APPROVE' | 'REJECT', params: {
         claimType: 'CANCEL' | 'RETURN' | 'EXCHANGE',
         reason?: string,
-        refundAmount?: number 
+        refundAmount?: number
     }) {
         const { claimType, reason, refundAmount } = params;
         let newStatus = '';
@@ -734,10 +768,10 @@ export const adminService = {
             // 거절 시 이전 상태로 복구? 여기서는 단순하게 다시 이전 상태로 돌리는 로직이 필요할 수 있으나
             // 우선은 현재 상태 유지하며 거절 사유만 기록
             const { data: currentOrder } = await supabase.from('orders').select('status').eq('id', orderId).single();
-            newStatus = currentOrder?.status || 'paid'; 
+            newStatus = currentOrder?.status || 'paid';
         }
 
-        const updateData: any = { 
+        const updateData: any = {
             status: newStatus,
             claim_processed_at: new Date().toISOString()
         };
@@ -754,7 +788,7 @@ export const adminService = {
         if (error) throw error;
 
         // 히스토리 기록
-        await this.logOrderHistory(orderId, newStatus, 
+        await this.logOrderHistory(orderId, newStatus,
             action === 'APPROVE' ? `클레임 승인 (${claimType})` : `클레임 거절 (${claimType})`,
             action === 'REJECT' ? `거절 사유: ${reason}` : `상태가 ${newStatus}로 처리되었습니다.`
         );
