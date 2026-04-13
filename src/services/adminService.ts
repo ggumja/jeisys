@@ -174,12 +174,40 @@ export const adminService = {
             console.error('Error fetching order items:', itemsError);
         }
 
+        // 2a. 번들 상품의 bonus_items 별도 조회
+        const productIds = itemsData?.map((i: any) => i.product_id).filter(Boolean) || [];
+        let bonusItemsByProductId: Record<string, Array<{ productName: string; quantity: number }>> = {};
+        if (productIds.length > 0) {
+            const { data: bonusData } = await supabase
+                .from('product_bonus_items')
+                .select(`
+                    parent_product_id,
+                    quantity,
+                    product:products!bonus_product_id(id, name)
+                `)
+                .in('parent_product_id', productIds);
+
+            if (bonusData) {
+                bonusData.forEach((b: any) => {
+                    if (!bonusItemsByProductId[b.parent_product_id]) {
+                        bonusItemsByProductId[b.parent_product_id] = [];
+                    }
+                    bonusItemsByProductId[b.parent_product_id].push({
+                        productName: b.product?.name || '',
+                        quantity: b.quantity || 1,
+                    });
+                });
+            }
+        }
+
+
         const { data: shipmentsData, error: shipmentsError } = await supabase
             .from('shipments')
             .select(`
                 *,
                 items:shipment_items(
                     quantity:shipped_quantity,
+                    product_id,
                     product:products(name)
                 )
             `)
@@ -264,7 +292,8 @@ export const adminService = {
                 isPartial: shipment.is_partial,
                 items: shipment.items?.map((item: any) => ({
                     productName: item.product?.name || 'Unknown',
-                    quantity: item.quantity
+                    quantity: item.quantity,
+                    bonusItems: bonusItemsByProductId[item.product_id] || []
                 })) || []
             })) || [],
             paymentHistory: payHistoryData?.map((h: any) => ({

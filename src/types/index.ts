@@ -117,21 +117,61 @@ export interface CartItem {
   optionName?: string;
 }
 
+export interface ClaimInfo {
+  type: 'CANCEL' | 'RETURN' | 'EXCHANGE';
+  reason: string;
+  requestedAt: string;
+  processedAt?: string;
+  rejectedReason?: string;
+  returnTrackingNumber?: string;
+  exchangeTrackingNumber?: string;
+}
+
+export interface Shipment {
+  id: string;
+  trackingNumber: string;
+  shippedAt: string;
+  isPartial: boolean;
+  items: Array<{
+    productName: string;
+    quantity: number;
+    bonusItems?: Array<{ productName: string; quantity: number }>;
+  }>;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
   date: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered';
-  items: { 
-    product: Product; 
+  status:
+    | 'pending'
+    | 'paid'
+    | 'processing'
+    | 'partially_shipped'
+    | 'shipped'
+    | 'delivered'
+    | 'cancel_requested'
+    | 'return_requested'
+    | 'returning'
+    | 'returned'
+    | 'exchange_requested'
+    | 'partially_refunded'
+    | 'cancelled';
+  items: {
+    product: Product;
     quantity: number;
+    price: number;
+    shippedQuantity?: number;
     optionId?: string;
     optionName?: string;
     selectedProductIds?: string[];
+    bonusItems?: Array<{ productName: string; quantity: number }>;
   }[];
   totalAmount: number;
   paymentMethod: string;
   deliveryTrackingNumber?: string;
+  shipments?: Shipment[];
+  claimInfo?: ClaimInfo;
   vactBankName?: string;
   vactNum?: string;
   vactName?: string;

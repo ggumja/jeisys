@@ -165,7 +165,13 @@ export function OrderDetailPage() {
 
         const initMap: Record<string, number> = {};
         data.orderItems.forEach((item: OrderItem) => {
-          initMap[item.id] = 0; // 초기값을 0으로 설정하여 명시적 입력을 유도
+          const isBundle = item.selected_product_ids && (item.selected_product_ids as string[]).length > 0;
+          if (isBundle) {
+            initMap[item.id] = 0; // 번들은 체크박스 선택 방식이므로 0 유지
+          } else {
+            const remaining = Math.max(0, item.quantity - (item.shippedQuantity || 0));
+            initMap[item.id] = remaining;
+          }
         });
         setShipQtyMap(initMap);
 
@@ -534,6 +540,24 @@ export function OrderDetailPage() {
               입금 확인 처리
             </Button>
           )}
+          {order.status === 'paid' && (
+            <Button
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={async () => {
+                if (await confirm({
+                  title: '상품준비중 처리',
+                  description: '이 주문을 상품준비중 상태로 변경하시겠습니까? 고객에게 주문이 접수되었음을 알립니다.'
+                })) {
+                  handleUpdateStatus('processing');
+                }
+              }}
+              disabled={isUpdating}
+            >
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Package className="w-4 h-4 mr-2" />}
+              상품준비중 처리
+            </Button>
+          )}
           {order.status === 'shipped' && (
             <Button 
               variant="outline" 
@@ -767,7 +791,7 @@ export function OrderDetailPage() {
       <div className="bg-white border border-neutral-200">
         <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
           <h4 className="text-sm font-medium text-neutral-900">주문 상품</h4>
-          {order.status === 'paid' || order.status === 'partially_shipped' ? (
+          {order.status === 'paid' || order.status === 'processing' || order.status === 'partially_shipped' ? (
             <div className="flex items-center gap-3">
               {(() => {
                 const isAllShipped = !order.orderItems?.some(item => (item.quantity - (item.shippedQuantity || (item as any).shipped_quantity || 0)) > 0);
@@ -902,7 +926,7 @@ export function OrderDetailPage() {
                   const stock = item.stock;
                   const isOutOfStock = stock !== null && stock !== undefined && stock === 0;
                   const isLowStock = stock !== null && stock !== undefined && stock > 0 && stock < remaining;
-                  const canEdit = order.status === 'paid' || order.status === 'partially_shipped';
+                  const canEdit = order.status === 'paid' || order.status === 'processing' || order.status === 'partially_shipped';
                   return (
                     <tr key={item.id}>
                       <td className="py-4 text-sm text-neutral-900">
@@ -1161,11 +1185,50 @@ export function OrderDetailPage() {
                         </button>
                       </div>
                     </div>
-                    {/* 발송된 상품 목록 요약 */}
-                    <div className="text-sm text-neutral-600 border-l-2 border-neutral-300 pl-3 py-1">
-                      {shipment.items.map((it, idx) => (
-                        <div key={idx}>- {it.productName} <span className="font-medium text-neutral-900">{it.quantity}개</span></div>
-                      ))}
+                    {/* 발송된 상품 목록 - 테이블 */}
+                    <div className="mt-3 border border-neutral-200 overflow-hidden text-xs">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-neutral-50 border-b border-neutral-200">
+                            <th className="px-3 py-1.5 text-left font-medium text-neutral-500 w-8">No.</th>
+                            <th className="px-3 py-1.5 text-left font-medium text-neutral-500">상품명</th>
+                            <th className="px-3 py-1.5 text-center font-medium text-neutral-500 w-12">수량</th>
+                            <th className="px-3 py-1.5 text-center font-medium text-neutral-500 w-14">구분</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100">
+                          {shipment.items.flatMap((it, idx) => {
+                            let rowNum = 0;
+                            const rows = [];
+                            rowNum = idx + 1;
+                            rows.push(
+                              <tr key={`main-${idx}`} className="bg-white">
+                                <td className="px-3 py-2 text-neutral-400 text-center">{rowNum}</td>
+                                <td className="px-3 py-2 text-neutral-900 font-medium">{it.productName}</td>
+                                <td className="px-3 py-2 text-center font-bold text-neutral-900">{it.quantity}</td>
+                                <td className="px-3 py-2 text-center">
+                                  <span className="px-1.5 py-0.5 bg-neutral-100 text-neutral-600 text-[10px] font-medium rounded">구매</span>
+                                </td>
+                              </tr>
+                            );
+                            if (it.bonusItems && it.bonusItems.length > 0) {
+                              it.bonusItems.forEach((bonus, bIdx) => {
+                                rows.push(
+                                  <tr key={`bonus-${idx}-${bIdx}`} className="bg-amber-50">
+                                    <td className="px-3 py-1.5 text-amber-400 text-center">{rowNum}.{bIdx + 1}</td>
+                                    <td className="px-3 py-1.5 text-amber-800">{bonus.productName}</td>
+                                    <td className="px-3 py-1.5 text-center font-bold text-amber-800">{bonus.quantity * it.quantity}</td>
+                                    <td className="px-3 py-1.5 text-center">
+                                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[10px] font-bold rounded">증정</span>
+                                    </td>
+                                  </tr>
+                                );
+                              });
+                            }
+                            return rows;
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </li>

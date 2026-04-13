@@ -255,13 +255,38 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
 
   // 박스 수량만큼 페이지 반복
   for (let boxNum = 1; boxNum <= boxCount; boxNum++) {
-    const itemRows = items.map((item: any, index: number) => `
-      <tr>
-        <td style="text-align: center;">${index + 1}</td>
-        <td>${item.productName}</td>
-        <td class="qty">${item.quantity}</td>
-      </tr>
-    `).join('');
+    let rowNum = 0;
+    const itemRows = items.flatMap((item: any) => {
+      rowNum++;
+      const mainRow = `
+        <tr>
+          <td style="text-align: center;">${rowNum}</td>
+          <td>${item.productName}</td>
+          <td class="qty">${item.quantity}</td>
+          <td class="qty">구매</td>
+        </tr>
+      `;
+
+      // 추가증정상품 행
+      const bonusRows = (item.bonusItems || []).map((bonus: any) => {
+        rowNum++;
+        return `
+          <tr style="background-color: #fffbeb;">
+            <td style="text-align: center; color: #92400e;">${rowNum}</td>
+            <td>
+              <span style="display:inline-block; background:#f59e0b; color:#fff; font-size:10px; font-weight:bold; padding:1px 6px; margin-right:6px; border-radius:2px;">증정</span>
+              ${bonus.productName}
+              <span style="font-size:10px; color:#78716c; margin-left:4px;">(추가증정)</span>
+            </td>
+            <td class="qty" style="color:#92400e;">${bonus.quantity * item.quantity}</td>
+            <td class="qty" style="color:#92400e;">증정</td>
+          </tr>
+        `;
+      }).join('');
+
+      return mainRow + bonusRows;
+    }).join('');
+
 
     html += `
       <div class="page">
@@ -289,6 +314,7 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
               <th style="width: 50px; text-align: center;">No.</th>
               <th>상품명 (Product Name)</th>
               <th style="width: 80px; text-align: center;">수량 (Qty)</th>
+              <th style="width: 60px; text-align: center;">구분</th>
             </tr>
           </thead>
           <tbody>

@@ -47,7 +47,91 @@ export const orderService = {
             throw error;
         }
 
-        return (data || []).map((order: any) => ({
+        const orders = data || [];
+
+        // 주문 ID 목록으로 shipments 별도 조회
+        const orderIds = orders.map((o: any) => o.id);
+        let bonusMap: Record<string, Array<{ productName: string; quantity: number }>> = {};
+        let shipmentsByOrderId: Record<string, any[]> = {};
+        if (orderIds.length > 0) {
+            const { data: shipmentsData } = await supabase
+                .from('shipments')
+                .select(`
+                    *,
+                    items:shipment_items(
+                        quantity:shipped_quantity,
+                        product_id,
+                        product:products(name)
+                    )
+                `)
+                .in('order_id', orderIds)
+                .order('shipped_at', { ascending: true });
+
+            // product_bonus_items를 위한 product_id 목록 수집 (shipment + order_items 모두)
+            const productIds = new Set<string>();
+            (shipmentsData || []).forEach((s: any) => s.items?.forEach((i: any) => {
+                if (i.product_id) productIds.add(i.product_id);
+            }));
+            orders.forEach((o: any) => o.order_items?.forEach((i: any) => {
+                if (i.product_id) productIds.add(i.product_id);
+            }));
+
+            if (productIds.size > 0) {
+                const { data: bonusData } = await supabase
+                    .from('product_bonus_items')
+                    .select(`
+                        parent_product_id,
+                        quantity,
+                        product:products!bonus_product_id(id, name)
+                    `)
+                    .in('parent_product_id', Array.from(productIds));
+
+                if (bonusData) {
+                    bonusData.forEach((b: any) => {
+                        if (!bonusMap[b.parent_product_id]) bonusMap[b.parent_product_id] = [];
+                        bonusMap[b.parent_product_id].push({
+                            productName: b.product?.name || '',
+                            quantity: b.quantity || 1,
+                        });
+                    });
+                }
+            }
+
+            if (shipmentsData) {
+                // 주문 수량 맵 (orderId → productId → orderedQty) — 발송 bonus 비례 계산용
+                const orderedQtyMap: Record<string, Record<string, number>> = {};
+                orders.forEach((o: any) => {
+                    o.order_items?.forEach((oi: any) => {
+                        if (!orderedQtyMap[o.id]) orderedQtyMap[o.id] = {};
+                        orderedQtyMap[o.id][oi.product_id] = oi.quantity;
+                    });
+                });
+
+                shipmentsData.forEach((s: any) => {
+                    if (!shipmentsByOrderId[s.order_id]) shipmentsByOrderId[s.order_id] = [];
+                    shipmentsByOrderId[s.order_id].push({
+                        id: s.id,
+                        trackingNumber: s.tracking_number,
+                        shippedAt: s.shipped_at,
+                        isPartial: s.is_partial,
+                        items: s.items?.map((item: any) => {
+                            const orderedQty = orderedQtyMap[s.order_id]?.[item.product_id] || item.quantity;
+                            return {
+                                productName: item.product?.name || 'Unknown',
+                                quantity: item.quantity,
+                                // bonus 수량 = DB 전체 수량 × (발송수량 / 주문수량)
+                                bonusItems: (bonusMap[item.product_id] || []).map(b => ({
+                                    ...b,
+                                    quantity: Math.round(b.quantity * item.quantity / orderedQty),
+                                })),
+                            };
+                        }) || [],
+                    });
+                });
+            }
+        }
+
+        return orders.map((order: any) => ({
             id: order.id,
             orderNumber: order.order_number,
             date: new Date(order.ordered_at).toLocaleDateString('ko-KR'),
@@ -55,6 +139,16 @@ export const orderService = {
             totalAmount: parseFloat(order.total_amount),
             paymentMethod: order.payment_method,
             deliveryTrackingNumber: order.tracking_number,
+            claimInfo: order.claim_info ? {
+                type: order.claim_info.type,
+                reason: order.claim_info.reason,
+                requestedAt: order.claim_info.requested_at,
+                processedAt: order.claim_info.processed_at,
+                rejectedReason: order.claim_info.rejected_reason,
+                returnTrackingNumber: order.claim_info.return_tracking_number,
+                exchangeTrackingNumber: order.claim_info.exchange_tracking_number,
+            } : undefined,
+            shipments: shipmentsByOrderId[order.id] || [],
             vactBankName: order.vact_bank_name,
             vactNum: order.vact_num,
             vactName: order.vact_name,
@@ -72,10 +166,13 @@ export const orderService = {
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),
-                selectedProductIds: item.selected_product_ids
+                shippedQuantity: item.shipped_quantity ?? undefined,
+                selectedProductIds: item.selected_product_ids,
+                bonusItems: bonusMap[item.product_id] || [],
             })) || []
         }));
     },
+
 
     // Get single order by ID
     async getOrderById(orderId: string): Promise<Order | null> {
@@ -119,6 +216,16 @@ export const orderService = {
             totalAmount: parseFloat(data.total_amount),
             paymentMethod: data.payment_method,
             deliveryTrackingNumber: data.tracking_number,
+            claimInfo: data.claim_info ? {
+                type: data.claim_info.type,
+                reason: data.claim_info.reason,
+                requestedAt: data.claim_info.requested_at,
+                processedAt: data.claim_info.processed_at,
+                rejectedReason: data.claim_info.rejected_reason,
+                returnTrackingNumber: data.claim_info.return_tracking_number,
+                exchangeTrackingNumber: data.claim_info.exchange_tracking_number,
+            } : undefined,
+            shipments: data.shipments || [],
             vactBankName: data.vact_bank_name,
             vactNum: data.vact_num,
             vactName: data.vact_name,
@@ -136,6 +243,7 @@ export const orderService = {
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),
+                shippedQuantity: item.shipped_quantity ?? undefined,
                 selectedProductIds: item.selected_product_ids
             })) || []
         };
@@ -388,7 +496,6 @@ export const orderService = {
     // 히스토리 기록 헬퍼
     async logOrderHistory(orderId: string, afterStatus: string, title: string, description?: string) {
         try {
-            // 현재 상태 가져오기 (before_status 기록용)
             const { data: current } = await supabase.from('orders').select('status').eq('id', orderId).single();
             const { data: { user } } = await supabase.auth.getUser();
 
@@ -403,5 +510,40 @@ export const orderService = {
         } catch (e) {
             console.error('Error logging order history:', e);
         }
-    }
+    },
+
+    // 고객 클레임 신청 (반품/교환)
+    async requestClaim(orderId: string, type: 'RETURN' | 'EXCHANGE', reason: string): Promise<void> {
+        const user = await authService.getCurrentUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const newStatus = type === 'RETURN' ? 'return_requested' : 'exchange_requested';
+        const claimInfo = {
+            type,
+            reason,
+            requested_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+            .from('orders')
+            .update({
+                status: newStatus,
+                claim_info: claimInfo,
+            })
+            .eq('id', orderId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Error submitting claim:', error);
+            throw error;
+        }
+
+        await this.logOrderHistory(
+            orderId,
+            newStatus,
+            type === 'RETURN' ? '반품 신청' : '교환 신청',
+            `고객 신청 사유: ${reason}`
+        );
+    },
 };
+
