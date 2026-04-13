@@ -344,7 +344,7 @@ export function OrdersPage() {
                           const subPrice = subProd?.price;
                           rows.push(
                             <tr key={`bundle-${index}-${idx}`} className={isPaid ? 'bg-neutral-50' : 'bg-blue-50'}>
-                              <td className={`px-3 py-2 text-center text-[11px] ${isPaid ? 'text-neutral-400' : 'text-blue-400'}`}>{rowNum}.{idx + 1}</td>
+                              <td className="px-3 py-2"></td>
                               <td className={`px-3 py-2 text-[11px] ${isPaid ? 'text-neutral-600' : 'text-blue-700'}`}>
                                 <div className="flex items-center gap-1.5">
                                   <span>{subProd?.name || '로딩 중...'}</span>
@@ -372,7 +372,7 @@ export function OrdersPage() {
                         (item.bonusItems || []).forEach((bonus, bIdx) => {
                           rows.push(
                             <tr key={`bonus-${index}-${bIdx}`} className="bg-amber-50">
-                              <td className="px-3 py-2 text-amber-400 text-center text-[11px]">{rowNum}.{bundleCount + bIdx + 1}</td>
+                              <td className="px-3 py-2"></td>
                               <td className="px-3 py-2 text-amber-800 text-[11px]">
                                 <div className="flex items-center gap-1.5">
                                   <span>{bonus.productName}</span>
@@ -479,7 +479,7 @@ export function OrdersPage() {
                                     it.bonusItems.forEach((bonus, bIdx) => {
                                       rows.push(
                                         <tr key={`bonus-${idx}-${bIdx}`} className="bg-amber-50">
-                                          <td className="px-3 py-1.5 text-amber-400 text-center">{rowNum}.{bIdx + 1}</td>
+                                          <td className="px-3 py-1.5"></td>
                                           <td className="px-3 py-1.5">
                                             <div className="flex items-center gap-1.5 text-amber-800">
                                               <span>{bonus.productName}</span>
