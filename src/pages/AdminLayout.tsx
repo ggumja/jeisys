@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -70,6 +70,7 @@ export function AdminLayout() {
     { to: '/admin/sales-offices', icon: Building2, label: '판매영업점 관리' },
     { to: '/admin/members', icon: Users, label: '회원관리' },
     { to: '/admin/admins', icon: Shield, label: '관리자 계정관리' },
+    { to: '/admin/settings', icon: Settings, label: '쇼핑몰 기본 설정' },
   ];
 
   // Check if current path is under orders, communication or statistics

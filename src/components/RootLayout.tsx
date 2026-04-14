@@ -1,8 +1,8 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
-import { Home, ShoppingCart, Package, User, Zap, Youtube, MessageSquare, ChevronDown, LogOut } from 'lucide-react';
+import { ShoppingCart, Package, Zap, ChevronDown, LogOut, User, Globe, AlertCircle, X, Send, Copy, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
-import { cartService } from '../services/cartService';
+import { cartService, proxyOrderService } from '../services/cartService';
 import { FloatingButtons } from './FloatingButtons';
 import { ModalProvider } from '../context/ModalContext';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
@@ -17,6 +17,9 @@ function RootLayoutContent() {
   const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
   const [showCommunicationDropdown, setShowCommunicationDropdown] = useState(false);
+  const [proxyName, setProxyName] = useState<string | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const user = storage.getUser();
 
   useEffect(() => {
@@ -28,6 +31,9 @@ function RootLayoutContent() {
     cartService.getCart()
       .then(items => setCartCount(items.length))
       .catch(() => setCartCount(0));
+
+    // proxy 모드 배너
+    setProxyName(proxyOrderService.getProxyCustomerName());
   }, [user, navigate, location]);
 
   const handleLogout = () => {
@@ -36,9 +42,9 @@ function RootLayoutContent() {
   };
 
   const navItems = [
-    { to: '/', icon: Home, label: '홈' },
-    { to: '/quick-order', icon: Zap, label: '최근 구매 상품' },
-    { to: '/products', icon: Package, label: '상품' },
+    { to: '/', label: '홈' },
+    { to: '/quick-order', label: '최근 구매 상품' },
+    { to: '/products', label: '상품' },
   ];
 
   const communicationMenuItems = [
@@ -51,141 +57,157 @@ function RootLayoutContent() {
     { to: '/communication/media', label: '제이시스 미디어' },
   ];
 
-  const mobileNavItems = [
-    { to: '/', icon: Home, label: '홈' },
-    { to: '/quick-order', icon: Zap, label: '최근구매' },
-    { to: '/products', icon: Package, label: '상품' },
-    { to: '/communication/inquiry', icon: MessageSquare, label: '커뮤니케이션' },
-    { to: '/mypage/orders', icon: User, label: '마이페이지' },
-  ];
 
   return (
     <div className="min-h-screen bg-white flex justify-center">
       <div 
-        className="w-full bg-white flex flex-col min-h-screen relative pb-20 md:pb-0"
+        className="w-full bg-white flex flex-col min-h-screen relative"
         style={{ maxWidth: '1440px', margin: '0 auto' }}
       >
         <header className="bg-white border-b border-neutral-200 sticky top-0 z-50">
-            <div className="flex items-center h-20 px-4">
-              {/* Left Section: Logo (Fixed Width Area) */}
-              <div className="flex-1 flex justify-start z-10">
-                <Link to="/" className="flex items-center">
-                  <img src={logoImage} alt="Jeisys" className="h-6" />
-                </Link>
-              </div>
-
-              {/* Center Section: Main Navigation (Centered) */}
-              <nav className="hidden md:flex items-center justify-center gap-8 z-20">
-                {navItems.map(item => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className="text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors uppercase whitespace-nowrap"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-
-                <div
-                  className="relative group"
-                  onMouseEnter={() => setShowCommunicationDropdown(true)}
-                  onMouseLeave={() => setShowCommunicationDropdown(false)}
-                >
-                  <button className="flex items-center gap-1 text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors uppercase whitespace-nowrap">
-                    커뮤니케이션
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-
-                  {showCommunicationDropdown && (
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-48 z-50">
-                      <div className="bg-white border border-neutral-200 shadow-xl rounded-sm overflow-hidden">
-                        {communicationMenuItems.map(item => (
-                          <Link
-                            key={item.to}
-                            to={item.to}
-                            className="block px-4 py-3 text-sm text-neutral-900 hover:bg-neutral-50 transition-colors"
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+          {/* 대리주문 모드 배너 */}
+          {proxyName && (
+            <div className="bg-amber-50 border-b-2 border-amber-300 px-4 py-2.5 flex items-center justify-between gap-4">
+              {/* 좌: 상태 표시 */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center justify-center w-7 h-7 bg-amber-400 rounded-sm flex-shrink-0">
+                  <ShoppingCart className="w-4 h-4 text-white" />
                 </div>
-              </nav>
-
-              {/* Right Section: User Utilities (Fixed Width Area) */}
-              <div className="flex-1 flex items-center justify-end gap-6 z-10">
-                {user?.role === 'admin' && (
-                  <Link
-                    to="/admin"
-                    className="hidden md:block text-sm font-black tracking-tight text-[#21358D] hover:text-[#1a2b72] transition-colors uppercase whitespace-nowrap bg-blue-50 px-3 py-1 rounded-sm"
-                  >
-                    Admin
-                  </Link>
-                )}
-
-                <Link
-                  to="/mypage/orders"
-                  className="hidden md:block text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors uppercase whitespace-nowrap"
-                >
-                  마이페이지
-                </Link>
-
+                <div className="min-w-0">
+                  <span className="text-xs font-black text-amber-900 uppercase tracking-wide">대리 주문 모드</span>
+                  <p className="text-xs text-amber-700 truncate">
+                    현재 <strong>{proxyName}</strong>을 대신해 쇼핑 중입니다.
+                  </p>
+                </div>
+              </div>
+              {/* 우: 액션 버튼 */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
-                  onClick={handleLogout}
-                  title="로그아웃"
-                  className="hidden md:flex items-center justify-center p-1.5 text-neutral-400 hover:text-red-500 transition-colors"
+                  onClick={() => navigate('/cart')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-amber-400 text-amber-900 bg-white hover:bg-amber-100 transition-colors rounded-sm"
                 >
-                  <LogOut className="w-5 h-5" />
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  장바구니 확인
                 </button>
-
-                <Link to="/cart" className="relative group p-1 flex-shrink-0">
-                  <ShoppingCart className="w-5 h-5 text-neutral-900 hover:text-neutral-500 transition-colors" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </Link>
-
-                {/* Mobile Cart Icon - Integrated into utilities */}
-                <Link to="/cart" className="md:hidden relative p-1 flex-shrink-0">
-                  <ShoppingCart className="w-6 h-6 text-neutral-700" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                      {cartCount > 99 ? '99+' : cartCount}
-                    </span>
-                  )}
-                </Link>
+                <button
+                  onClick={() => setShowLinkModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-amber-400 text-amber-900 bg-white hover:bg-amber-100 transition-colors rounded-sm"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  결제 링크·문자 발송
+                </button>
+                <button
+                  onClick={() => { proxyOrderService.endProxy(); setProxyName(null); navigate('/admin/members'); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 transition-colors rounded-sm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  대리 주문 종료
+                </button>
               </div>
             </div>
+          )}
+          {/* ── Top utility bar ───────────────────────────── */}
+          <div className="hidden md:flex items-center justify-end gap-4 px-4 h-8 border-b border-neutral-100">
+            {user?.role === 'admin' && (
+              <Link
+                to="/admin"
+                className="text-[11px] font-black text-[#21358D] hover:text-[#1a2b72] transition-colors uppercase"
+              >
+                Admin
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-[11px] text-neutral-400 hover:text-neutral-700 transition-colors"
+            >
+              로그아웃
+            </button>
+            <Link
+              to="/mypage/orders"
+              className="text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
+            >
+              마이페이지
+            </Link>
+          </div>
+
+          {/* ── Main nav bar ──────────────────────────────── */}
+          <div className="flex items-center h-14 px-4">
+            {/* Logo */}
+            <div className="flex-1 flex justify-start z-10">
+              <Link to="/" className="flex items-center">
+                <img src={logoImage} alt="Jeisys" className="h-6" />
+              </Link>
+            </div>
+
+            {/* Center Navigation */}
+            <nav className="hidden md:flex items-center justify-center gap-8 z-20">
+              {navItems.map(item => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors whitespace-nowrap"
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              <div
+                className="relative group"
+                onMouseEnter={() => setShowCommunicationDropdown(true)}
+                onMouseLeave={() => setShowCommunicationDropdown(false)}
+              >
+                <button className="flex items-center gap-1 text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors whitespace-nowrap">
+                  커뮤니케이션
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                {showCommunicationDropdown && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-48 z-50">
+                    <div className="bg-white border border-neutral-200 shadow-xl rounded-sm overflow-hidden">
+                      {communicationMenuItems.map(item => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className="block px-4 py-3 text-sm text-neutral-900 hover:bg-neutral-50 transition-colors"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </nav>
+
+            {/* Right Icons */}
+            <div className="flex-1 flex items-center justify-end gap-4 z-10">
+              {/* 마이페이지 아이콘 */}
+              <Link to="/mypage/orders" className="hidden md:flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                <User className="w-5 h-5" />
+              </Link>
+
+              {/* 장바구니 아이콘 + 배지 */}
+              <Link to="/cart" className="relative flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                <ShoppingCart className="w-5 h-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
+                    {cartCount > 99 ? '99+' : cartCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* 언어 선택 아이콘 */}
+              <div className="hidden md:flex items-center gap-0.5 p-1 text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer">
+                <Globe className="w-5 h-5" />
+                <ChevronDown className="w-3 h-3" />
+              </div>
+            </div>
+          </div>
         </header>
 
         <main className="flex-grow">
           <Outlet />
         </main>
-
-        <nav className="md:hidden fixed bottom-1 left-1/2 -translate-x-1/2 bg-white border border-neutral-200 z-50 rounded-full shadow-lg" style={{ width: 'calc(100% - 32px)', maxWidth: '400px' }}>
-          <div className="grid grid-cols-5 h-14">
-            {mobileNavItems.map(item => {
-              const isActive = location.pathname === item.to ||
-                (item.to === '/mypage/orders' && location.pathname.startsWith('/mypage')) ||
-                (item.to === '/communication/inquiry' && location.pathname.startsWith('/communication'));
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex flex-col items-center justify-center gap-0.5 transition-colors ${isActive ? 'text-black' : 'text-neutral-500'}`}
-                >
-                  <item.icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5]' : ''}`} />
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-
 
 
         <footer className="text-white w-full mt-16" style={{ backgroundColor: '#1A1F2C' }}>
@@ -269,6 +291,109 @@ function RootLayoutContent() {
         </footer>
 
         <FloatingButtons />
+
+        {/* 결제 링크 발송 모달 */}
+        {showLinkModal && (
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center"
+            onClick={() => setShowLinkModal(false)}
+          >
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="relative bg-white w-full max-w-md mx-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* 모달 헤더 */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+                <div className="flex items-center gap-2">
+                  <Send className="w-4 h-4 text-amber-600" />
+                  <h3 className="text-base font-black text-neutral-900">결제 링크 발송</h3>
+                </div>
+                <button
+                  onClick={() => setShowLinkModal(false)}
+                  className="p-1.5 hover:bg-neutral-100 rounded transition-colors"
+                >
+                  <X className="w-4 h-4 text-neutral-500" />
+                </button>
+              </div>
+
+              {/* 모달 바디 */}
+              <div className="px-6 py-5 space-y-4">
+                <div className="bg-amber-50 border border-amber-200 p-3 rounded">
+                  <p className="text-xs text-amber-800 font-medium">
+                    <strong>{proxyName}</strong> 고객에게 아래 링크를 전달하세요.
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    고객이 링크에 접속하면 장바구니에서 담긴 상품을 확인하고 결제할 수 있습니다.
+                  </p>
+                </div>
+
+                {/* 링크 URL 박스 */}
+                <div>
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">결제 링크</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`${window.location.origin}/cart`}
+                      className="flex-1 text-sm px-3 py-2.5 border border-neutral-200 bg-neutral-50 text-neutral-700 select-all"
+                      onClick={e => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/cart`);
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      }}
+                      className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold transition-colors ${
+                        linkCopied
+                          ? 'bg-green-600 text-white'
+                          : 'bg-neutral-900 text-white hover:bg-neutral-700'
+                      }`}
+                    >
+                      {linkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {linkCopied ? '복사됨!' : '복사'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 안내 문구 */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">문자 안내 문구</label>
+                  <textarea
+                    readOnly
+                    rows={4}
+                    value={`[제이시스메디칼] 안녕하세요, ${proxyName}님.\n\n주문 내역을 장바구니에 담아드렸습니다.\n아래 링크에서 확인 후 결제를 완료해 주세요.\n\n${window.location.origin}/cart`}
+                    className="w-full text-xs px-3 py-2.5 border border-neutral-200 bg-neutral-50 text-neutral-600 resize-none"
+                    onClick={e => (e.target as HTMLTextAreaElement).select()}
+                  />
+                  <button
+                    onClick={() => {
+                      const text = `[제이시스메디칼] 안녕하세요, ${proxyName}님.\n\n주문 내역을 장바구니에 담아드렸습니다.\n아래 링크에서 확인 후 결제를 완료해 주세요.\n\n${window.location.origin}/cart`;
+                      navigator.clipboard.writeText(text);
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    }}
+                    className="w-full py-2.5 text-xs font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    문자 내용 전체 복사
+                  </button>
+                </div>
+              </div>
+
+              {/* 모달 푸터 */}
+              <div className="px-6 py-4 border-t border-neutral-100 flex justify-end">
+                <button
+                  onClick={() => setShowLinkModal(false)}
+                  className="px-6 py-2.5 text-sm font-bold bg-neutral-900 text-white hover:bg-neutral-700 transition-colors"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

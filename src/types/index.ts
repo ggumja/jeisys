@@ -116,6 +116,7 @@ export interface CartItem {
   selectedProductIds?: string[];
   optionId?: string;
   optionName?: string;
+  customPrice?: number | null; // 어드민 대리주문 협의 단가
 }
 
 export interface ClaimInfo {

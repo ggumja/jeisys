@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { Search, UserCheck, UserX, Settings, X, Clock, Eye, Building2, Loader2, RefreshCw } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router';
+import { Search, UserCheck, UserX, Settings, X, Clock, Eye, Building2, Loader2, RefreshCw, ShoppingCart } from 'lucide-react';
+import { proxyOrderService } from '../../services/cartService';
 import { useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { Button } from '../../components/ui/button';
@@ -74,6 +75,7 @@ function UserEquipmentsList({ userId }: { userId: string }) {
 
 export function MemberManagementPage() {
   const { alert: globalAlert, confirm: globalConfirm } = useModal();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const gradeFilter = searchParams.get('grade') || 'all';
@@ -162,6 +164,19 @@ export function MemberManagementPage() {
         {grade}
       </Badge>
     );
+  };
+
+  const handleProxyOrder = async (member: Member) => {
+    if (member.status !== 'active') {
+      await globalAlert('활성 상태의 회원만 대리주문이 가능합니다.');
+      return;
+    }
+    try {
+      await proxyOrderService.startProxy(member.id, `${member.name} (${member.hospitalName})`);
+      navigate('/products');
+    } catch (e) {
+      await globalAlert('대리주문 시작에 실패했습니다.');
+    }
   };
 
   const handleApprove = async (memberId: string) => {
@@ -283,6 +298,17 @@ export function MemberManagementPage() {
                         <Eye className="w-4 h-4 mr-1" />
                         상세보기
                       </Button>
+                      {!showApprovalActions && member.status === 'active' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleProxyOrder(member)}
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-1" />
+                          대리주문
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -53,6 +53,8 @@ import { DashboardPage } from "./pages/admin/DashboardPage";
 import { SalesAnalyticsPage } from "./pages/admin/SalesAnalyticsPage";
 import { ProductAnalyticsPage } from "./pages/admin/ProductAnalyticsPage";
 import { PeriodSalesPage } from "./pages/admin/PeriodSalesPage";
+import { ShopSettingsPage } from "./pages/admin/ShopSettingsPage";
+import { AdminProxyCartPage } from "./pages/admin/AdminProxyCartPage";
 
 export const router = createBrowserRouter([
     {
@@ -118,6 +120,8 @@ export const router = createBrowserRouter([
             { path: "admins", Component: AdminManagementPage },
             { path: "adstats", Component: AdManagementPage },
             { path: "ads", Component: AdManagementPage },
+            { path: "settings", Component: ShopSettingsPage },
+            { path: "proxy-cart", Component: AdminProxyCartPage },
         ],
     },
     {

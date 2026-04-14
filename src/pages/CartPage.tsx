@@ -96,6 +96,9 @@ export function CartPage() {
   };
 
   const getTierPrice = (item: CartItem) => {
+    // 어드민 협의 단가가 설정된 경우 우선 적용
+    if (item.customPrice != null) return item.customPrice;
+
     const product = productsMap[item.productId];
     if (!product) return 0;
     const salesUnit = product.salesUnit || 1;
@@ -473,6 +476,11 @@ export function CartPage() {
                     <div className="flex flex-col gap-1 mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-xl font-bold text-neutral-900">₩{itemTotal.toLocaleString()}</span>
+                        {item.customPrice != null && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200">
+                            협의 단가 적용
+                          </span>
+                        )}
                       </div>
                     </div>
 

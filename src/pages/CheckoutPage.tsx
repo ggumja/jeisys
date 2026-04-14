@@ -186,6 +186,9 @@ export function CheckoutPage() {
   };
 
   const getTierPrice = (item: CartItem) => {
+    // 어드민 협의 단가 우선 적용
+    if (item.customPrice != null) return item.customPrice;
+
     const product = productsMap[item.productId];
     if (!product) return 0;
     const salesUnit = product.salesUnit || 1;
@@ -590,6 +593,9 @@ export function CheckoutPage() {
                         <div className="text-right">
                           <p className="text-sm font-black text-neutral-900">₩{itemTotal.toLocaleString()}</p>
                           <p className="text-[10px] text-neutral-500 font-medium">{item.quantity}개 / ₩{unitPrice.toLocaleString()}</p>
+                          {item.customPrice != null && (
+                            <span className="text-[9px] font-bold px-1 py-0.5 bg-blue-100 text-blue-700">협의가</span>
+                          )}
                         </div>
                       </div>
 
