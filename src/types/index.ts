@@ -23,6 +23,19 @@ export interface User {
   createdAt?: string;
 }
 
+export interface ShippingAddress {
+  id: string;
+  userId: string;
+  label: string;          // 배송지 별칭 (병원, 집, 창고 등)
+  recipient: string;
+  phone: string;
+  zipCode: string;
+  address: string;
+  addressDetail: string;
+  isDefault: boolean;
+  createdAt?: string;
+}
+
 export interface Equipment {
   id: string;
   serialNumber: string;

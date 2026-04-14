@@ -6,8 +6,10 @@ import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
 import { paymentService } from '../services/paymentService';
-import { CartItem, Product, PaymentMethod } from '../types';
+import { CartItem, Product, PaymentMethod, ShippingAddress } from '../types';
+import { addressService } from '../services/addressService';
 import { ProductImage } from '../components/ui/ProductImage';
+import { CartItemCard } from '../components/CartItemCard';
 import { CardRegistrationModal } from '../components/CardRegistrationModal';
 import { toast } from 'sonner';
 import cardLogos from '../assets/card-logos.png';
@@ -44,6 +46,8 @@ export function CheckoutPage() {
   const [cardToDelete, setCardToDelete] = useState<string | null>(null);
   
   const [deliveryMemo, setDeliveryMemo] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [address, setAddress] = useState({
     recipient: '',
     phone: '',
@@ -73,13 +77,37 @@ export function CheckoutPage() {
       setCart(items);
 
       if (user) {
-        setAddress({
-          recipient: user.name || '',
-          phone: user.phone || user.mobile || '',
-          zipCode: user.zipCode || '',
-          address: user.address || '',
-          detail: user.addressDetail || '',
+        // 배송지 목록이 없으면 사업장주소를 기본배송지로 자동 등록
+        const savedAddrs = await addressService.syncFromUserProfile(user.id, {
+          name: user.name,
+          phone: user.phone,
+          mobile: user.mobile,
+          hospitalName: user.hospitalName,
+          address: user.address,
+          addressDetail: user.addressDetail,
+          zipCode: user.zipCode,
         });
+        setSavedAddresses(savedAddrs);
+        const defaultAddr = savedAddrs.find(a => a.isDefault) || savedAddrs[0];
+        if (defaultAddr) {
+          setSelectedAddressId(defaultAddr.id);
+          setAddress({
+            recipient: defaultAddr.recipient,
+            phone: defaultAddr.phone,
+            zipCode: defaultAddr.zipCode,
+            address: defaultAddr.address,
+            detail: defaultAddr.addressDetail,
+          });
+        } else {
+          // 사업장주소도 없는 경우: 회원정보 기반 폼 채움
+          setAddress({
+            recipient: user.name || '',
+            phone: user.phone || user.mobile || '',
+            zipCode: user.zipCode || '',
+            address: user.address || '',
+            detail: user.addressDetail || '',
+          });
+        }
 
         // Load User Cards
         const cards = await paymentService.getPaymentMethods(user.id);
@@ -191,7 +219,6 @@ export function CheckoutPage() {
 
     const product = productsMap[item.productId];
     if (!product) return 0;
-    const salesUnit = product.salesUnit || 1;
 
     if (product.isPromotion && item.selectedProductIds) {
       const buyQty = product.buyQuantity || 0;
@@ -217,7 +244,8 @@ export function CheckoutPage() {
       .find(t => item.quantity >= t.quantity);
 
     const basePrice = tier?.unitPrice || product.price;
-    return basePrice / salesUnit;
+    const productDiscountRate = (product.discountRate || 0) / 100;
+    return basePrice * (1 - productDiscountRate);
   };
 
   const calculateTotal = () => {
@@ -324,10 +352,76 @@ export function CheckoutPage() {
 
           {/* Delivery Address */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
-            <h2 className="text-xl tracking-tight text-neutral-900 mb-6 flex items-center gap-2 font-bold">
-              <MapPin className="w-5 h-5" />
-              배송지 정보
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl tracking-tight text-neutral-900 flex items-center gap-2 font-bold">
+                <MapPin className="w-5 h-5" />
+                배송지 정보
+              </h2>
+              <a
+                href="/mypage/addresses"
+                target="_blank"
+                className="text-xs text-neutral-500 hover:text-neutral-900 underline underline-offset-2 transition-colors"
+              >
+                배송지 관리 →
+              </a>
+            </div>
+
+            {/* 저장된 배송지 선택 */}
+            {savedAddresses.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">저장된 배송지</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {savedAddresses.map(addr => (
+                    <div
+                      key={addr.id}
+                      onClick={() => {
+                        setSelectedAddressId(addr.id);
+                        setAddress({
+                          recipient: addr.recipient,
+                          phone: addr.phone,
+                          zipCode: addr.zipCode,
+                          address: addr.address,
+                          detail: addr.addressDetail,
+                        });
+                      }}
+                      className={`p-3 border-2 cursor-pointer transition-all ${
+                        selectedAddressId === addr.id
+                          ? 'border-neutral-900 bg-neutral-50'
+                          : 'border-neutral-100 hover:border-neutral-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-xs font-black text-neutral-900">{addr.label}</span>
+                        {addr.isDefault && (
+                          <span className="text-[9px] font-black px-1 py-0.5 bg-neutral-900 text-white">기본</span>
+                        )}
+                        {selectedAddressId === addr.id && (
+                          <Check className="w-3 h-3 text-neutral-900 ml-auto" />
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-700 font-medium">{addr.recipient} · {addr.phone}</p>
+                      <p className="text-xs text-neutral-500 truncate mt-0.5">{addr.address} {addr.addressDetail}</p>
+                    </div>
+                  ))}
+                  {/* 직접 입력 */}
+                  <div
+                    onClick={() => {
+                      setSelectedAddressId(null);
+                      setAddress({ recipient: '', phone: '', zipCode: '', address: '', detail: '' });
+                    }}
+                    className={`p-3 border-2 cursor-pointer transition-all flex items-center gap-2 ${
+                      selectedAddressId === null
+                        ? 'border-neutral-900 bg-neutral-50'
+                        : 'border-dashed border-neutral-200 hover:border-neutral-300'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-neutral-400" />
+                    <span className="text-xs font-bold text-neutral-500">새 배송지 직접 입력</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">수령인</label>
@@ -565,84 +659,29 @@ export function CheckoutPage() {
           {/* User Order Items */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
             <h2 className="text-xl tracking-tight text-neutral-900 mb-6 font-bold">주문 상품 정보</h2>
-            <div className="divide-y divide-neutral-100">
+            <div className="space-y-4">
               {cart.map(item => {
                 const product = productsMap[item.productId];
                 if (!product) return null;
-
                 const unitPrice = getTierPrice(item);
                 const subDiscount = (product?.subscriptionDiscount || 0) / 100;
                 const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
-
                 return (
-                  <div key={item.productId} className="flex gap-6 py-6 first:pt-0 last:pb-0">
-                    <div className="w-24 h-24 bg-neutral-50 border border-neutral-100 overflow-hidden flex-shrink-0">
-                      <ProductImage
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-contain p-2"
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-1">
-                        <div>
-                          <p className="text-[10px] text-neutral-400 mb-0.5 tracking-wider font-bold">{product.sku}</p>
-                          <h3 className="text-sm font-bold tracking-tight text-neutral-900">{product.name}</h3>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-black text-neutral-900">₩{itemTotal.toLocaleString()}</p>
-                          <p className="text-[10px] text-neutral-500 font-medium">{item.quantity}개 / ₩{unitPrice.toLocaleString()}</p>
-                          {item.customPrice != null && (
-                            <span className="text-[9px] font-bold px-1 py-0.5 bg-blue-100 text-blue-700">협의가</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {item.selectedProductIds && item.selectedProductIds.length > 0 && (
-                        <div className="mt-3 p-3 bg-neutral-50 border border-neutral-100">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">Bundle Composition</p>
-                          <div className="grid grid-cols-1 gap-1.5">
-                            {(() => {
-                              const buyQty = product.buyQuantity || 0;
-                              return item.selectedProductIds?.map((id, idx) => {
-                                const subProduct = productsMap[id];
-                                const name = subProduct?.name || '로딩 중...';
-                                const isPaid = idx < buyQty;
-                                
-                                return (
-                                  <div key={idx} className="flex items-center justify-between text-[11px] leading-tight group">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <span className={`w-1 h-1 rounded-full ${isPaid ? 'bg-neutral-400' : 'bg-blue-400'}`} />
-                                      <span className={`truncate ${isPaid ? 'text-neutral-600' : 'text-blue-600 font-bold'}`}>{name}</span>
-                                      {product.isPromotion && !isPaid && (
-                                        <span className="text-[8px] font-black px-1 py-0.5 bg-blue-600 text-white uppercase tracking-tighter">Gift</span>
-                                      )}
-                                    </div>
-                                    <div className={`flex-shrink-0 font-bold ml-4 tabular-nums ${isPaid ? 'text-neutral-400' : 'text-blue-400'}`}>
-                                      1 EA
-                                    </div>
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      )}
-
-                      {item.isSubscription && (
-                        <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span className="text-[10px] font-bold uppercase tracking-tight">Recurring Order (-{product.subscriptionDiscount}%)</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <CartItemCard
+                    key={item.id}
+                    item={item}
+                    product={product}
+                    productsMap={productsMap}
+                    unitPrice={unitPrice}
+                    itemTotal={itemTotal}
+                    readonly
+                  />
                 );
               })}
             </div>
           </div>
         </div>
+
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
