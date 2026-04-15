@@ -216,14 +216,56 @@ export const printInvoice = (order: any, shipment: any) => {
   }
 };
 
-export const printPackingList = (order: any, shipment: any, boxCount: number = 1) => {
+export const printPackingList = (order: any, shipment: any, boxCount: number = 1, subProductsMap: Record<string, any> = {}) => {
   if (!order || !shipment) {
     alert('출력할 데이터가 부족합니다.');
     return;
   }
 
+  // ── 배송지: 이번 발송의 실제 배송지 우선, 없으면 주문 배송지
+  const si = (shipment.shippingInfo || order.shippingInfo || {}) as any;
+  const maskedPhone = maskPhone(si.phone || order.user?.phone || '');
+  const recipientName = si.recipient || order.customerName || '';
+  const fullAddr = [si.address, si.addressDetail].filter(Boolean).join(' ');
+  const zipCode = si.zipCode ? `[${si.zipCode}] ` : '';
+
+  // ── 발송 아이템 처리 (번들 → 구성품 분리)
   const items = shipment.items || [];
-  const maskedPhone = maskPhone(order.shippingInfo?.phone || order.user?.phone || '');
+
+  // 각 shipment item을 displayItems로 변환
+  type DisplayItem = { name: string; qty: number; isBonus: boolean };
+  const displayItems: DisplayItem[] = [];
+
+  items.forEach((it: any) => {
+    // 번들 여부: order.orderItems에서 같은 productId 찾기
+    const matchOi = (order.orderItems || []).find((oi: any) => oi.productId === it.productId);
+    const isBundle = matchOi && matchOi.selected_product_ids && matchOi.selected_product_ids.length > 0;
+
+    if (isBundle && matchOi) {
+      // 구성품별 그룹핑 (subProductsMap에서 이름 조회)
+      const grouped: Record<string, { name: string; count: number }> = {};
+      (matchOi.selected_product_ids || []).forEach((pid: string) => {
+        const name = subProductsMap[pid]?.name || pid;
+        if (!grouped[pid]) grouped[pid] = { name, count: 0 };
+        grouped[pid].count++;
+      });
+      const totalSelected = matchOi.selected_product_ids.length || 1;
+      const scale = it.quantity / totalSelected;
+      Object.values(grouped).forEach((g) => {
+        const gQty = Math.round(g.count * scale);
+        if (gQty > 0) displayItems.push({ name: g.name, qty: gQty, isBonus: false });
+      });
+    } else {
+      displayItems.push({ name: it.productName, qty: it.quantity, isBonus: false });
+    }
+  });
+
+  // ── 증정품: shipment.bonusItems (DB 저장값)
+  (shipment.bonusItems || []).forEach((bonus: any) => {
+    if ((bonus.quantity || 0) > 0) {
+      displayItems.push({ name: bonus.productName, qty: bonus.quantity, isBonus: true });
+    }
+  });
 
   let html = `
     <html>
@@ -237,14 +279,21 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
           .header h1 { margin: 0; font-size: 32px; letter-spacing: 2px; }
           .header p { margin: 6px 0 0; color: #666; }
           .box-badge { display: inline-block; margin-top: 10px; background: #000; color: #fff; padding: 4px 16px; font-size: 15px; font-weight: bold; letter-spacing: 1px; }
-          .info-pane { display: flex; justify-content: space-between; margin-bottom: 30px; border-top: 2px solid #000; border-bottom: 1px solid #ccc; padding: 20px 0; }
+          .info-pane { display: flex; justify-content: space-between; margin-bottom: 30px; border-top: 2px solid #000; border-bottom: 1px solid #ccc; padding: 20px 0; gap: 20px; }
           .info-group { flex: 1; }
-          .info-group strong { display: inline-block; width: 80px; }
+          .info-row { display: flex; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+          .info-label { font-weight: bold; color: #555; min-width: 70px; }
+          .addr-block { background: #f8f8f8; border: 1px solid #e0e0e0; padding: 12px 16px; border-radius: 4px; }
+          .addr-name { font-size: 18px; font-weight: bold; margin-bottom: 4px; }
+          .addr-phone { font-size: 13px; color: #666; margin-bottom: 6px; }
+          .addr-full { font-size: 13px; color: #333; }
           .item-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
           .item-table th, .item-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
           .item-table th { background-color: #f4f4f5; font-weight: bold; border-top: 2px solid #000; }
           .item-table td { font-size: 14px; }
           .item-table .qty { text-align: center; font-weight: bold; }
+          .bonus-row { background-color: #fffbeb; }
+          .bonus-badge { display:inline-block; background:#f59e0b; color:#fff; font-size:10px; font-weight:bold; padding:1px 6px; margin-right:6px; border-radius:2px; }
           .sign-box { margin-bottom: 40px; border: 1px solid #000; padding: 20px; }
           .footer { text-align: center; border-top: 1px dashed #ccc; padding-top: 20px; font-size: 12px; color: #888; }
           @media print { body { padding: 0; } }
@@ -253,58 +302,52 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
       <body>
   `;
 
-  // 박스 수량만큼 페이지 반복
   for (let boxNum = 1; boxNum <= boxCount; boxNum++) {
     let rowNum = 0;
-    const itemRows = items.flatMap((item: any) => {
+    const itemRows = displayItems.map((di) => {
       rowNum++;
-      const mainRow = `
-        <tr>
-          <td style="text-align: center;">${rowNum}</td>
-          <td>${item.productName}</td>
-          <td class="qty">${item.quantity}</td>
-          <td class="qty">구매</td>
-        </tr>
-      `;
-
-      // 추가증정상품 행
-      const bonusRows = (item.bonusItems || []).map((bonus: any) => {
-        rowNum++;
+      if (di.isBonus) {
         return `
-          <tr style="background-color: #fffbeb;">
+          <tr class="bonus-row">
             <td style="text-align: center; color: #92400e;">${rowNum}</td>
             <td>
-              <span style="display:inline-block; background:#f59e0b; color:#fff; font-size:10px; font-weight:bold; padding:1px 6px; margin-right:6px; border-radius:2px;">증정</span>
-              ${bonus.productName}
-              <span style="font-size:10px; color:#78716c; margin-left:4px;">(추가증정)</span>
+              <span class="bonus-badge">증정</span>${di.name}
             </td>
-            <td class="qty" style="color:#92400e;">${bonus.quantity * item.quantity}</td>
+            <td class="qty" style="color:#92400e;">${di.qty}</td>
             <td class="qty" style="color:#92400e;">증정</td>
           </tr>
         `;
-      }).join('');
-
-      return mainRow + bonusRows;
+      }
+      return `
+        <tr>
+          <td style="text-align: center;">${rowNum}</td>
+          <td>${di.name}</td>
+          <td class="qty">${di.qty}</td>
+          <td class="qty">구매</td>
+        </tr>
+      `;
     }).join('');
-
 
     html += `
       <div class="page">
         <div class="header">
           <h1>PACKING LIST</h1>
-          <p>Date: ${shipment.shippedAt ? new Date(shipment.shippedAt).toLocaleString() : ''}</p>
+          <p>Date: ${shipment.shippedAt ? new Date(shipment.shippedAt).toLocaleString() : new Date().toLocaleString()}</p>
           ${boxCount > 1 ? `<div class="box-badge">BOX ${boxNum} / ${boxCount}</div>` : ''}
         </div>
 
         <div class="info-pane">
           <div class="info-group">
-            <div style="margin-bottom: 10px;"><strong>Order No:</strong> ${order.orderNumber}</div>
-            <div><strong>Tracking:</strong> ${shipment.trackingNumber || 'N/A'}</div>
+            <div class="info-row"><span class="info-label">Order No:</span> ${order.orderNumber}</div>
+            <div class="info-row"><span class="info-label">Tracking:</span> ${shipment.trackingNumber || 'N/A'}</div>
+            <div class="info-row"><span class="info-label">Customer:</span> ${order.hospitalName || order.customerName || ''}</div>
           </div>
           <div class="info-group">
-            <div style="margin-bottom: 10px;"><strong>Customer:</strong> ${order.customerName} (${order.hospitalName || ''})</div>
-            <div style="margin-bottom: 10px;"><strong>Contact:</strong> ${maskedPhone}</div>
-            <div><strong>Address:</strong> ${order.shippingInfo?.address || order.user?.address || ''}</div>
+            <div class="addr-block">
+              <div class="addr-name">📦 ${recipientName}</div>
+              <div class="addr-phone">${maskedPhone}</div>
+              <div class="addr-full">${zipCode}${fullAddr || '주소 정보 없음'}</div>
+            </div>
           </div>
         </div>
 

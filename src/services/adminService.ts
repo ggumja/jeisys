@@ -183,6 +183,8 @@ export const adminService = {
                 .select(`
                     parent_product_id,
                     quantity,
+                    calculation_method,
+                    percentage,
                     product:products!bonus_product_id(id, name)
                 `)
                 .in('parent_product_id', productIds);
@@ -193,8 +195,11 @@ export const adminService = {
                         bonusItemsByProductId[b.parent_product_id] = [];
                     }
                     bonusItemsByProductId[b.parent_product_id].push({
+                        productId: b.product?.id || '',
                         productName: b.product?.name || '',
                         quantity: b.quantity || 1,
+                        calculationMethod: b.calculation_method || 'fixed',
+                        percentage: b.percentage || 0,
                     });
                 });
             }
@@ -266,7 +271,8 @@ export const adminService = {
                 selected_product_ids: item.selected_product_ids,
                 product: item.product,
                 shipped_selected_indices: item.shipped_selected_indices,
-                shipped_quantity: item.shipped_quantity
+                shipped_quantity: item.shipped_quantity,
+                bonusItems: bonusItemsByProductId[item.product_id] || []
             })) || [],
             shippingInfo: {
                 recipient: orderData.user?.name || '',
@@ -296,9 +302,12 @@ export const adminService = {
                 isPartial: shipment.is_partial,
                 items: shipment.items?.map((item: any) => ({
                     productName: item.product?.name || 'Unknown',
+                    productId: item.product_id,
                     quantity: item.quantity,
                     bonusItems: bonusItemsByProductId[item.product_id] || []
-                })) || []
+                })) || [],
+                bonusItems: shipment.bonus_items || [],
+                shippingInfo: shipment.shipping_info || null
             })) || [],
             paymentHistory: payHistoryData?.map((h: any) => ({
                 id: h.id,
@@ -517,8 +526,10 @@ export const adminService = {
             shipQty: number;
             shippedSelectedIndices?: number[];
         }[];
+        bonusItems?: { productId: string; productName: string; quantity: number }[];
+        shippingInfo?: { recipient?: string; phone?: string; zipCode?: string; address?: string; addressDetail?: string };
     }) {
-        const { orderId, trackingNumber, userId, orderNumber, items } = params;
+        const { orderId, trackingNumber, userId, orderNumber, items, bonusItems = [], shippingInfo } = params;
 
         // 1. shipments 레코드 생성
         const isPartial = true; // 이 함수는 항상 부분발송 처리
@@ -528,7 +539,9 @@ export const adminService = {
                 order_id: orderId,
                 tracking_number: trackingNumber,
                 is_partial: isPartial,
-                shipped_at: new Date().toISOString()
+                shipped_at: new Date().toISOString(),
+                bonus_items: bonusItems,
+                shipping_info: shippingInfo || null
             })
             .select('id')
             .single();
