@@ -8,6 +8,7 @@ import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
 import { OrderCancelModal } from '../../components/admin/OrderCancelModal';
 import { OrderClaimModal } from '../../components/admin/OrderClaimModal';
+import { ShipAddressPickerModal, SelectedShipAddress } from '../../components/admin/ShipAddressPickerModal';
 import { useModal } from '../../context/ModalContext';
 import { Product } from '../../types';
 import { productService } from '../../services/productService';
@@ -75,6 +76,7 @@ interface OrderHistory {
 
 interface Order {
   id: string;
+  userId?: string;
   orderNumber: string;
   customerName: string;
   hospitalName: string;
@@ -133,6 +135,11 @@ export function OrderDetailPage() {
   const [shipQtyMap, setShipQtyMap] = useState<Record<string, number>>({});
   // 번들 상품의 발송 대상 인덱스 상태: { [orderItemId]: [index1, index2, ...] }
   const [bundleShipIndicesMap, setBundleShipIndicesMap] = useState<Record<string, number[]>>({});
+  // 발송 배송지 선택 모달
+  const [showShipAddrModal, setShowShipAddrModal] = useState(false);
+  const [pendingShipParams, setPendingShipParams] = useState<null | {
+    itemsToShip: any[];
+  }>(null);
 
   useEffect(() => {
     if (id) {
@@ -164,16 +171,24 @@ export function OrderDetailPage() {
         }
 
         const initMap: Record<string, number> = {};
+        const bundleInitMap: Record<string, number[]> = {};
+
         data.orderItems.forEach((item: OrderItem) => {
           const isBundle = item.selected_product_ids && (item.selected_product_ids as string[]).length > 0;
           if (isBundle) {
-            initMap[item.id] = 0; // 번들은 체크박스 선택 방식이므로 0 유지
+            const selectedIds = item.selected_product_ids as string[];
+            const alreadyShipped: number[] = (item as any).shipped_selected_indices || [];
+            // 아직 발송되지 않은 인덱스 전체가 기본 발송 대상
+            const remainingIndices = selectedIds.map((_, idx) => idx).filter(idx => !alreadyShipped.includes(idx));
+            bundleInitMap[item.id] = remainingIndices;
+            initMap[item.id] = remainingIndices.length;
           } else {
             const remaining = Math.max(0, item.quantity - (item.shippedQuantity || 0));
             initMap[item.id] = remaining;
           }
         });
         setShipQtyMap(initMap);
+        setBundleShipIndicesMap(bundleInitMap);
 
         // 🔄 자동 상태 보정: 전체 발송 완료인데 status가 paid/partially_shipped인 경우 shipped로 업데이트
         const allFullyShipped = data.orderItems.every(
@@ -843,55 +858,21 @@ export function OrderDetailPage() {
                           return;
                         }
 
-                        if (itemsToShip.length === 0) {
-                          toast.error('발송할 수량을 확인해 주세요.');
-                          return;
-                        }
-
-                        try {
-                          setIsUpdating(true);
-
-                          // 송장번호 자동 발급 (박스수량만큼)
-                          toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
-                          const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount);
-                          
-                          if (!finalTrackingNumber) {
-                            toast.error('송장 번호 발급에 실패했습니다. 데이터를 확인해주세요.');
-                            setIsUpdating(false);
+                          if (itemsToShip.length === 0) {
+                            toast.error('발송할 수량을 확인해 주세요.');
                             return;
                           }
 
-                          setTrackingNumber(finalTrackingNumber);
-
-                          const result = await adminService.partialShipOrder({
-                            orderId: order.id,
-                            trackingNumber: finalTrackingNumber,
-                            orderNumber: order.orderNumber,
-                            items: itemsToShip,
-                          });
-
-                          toast.success(result.status === 'shipped' ? '전체 발송 처리가 완료되었습니다.' : '부분 발송 처리가 완료되었습니다.');
-                          // DB 업데이트 성공 즉시 로컬 상태도 반영 (UI 지연 방지)
-                          const confirmedStatus = result.status as 'shipped' | 'partially_shipped';
-                          setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
-                          setTrackingNumber('');
-                          setBoxCount(1);
-                          setBundleShipIndicesMap({});
-                          // loadOrder 후에도 확정 상태 재적용 (Supabase 캐시로 stale 데이터 방지)
-                          await loadOrder();
-                          setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
-                        } catch (e) {
-                          toast.error('발송 처리에 실패했습니다.');
-                        } finally {
-                          setIsUpdating(false);
-                        }
-                      }}
+                          // ✅ 배송지 선택 모달 오픈
+                          setPendingShipParams({ itemsToShip });
+                          setShowShipAddrModal(true);
+                        }}
                       className=""
                     >
                       {isUpdating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Truck className="w-4 h-4 mr-2" />}
                       {order.orderItems?.some(item => {
                         const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
-                        const totalPossible = isBundle ? item.quantity * item.selected_product_ids.length : item.quantity;
+                        const totalPossible = isBundle ? item.selected_product_ids.length : item.quantity;
                         const shippedTotal = item.shippedQuantity || (item as any).shipped_quantity || 0;
                         const shipTarget = shipQtyMap[item.id] ?? 0;
                         return shipTarget < (totalPossible - shippedTotal);
@@ -921,6 +902,7 @@ export function OrderDetailPage() {
             <tbody className="divide-y divide-neutral-200">
               {order.orderItems && order.orderItems.length > 0 ? (
                 order.orderItems.map((item: any) => {
+                  const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
                   const shippedQty = item.shippedQuantity || item.shipped_quantity || 0;
                   const remaining = item.quantity - shippedQty;
                   const stock = item.stock;
@@ -935,13 +917,11 @@ export function OrderDetailPage() {
                           {item.selected_product_ids && item.selected_product_ids.length > 0 && (
                             <div className="mt-2 ml-2 pl-3 border-l-2 border-neutral-100 space-y-3">
                               {(() => {
-                                // 1. 전체 구성품 (세트 수만큼 복제)
+                                // 1. 전체 구성품 (selectedProductIds = 이미 전체 수량 반영)
                                 const totalItems: { id: string, index: number }[] = [];
-                                for (let s = 0; s < item.quantity; s++) {
-                                  item.selected_product_ids.forEach((pid: string, idx: number) => {
-                                    totalItems.push({ id: pid, index: s * item.selected_product_ids.length + idx });
-                                  });
-                                }
+                                item.selected_product_ids.forEach((pid: string, idx: number) => {
+                                  totalItems.push({ id: pid, index: idx });
+                                });
 
                                 // 2. 제품 종류별로 그룹화
                                 const grouped: Record<string, { id: string, name: string, items: number[] }> = {};
@@ -1012,8 +992,8 @@ export function OrderDetailPage() {
                         {shippedQty > 0 && (
                           <span className="mt-1 text-xs text-purple-600 block">
                             {(() => {
-                              const totalPossible = item.selected_product_ids && item.selected_product_ids.length > 0 
-                                ? item.quantity * item.selected_product_ids.length 
+                              const totalPossible = item.selected_product_ids && item.selected_product_ids.length > 0
+                                ? item.selected_product_ids.length
                                 : item.quantity;
                               return shippedQty >= totalPossible 
                                 ? '(전체 발송완료)' 
@@ -1028,9 +1008,7 @@ export function OrderDetailPage() {
                         </span>
                       </td>
                       <td className="py-4 text-sm text-neutral-900 text-right">
-                        {item.selected_product_ids && item.selected_product_ids.length > 0 
-                          ? `${item.quantity * item.selected_product_ids.length}개` 
-                          : `${item.quantity}개`}
+                          {`${item.quantity}개`}
                       </td>
                       <td className="py-4 text-right">
                         {stock === null || stock === undefined ? (
@@ -1045,9 +1023,8 @@ export function OrderDetailPage() {
                       </td>
                       <td className="py-4 text-right">
                         {(() => {
-                          const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
-                          const totalPossible = isBundle 
-                            ? item.quantity * item.selected_product_ids.length 
+                          const totalPossible = isBundle
+                            ? item.selected_product_ids.length
                             : item.quantity;
                           const remainingItems = totalPossible - shippedQty;
 
@@ -1083,9 +1060,44 @@ export function OrderDetailPage() {
                           );
                         })()}
                       </td>
-                      <td className="py-4 text-sm text-neutral-900 text-right">{item.price.toLocaleString()}원</td>
+                      <td className="py-4 text-sm text-neutral-900 text-right">
+                        {(() => {
+                          const discountRate = (item as any).discountRate || 0;
+                          const unitPriceDisplay = isBundle
+                            ? Math.round(item.price / item.selected_product_ids.length)
+                            : item.price;
+                          const originalUnitPrice = isBundle
+                            ? ((item as any).originalPrice ? Math.round((item as any).originalPrice / item.selected_product_ids.length) : null)
+                            : (item as any).originalPrice;
+                          if (discountRate > 0 && originalUnitPrice && originalUnitPrice !== unitPriceDisplay) {
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="text-neutral-400 line-through text-xs">{originalUnitPrice.toLocaleString()}원</span>
+                                <span className="text-[10px] text-red-500">({discountRate}% 할인 적용)</span>
+                                <span className="font-medium text-neutral-900">{unitPriceDisplay.toLocaleString()}원</span>
+                              </div>
+                            );
+                          }
+                          return <>{unitPriceDisplay.toLocaleString()}원</>;
+                        })()}
+                      </td>
                       <td className="py-4 text-sm font-medium text-neutral-900 text-right">
-                        {(item.quantity * item.price).toLocaleString()}원
+                        {(() => {
+                          const discountRate = (item as any).discountRate || 0;
+                          const totalDisplay = isBundle ? item.price : ((item as any).totalPrice || item.quantity * item.price);
+                          const originalTotal = isBundle
+                            ? (item as any).originalPrice
+                            : ((item as any).originalPrice ? (item as any).originalPrice * item.quantity : null);
+                          if (discountRate > 0 && originalTotal && originalTotal !== totalDisplay) {
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="text-neutral-400 line-through text-xs">{Math.round(originalTotal).toLocaleString()}원</span>
+                                <span className="font-medium text-neutral-900">{Math.round(totalDisplay).toLocaleString()}원</span>
+                              </div>
+                            );
+                          }
+                          return <>{Math.round(totalDisplay).toLocaleString()}원</>;
+                        })()}
                       </td>
                     </tr>
                   );
@@ -1105,7 +1117,10 @@ export function OrderDetailPage() {
                 </td>
                 <td className="pt-4 text-right text-lg font-bold text-neutral-900">
                   {(() => {
-                    const calculatedTotal = order.orderItems?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0;
+                    const calculatedTotal = order.orderItems?.reduce((sum, item) => {
+                      const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
+                      return sum + (isBundle ? item.price : ((item as any).totalPrice || item.quantity * item.price));
+                    }, 0) || 0;
                     return calculatedTotal.toLocaleString();
                   })()}원
                 </td>
@@ -1494,6 +1509,55 @@ export function OrderDetailPage() {
           )}
         </div>
       </div>
+
+      {/* 발송 배송지 선택 모달 */}
+      {showShipAddrModal && order && pendingShipParams && (
+        <ShipAddressPickerModal
+          orderShippingInfo={order.shippingInfo || {}}
+          userId={order.userId}
+          onClose={() => {
+            setShowShipAddrModal(false);
+            setPendingShipParams(null);
+          }}
+          onConfirm={async (selectedAddr) => {
+            setShowShipAddrModal(false);
+            const { itemsToShip } = pendingShipParams;
+            setPendingShipParams(null);
+            try {
+              setIsUpdating(true);
+              toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
+              const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount, selectedAddr);
+              if (!finalTrackingNumber) {
+                toast.error('송장 번호 발급에 실패했습니다.');
+                return;
+              }
+              setTrackingNumber(finalTrackingNumber);
+              const result = await adminService.partialShipOrder({
+                orderId: order.id,
+                trackingNumber: finalTrackingNumber,
+                orderNumber: order.orderNumber,
+                items: itemsToShip,
+              });
+              const confirmedStatus = result.status as 'shipped' | 'partially_shipped';
+              toast.success(
+                result.status === 'shipped'
+                  ? '전체 발송 처리가 완료되었습니다.'
+                  : '부분 발송 처리가 완료되었습니다.'
+              );
+              setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
+              setTrackingNumber('');
+              setBoxCount(1);
+              setBundleShipIndicesMap({});
+              await loadOrder();
+              setOrder(prev => prev ? { ...prev, status: confirmedStatus } : prev);
+            } catch (e) {
+              toast.error('발송 처리에 실패했습니다.');
+            } finally {
+              setIsUpdating(false);
+            }
+          }}
+        />
+      )}
 
       {/* Refund/Cancel Modal */}
       {showCancelModal && order && (

@@ -6,7 +6,7 @@ import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
 import { paymentService } from '../services/paymentService';
-import { CartItem, Product, PaymentMethod, ShippingAddress } from '../types';
+import { CartItem, Product, PaymentMethod, ShippingAddress, User } from '../types';
 import { addressService } from '../services/addressService';
 import { ProductImage } from '../components/ui/ProductImage';
 import { CartItemCard } from '../components/CartItemCard';
@@ -48,6 +48,8 @@ export function CheckoutPage() {
   const [deliveryMemo, setDeliveryMemo] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [address, setAddress] = useState({
     recipient: '',
     phone: '',
@@ -77,16 +79,9 @@ export function CheckoutPage() {
       setCart(items);
 
       if (user) {
-        // 배송지 목록이 없으면 사업장주소를 기본배송지로 자동 등록
-        const savedAddrs = await addressService.syncFromUserProfile(user.id, {
-          name: user.name,
-          phone: user.phone,
-          mobile: user.mobile,
-          hospitalName: user.hospitalName,
-          address: user.address,
-          addressDetail: user.addressDetail,
-          zipCode: user.zipCode,
-        });
+        setUserProfile(user);
+        // 저장된 배송지 목록 로드
+        const savedAddrs = await addressService.getAddresses(user.id);
         setSavedAddresses(savedAddrs);
         const defaultAddr = savedAddrs.find(a => a.isDefault) || savedAddrs[0];
         if (defaultAddr) {
@@ -99,7 +94,7 @@ export function CheckoutPage() {
             detail: defaultAddr.addressDetail,
           });
         } else {
-          // 사업장주소도 없는 경우: 회원정보 기반 폼 채움
+          // 저장된 배송지 없으면 회원정보 주소를 폼에 채움
           setAddress({
             recipient: user.name || '',
             phone: user.phone || user.mobile || '',
@@ -184,6 +179,37 @@ export function CheckoutPage() {
     } finally {
       setIsDeleteDialogOpen(false);
       setCardToDelete(null);
+    }
+  };
+
+  /** 사업장주소를 배송지로 1회 등록 후 자동 선택 */
+  const handleRegisterProfileAddress = async () => {
+    if (!userProfile?.id || !userProfile.address) return;
+    try {
+      setSyncing(true);
+      const created = await addressService.addAddress(userProfile.id, {
+        label: userProfile.hospitalName || '사업장 주소',
+        recipient: userProfile.name || '',
+        phone: userProfile.phone || userProfile.mobile || '',
+        zipCode: userProfile.zipCode || '',
+        address: userProfile.address,
+        addressDetail: userProfile.addressDetail || '',
+        isDefault: true,
+      });
+      setSavedAddresses([created]);
+      setSelectedAddressId(created.id);
+      setAddress({
+        recipient: created.recipient,
+        phone: created.phone,
+        zipCode: created.zipCode,
+        address: created.address,
+        detail: created.addressDetail,
+      });
+      toast.success('사업장주소가 배송지로 등록되었습니다.');
+    } catch {
+      toast.error('배송지 등록에 실패했습니다.');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -365,6 +391,25 @@ export function CheckoutPage() {
                 배송지 관리 →
               </a>
             </div>
+
+            {/* 사업장주소 → 배송지 등록 배너 (저장된 배송지 없을 때만) */}
+            {savedAddresses.length === 0 && userProfile?.address && (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-100 px-4 py-3 mb-5">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-blue-900">📦 사업장주소를 배송지로 등록할까요?</p>
+                  <p className="text-xs text-blue-600 mt-0.5 truncate">
+                    {userProfile.address}{userProfile.addressDetail ? ` ${userProfile.addressDetail}` : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={handleRegisterProfileAddress}
+                  disabled={syncing}
+                  className="ml-3 flex-shrink-0 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {syncing ? '등록 중...' : '배송지로 등록'}
+                </button>
+              </div>
+            )}
 
             {/* 저장된 배송지 선택 */}
             {savedAddresses.length > 0 && (

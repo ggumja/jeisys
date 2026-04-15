@@ -119,48 +119,4 @@ export const addressService = {
 
     if (error) throw error;
   },
-
-  /**
-   * 사업장주소 → 기본 배송지 자동 동기화
-   * - shipping_addresses가 비어있는 경우에만 동작
-   * - users 테이블의 address/addressDetail/zipCode를 기본 배송지로 등록
-   * - 등록 후 전체 배송지 목록 반환
-   */
-  async syncFromUserProfile(
-    userId: string,
-    profile: {
-      name?: string;
-      phone?: string;
-      mobile?: string;
-      hospitalName?: string;
-      address?: string;
-      addressDetail?: string;
-      zipCode?: string;
-    }
-  ): Promise<ShippingAddress[]> {
-    // 이미 배송지가 있으면 아무것도 하지 않고 목록 반환
-    const existing = await this.getAddresses(userId);
-    if (existing.length > 0) return existing;
-
-    // 사업장주소가 없으면 빈 목록 반환
-    if (!profile.address) return [];
-
-    const { data, error } = await supabase
-      .from('shipping_addresses')
-      .insert({
-        user_id: userId,
-        label: profile.hospitalName || '사업장 주소',
-        recipient: profile.name || '',
-        phone: profile.phone || profile.mobile || '',
-        zip_code: profile.zipCode || '',
-        address: profile.address,
-        address_detail: profile.addressDetail || '',
-        is_default: true,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return [fromRow(data)];
-  },
 };

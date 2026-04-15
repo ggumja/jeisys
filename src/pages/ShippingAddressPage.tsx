@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Plus, Pencil, Trash2, Star, Check, X } from 'lucide-react';
-import { ShippingAddress } from '../types';
+import { MapPin, Plus, Pencil, Trash2, Star, Check, X, Building2 } from 'lucide-react';
+import { ShippingAddress, User } from '../types';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { toast } from 'sonner';
@@ -29,6 +29,8 @@ export function ShippingAddressPage() {
   const [addresses, setAddresses] = useState<ShippingAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   // 모달 상태
   const [showModal, setShowModal] = useState(false);
@@ -49,21 +51,36 @@ export function ShippingAddressPage() {
       const user = await authService.getCurrentUser();
       if (!user) return;
       setUserId(user.id);
-      // 배송지 목록이 없으면 사업장주소를 기본배송지로 자동 등록
-      const list = await addressService.syncFromUserProfile(user.id, {
-        name: user.name,
-        phone: user.phone,
-        mobile: user.mobile,
-        hospitalName: user.hospitalName,
-        address: user.address,
-        addressDetail: user.addressDetail,
-        zipCode: user.zipCode,
-      });
+      setUserProfile(user);
+      const list = await addressService.getAddresses(user.id);
       setAddresses(list);
     } catch (e) {
       toast.error('배송지 목록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /** 사업장주소를 기본 배송지로 1회 등록 */
+  const handleRegisterProfileAddress = async () => {
+    if (!userId || !userProfile?.address) return;
+    try {
+      setSyncing(true);
+      const created = await addressService.addAddress(userId, {
+        label: userProfile.hospitalName || '사업장 주소',
+        recipient: userProfile.name || '',
+        phone: userProfile.phone || userProfile.mobile || '',
+        zipCode: userProfile.zipCode || '',
+        address: userProfile.address,
+        addressDetail: userProfile.addressDetail || '',
+        isDefault: true,
+      });
+      setAddresses([created]);
+      toast.success('사업장주소가 기본 배송지로 등록되었습니다.');
+    } catch {
+      toast.error('등록에 실패했습니다.');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -155,6 +172,12 @@ export function ShippingAddressPage() {
     }
   };
 
+  // 사업장주소 등록 배너 노출 조건
+  const showProfileBanner =
+    !loading &&
+    addresses.length === 0 &&
+    !!userProfile?.address;
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -171,6 +194,28 @@ export function ShippingAddressPage() {
           배송지 추가
         </button>
       </div>
+
+      {/* 사업장주소 → 기본배송지 등록 배너 */}
+      {showProfileBanner && (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-100 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-blue-900">회원정보의 사업장주소를 기본 배송지로 등록하시겠습니까?</p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                {userProfile?.address}{userProfile?.addressDetail ? ` ${userProfile.addressDetail}` : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleRegisterProfileAddress}
+            disabled={syncing}
+            className="ml-4 flex-shrink-0 px-4 py-2 bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {syncing ? '등록 중...' : '기본 배송지로 등록'}
+          </button>
+        </div>
+      )}
 
       {/* 목록 */}
       {loading ? (
@@ -255,7 +300,6 @@ export function ShippingAddressPage() {
             className="relative bg-white w-full max-w-lg mx-4 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            {/* 모달 헤더 */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
               <h3 className="text-base font-black text-neutral-900">
                 {editingId ? '배송지 수정' : '새 배송지 추가'}
@@ -265,9 +309,7 @@ export function ShippingAddressPage() {
               </button>
             </div>
 
-            {/* 모달 바디 */}
             <div className="px-6 py-5 space-y-4">
-              {/* 배송지명 */}
               <div>
                 <label className="block text-xs font-bold text-neutral-500 uppercase mb-1.5">배송지명</label>
                 <input
@@ -279,7 +321,6 @@ export function ShippingAddressPage() {
                 />
               </div>
 
-              {/* 수령인 / 연락처 */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-neutral-500 uppercase mb-1.5">수령인</label>
@@ -302,7 +343,6 @@ export function ShippingAddressPage() {
                 </div>
               </div>
 
-              {/* 주소 */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-neutral-500 uppercase mb-1.5">주소</label>
                 <div className="flex gap-2">
@@ -337,7 +377,6 @@ export function ShippingAddressPage() {
                 />
               </div>
 
-              {/* 기본 배송지 체크 */}
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <div
                   className={`w-5 h-5 border-2 flex items-center justify-center transition-colors ${
@@ -351,7 +390,6 @@ export function ShippingAddressPage() {
               </label>
             </div>
 
-            {/* 모달 푸터 */}
             <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
               <button
                 onClick={() => setShowModal(false)}

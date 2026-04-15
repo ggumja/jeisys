@@ -337,13 +337,24 @@ export function OrdersPage() {
                             </td>
                           </tr>
                         ];
-                        // 번들 구성 하위 행
-                        (item.selectedProductIds || []).forEach((id, idx) => {
+                        // 번들 구성 하위 행 — product ID별 그룹화
+                        const bundleIdList: string[] = item.selectedProductIds || [];
+                        const buyQty: number = item.product?.buyQuantity ?? 0;
+
+                        // 그룹화: { [productId]: { count, isPaid } }
+                        // buyQty = 0 → 전체 구성(paid), buyQty > 0 → 앞 buyQty개만 paid
+                        const grouped: Record<string, { count: number; isPaid: boolean }> = {};
+                        bundleIdList.forEach((id, idx) => {
+                          const isPaid = buyQty === 0 || idx < buyQty;
+                          if (!grouped[id]) grouped[id] = { count: 0, isPaid };
+                          grouped[id].count += 1;
+                        });
+
+                        Object.entries(grouped).forEach(([id, { count, isPaid }], gIdx) => {
                           const subProd = subProductsMap[id];
-                          const isPaid = idx < (item.product?.buyQuantity || 0);
                           const subPrice = subProd?.price;
                           rows.push(
-                            <tr key={`bundle-${index}-${idx}`} className={isPaid ? 'bg-neutral-50' : 'bg-blue-50'}>
+                            <tr key={`bundle-${index}-${gIdx}`} className={isPaid ? 'bg-neutral-50' : 'bg-blue-50'}>
                               <td className="px-3 py-2"></td>
                               <td className={`px-3 py-2 text-[11px] ${isPaid ? 'text-neutral-600' : 'text-blue-700'}`}>
                                 <div className="flex items-center gap-1.5">
@@ -354,13 +365,13 @@ export function OrdersPage() {
                                   }
                                 </div>
                               </td>
-                              <td className={`px-3 py-2 text-center font-bold text-[11px] ${isPaid ? 'text-neutral-600' : 'text-blue-600'}`}>{item.quantity}</td>
+                              <td className={`px-3 py-2 text-center font-bold text-[11px] ${isPaid ? 'text-neutral-600' : 'text-blue-600'}`}>{count}</td>
                               <td className={`px-3 py-2 text-right text-[11px] ${isPaid ? 'text-neutral-500' : 'text-neutral-400'}`}>
                                 {isPaid && subPrice ? `₩${subPrice.toLocaleString()}` : '-'}
                               </td>
                               <td className="px-3 py-2 text-right text-[11px]">
                                 {isPaid && subPrice
-                                  ? <span className="font-bold text-neutral-800">₩{(subPrice * item.quantity).toLocaleString()}</span>
+                                  ? <span className="font-bold text-neutral-800">₩{(subPrice * count).toLocaleString()}</span>
                                   : <span className="text-neutral-400">-</span>
                                 }
                               </td>
@@ -368,8 +379,11 @@ export function OrdersPage() {
                           );
                         });
                         // 추가 증정 상품 행 (bonus items)
-                        const bundleCount = (item.selectedProductIds || []).length;
+                        // ratio: ceil(주문수량 × percentage%), fixed: quantity × 주문수량
                         (item.bonusItems || []).forEach((bonus, bIdx) => {
+                          const totalBonusQty = bonus.calculationMethod === 'ratio'
+                            ? Math.ceil(item.quantity * (bonus.percentage || 0) / 100)
+                            : (bonus.quantity ?? 1) * item.quantity;
                           rows.push(
                             <tr key={`bonus-${index}-${bIdx}`} className="bg-amber-50">
                               <td className="px-3 py-2"></td>
@@ -379,22 +393,209 @@ export function OrdersPage() {
                                   <span className="px-1 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold rounded">증정</span>
                                 </div>
                               </td>
-                              <td className="px-3 py-2 text-center font-bold text-amber-800 text-[11px]">{bonus.quantity}</td>
+                              <td className="px-3 py-2 text-center font-bold text-amber-800 text-[11px]">{totalBonusQty}</td>
                               <td className="px-3 py-2 text-right text-[11px] text-neutral-400">-</td>
                               <td className="px-3 py-2 text-right text-[11px] text-neutral-400">-</td>
                             </tr>
                           );
                         });
+
+                        // ── 일반 상품 소계 행 ──
+                        if (!isBundle) {
+                          const lineTotal = item.quantity * unitPrice;
+                          const itemDiscRate = (item as any).discountRate || 0;
+                          const itemOrigPrice = (item as any).originalPrice;
+                          const origLineTotal = itemOrigPrice
+                            ? itemOrigPrice * item.quantity
+                            : lineTotal;
+                          const hasItemDiscount = itemDiscRate > 0 && origLineTotal > lineTotal;
+
+                          if (hasItemDiscount) {
+                            rows.push(
+                              <tr key={`reg-orig-${index}`} className="bg-neutral-50 border-t border-neutral-200">
+                                <td className="px-3 py-1"></td>
+                                <td colSpan={2} className="px-3 py-1 text-right text-[11px] text-neutral-400">정상가</td>
+                                <td></td>
+                                <td className="px-3 py-1 text-right text-[11px] text-neutral-400">
+                                  ₩{Math.round(origLineTotal).toLocaleString()}원
+                                </td>
+                              </tr>
+                            );
+                            rows.push(
+                              <tr key={`reg-disc-${index}`} className="bg-neutral-50">
+                                <td className="px-3 py-1"></td>
+                                <td colSpan={2} className="px-3 py-1 text-right text-[11px] text-red-500 font-medium">{itemDiscRate}% 할인</td>
+                                <td></td>
+                                <td className="px-3 py-1 text-right text-[11px] text-red-500 font-bold">
+                                  -₩{Math.round(origLineTotal - lineTotal).toLocaleString()}원
+                                </td>
+                              </tr>
+                            );
+                          }
+                          rows.push(
+                            <tr key={`reg-subtotal-${index}`} className="bg-neutral-100 border-t border-neutral-200">
+                              <td className="px-3 py-1.5"></td>
+                              <td colSpan={2} className="px-3 py-1.5 text-right text-[11px] font-bold text-neutral-700">소계 금액</td>
+                              <td></td>
+                              <td className="px-3 py-1.5 text-right text-[11px] font-black text-neutral-900">
+                                ₩{Math.round(lineTotal).toLocaleString()}원
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        // 번들: 소계 행 추가 (3줄 레이아웃)
+                        if (isBundle) {
+                          const bundleDiscountRate = (item as any).discountRate || 0;
+
+                          // ① 구성품 합산 = 가장 신뢰도 높은 정상가 기준
+                          let paidSubTotal = 0;
+                          Object.entries(grouped).forEach(([id, { count, isPaid }]) => {
+                            const subP = subProductsMap[id];
+                            if (isPaid && subP?.price) paidSubTotal += subP.price * count;
+                          });
+
+                          // ② 정상가: paidSubTotal > 0 이면 우선, 아니면 DB originalPrice
+                          const bundleOriginalPrice = (item as any).originalPrice;
+                          const displayOriginal =
+                            paidSubTotal > 0 ? paidSubTotal
+                            : (bundleOriginalPrice ?? null);
+
+                          // ③ 할인율: DB > 역산 순
+                          const displayRate = bundleDiscountRate > 0
+                            ? bundleDiscountRate
+                            : (displayOriginal && displayOriginal > item.price
+                              ? Math.round((1 - item.price / displayOriginal) * 100)
+                              : 0);
+
+                          // ④ 소계금액: displayOriginal × (1 - rate%) 로 정확하게 역산
+                          const effectiveBundleTotal = (displayOriginal && displayRate > 0)
+                            ? Math.round(displayOriginal * (1 - displayRate / 100))
+                            : (paidSubTotal > 0 ? paidSubTotal : item.price);
+
+                          const discountAmt = displayOriginal && displayRate > 0
+                            ? Math.round(displayOriginal - effectiveBundleTotal)
+                            : 0;
+
+                          if (displayRate > 0 && displayOriginal) {
+                            // 3줄: 정상가 / 할인 / 소계금액
+                            rows.push(
+                              <tr key={`bundle-orig-${index}`} className="bg-neutral-50 border-t border-neutral-200">
+                                <td className="px-3 py-1"></td>
+                                <td colSpan={2} className="px-3 py-1 text-right text-[11px] text-neutral-400">정상가</td>
+                                <td></td>
+                                <td className="px-3 py-1 text-right text-[11px] text-neutral-400">
+                                  ₩{Math.round(displayOriginal).toLocaleString()}원
+                                </td>
+                              </tr>
+                            );
+                            rows.push(
+                              <tr key={`bundle-disc-${index}`} className="bg-neutral-50">
+                                <td className="px-3 py-1"></td>
+                                <td colSpan={2} className="px-3 py-1 text-right text-[11px] text-red-500 font-medium">{displayRate}% 할인</td>
+                                <td></td>
+                                <td className="px-3 py-1 text-right text-[11px] text-red-500 font-bold">
+                                  -₩{discountAmt.toLocaleString()}원
+                                </td>
+                              </tr>
+                            );
+                            rows.push(
+                              <tr key={`bundle-subtotal-${index}`} className="bg-neutral-100 border-b border-neutral-200">
+                                <td className="px-3 py-1.5"></td>
+                                <td colSpan={2} className="px-3 py-1.5 text-right text-[11px] font-bold text-neutral-700">소계 금액</td>
+                                <td></td>
+                                <td className="px-3 py-1.5 text-right text-[11px] font-black text-neutral-900">
+                                  ₩{effectiveBundleTotal.toLocaleString()}원
+                                </td>
+                              </tr>
+                            );
+                          } else {
+                            // 할인 없음: 단일 행
+                            rows.push(
+                              <tr key={`bundle-subtotal-${index}`} className="bg-neutral-100 border-t border-neutral-200">
+                                <td className="px-3 py-1.5"></td>
+                                <td colSpan={2} className="px-3 py-1.5 text-right text-[11px] text-neutral-500 font-medium">번들 소계</td>
+                                <td className="px-3 py-1.5 text-right text-[11px] text-neutral-400">-</td>
+                                <td className="px-3 py-1.5 text-right text-[11px] font-bold text-neutral-800">
+                                  ₩{effectiveBundleTotal.toLocaleString()}원
+                                </td>
+                              </tr>
+                            );
+                          }
+                        }
+
                         return rows;
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-neutral-50 border-t-2 border-neutral-200">
-                        <td colSpan={4} className="px-3 py-3 text-right text-sm font-bold text-neutral-900">합계금액</td>
-                        <td className="px-3 py-3 text-right text-base font-black text-neutral-900">
-                          ₩{order.items.reduce((sum, it) => sum + it.quantity * (it.price ?? it.product?.price ?? 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
+                      {(() => {
+                        // ── 번들 정상가 역산 헬퍼 (subProductsMap 기준) ──
+                        const getBundlePaidSubTotal = (it: any): number => {
+                          const selectedIds: string[] = it.selectedProductIds || [];
+                          if (selectedIds.length === 0) return 0;
+                          const buyQty: number = it.product?.buyQuantity ?? 0;
+                          let total = 0;
+                          selectedIds.forEach((id, idx) => {
+                            const isPaid = buyQty === 0 || idx < buyQty;
+                            const subP = subProductsMap[id];
+                            if (isPaid && subP?.price) total += subP.price;
+                          });
+                          return total;
+                        };
+
+                        // 할인 적용 후 실 결제액 (per item)
+                        const getLineTotal = (it: any): number => {
+                          const isBundleItem = (it.selectedProductIds || []).length > 0;
+                          if (isBundleItem) {
+                            const sub = getBundlePaidSubTotal(it);
+                            const rate = it.discountRate || 0;
+                            return sub > 0
+                              ? Math.round(sub * (1 - rate / 100))
+                              : it.price; // fallback to DB value
+                          }
+                          return it.totalPrice ?? (it.quantity * (it.price ?? it.product?.price ?? 0));
+                        };
+
+                        // 정상가 (할인 전)
+                        const getOriginalTotal = (it: any): number => {
+                          const isBundleItem = (it.selectedProductIds || []).length > 0;
+                          if (isBundleItem) {
+                            const sub = getBundlePaidSubTotal(it);
+                            return sub > 0 ? sub : (it.originalPrice ?? it.price);
+                          }
+                          const orig = it.originalPrice;
+                          return orig ? orig * it.quantity
+                            : (it.totalPrice ?? (it.quantity * (it.price ?? it.product?.price ?? 0)));
+                        };
+
+                        const paidTotal    = order.items.reduce((sum, it) => sum + getLineTotal(it), 0);
+                        const originalTotal = order.items.reduce((sum, it) => sum + getOriginalTotal(it), 0);
+                        const discountTotal = originalTotal - paidTotal;
+                        const hasDiscount = discountTotal > 0.5; // 부동소수 오차 허용
+
+                        return (
+                          <>
+                            {hasDiscount && (
+                              <>
+                                <tr className="border-t border-neutral-200">
+                                  <td colSpan={4} className="px-3 py-2 text-right text-xs text-neutral-500">상품금액 소계</td>
+                                  <td className="px-3 py-2 text-right text-xs text-neutral-500">₩{Math.round(originalTotal).toLocaleString()}</td>
+                                </tr>
+                                <tr>
+                                  <td colSpan={4} className="px-3 py-2 text-right text-xs text-red-600 font-medium">할인금액</td>
+                                  <td className="px-3 py-2 text-right text-xs text-red-600 font-bold">-₩{Math.round(discountTotal).toLocaleString()}</td>
+                                </tr>
+                              </>
+                            )}
+                            <tr className="bg-neutral-50 border-t-2 border-neutral-200">
+                              <td colSpan={4} className="px-3 py-3 text-right text-sm font-bold text-neutral-900">합계금액</td>
+                              <td className="px-3 py-3 text-right text-base font-black text-neutral-900">
+                                ₩{Math.round(paidTotal).toLocaleString()}
+                              </td>
+                            </tr>
+                          </>
+                        );
+                      })()}
                     </tfoot>
                   </table>
                   {order.items.length > 2 && (
@@ -521,7 +722,29 @@ export function OrdersPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-neutral-500 mb-0.5">총 결제 금액</p>
-                  <p className="text-xl font-bold tracking-tight text-neutral-900">₩{order.items.reduce((sum, it) => sum + it.quantity * (it.price ?? it.product?.price ?? 0), 0).toLocaleString()}</p>
+                  <p className="text-xl font-bold tracking-tight text-neutral-900">
+                    {(() => {
+                      const total = order.items.reduce((sum, it) => {
+                        const selectedIds: string[] = it.selectedProductIds || [];
+                        if (selectedIds.length > 0) {
+                          // 번들: subProductsMap 기준 paid 합산 후 할인율 적용
+                          const buyQty: number = it.product?.buyQuantity ?? 0;
+                          let paidSub = 0;
+                          selectedIds.forEach((id, idx) => {
+                            const isPaid = buyQty === 0 || idx < buyQty;
+                            const subP = subProductsMap[id];
+                            if (isPaid && subP?.price) paidSub += subP.price;
+                          });
+                          const rate = (it as any).discountRate || 0;
+                          return sum + (paidSub > 0
+                            ? Math.round(paidSub * (1 - rate / 100))
+                            : it.price);
+                        }
+                        return sum + ((it as any).totalPrice ?? (it.quantity * (it.price ?? it.product?.price ?? 0)));
+                      }, 0);
+                      return `₩${Math.round(total).toLocaleString()}`;
+                    })()}
+                  </p>
                 </div>
               </div>
             </div>

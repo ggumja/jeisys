@@ -30,7 +30,7 @@ export function CartItemCard({
   // ── 번들 구성 계산 ────────────────────────────────────────
   const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
   const relevantBonus = (product.bonusItems || []).filter(
-    (bi) => bi.optionId === (item.optionId || null)
+    (bi) => !bi.optionId || bi.optionId === item.optionId
   );
 
   const buyQty = product.buyQuantity || 0;

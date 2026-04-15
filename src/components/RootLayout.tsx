@@ -5,6 +5,7 @@ import { storage } from '../lib/storage';
 import { cartService, proxyOrderService } from '../services/cartService';
 import { FloatingButtons } from './FloatingButtons';
 import { ModalProvider } from '../context/ModalContext';
+import { ScrollToTop } from './ScrollToTop';
 import logoImage from '@/assets/4591d8760fc4bee033f8f40ab29f57f1554d66ce.png';
 
 
@@ -60,6 +61,7 @@ function RootLayoutContent() {
 
   return (
     <div className="min-h-screen bg-white flex justify-center">
+      <ScrollToTop />
       <div 
         className="w-full bg-white flex flex-col min-h-screen relative"
         style={{ maxWidth: '1440px', margin: '0 auto' }}

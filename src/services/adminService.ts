@@ -116,7 +116,7 @@ export const adminService = {
             orderNumber: order.order_number,
             customerName: order.user?.name || 'Unknown',
             hospitalName: order.user?.hospital_name || '',
-            orderDate: new Date(order.ordered_at).toISOString().split('T')[0],
+            orderDate: new Date(order.ordered_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             totalAmount: Number(order.total_amount),
             paymentMethod: order.payment_method === 'virtual' ? '가상계좌결제' :
                 order.payment_method === 'credit' ? '신용카드결제' :
@@ -242,10 +242,11 @@ export const adminService = {
 
         return {
             id: orderData.id,
+            userId: orderData.user_id,
             orderNumber: orderData.order_number,
             customerName: orderData.user?.name || 'Unknown',
             hospitalName: orderData.user?.hospital_name || '',
-            orderDate: new Date(orderData.ordered_at).toISOString().split('T')[0],
+            orderDate: new Date(orderData.ordered_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             totalAmount: Number(orderData.total_amount),
             status: orderData.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: itemsData?.length || 0,
@@ -258,6 +259,9 @@ export const adminService = {
                 shippedQuantity: item.shipped_quantity || 0,
                 stock: item.product?.stock ?? null,
                 price: Number(item.unit_price),
+                originalPrice: item.original_unit_price ? Number(item.original_unit_price) : null,
+                discountRate: Number(item.discount_rate || 0),
+                totalPrice: Number(item.total_price || (item.unit_price * item.quantity)),
                 sku: item.product?.sku,
                 selected_product_ids: item.selected_product_ids,
                 product: item.product,
@@ -328,7 +332,13 @@ export const adminService = {
             } : undefined
         };
     },
-    async registerLogenInvoice(order: any, boxCount: number = 1) {
+    async registerLogenInvoice(order: any, boxCount: number = 1, overrideAddress?: {
+        recipient?: string;
+        phone: string;
+        zipCode: string;
+        address: string;
+        addressDetail?: string;
+    }) {
         // 로젠택배 테스트 연동업체코드 및 거래처코드 사용
         const userId = "10358007";
         const custCd = "20179999";
@@ -356,11 +366,11 @@ export const adminService = {
                 sndTelNo: "02-1234-5678",
                 sndCustAddr1: "서울 강남구 테헤란로 123",
                 sndCustAddr2: "제이시스타워",
-                rcvCustNm: order.customerName || order.user?.name || "고객명",
-                rcvTelNo: order.shippingInfo?.phone || order.user?.phone || "010-0000-0000",
-                rcvZipCd: order.shippingInfo?.zipCode || order.user?.zip_code || "06236",
-                rcvCustAddr1: order.shippingInfo?.address || order.user?.address || "수하인 주소",
-                rcvCustAddr2: order.shippingInfo?.addressDetail || order.user?.address_detail || "",
+                rcvCustNm: overrideAddress?.recipient || order.customerName || order.user?.name || "고객명",
+                rcvTelNo: overrideAddress?.phone || order.shippingInfo?.phone || order.user?.phone || "010-0000-0000",
+                rcvZipCd: overrideAddress?.zipCode || order.shippingInfo?.zipCode || order.user?.zip_code || "06236",
+                rcvCustAddr1: overrideAddress?.address || order.shippingInfo?.address || order.user?.address || "수하인 주소",
+                rcvCustAddr2: overrideAddress?.addressDetail || order.shippingInfo?.addressDetail || order.user?.address_detail || "",
                 fareTy,
                 qty: 1, // 각 박스의 단위
                 rcvBranCd,
@@ -424,6 +434,30 @@ export const adminService = {
             }
             return fallbackSlipNos.join(", ");
         }
+    },
+
+    /** 주문 고객의 배송지 목록 조회 (어드민용) */
+    async getOrderShippingAddresses(userId: string) {
+        const { data, error } = await supabase
+            .from('shipping_addresses')
+            .select('*')
+            .eq('user_id', userId)
+            .order('is_default', { ascending: false })
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return (data || []).map((row: any) => ({
+            id: row.id,
+            userId: row.user_id,
+            label: row.label,
+            recipient: row.recipient,
+            phone: row.phone,
+            zipCode: row.zip_code,
+            address: row.address,
+            addressDetail: row.address_detail || '',
+            isDefault: row.is_default,
+            createdAt: row.created_at,
+        }));
     },
 
     async updateOrderStatus(orderId: string, status: string, trackingNumber?: string) {

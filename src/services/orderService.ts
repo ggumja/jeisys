@@ -82,6 +82,8 @@ export const orderService = {
                     .select(`
                         parent_product_id,
                         quantity,
+                        calculation_method,
+                        percentage,
                         product:products!bonus_product_id(id, name)
                     `)
                     .in('parent_product_id', Array.from(productIds));
@@ -92,6 +94,8 @@ export const orderService = {
                         bonusMap[b.parent_product_id].push({
                             productName: b.product?.name || '',
                             quantity: b.quantity || 1,
+                            calculationMethod: b.calculation_method || 'fixed',
+                            percentage: b.percentage || 0,
                         });
                     });
                 }
@@ -134,7 +138,7 @@ export const orderService = {
         return orders.map((order: any) => ({
             id: order.id,
             orderNumber: order.order_number,
-            date: new Date(order.ordered_at).toLocaleDateString('ko-KR'),
+            date: new Date(order.ordered_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             status: order.status,
             totalAmount: parseFloat(order.total_amount),
             paymentMethod: order.payment_method,
@@ -166,6 +170,9 @@ export const orderService = {
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),
+                totalPrice: parseFloat(item.total_price || item.unit_price),
+                originalPrice: item.original_unit_price ? parseFloat(item.original_unit_price) : null,
+                discountRate: parseFloat(item.discount_rate || '0'),
                 shippedQuantity: item.shipped_quantity ?? undefined,
                 selectedProductIds: item.selected_product_ids,
                 bonusItems: bonusMap[item.product_id] || [],
@@ -211,7 +218,7 @@ export const orderService = {
         return {
             id: data.id,
             orderNumber: data.order_number,
-            date: new Date(data.ordered_at).toLocaleDateString('ko-KR'),
+            date: new Date(data.ordered_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             status: data.status,
             totalAmount: parseFloat(data.total_amount),
             paymentMethod: data.payment_method,
@@ -243,6 +250,9 @@ export const orderService = {
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),
+                totalPrice: parseFloat(item.total_price || item.unit_price),
+                originalPrice: item.original_unit_price ? parseFloat(item.original_unit_price) : null,
+                discountRate: parseFloat(item.discount_rate || '0'),
                 shippedQuantity: item.shipped_quantity ?? undefined,
                 selectedProductIds: item.selected_product_ids
             })) || []
@@ -380,37 +390,107 @@ export const orderService = {
 
         if (prodError) throw prodError;
 
+        // 옵션 할인율 조회 (product_quantity_options)
+        const allOptionIds = items.map(i => (i as any).optionId).filter(Boolean);
+        let optionsMap: Record<string, { discount_rate: number; price: number | null; quantity: number }> = {};
+        if (allOptionIds.length > 0) {
+            const { data: optData } = await supabase
+                .from('product_quantity_options')
+                .select('id, discount_rate, price, quantity')
+                .in('id', allOptionIds);
+            (optData || []).forEach((o: any) => {
+                optionsMap[o.id] = { discount_rate: Number(o.discount_rate || 0), price: o.price, quantity: o.quantity || 1 };
+            });
+        }
+
         const orderItems = items.map(item => {
             const product = products?.find(p => p.id === item.productId);
             let unitPrice = 0;
+            let listPrice = 0;
 
-            if (product?.is_promotion && item.selectedProductIds) {
-                // Promotion Bundle: Price is sum of paid constitutive items
-                const buyQty = product.buy_quantity || 0;
-                const paidItemIds = item.selectedProductIds.slice(0, buyQty);
-                unitPrice = paidItemIds.reduce((sum, id) => {
+            const isBundle = !!(item.selectedProductIds && item.selectedProductIds.length > 0);
+            const opt = optionsMap[(item as any).optionId];
+
+            if (isBundle) {
+                // ─── 번들 상품 ───
+                // unit_price = 1세트 전체 결제금액 (per-unit 아님)
+                const buyQty = product?.buy_quantity || 0;
+                const paidItemIds = buyQty > 0
+                    ? item.selectedProductIds!.slice(0, buyQty)
+                    : item.selectedProductIds!;
+
+                const paidSubTotal = paidItemIds.reduce((sum, id) => {
                     const subProd = products?.find(p => p.id === id);
                     return sum + (subProd?.price || 0);
                 }, 0);
+                const allSubTotal = item.selectedProductIds!.reduce((sum, id) => {
+                    const subProd = products?.find(p => p.id === id);
+                    return sum + (subProd?.price || 0);
+                }, 0);
+
+                if (paidSubTotal > 0) {
+                    // 구성품 가격 합산 사용
+                    unitPrice = paidSubTotal;
+                    listPrice = allSubTotal > paidSubTotal ? allSubTotal : paidSubTotal;
+                } else {
+                    // fallback: product.price × opt.quantity 또는 product.price
+                    const optQty = opt?.quantity || 1;
+                    const totalBase = (opt?.price && opt.price > 0)
+                        ? opt.price
+                        : (product?.price || 0) * optQty;
+                    listPrice = totalBase;
+                    unitPrice = totalBase;
+                }
+
+                // 옵션 할인율 적용 (set 전체에 적용, ÷3qty 하지 않음)
+                if (opt && opt.discount_rate > 0) {
+                    listPrice = listPrice || unitPrice;
+                    unitPrice = Math.round(unitPrice * (1 - opt.discount_rate / 100));
+                }
+
             } else {
-                // Regular Product
-                unitPrice = product?.price || 0;
-                if (product && product.product_pricing_tiers && product.product_pricing_tiers.length > 0) {
-                    const tiers = [...product.product_pricing_tiers].sort((a: any, b: any) => b.min_quantity - a.min_quantity);
-                    const tier = tiers.find((t: any) => item.quantity >= t.min_quantity);
-                    if (tier) unitPrice = tier.unit_price;
+                // ─── 일반 상품 ───
+                if (opt) {
+                    // 옵션 선택 시: per-unit 가격으로 저장
+                    const baseQty = opt.quantity || 1;
+                    const totalBase = (opt.price && opt.price > 0)
+                        ? opt.price
+                        : (product?.price || 0) * baseQty;
+                    listPrice = Math.round(totalBase / baseQty);          // per-unit 정가
+                    unitPrice = Math.round(listPrice * (1 - opt.discount_rate / 100)); // per-unit 할인가
+                } else {
+                    listPrice = product?.price || 0;
+                    unitPrice = listPrice;
+                    // 구간 할인 적용
+                    if (product?.product_pricing_tiers && product.product_pricing_tiers.length > 0) {
+                        const tiers = [...product.product_pricing_tiers].sort((a: any, b: any) => b.min_quantity - a.min_quantity);
+                        const tier = tiers.find((t: any) => item.quantity >= t.min_quantity);
+                        if (tier) unitPrice = tier.unit_price;
+                    }
                 }
             }
 
-            const discount = item.isSubscription ? 0.95 : 1;
-            const finalUnitPrice = unitPrice * discount;
+            const subscriptionDiscount = item.isSubscription ? 0.95 : 1;
+            const finalUnitPrice = unitPrice * subscriptionDiscount;
+            // 번들: 정가에도 구독 할인 미적용된 원본 사용
+            const finalListPrice = isBundle ? listPrice : listPrice;
+
+            // 총 할인율
+            const discountRate = finalListPrice > 0
+                ? Math.round((1 - finalUnitPrice / finalListPrice) * 100 * 10) / 10
+                : 0;
+
+            // 번들: total_price = unit_price(= 세트 전체 가격)  /  일반: total_price = unit_price × 수량
+            const totalPrice = isBundle ? finalUnitPrice : finalUnitPrice * item.quantity;
 
             return {
                 order_id: order.id,
                 product_id: item.productId,
                 quantity: item.quantity,
                 unit_price: finalUnitPrice,
-                total_price: finalUnitPrice * item.quantity,
+                total_price: totalPrice,
+                original_unit_price: finalListPrice || null,
+                discount_rate: discountRate,
                 selected_product_ids: item.selectedProductIds
             };
         });

@@ -212,7 +212,7 @@ export function CartPage() {
       }).join('');
 
       // 보너스 증정 행 (product.bonusItems)
-      const relevantBonus = (product.bonusItems || []).filter(bi => bi.optionId === (item.optionId || null));
+      const relevantBonus = (product.bonusItems || []).filter(bi => (bi.optionId ?? null) === (item.optionId ?? null));
       const bonusRowsHtml = relevantBonus.map(bi => {
         const qty = bi.calculationMethod === 'ratio'
           ? Math.ceil(item.quantity * (bi.percentage || 0) / 100)
