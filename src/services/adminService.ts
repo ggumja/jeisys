@@ -798,12 +798,56 @@ export const adminService = {
                 role: user.role,
                 region: user.region,
                 hospitalEmail: user.hospital_email,
-                taxEmail: user.tax_email
+                taxEmail: user.tax_email,
+                memberType: user.member_type || null
             };
         });
 
         return result;
     },
+
+    // ── 회원 분류 타입 관련 ──────────────────────────────────────
+    async getMemberTypes() {
+        const { data, error } = await supabase
+            .from('member_types')
+            .select('*')
+            .order('sort_order', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    },
+
+    async createMemberType(name: string, color: string = '#6B7280') {
+        const { data: existing } = await supabase
+            .from('member_types')
+            .select('sort_order')
+            .order('sort_order', { ascending: false })
+            .limit(1)
+            .single();
+        const nextOrder = ((existing as any)?.sort_order || 0) + 1;
+        const { data, error } = await supabase
+            .from('member_types')
+            .insert({ name, color, sort_order: nextOrder })
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
+    async deleteMemberType(id: string) {
+        // 해당 타입을 사용하는 users를 NULL로 초기화
+        await supabase.from('users').update({ member_type: null }).eq('member_type', id);
+        const { error } = await supabase.from('member_types').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    async updateUserMemberType(userId: string, memberType: string | null) {
+        const { error } = await supabase
+            .from('users')
+            .update({ member_type: memberType })
+            .eq('id', userId);
+        if (error) throw error;
+    },
+    // ──────────────────────────────────────────────────────────────
 
     async getUserEquipments(userId: string) {
         const { data, error } = await supabase

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight, Tag, Plus, Trash2 } from 'lucide-react';
+import { adminService } from '../../services/adminService';
+import { toast } from 'sonner';
+import { useModal } from '../../context/ModalContext';
 import { shopSettingsService } from '../../services/shopSettingsService';
 
-type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'notification';
+type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'member_type' | 'notification';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'delivery', label: '배송 정책', icon: Truck },
@@ -11,6 +14,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'bank', label: '입금 계좌', icon: CreditCard },
   { id: 'credit', label: '적립금', icon: Star },
   { id: 'grade', label: '회원 등급', icon: Award },
+  { id: 'member_type', label: '회원 분류', icon: Tag },
   { id: 'notification', label: '알림 설정', icon: Bell },
 ];
 
@@ -70,7 +74,8 @@ const TAB_FIELDS: Record<TabId, FieldDef[]> = {
     { key: 'grade_silver_label', label: 'Silver 등급 표시명', type: 'text' },
     { key: 'grade_silver_threshold', label: 'Silver 기준 연간 구매액', type: 'number', suffix: '원' },
   ],
-  // notification tab은 별도 렌더링
+  // notification, member_type tab은 별도 렌더링
+  member_type: [],
   notification: [],
 };
 
@@ -138,6 +143,12 @@ const SMS_CUST_MEMBER: NotificationSection = {
   ],
 };
 
+const PRESET_COLORS = [
+  '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6',
+  '#EC4899', '#EF4444', '#14B8A6', '#F97316',
+  '#6366F1', '#64748B',
+];
+
 // 숫자 포맷
 const fmt = (v: string) => {
   const n = Number(v);
@@ -152,11 +163,44 @@ export function ShopSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // ── 회원 분류 관련
+  const { confirm: globalConfirm } = useModal();
+  interface MemberTypeItem { id: string; name: string; color: string; sort_order: number; }
+  const [memberTypes, setMemberTypes] = useState<MemberTypeItem[]>([]);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeColor, setNewTypeColor] = useState(PRESET_COLORS[0]);
+  const [isAddingType, setIsAddingType] = useState(false);
+
+  const loadMemberTypes = async () => {
+    try { setMemberTypes((await adminService.getMemberTypes()) as MemberTypeItem[]); } catch {}
+  };
+  const handleCreateType = async () => {
+    if (!newTypeName.trim()) { toast.error('분류명을 입력해주세요.'); return; }
+    setIsAddingType(true);
+    try {
+      await adminService.createMemberType(newTypeName.trim(), newTypeColor);
+      await loadMemberTypes();
+      setNewTypeName(''); setNewTypeColor(PRESET_COLORS[0]);
+      toast.success(`'${newTypeName}' 분류가 추가되었습니다.`);
+    } catch (e: any) {
+      toast.error(e.message?.includes('unique') ? '이미 존재하는 분류명입니다.' : '분류 추가에 실패했습니다.');
+    } finally { setIsAddingType(false); }
+  };
+  const handleDeleteType = async (type: MemberTypeItem) => {
+    if (!(await globalConfirm(`'${type.name}' 분류를 삭제하시겠습니까?`))) return;
+    try {
+      await adminService.deleteMemberType(type.id);
+      await loadMemberTypes();
+      toast.success(`'${type.name}' 분류가 삭제되었습니다.`);
+    } catch { toast.error('분류 삭제에 실패했습니다.'); }
+  };
+
   useEffect(() => {
     shopSettingsService.getAll().then((data) => {
       setForm(data);
       setLoadingInit(false);
     });
+    loadMemberTypes();
   }, []);
 
   const handleChange = (key: string, value: string) => {
@@ -241,7 +285,18 @@ export function ShopSettingsPage() {
 
       {/* Tab Content */}
       <div className="bg-white border border-neutral-200 p-6">
-        {activeTab === 'notification' ? (
+        {activeTab === 'member_type' ? (
+          <MemberTypeTab
+            memberTypes={memberTypes}
+            newTypeName={newTypeName}
+            newTypeColor={newTypeColor}
+            isAddingType={isAddingType}
+            onNameChange={setNewTypeName}
+            onColorChange={setNewTypeColor}
+            onCreate={handleCreateType}
+            onDelete={handleDeleteType}
+          />
+        ) : activeTab === 'notification' ? (
           <NotificationTab form={form} onToggle={handleToggle} onChange={handleChange} />
         ) : (
           <div className="space-y-4 max-w-xl">
@@ -421,6 +476,107 @@ function NotificationSection({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ── MemberTypeTab ─────────────────────────────────────────
+function MemberTypeTab({
+  memberTypes,
+  newTypeName,
+  newTypeColor,
+  isAddingType,
+  onNameChange,
+  onColorChange,
+  onCreate,
+  onDelete,
+}: {
+  memberTypes: { id: string; name: string; color: string }[];
+  newTypeName: string;
+  newTypeColor: string;
+  isAddingType: boolean;
+  onNameChange: (v: string) => void;
+  onColorChange: (v: string) => void;
+  onCreate: () => void;
+  onDelete: (type: { id: string; name: string; color: string }) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl">
+      {/* 현재 분류 목록 */}
+      <div>
+        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">현재 분류 목록</p>
+        {memberTypes.length === 0 ? (
+          <p className="text-sm text-neutral-400 text-center py-8 border border-dashed">등록된 분류가 없습니다.</p>
+        ) : (
+          <div className="space-y-2">
+            {memberTypes.map(type => (
+              <div key={type.id} className="flex items-center justify-between px-4 py-3 border border-neutral-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: type.color }} />
+                  <span className="text-sm font-medium text-neutral-900">{type.name}</span>
+                  <span className="px-2 py-0.5 rounded text-xs font-medium text-white" style={{ backgroundColor: type.color }}>
+                    미리보기
+                  </span>
+                </div>
+                <button
+                  onClick={() => onDelete(type)}
+                  className="p-1.5 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 새 분류 추가 */}
+      <div>
+        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-3">새 분류 추가</p>
+        <div className="border border-neutral-200 p-4 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-1">분류명 *</label>
+            <input
+              type="text"
+              value={newTypeName}
+              onChange={e => onNameChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') onCreate(); }}
+              placeholder="예: 병원, 도매, 대리점..."
+              className="w-full px-3 py-2 border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-neutral-600 mb-2">뱃지 색상</label>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => onColorChange(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-transform ${newTypeColor === c ? 'border-neutral-900 scale-110' : 'border-transparent hover:scale-105'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            {newTypeName && (
+              <div className="mt-2">
+                <span className="text-xs text-neutral-500 mr-2">미리보기:</span>
+                <span className="px-2 py-0.5 rounded text-xs font-medium text-white" style={{ backgroundColor: newTypeColor }}>
+                  {newTypeName}
+                </span>
+              </div>
+            )}
+          </div>
+          <button
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors disabled:opacity-50"
+            onClick={onCreate}
+            disabled={isAddingType || !newTypeName.trim()}
+          >
+            {isAddingType ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            분류 추가
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Wallet, CreditCard, Inbox } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -12,6 +12,9 @@ export function AdminLayout() {
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isAdsOpen, setIsAdsOpen] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
+  const [isMarketingOpen, setIsMarketingOpen] = useState(false);
+  const [isSmsMktOpen, setIsSmsMktOpen] = useState(false);
+  const [isEmailMktOpen, setIsEmailMktOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Check admin permission
@@ -66,6 +69,20 @@ export function AdminLayout() {
     { to: '/admin/products/promotion', icon: Package, label: '프로모션번들관리' },
   ];
 
+  const smsSubMenus = [
+    { to: '/admin/marketing/sms/send', icon: Send, label: '메시지 전송' },
+    { to: '/admin/marketing/sms/history', icon: History, label: '마케팅 전송 내역' },
+    { to: '/admin/marketing/sms/system-history', icon: Inbox, label: '시스템 전송 내역' },
+    { to: '/admin/marketing/sms/charge', icon: Wallet, label: '메시지 충전' },
+    { to: '/admin/marketing/sms/charge-history', icon: CreditCard, label: '충전 내역' },
+  ];
+
+  const emailSubMenus = [
+    { to: '/admin/marketing/email/send', icon: Send, label: '이메일 전송' },
+    { to: '/admin/marketing/email/history', icon: History, label: '이메일 전송내역' },
+    { to: '/admin/marketing/email/system-history', icon: Inbox, label: '시스템 전송 내역' },
+  ];
+
   const bottomMenuItems = [
     { to: '/admin/sales-offices', icon: Building2, label: '판매영업점 관리' },
     { to: '/admin/members', icon: Users, label: '회원관리' },
@@ -79,25 +96,23 @@ export function AdminLayout() {
   const isStatisticsActive = location.pathname.startsWith('/admin/statistics');
   const isAdsActive = location.pathname.startsWith('/admin/ads');
   const isProductsActive = location.pathname.startsWith('/admin/products');
+  const isMarketingActive = location.pathname.startsWith('/admin/marketing');
+  const isSmsMktActive = location.pathname.startsWith('/admin/marketing/sms');
+  const isEmailMktActive = location.pathname.startsWith('/admin/marketing/email');
 
   // Auto-expand menus if active
   useEffect(() => {
-    if (isOrdersActive) {
-      setIsOrdersOpen(true);
+    if (isOrdersActive) setIsOrdersOpen(true);
+    if (isCommunicationActive) setIsCommunicationOpen(true);
+    if (isStatisticsActive) setIsStatisticsOpen(true);
+    if (isAdsActive) setIsAdsOpen(true);
+    if (isProductsActive) setIsProductsOpen(true);
+    if (isMarketingActive) {
+      setIsMarketingOpen(true);
+      if (isSmsMktActive) setIsSmsMktOpen(true);
+      if (isEmailMktActive) setIsEmailMktOpen(true);
     }
-    if (isCommunicationActive) {
-      setIsCommunicationOpen(true);
-    }
-    if (isStatisticsActive) {
-      setIsStatisticsOpen(true);
-    }
-    if (isAdsActive) {
-      setIsAdsOpen(true);
-    }
-    if (isProductsActive) {
-      setIsProductsOpen(true);
-    }
-  }, [isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive]);
+  }, [isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive]);
 
   // Redirect to dashboard if at base admin path
   useEffect(() => {
@@ -382,6 +397,80 @@ export function AdminLayout() {
                           </Link>
                         );
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Marketing Menu - Accordion */}
+                <div>
+                  <button
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMarketingActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
+                    onClick={() => setIsMarketingOpen(!isMarketingOpen)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Megaphone className="w-5 h-5" />
+                      <span>마케팅관리</span>
+                    </div>
+                    {isMarketingOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                  {isMarketingOpen && (
+                    <div className="bg-white">
+                      {/* 문자 마케팅 */}
+                      <button
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2.5 transition-colors text-sm ${isSmsMktActive ? 'text-neutral-900 font-semibold' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                        onClick={() => setIsSmsMktOpen(!isSmsMktOpen)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="w-4 h-4" />
+                          <span>문자 마케팅</span>
+                        </div>
+                        {isSmsMktOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                      {isSmsMktOpen && (
+                        <div className="border-l-2 border-neutral-100 ml-12">
+                          {smsSubMenus.map((item) => {
+                            const isActive = location.pathname === item.to;
+                            return (
+                              <Link
+                                key={item.to}
+                                to={item.to}
+                                className={`flex items-center gap-2 pl-4 pr-4 py-2 transition-colors text-xs ${isActive ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}
+                              >
+                                <item.icon className="w-3.5 h-3.5" />
+                                <span>{item.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* 이메일 마케팅 */}
+                      <button
+                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2.5 transition-colors text-sm ${isEmailMktActive ? 'text-neutral-900 font-semibold' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                        onClick={() => setIsEmailMktOpen(!isEmailMktOpen)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4" />
+                          <span>이메일 마케팅</span>
+                        </div>
+                        {isEmailMktOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                      {isEmailMktOpen && (
+                        <div className="border-l-2 border-neutral-100 ml-12">
+                          {emailSubMenus.map((item) => {
+                            const isActive = location.pathname === item.to;
+                            return (
+                              <Link
+                                key={item.to}
+                                to={item.to}
+                                className={`flex items-center gap-2 pl-4 pr-4 py-2 transition-colors text-xs ${isActive ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}
+                              >
+                                <item.icon className="w-3.5 h-3.5" />
+                                <span>{item.label}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
