@@ -257,7 +257,7 @@ export const mtsService = {
     // 2. Edge Function 호출 (미배포 시 무시 — DB 저장만으로 접수 처리)
     let edgeFnCalled = false;
     try {
-      const { error } = await supabase.functions.invoke('send-sms', {
+      const { data, error } = await supabase.functions.invoke('send-sms', {
         body: {
           historyId: historyRow.id,
           fromPhone: params.fromPhone,
@@ -270,10 +270,16 @@ export const mtsService = {
           storeId: params.storeId,
         },
       });
-      if (!error) edgeFnCalled = true;
-    } catch {
-      // Edge Function 미배포 → 로그만 남기고 계속 진행
-      console.info('[mtsService] send-sms Edge Function not available. DB record saved.');
+      
+      // [디버깅 로깅]
+      console.log('[mtsService] send-sms Response:', { data, error });
+      
+      if (!error && data?.success) {
+        edgeFnCalled = true;
+      }
+    } catch (e) {
+      // Edge Function 미배포 또는 예기치 못한 에러
+      console.error('[mtsService] send-sms Error:', e);
     }
 
     return { sendId: historyRow.id, edgeFnCalled };

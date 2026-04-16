@@ -96,10 +96,14 @@ serve(async (req) => {
   } catch (error) {
     console.error("[send-sms] Function error:", error)
     return new Response(
-      JSON.stringify({ error: error.message }), 
+      JSON.stringify({ 
+        success: false,
+        error: error.message,
+        debug_info: "Error caught in send-sms Edge Function"
+      }), 
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
-        status: 400 
+        status: 200 // 브라우저에서 에러 메시지를 읽을 수 있도록 200으로 반환
       }
     )
   }
