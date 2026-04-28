@@ -958,7 +958,8 @@ export const adminService = {
                 region: user.region,
                 hospitalEmail: user.hospital_email,
                 taxEmail: user.tax_email,
-                memberType: user.member_type || null
+                memberType: user.member_type || null,
+                approvedAt: user.approved_at || null,
             };
         });
 
@@ -1047,8 +1048,7 @@ export const adminService = {
                 hospital_email: data.hospitalEmail,
                 tax_email: data.taxEmail,
                 role: data.role,
-                // member_type은 별도 핸들러에서 처리하지만 일괄 저장 시 포함될 수 있음
-                member_type: data.memberType
+                member_type: data.memberType,
             })
             .eq('id', userId);
 

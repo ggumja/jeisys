@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, User, Building2, Settings, Loader2,
-  UserCheck, UserX, Clock, ShoppingCart, Tag, Check, Edit2, Save
+  UserCheck, UserX, Clock, ShoppingCart, Tag, Check, Edit2, Save,
+  MapPin, History, Monitor, CreditCard, Package, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -13,6 +14,7 @@ import { adminService } from '../../services/adminService';
 import { shopSettingsService } from '../../services/shopSettingsService';
 import { proxyOrderService } from '../../services/cartService';
 import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabaseClient';
 import { toast } from 'sonner';
 
 interface MemberType {
@@ -57,12 +59,22 @@ export function MemberDetailPage() {
   const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
   const [updatingType, setUpdatingType] = useState(false);
   const [gradesEnabled, setGradesEnabled] = useState(true);
-  
   const [localMemberType, setLocalMemberType] = useState<string | null>(null);
-  
-  // 수정 모드 상태
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>(null);
+
+  // 추가 데이터
+  const [memberStats, setMemberStats] = useState({ totalAmount: 0, totalOrders: 0, points: 0 });
+  const [defaultAddress, setDefaultAddress] = useState<any>(null);
+  const [demoRequests, setDemoRequests] = useState<any[]>([]);
+  const [registeredCards, setRegisteredCards] = useState<any[]>([]);
+  const [adminHistory, setAdminHistory] = useState<any>(null);
+  const [memberOrders, setMemberOrders] = useState<any[]>([]);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const ORDER_PAGE_SIZE = 10;
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'info' | 'equipment' | 'orders' | 'credit' | 'points'>('info');
 
   const member = (members as any[]).find(m => m.id === id);
 
@@ -80,6 +92,54 @@ export function MemberDetailPage() {
       setGradesEnabled(s['grades_enabled'] !== 'false');
     }).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (!member?.id) return;
+    const uid = member.id;
+
+    // 주문 통계
+    supabase.from('orders').select('total_amount, status').eq('user_id', uid)
+      .then(({ data }) => {
+        if (!data) return;
+        const total = data.reduce((s: number, o: any) => s + (o.total_amount || 0), 0);
+        setMemberStats(prev => ({ ...prev, totalOrders: data.length, totalAmount: total }));
+      });
+
+    // 기본 배송지
+    supabase.from('shipping_addresses').select('*').eq('user_id', uid).eq('is_default', true).limit(1)
+      .then(({ data }) => setDefaultAddress(data?.[0] || null));
+
+    // 장비 데모 신청
+    supabase.from('demo_requests').select('*').eq('user_id', uid).order('created_at', { ascending: false })
+      .then(({ data }) => setDemoRequests(data || []));
+
+    // 주문 내역 (페이징)
+    const fetchOrders = (page: number) => {
+      const from = (page - 1) * ORDER_PAGE_SIZE;
+      const to = from + ORDER_PAGE_SIZE - 1;
+      supabase.from('orders')
+        .select(`
+          id, order_number, ordered_at, status, total_amount,
+          order_items(id, product:products(name))
+        `, { count: 'exact' })
+        .eq('user_id', uid)
+        .order('ordered_at', { ascending: false })
+        .range(from, to)
+        .then(({ data, count }) => {
+          setMemberOrders(data || []);
+          setOrderTotal(count || 0);
+        });
+    };
+    fetchOrders(1);
+    setOrderPage(1);
+
+    // 1:1 문의 내역
+    supabase.from('inquiries')
+      .select('id, title, content, status, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setInquiries(data || []));
+  }, [member?.id]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -202,6 +262,8 @@ export function MemberDetailPage() {
     .map((t: string) => t.trim())
     .filter(Boolean);
 
+  const fmt = (n: number) => n.toLocaleString('ko-KR') + '원';
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
@@ -275,7 +337,45 @@ export function MemberDetailPage() {
         </div>
       )}
 
-      {/* ── 기본 정보 */}
+      {/* ── 통계 카드 */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-white border border-neutral-200 px-5 py-4">
+          <p className="text-xs text-neutral-400 mb-1">누적 구매금액</p>
+          <p className="text-xl font-bold text-neutral-900">{fmt(memberStats.totalAmount)}</p>
+        </div>
+        <div className="bg-white border border-neutral-200 px-5 py-4">
+          <p className="text-xs text-neutral-400 mb-1">주문수</p>
+          <p className="text-xl font-bold text-neutral-900">{memberStats.totalOrders}건</p>
+        </div>
+        <div className="bg-white border border-neutral-200 px-5 py-4">
+          <p className="text-xs text-neutral-400 mb-1">포인트 잔액</p>
+          <p className="text-xl font-bold text-neutral-900">{fmt(memberStats.points)}</p>
+        </div>
+      </div>
+
+      {/* ── 탭 네비게이션 */}
+      <div className="flex border-b border-neutral-200">
+        {(['info', 'equipment', 'orders', 'credit', 'points'] as const).map((tab) => {
+          const labels = { info: '회원정보', equipment: '커뮤니케이션', orders: '주문/결제', credit: '크레딧', points: '포인트' };
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab
+                  ? 'border-neutral-900 text-neutral-900'
+                  : 'border-transparent text-neutral-400 hover:text-neutral-600'
+              }`}
+            >
+              {labels[tab]}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 탭: 회원정보 */}
+      {activeTab === 'info' && <>
+
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
           <User className="w-4 h-4 text-neutral-500" />
@@ -325,6 +425,16 @@ export function MemberDetailPage() {
           <div>
             <span className="text-xs text-neutral-400 block mb-1">가입일</span>
             <p className="text-sm text-neutral-900">{member.joinDate}</p>
+          </div>
+          <div>
+            <span className="text-xs text-neutral-400 block mb-1">승인일</span>
+            <p className="text-sm text-neutral-900">{member.approvedAt ? new Date(member.approvedAt).toLocaleDateString('ko-KR') : '-'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-neutral-400 block mb-1">회원유형</span>
+            <p className="text-sm text-neutral-900">
+              {selectedTypes.length > 0 ? selectedTypes.join(', ') : '-'}
+            </p>
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">누적주문</span>
@@ -432,6 +542,55 @@ export function MemberDetailPage() {
         </div>
       </section>
 
+      {/* ── 기본 배송지 + 관리 이력 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className="bg-white border border-neutral-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-neutral-500" />
+            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">기본 배송지</h3>
+          </div>
+          <div className="p-6 space-y-2">
+            {defaultAddress ? (
+              <>
+                <div><span className="text-xs text-neutral-400">수령인</span><p className="text-sm text-neutral-900 mt-0.5">{defaultAddress.recipient_name || '-'}</p></div>
+                <div><span className="text-xs text-neutral-400">연락처</span><p className="text-sm text-neutral-900 mt-0.5">{defaultAddress.phone || '-'}</p></div>
+                <div><span className="text-xs text-neutral-400">주소</span><p className="text-sm text-neutral-900 mt-0.5">{defaultAddress.zip_code ? `(${defaultAddress.zip_code}) ` : ''}{defaultAddress.address} {defaultAddress.address_detail}</p></div>
+              </>
+            ) : (
+              <p className="text-sm text-neutral-400 text-center py-4">등록된 배송지가 없습니다.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="bg-white border border-neutral-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
+            <History className="w-4 h-4 text-neutral-500" />
+            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">관리 이력</h3>
+          </div>
+          <div className="p-6 space-y-3">
+            <div>
+              <span className="text-xs text-neutral-400">가입일</span>
+              <p className="text-sm text-neutral-900 mt-0.5">{member.joinDate || '-'}</p>
+            </div>
+            {adminHistory?.approved_by && (
+              <div>
+                <span className="text-xs text-neutral-400">승인 처리자</span>
+                <p className="text-sm text-neutral-900 mt-0.5">{adminHistory.approved_by}</p>
+              </div>
+            )}
+            {adminHistory?.approved_at && (
+              <div>
+                <span className="text-xs text-neutral-400">승인일</span>
+                <p className="text-sm text-neutral-900 mt-0.5">{new Date(adminHistory.approved_at).toLocaleDateString('ko-KR')}</p>
+              </div>
+            )}
+            {!adminHistory?.approved_by && (
+              <p className="text-sm text-neutral-400 text-center py-2">관리 이력이 없습니다.</p>
+            )}
+          </div>
+        </section>
+      </div>
+
       {/* ── 보유 장비 */}
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
@@ -442,6 +601,8 @@ export function MemberDetailPage() {
           <EquipmentList userId={member.id} />
         </div>
       </section>
+
+
 
       {/* ── 회원 분류 설정 (페이지 하단) */}
       <section className="bg-white border border-neutral-200 overflow-hidden">
@@ -509,6 +670,241 @@ export function MemberDetailPage() {
           </div>
         </div>
       </section>
+
+      </> /* end tab: 회원정보 */}
+
+      {/* ── 탭: 장비 */}
+      {activeTab === 'equipment' && <>
+      <section className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
+          <Monitor className="w-4 h-4 text-neutral-500" />
+          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">장비 대모신청 내역</h3>
+        </div>
+        <div className="p-6">
+          {demoRequests.length === 0 ? (
+            <p className="text-sm text-neutral-400 text-center py-4">데모신청 내역이 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {demoRequests.map((req: any) => (
+                <div key={req.id} className="flex items-center justify-between py-2 border-b border-neutral-100 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900">{req.equipment || req.equipment_name || '-'}</p>
+                    <p className="text-xs text-neutral-400 mt-0.5">{req.content || req.message || ''}</p>
+                  </div>
+                  <span className="text-xs text-neutral-400">{req.created_at ? new Date(req.created_at).toLocaleDateString('ko-KR') : ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── 1:1 문의 내역 */}
+      <section className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
+          <Package className="w-4 h-4 text-neutral-500" />
+          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">1:1 문의 내역</h3>
+        </div>
+        <div className="p-6">
+          {inquiries.length === 0 ? (
+            <p className="text-sm text-neutral-400 text-center py-4">문의 내역이 없습니다.</p>
+          ) : (
+            <div className="space-y-2">
+              {inquiries.map((inq: any) => (
+                <div key={inq.id} className="flex items-start justify-between py-3 border-b border-neutral-100 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-900 truncate">{inq.title || '-'}</p>
+                    <p className="text-xs text-neutral-400 mt-0.5 truncate">{inq.content || ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2 ml-4 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      inq.status === 'answered' ? 'bg-green-100 text-green-700' :
+                      inq.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-neutral-100 text-neutral-500'
+                    }`}>
+                      {inq.status === 'answered' ? '답변완료' : inq.status === 'pending' ? '답변대기' : inq.status || '-'}
+                    </span>
+                    <span className="text-xs text-neutral-400">{inq.created_at ? new Date(inq.created_at).toLocaleDateString('ko-KR') : ''}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      </> /* end tab: 커뮤니케이션 */}
+
+      {/* ── 탭: 주문/결제 */}
+      {activeTab === 'orders' && <>
+      {/* ── 주문 내역 */}
+      <section className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-neutral-500" />
+            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">주문 내역</h3>
+          </div>
+          <span className="text-xs text-neutral-400">최근 50건</span>
+        </div>
+        <div className="overflow-x-auto">
+          {memberOrders.length === 0 ? (
+            <p className="text-sm text-neutral-400 text-center py-8">주문 내역이 없습니다.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500">주문일</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500">주문번호</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500">주문상품</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500">상태</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-neutral-500">주문금액</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {memberOrders.map((order: any) => (
+                  <tr
+                    key={order.id}
+                    className="hover:bg-neutral-50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/admin/orders/${order.id}`)}
+                  >
+                    <td className="px-4 py-3 text-neutral-600">
+                      {order.ordered_at ? new Date(order.ordered_at).toLocaleDateString('ko-KR') : '-'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-neutral-700">
+                      {order.order_number || order.id.slice(0, 8).toUpperCase()}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-neutral-700 max-w-[200px]">
+                      {(() => {
+                        const items = order.order_items || [];
+                        if (items.length === 0) return <span className="text-neutral-400">-</span>;
+                        const firstName = items[0]?.product?.name || '상품';
+                        return items.length > 1
+                          ? `${firstName} 외 ${items.length - 1}개`
+                          : firstName;
+                      })()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                        order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                        order.status === 'paid' ? 'bg-yellow-100 text-yellow-800' :
+                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-neutral-100 text-neutral-600'
+                      }`}>
+                        {order.status === 'pending' ? '결제대기' :
+                         order.status === 'paid' ? '결제완료' :
+                         order.status === 'preparing' ? '상품준비중' :
+                         order.status === 'shipped' ? '배송중' :
+                         order.status === 'delivered' ? '배송완료' :
+                         order.status === 'cancelled' ? '취소' : order.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-neutral-900">
+                      {(order.total_amount || 0).toLocaleString('ko-KR')}원
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {/* 페이징 */}
+          {orderTotal > ORDER_PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-100">
+              <span className="text-xs text-neutral-400">
+                총 {orderTotal}건 · {Math.ceil(orderTotal / ORDER_PAGE_SIZE)}페이지 중 {orderPage}페이지
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => {
+                    const p = Math.max(1, orderPage - 1);
+                    setOrderPage(p);
+                    const from = (p - 1) * ORDER_PAGE_SIZE;
+                    supabase.from('orders')
+                      .select('id, order_number, ordered_at, status, total_amount, order_items(id, product:products(name))', { count: 'exact' })
+                      .eq('user_id', member.id)
+                      .order('ordered_at', { ascending: false })
+                      .range(from, from + ORDER_PAGE_SIZE - 1)
+                      .then(({ data, count }) => { setMemberOrders(data || []); setOrderTotal(count || 0); });
+                  }}
+                  disabled={orderPage === 1}
+                  className="px-2 py-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                {Array.from({ length: Math.ceil(orderTotal / ORDER_PAGE_SIZE) }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === Math.ceil(orderTotal / ORDER_PAGE_SIZE) || Math.abs(p - orderPage) <= 2)
+                  .map((p, idx, arr) => (
+                    <>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span key={`dots-${p}`} className="px-1 text-neutral-400 text-xs">...</span>}
+                      <button
+                        key={p}
+                        onClick={() => {
+                          setOrderPage(p);
+                          const from = (p - 1) * ORDER_PAGE_SIZE;
+                          supabase.from('orders')
+                            .select('id, order_number, ordered_at, status, total_amount, order_items(id, product:products(name))', { count: 'exact' })
+                            .eq('user_id', member.id)
+                            .order('ordered_at', { ascending: false })
+                            .range(from, from + ORDER_PAGE_SIZE - 1)
+                            .then(({ data, count }) => { setMemberOrders(data || []); setOrderTotal(count || 0); });
+                        }}
+                        className={`px-3 py-1.5 text-sm border transition-colors ${
+                          orderPage === p
+                            ? 'bg-neutral-900 text-white border-neutral-900'
+                            : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
+                        }`}
+                      >{p}</button>
+                    </>
+                  ))}
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => {
+                    const p = Math.min(Math.ceil(orderTotal / ORDER_PAGE_SIZE), orderPage + 1);
+                    setOrderPage(p);
+                    const from = (p - 1) * ORDER_PAGE_SIZE;
+                    supabase.from('orders')
+                      .select('id, order_number, ordered_at, status, total_amount, order_items(id, product:products(name))', { count: 'exact' })
+                      .eq('user_id', member.id)
+                      .order('ordered_at', { ascending: false })
+                      .range(from, from + ORDER_PAGE_SIZE - 1)
+                      .then(({ data, count }) => { setMemberOrders(data || []); setOrderTotal(count || 0); });
+                  }}
+                  disabled={orderPage === Math.ceil(orderTotal / ORDER_PAGE_SIZE)}
+                  className="px-2 py-1"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+      </> /* end tab: 주문/결제 */}
+
+      {/* ── 탭: 크레딧 */}
+      {activeTab === 'credit' && <>
+      <section className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-100">
+          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">크레딧</h3>
+        </div>
+        <div className="p-6">
+          <p className="text-sm text-neutral-400 text-center py-8">크레딧 정보를 준비 중입니다.</p>
+        </div>
+      </section>
+      </> /* end tab: 크레딧 */}
+
+      {/* ── 탭: 포인트 */}
+      {activeTab === 'points' && <>
+      <section className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-100">
+          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">포인트</h3>
+        </div>
+        <div className="p-6">
+          <p className="text-sm text-neutral-400 text-center py-8">포인트 정보를 준비 중입니다.</p>
+        </div>
+      </section>
+      </> /* end tab: 포인트 */}
     </div>
   );
 }
