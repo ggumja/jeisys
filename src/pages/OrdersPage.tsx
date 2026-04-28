@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
-import { Package, Copy, Loader2, AlertTriangle, RefreshCw, Truck, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, Copy, Loader2, AlertTriangle, RefreshCw, Truck, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
 import { ProductImage } from '../components/ui/ProductImage';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
-import { Product, ClaimInfo } from '../types';
+import { Product, ClaimInfo, User } from '../types';
+import { adminService } from '../services/adminService';
+import { authService } from '../services/authService';
+import { SplitShipmentModal } from '../components/SplitShipmentModal';
+import { toast } from 'sonner';
 
 // ─── 클레임 신청 모달 ────────────────────────────────────────────────────────
 interface ClaimModalProps {
   orderId: string;
-  type: 'RETURN' | 'EXCHANGE';
+  type: 'RETURN' | 'EXCHANGE' | 'CANCEL';
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -19,7 +23,7 @@ interface ClaimModalProps {
 function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const title = type === 'RETURN' ? '반품 신청' : '교환 신청';
+  const title = type === 'RETURN' ? '반품 신청' : type === 'EXCHANGE' ? '교환 신청' : '결제 취소';
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
@@ -39,12 +43,12 @@ function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-md mx-4 shadow-2xl">
-        <div className="px-6 py-5 border-b border-neutral-200 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-neutral-900 tracking-tight">{title}</h3>
+      <div className="bg-white w-full max-w-sm mx-4 shadow-2xl">
+        <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
+          <h3 className="text-base font-bold text-neutral-900 tracking-tight">{title}</h3>
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900 transition-colors text-xl leading-none">×</button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-5 space-y-4">
           <div>
             <label className="block text-sm font-semibold text-neutral-900 mb-2">
               {title} 사유 <span className="text-red-500">*</span>
@@ -53,27 +57,27 @@ function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
               value={reason}
               onChange={e => setReason(e.target.value)}
               placeholder={`${title} 사유를 상세히 입력해주세요.`}
-              rows={4}
-              className="w-full px-4 py-3 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 transition-all resize-none placeholder:text-neutral-300"
+              rows={3}
+              className="w-full px-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 transition-all resize-none placeholder:text-neutral-300"
             />
           </div>
-          <p className="text-xs text-neutral-500 leading-relaxed">
+          <p className="text-[11px] text-neutral-500 leading-relaxed">
             신청 후 영업일 기준 1~3일 이내 담당자가 확인 후 연락드립니다.
           </p>
         </div>
-        <div className="px-6 py-4 border-t border-neutral-100 flex gap-3">
+        <div className="px-5 py-3 border-t border-neutral-100 flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 border border-neutral-300 text-neutral-900 text-sm font-bold hover:bg-neutral-50 transition-colors"
+            className="flex-1 px-3 py-2.5 border border-neutral-300 text-neutral-900 text-sm font-bold hover:bg-neutral-50 transition-colors"
           >
             취소
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex-1 px-4 py-3 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            className="flex-1 px-3 py-2.5 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50"
           >
-            {isSubmitting ? '신청 중...' : `${title} 신청`}
+            {isSubmitting ? '처리 중...' : type === 'CANCEL' ? '결제 취소' : `${title} 신청`}
           </button>
         </div>
       </div>
@@ -146,8 +150,31 @@ function ClaimInfoBanner({ claimInfo, status }: { claimInfo: ClaimInfo; status: 
 export function OrdersPage() {
   const { data: orders = [], isLoading, refetch } = useOrders();
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
-  const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' } | null>(null);
+  const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL' } | null>(null);
+  const [splitShipModalOrder, setSplitShipModalOrder] = useState<any | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [isPartialShipAllowed, setIsPartialShipAllowed] = useState(false);
+
+  useEffect(() => {
+    const checkPermission = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        setUserProfile(user);
+        if (user) {
+          const types = await adminService.getMemberTypes();
+          // 사용자의 member_type (예: '병원, 우수고객') 문자열에 포함된 타입 중 하나라도 partial_shipment가 true인지 확인
+          const userTypes = user.memberType?.split(',').map(t => t.trim()) || [];
+          const allowed = user.role === 'admin' || (types as any[]).some(t => userTypes.includes(t.name) && t.partial_shipment);
+          setIsPartialShipAllowed(allowed);
+        }
+      } catch (e) {
+        console.error('Error checking partial shipment permission:', e);
+      }
+    };
+    checkPermission();
+  }, []);
 
   useEffect(() => {
     const loadSubProducts = async () => {
@@ -176,6 +203,14 @@ export function OrdersPage() {
     });
   };
 
+  const toggleShipmentExpand = (orderId: string) => {
+    setExpandedShipments(prev => {
+      const next = new Set(prev);
+      next.has(orderId) ? next.delete(orderId) : next.add(orderId);
+      return next;
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -195,6 +230,18 @@ export function OrdersPage() {
           onSuccess={() => {
             setClaimModal(null);
             refetch();
+          }}
+        />
+      )}
+
+      {splitShipModalOrder && (
+        <SplitShipmentModal
+          order={splitShipModalOrder}
+          onClose={() => setSplitShipModalOrder(null)}
+          onSuccess={() => {
+            setSplitShipModalOrder(null);
+            refetch();
+            toast.success('분할 배송 등록이 완료되었습니다.');
           }}
         />
       )}
@@ -259,6 +306,16 @@ export function OrdersPage() {
                     <Copy className="w-3.5 h-3.5" />
                     재주문
                   </button>
+                  {/* 결제 취소 버튼 (입금대기, 결제완료 상태 && 클레임 없을 때) */}
+                  {['pending', 'paid'].includes(order.status) && !hasClaim && (
+                    <button
+                      onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL' })}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      결제 취소
+                    </button>
+                  )}
                   {/* 반품/교환 버튼 (배송완료 && 클레임 없을 때만) */}
                   {canClaim && !hasClaim && (
                     <>
@@ -278,6 +335,17 @@ export function OrdersPage() {
                       </button>
                     </>
                   )}
+                  {/* 분할배송등록 버튼 (허용된 경우 && 결제완료/상품준비중/부분발송 상태일 때) */}
+                  {isPartialShipAllowed && ['paid', 'processing', 'partially_shipped'].includes(order.status) && (
+                    <button
+                      onClick={() => setSplitShipModalOrder(order)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      분할배송등록
+                    </button>
+                  )}
+
                   {/* 클레임 진행 중 안내 */}
                   {isClaimPending && (
                     <span className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 text-orange-700 text-xs font-semibold border border-orange-200">
@@ -298,19 +366,47 @@ export function OrdersPage() {
                   </span>
                 </div>
                 <div className="px-6 py-4">
-                  <div className="border border-neutral-200 overflow-hidden">
-                    <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-neutral-50 border-b border-neutral-200">
-                        <th className="px-3 py-2 text-left font-medium text-neutral-500 w-8">No.</th>
-                        <th className="px-3 py-2 text-left font-medium text-neutral-500">상품명</th>
-                        <th className="px-3 py-2 text-center font-medium text-neutral-500 w-14">수량</th>
-                        <th className="px-3 py-2 text-right font-medium text-neutral-500 w-24">단가</th>
-                        <th className="px-3 py-2 text-right font-medium text-neutral-500 w-24">합계</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-100">
-                      {order.items.slice(0, isExpanded ? undefined : 2).flatMap((item, index) => {
+                  {!isExpanded ? (
+                    <div 
+                      onClick={() => toggleExpand(order.id)}
+                      className="flex items-center justify-between bg-white border border-neutral-200 px-5 py-4 cursor-pointer hover:border-neutral-400 transition-colors shadow-sm"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-neutral-100 border border-neutral-200 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                          {order.items[0]?.product ? (
+                            <ProductImage src={order.items[0].product.imageUrl} alt={order.items[0].product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="w-6 h-6 text-neutral-300" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-neutral-900 text-sm mb-1">
+                            {order.items[0]?.product?.name || '상품 정보 없음'}
+                            {order.items.length > 1 && <span className="text-blue-600 font-black ml-1.5">외 {order.items.length - 1}건</span>}
+                          </p>
+                          <p className="text-xs text-neutral-500">
+                            상세보기를 눌러 전체 주문 품목과 할인 내역을 확인하세요.
+                          </p>
+                        </div>
+                      </div>
+                      <button className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors">
+                        상세보기 <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="border border-neutral-200 overflow-hidden shadow-sm">
+                      <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-neutral-50 border-b border-neutral-200">
+                          <th className="px-3 py-2 text-left font-medium text-neutral-500 w-8">No.</th>
+                          <th className="px-3 py-2 text-left font-medium text-neutral-500">상품명</th>
+                          <th className="px-3 py-2 text-center font-medium text-neutral-500 w-14">수량</th>
+                          <th className="px-3 py-2 text-right font-medium text-neutral-500 w-24">단가</th>
+                          <th className="px-3 py-2 text-right font-medium text-neutral-500 w-24">합계</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-100">
+                        {order.items.flatMap((item, index) => {
                         if (!item.product) return [];
                         const unitPrice = item.price ?? item.product.price;
                         const rowNum = index + 1;
@@ -529,64 +625,39 @@ export function OrdersPage() {
                     </tbody>
                     <tfoot>
                       {(() => {
-                        // ── 번들 정상가 역산 헬퍼 (subProductsMap 기준) ──
-                        const getBundlePaidSubTotal = (it: any): number => {
-                          const selectedIds: string[] = it.selectedProductIds || [];
-                          if (selectedIds.length === 0) return 0;
-                          const buyQty: number = it.product?.buyQuantity ?? 0;
-                          let total = 0;
-                          selectedIds.forEach((id, idx) => {
-                            const isPaid = buyQty === 0 || idx < buyQty;
-                            const subP = subProductsMap[id];
-                            if (isPaid && subP?.price) total += subP.price;
-                          });
-                          return total;
-                        };
-
-                        // 할인 적용 후 실 결제액 (per item)
-                        const getLineTotal = (it: any): number => {
-                          const isBundleItem = (it.selectedProductIds || []).length > 0;
-                          if (isBundleItem) {
-                            const sub = getBundlePaidSubTotal(it);
-                            const rate = it.discountRate || 0;
-                            return sub > 0
-                              ? Math.round(sub * (1 - rate / 100))
-                              : it.price; // fallback to DB value
+                        // 렌더링된 각 항목의 소계(effectiveBundleTotal / lineTotal)와 동일한 로직으로 paidTotal 합산
+                        let paidTotal = 0;
+                        order.items.forEach(it => {
+                          const isBundle = (it.selectedProductIds || []).length > 0;
+                          if (isBundle) {
+                            const buyQty = it.product?.buyQuantity ?? 0;
+                            let paidSub = 0;
+                            const grouped: Record<string, {count:number, isPaid:boolean}> = {};
+                            (it.selectedProductIds || []).forEach((id: string, idx: number) => {
+                              const isPaid = buyQty === 0 || idx < buyQty;
+                              if (!grouped[id]) grouped[id] = { count: 0, isPaid };
+                              grouped[id].count += 1;
+                            });
+                            Object.entries(grouped).forEach(([id, {count, isPaid}]) => {
+                              const subP = subProductsMap[id];
+                              if (isPaid && subP?.price) paidSub += subP.price * count;
+                            });
+                            
+                            const bundleOrig = (it as any).originalPrice;
+                            const dispOrig = paidSub > 0 ? paidSub : (bundleOrig ?? null);
+                            const rate = (it as any).discountRate || 0;
+                            const dRate = rate > 0 ? rate : (dispOrig && dispOrig > it.price ? Math.round((1 - it.price/dispOrig)*100) : 0);
+                            const effTotal = (dispOrig && dRate > 0) ? Math.round(dispOrig * (1 - dRate/100)) : (paidSub > 0 ? paidSub : it.price);
+                            
+                            paidTotal += effTotal;
+                          } else {
+                            const unitPrice = it.price ?? it.product?.price ?? 0;
+                            paidTotal += it.quantity * unitPrice;
                           }
-                          return it.totalPrice ?? (it.quantity * (it.price ?? it.product?.price ?? 0));
-                        };
-
-                        // 정상가 (할인 전)
-                        const getOriginalTotal = (it: any): number => {
-                          const isBundleItem = (it.selectedProductIds || []).length > 0;
-                          if (isBundleItem) {
-                            const sub = getBundlePaidSubTotal(it);
-                            return sub > 0 ? sub : (it.originalPrice ?? it.price);
-                          }
-                          const orig = it.originalPrice;
-                          return orig ? orig * it.quantity
-                            : (it.totalPrice ?? (it.quantity * (it.price ?? it.product?.price ?? 0)));
-                        };
-
-                        const paidTotal    = order.items.reduce((sum, it) => sum + getLineTotal(it), 0);
-                        const originalTotal = order.items.reduce((sum, it) => sum + getOriginalTotal(it), 0);
-                        const discountTotal = originalTotal - paidTotal;
-                        const hasDiscount = discountTotal > 0.5; // 부동소수 오차 허용
+                        });
 
                         return (
                           <>
-                            {hasDiscount && (
-                              <>
-                                <tr className="border-t border-neutral-200">
-                                  <td colSpan={4} className="px-3 py-2 text-right text-xs text-neutral-500">상품금액 소계</td>
-                                  <td className="px-3 py-2 text-right text-xs text-neutral-500">₩{Math.round(originalTotal).toLocaleString()}</td>
-                                </tr>
-                                <tr>
-                                  <td colSpan={4} className="px-3 py-2 text-right text-xs text-red-600 font-medium">할인금액</td>
-                                  <td className="px-3 py-2 text-right text-xs text-red-600 font-bold">-₩{Math.round(discountTotal).toLocaleString()}</td>
-                                </tr>
-                              </>
-                            )}
                             <tr className="bg-neutral-50 border-t-2 border-neutral-200">
                               <td colSpan={4} className="px-3 py-3 text-right text-sm font-bold text-neutral-900">합계금액</td>
                               <td className="px-3 py-3 text-right text-base font-black text-neutral-900">
@@ -595,22 +666,18 @@ export function OrdersPage() {
                             </tr>
                           </>
                         );
+
                       })()}
                     </tfoot>
                   </table>
-                  {order.items.length > 2 && (
-                    <button
-                      onClick={() => toggleExpand(order.id)}
-                      className="w-full py-2.5 flex items-center justify-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 border-t border-neutral-100 bg-white transition-colors"
-                    >
-                      {isExpanded ? (
-                        <><ChevronUp className="w-3.5 h-3.5" /> 접기</>
-                      ) : (
-                        <><ChevronDown className="w-3.5 h-3.5" /> 상품 {order.items.length - 2}개 더보기</>
-                      )}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => toggleExpand(order.id)}
+                    className="w-full py-3 flex items-center justify-center gap-1 text-xs font-bold text-neutral-500 bg-neutral-50 hover:bg-neutral-100 transition-colors border-t border-neutral-200"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" /> 상세내역 접기
+                  </button>
                   </div>
+                  )}
                 </div>
               </div>
 
@@ -631,75 +698,109 @@ export function OrdersPage() {
                       );
                     })()}
                   </div>
-                  <div className="divide-y divide-neutral-100">
-                    {order.shipments.map((shipment, i) => (
-                      <div key={shipment.id} className="px-6 py-4">
-                        {/* 발송 헤더 */}
-                        <div className="flex items-center justify-between gap-4 mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-neutral-900">
-                              발송 {i + 1}{shipment.isPartial && ' · 부분'}
-                            </span>
-                            <span className="text-xs text-neutral-500">
-                              {new Date(shipment.shippedAt).toLocaleDateString('ko-KR')}
-                            </span>
+                  <div className="px-6 py-4">
+                    {!expandedShipments.has(order.id) ? (
+                      <div 
+                        onClick={() => toggleShipmentExpand(order.id)}
+                        className="flex items-center justify-between bg-white border border-neutral-200 px-5 py-4 cursor-pointer hover:border-neutral-400 transition-colors shadow-sm"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-neutral-100 border border-neutral-200 flex-shrink-0 flex items-center justify-center overflow-hidden rounded-full">
+                            <Truck className="w-6 h-6 text-neutral-400" />
                           </div>
-                          <div className="text-right">
-                            <p className="text-[10px] text-neutral-400 mb-0.5">송장번호</p>
-                            <p className="text-xs font-bold text-neutral-900 tracking-wider">{shipment.trackingNumber}</p>
+                          <div>
+                            <p className="font-bold text-neutral-900 text-sm mb-1">
+                              총 {order.shipments.length}건의 발송 내역이 있습니다.
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              상세보기를 눌러 송장번호와 배송 품목을 확인하세요.
+                            </p>
                           </div>
                         </div>
-                        {/* 발송 상품 테이블 */}
-                        {shipment.items && shipment.items.length > 0 && (
-                            <div className="border border-neutral-200 overflow-hidden">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="bg-neutral-50 border-b border-neutral-200">
-                                  <th className="px-3 py-2 text-left font-medium text-neutral-500 w-8">No.</th>
-                                  <th className="px-3 py-2 text-left font-medium text-neutral-500">상품명</th>
-                                  <th className="px-3 py-2 text-center font-medium text-neutral-500 w-14">수량</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-neutral-100">
-                                {shipment.items.flatMap((it, idx) => {
-                                  const rows = [];
-                                  const rowNum = idx + 1;
-                                  rows.push(
-                                    <tr key={`main-${idx}`} className="bg-white">
-                                      <td className="px-3 py-2 text-neutral-400 text-center">{rowNum}</td>
-                                      <td className="px-3 py-2">
-                                        <div className="flex items-center gap-1.5 text-neutral-900 font-medium">
-                                          <span>{it.productName}</span>
-                                          <span className="px-1 py-0.5 bg-neutral-100 text-neutral-500 border border-neutral-200 text-[9px] font-medium rounded">구매</span>
-                                        </div>
-                                      </td>
-                                      <td className="px-3 py-2 text-center font-bold text-neutral-900">{it.quantity}</td>
-                                    </tr>
-                                  );
-                                  if (it.bonusItems && it.bonusItems.length > 0) {
-                                    it.bonusItems.forEach((bonus, bIdx) => {
-                                      rows.push(
-                                        <tr key={`bonus-${idx}-${bIdx}`} className="bg-amber-50">
-                                          <td className="px-3 py-1.5"></td>
-                                          <td className="px-3 py-1.5">
-                                            <div className="flex items-center gap-1.5 text-amber-800">
-                                              <span>{bonus.productName}</span>
-                                              <span className="px-1 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold rounded">증정</span>
-                                            </div>
-                                          </td>
-                                          <td className="px-3 py-1.5 text-center font-bold text-amber-800">{bonus.quantity}</td>
-                                        </tr>
-                                      );
-                                    });
-                                  }
-                                  return rows;
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
+                        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50 border border-neutral-200 text-xs font-bold text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 transition-colors">
+                          상세보기 <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="border border-neutral-200 overflow-hidden shadow-sm">
+                        <div className="divide-y divide-neutral-100 bg-white">
+                          {order.shipments.map((shipment, i) => (
+                            <div key={shipment.id} className="p-5">
+                              {/* 발송 헤더 */}
+                              <div className="flex items-center justify-between gap-4 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-neutral-900">
+                                    발송 {i + 1}{shipment.isPartial && ' · 부분'}
+                                  </span>
+                                  <span className="text-xs text-neutral-500">
+                                    {new Date(shipment.shippedAt).toLocaleDateString('ko-KR')}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] text-neutral-400 mb-0.5">송장번호</p>
+                                  <p className="text-xs font-bold text-neutral-900 tracking-wider">{shipment.trackingNumber}</p>
+                                </div>
+                              </div>
+                              {/* 발송 상품 테이블 */}
+                              {shipment.items && shipment.items.length > 0 && (
+                                <div className="border border-neutral-200 overflow-hidden">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="bg-neutral-50 border-b border-neutral-200">
+                                        <th className="px-3 py-2 text-left font-medium text-neutral-500 w-8">No.</th>
+                                        <th className="px-3 py-2 text-left font-medium text-neutral-500">상품명</th>
+                                        <th className="px-3 py-2 text-center font-medium text-neutral-500 w-14">수량</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                      {shipment.items.flatMap((it, idx) => {
+                                        const rows = [];
+                                        const rowNum = idx + 1;
+                                        rows.push(
+                                          <tr key={`main-${idx}`} className="bg-white">
+                                            <td className="px-3 py-2 text-neutral-400 text-center">{rowNum}</td>
+                                            <td className="px-3 py-2">
+                                              <div className="flex items-center gap-1.5 text-neutral-900 font-medium">
+                                                <span>{it.productName}</span>
+                                                <span className="px-1 py-0.5 bg-neutral-100 text-neutral-500 border border-neutral-200 text-[9px] font-medium rounded">구매</span>
+                                              </div>
+                                            </td>
+                                            <td className="px-3 py-2 text-center font-bold text-neutral-900">{it.quantity}</td>
+                                          </tr>
+                                        );
+                                        if (it.bonusItems && it.bonusItems.length > 0) {
+                                          it.bonusItems.forEach((bonus, bIdx) => {
+                                            rows.push(
+                                              <tr key={`bonus-${idx}-${bIdx}`} className="bg-amber-50">
+                                                <td className="px-3 py-1.5"></td>
+                                                <td className="px-3 py-1.5">
+                                                  <div className="flex items-center gap-1.5 text-amber-800">
+                                                    <span>{bonus.productName}</span>
+                                                    <span className="px-1 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold rounded">증정</span>
+                                                  </div>
+                                                </td>
+                                                <td className="px-3 py-1.5 text-center font-bold text-amber-800">{bonus.quantity}</td>
+                                              </tr>
+                                            );
+                                          });
+                                        }
+                                        return rows;
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => toggleShipmentExpand(order.id)}
+                          className="w-full py-3 flex items-center justify-center gap-1 text-xs font-bold text-neutral-500 bg-neutral-50 hover:bg-neutral-100 transition-colors border-t border-neutral-200"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" /> 발송내역 접기
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : order.deliveryTrackingNumber ? (
@@ -724,24 +825,35 @@ export function OrdersPage() {
                   <p className="text-xs text-neutral-500 mb-0.5">총 결제 금액</p>
                   <p className="text-xl font-bold tracking-tight text-neutral-900">
                     {(() => {
-                      const total = order.items.reduce((sum, it) => {
-                        const selectedIds: string[] = it.selectedProductIds || [];
-                        if (selectedIds.length > 0) {
-                          // 번들: subProductsMap 기준 paid 합산 후 할인율 적용
-                          const buyQty: number = it.product?.buyQuantity ?? 0;
+                      let total = 0;
+                      order.items.forEach(it => {
+                        const isBundle = (it.selectedProductIds || []).length > 0;
+                        if (isBundle) {
+                          const buyQty = it.product?.buyQuantity ?? 0;
                           let paidSub = 0;
-                          selectedIds.forEach((id, idx) => {
+                          const grouped: Record<string, {count:number, isPaid:boolean}> = {};
+                          (it.selectedProductIds || []).forEach((id: string, idx: number) => {
                             const isPaid = buyQty === 0 || idx < buyQty;
-                            const subP = subProductsMap[id];
-                            if (isPaid && subP?.price) paidSub += subP.price;
+                            if (!grouped[id]) grouped[id] = { count: 0, isPaid };
+                            grouped[id].count += 1;
                           });
+                          Object.entries(grouped).forEach(([id, {count, isPaid}]) => {
+                            const subP = subProductsMap[id];
+                            if (isPaid && subP?.price) paidSub += subP.price * count;
+                          });
+                          
+                          const bundleOrig = (it as any).originalPrice;
+                          const dispOrig = paidSub > 0 ? paidSub : (bundleOrig ?? null);
                           const rate = (it as any).discountRate || 0;
-                          return sum + (paidSub > 0
-                            ? Math.round(paidSub * (1 - rate / 100))
-                            : it.price);
+                          const dRate = rate > 0 ? rate : (dispOrig && dispOrig > it.price ? Math.round((1 - it.price/dispOrig)*100) : 0);
+                          const effTotal = (dispOrig && dRate > 0) ? Math.round(dispOrig * (1 - dRate/100)) : (paidSub > 0 ? paidSub : it.price);
+                          
+                          total += effTotal;
+                        } else {
+                          const unitPrice = it.price ?? it.product?.price ?? 0;
+                          total += it.quantity * unitPrice;
                         }
-                        return sum + ((it as any).totalPrice ?? (it.quantity * (it.price ?? it.product?.price ?? 0)));
-                      }, 0);
+                      });
                       return `₩${Math.round(total).toLocaleString()}`;
                     })()}
                   </p>
