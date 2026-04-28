@@ -129,4 +129,21 @@ export const creditService = {
     const summary = await creditService.getCreditSummary(userId);
     return summary.reduce((sum, s) => sum + s.remaining, 0);
   },
+
+  /** 크레딧 사용 (주문 시 호출) - FIFO 차감 RPC */
+  async useCredits(input: {
+    userId: string;
+    amount: number;
+    orderId?: string;
+    description?: string;
+  }): Promise<void> {
+    const { data, error } = await supabase.rpc('use_user_credits', {
+      p_user_id:    input.userId,
+      p_amount:     input.amount,
+      p_order_id:   input.orderId || null,
+      p_description: input.description || '주문 크레딧 사용',
+    });
+    if (error) throw error;
+    return data;
+  },
 };

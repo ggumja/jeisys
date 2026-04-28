@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check, AlertCircle, Trash2 } from 'lucide-react';
+import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check, AlertCircle, Trash2, Coins } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import cardLogos from '../assets/card-logos.png';
 import { adminService } from '../services/adminService';
 import { SplitShipmentModal } from '../components/SplitShipmentModal';
+import { creditService } from '../services/creditService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +64,12 @@ export function CheckoutPage() {
   const [isPartialShipAllowed, setIsPartialShipAllowed] = useState(false);
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
   const [pendingBundles, setPendingBundles] = useState<any[]>([]);
+
+  // 크레딧
+  const [availableCredit, setAvailableCredit] = useState(0);
+  const [creditInputValue, setCreditInputValue] = useState('');
+  const [creditAmount, setCreditAmount] = useState(0);
+  const [creditLoading, setCreditLoading] = useState(false);
 
   const splitShipOrder = useMemo(() => {
     if (!userProfile) return null;
@@ -170,6 +177,16 @@ export function CheckoutPage() {
           if (p) map[p.id] = p;
         });
         setProductsMap(map);
+
+        // 크레딧 가능 상품이 있으면 잔액 로딩
+        const hasCreditItems = products.some(p => p?.creditAvailable);
+        if (hasCreditItems && user) {
+          setCreditLoading(true);
+          creditService.getTotalRemaining(user.id)
+            .then(setAvailableCredit)
+            .catch(console.error)
+            .finally(() => setCreditLoading(false));
+        }
       } else {
         navigate('/cart');
       }
@@ -327,6 +344,26 @@ export function CheckoutPage() {
   };
 
   const hasSubscriptionItems = cart.some(i => i.isSubscription);
+  const hasCreditProducts = cart.some(i => productsMap[i.productId]?.creditAvailable);
+  const finalTotal = Math.max(0, calculateTotal() - creditAmount);
+
+  const handleCreditInput = (val: string) => {
+    setCreditInputValue(val);
+    const num = Number(val.replace(/[^0-9]/g, ''));
+    const capped = Math.min(num, availableCredit, calculateTotal());
+    setCreditAmount(isNaN(capped) ? 0 : capped);
+  };
+
+  const handleUseAllCredit = () => {
+    const max = Math.min(availableCredit, calculateTotal());
+    setCreditAmount(max);
+    setCreditInputValue(max.toLocaleString());
+  };
+
+  const handleClearCredit = () => {
+    setCreditAmount(0);
+    setCreditInputValue('');
+  };
 
   const handleOrder = async () => {
     if (!address.address || !address.recipient || !address.phone) {
@@ -353,13 +390,29 @@ export function CheckoutPage() {
       const order = await orderService.createOrder({
         userId: user.id,
         items: cart,
-        totalAmount: calculateTotal(),
+        totalAmount: finalTotal,
         paymentMethod: paymentMethod,
         deliveryAddress: fullAddress,
         billingKeyId: selectedCard?.id,
         billingKey: selectedCard?.billingKey,
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined
       });
+
+      // 크레딧 사용 처리
+      if (creditAmount > 0) {
+        try {
+          await creditService.useCredits({
+            userId: user.id,
+            amount: creditAmount,
+            orderId: order.id,
+            description: `주문 크레딧 사용 (${order.order_number || order.id.slice(0, 8)})`,
+          });
+        } catch (creditError: any) {
+          console.error('Credit deduction failed:', creditError);
+          // 주문은 완료됐지만 크레딧 차감 실패 — 토스트만 표시
+          toast.error('크레딧 차감 중 오류가 발생했습니다. 고객센터에 문의해주세요.');
+        }
+      }
 
       // 사전 등록된 분할 배송 번들 생성
       if (pendingBundles.length > 0) {
@@ -869,7 +922,64 @@ export function CheckoutPage() {
             </div>
           </div>
 
-        </div>
+          {/* ── 크레딧 사용 섹션 (크레딧 가능 상품이 있을 때만) */}
+          {hasCreditProducts && (
+            <div className="bg-white border border-neutral-200 p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <Coins className="w-5 h-5" style={{ color: '#F59E0B' }} />
+                <h2 className="text-xl tracking-tight text-neutral-900 font-bold">크레딧 사용</h2>
+                {creditLoading && <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />}
+              </div>
+
+              <div className="flex items-center justify-between mb-4 bg-neutral-50 border border-neutral-200 px-4 py-3 rounded">
+                <div className="text-sm text-neutral-600">사용 가능한 크레딧</div>
+                <div className="text-lg font-black text-neutral-900">₩{availableCredit.toLocaleString()}</div>
+              </div>
+
+              {availableCredit > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={creditInputValue}
+                        onChange={e => handleCreditInput(e.target.value)}
+                        placeholder="사용할 금액 입력"
+                        className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm pr-8"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleUseAllCredit}
+                      className="px-4 py-3 text-sm font-bold border border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors whitespace-nowrap"
+                    >
+                      전액 사용
+                    </button>
+                    {creditAmount > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearCredit}
+                        className="px-4 py-3 text-sm font-bold border border-neutral-200 text-neutral-500 hover:bg-neutral-100 transition-colors"
+                      >
+                        취소
+                      </button>
+                    )}
+                  </div>
+                  {creditAmount > 0 && (
+                    <p className="text-xs font-semibold" style={{ color: '#F59E0B' }}>
+                      ₩{creditAmount.toLocaleString()} 크레딧이 결제금액에서 차감됩니다.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-400">사용 가능한 크레딧이 없습니다.</p>
+              )}
+            </div>
+          )}
+
+        </div>{/* /lg:col-span-2 */}
 
 
         {/* Order Summary */}
@@ -880,17 +990,26 @@ export function CheckoutPage() {
             <div className="space-y-4 mb-8">
               <div className="flex justify-between text-sm text-neutral-500 font-medium">
                 <span>총 상품 금액</span>
-                <span>₩{total.toLocaleString()}</span>
+                <span>₩{calculateTotal().toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm text-neutral-500 font-medium">
                 <span>배송비</span>
                 <span className="text-green-600 font-bold uppercase text-[10px] tracking-tight border border-green-200 px-1.5 py-0.5 bg-green-50">Free Shipping</span>
               </div>
+              {creditAmount > 0 && (
+                <div className="flex justify-between text-sm font-semibold" style={{ color: '#F59E0B' }}>
+                  <span className="flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5" />
+                    크레딧 차감
+                  </span>
+                  <span>- ₩{creditAmount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="pt-6 border-t border-neutral-100">
                 <div className="flex justify-between items-end">
                   <span className="text-xs font-bold text-neutral-400 uppercase tracking-tighter">Total Amount</span>
                   <span className="text-3xl font-black tracking-tight text-neutral-900 leading-none">
-                    ₩{total.toLocaleString()}
+                    ₩{finalTotal.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -901,7 +1020,7 @@ export function CheckoutPage() {
               disabled={placingOrder}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMethod === 'credit' ? `₩${total.toLocaleString()} 카드 결제하기` : '가상계좌 주문 완료')}
+              {placingOrder ? 'Processing...' : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 카드 결제하기` : '가상계좌 주문 완료')}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">
