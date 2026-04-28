@@ -213,7 +213,8 @@ export const adminService = {
                 items:shipment_items(
                     quantity:shipped_quantity,
                     product_id,
-                    product:products(name)
+                    product:products(name),
+                    shipped_selected_indices
                 )
             `)
             .eq('order_id', orderId)
@@ -300,14 +301,17 @@ export const adminService = {
                 trackingNumber: shipment.tracking_number,
                 shippedAt: shipment.shipped_at,
                 isPartial: shipment.is_partial,
+                status: shipment.status || 'SHIPPED',
+                shippingInfo: shipment.shipping_info || null,
+                label: shipment.label || '',
                 items: shipment.items?.map((item: any) => ({
                     productName: item.product?.name || 'Unknown',
                     productId: item.product_id,
                     quantity: item.quantity,
+                    shippedSelectedIndices: item.shipped_selected_indices || [],
                     bonusItems: bonusItemsByProductId[item.product_id] || []
                 })) || [],
                 bonusItems: shipment.bonus_items || [],
-                shippingInfo: shipment.shipping_info || null
             })) || [],
             paymentHistory: payHistoryData?.map((h: any) => ({
                 id: h.id,
@@ -651,6 +655,161 @@ export const adminService = {
         return { status: newStatus };
     },
 
+    /** 배송 번들(계획) 생성 */
+    async createShippingBundle(params: {
+        orderId: string;
+        label?: string;
+        shippingInfo: { recipient: string; phone: string; zipCode: string; address: string; addressDetail?: string };
+        items: {
+            orderItemId: string;
+            productId: string;
+            shipQty: number;
+            shippedSelectedIndices?: number[];
+        }[];
+        bonusItems?: {
+            productId: string;
+            productName: string;
+            quantity: number;
+        }[];
+    }) {
+        const { orderId, label, shippingInfo, items, bonusItems } = params;
+
+        // 1. shipments 레코드 생성 (PLANNED 상태)
+        const { data: shipment, error: shipErr } = await supabase
+            .from('shipments')
+            .insert({
+                order_id: orderId,
+                status: 'PLANNED',
+                label: label || '분할 배송 번들',
+                shipping_info: shippingInfo,
+                bonus_items: bonusItems || [],
+                is_partial: true,
+                created_at: new Date().toISOString()
+            })
+            .select('id')
+            .single();
+
+        if (shipErr) throw shipErr;
+
+        // 2. shipment_items 생성
+        for (const item of items) {
+            const { error: itemErr } = await supabase.from('shipment_items').insert({
+                shipment_id: shipment.id,
+                order_item_id: item.orderItemId,
+                product_id: item.productId,
+                shipped_quantity: item.shipQty,
+                shipped_selected_indices: item.shipped_selected_indices || []
+            });
+            if (itemErr) throw itemErr;
+        }
+
+        return shipment;
+    },
+
+    /** 기존 번들 기반 부분 발송 처리 (로젠 API 연동) */
+    async shipBundle(shipmentId: string) {
+        // 1. 번들 정보 및 주문 정보 로드
+        const { data: shipment, error: shipErr } = await supabase
+            .from('shipments')
+            .select(`
+                *,
+                order:orders(
+                    *,
+                    user:users(name, phone)
+                ),
+                items:shipment_items(*)
+            `)
+            .eq('id', shipmentId)
+            .single();
+
+        if (shipErr || !shipment) throw new Error('번들 정보를 찾을 수 없습니다.');
+        if (shipment.status === 'SHIPPED') throw new Error('이미 발송된 번들입니다.');
+
+        // 2. 로젠 API 호출하여 송장 발급
+        // registerLogenInvoice는 order 객체와 overrideAddress를 받음
+        const orderForLogen = {
+            customerName: shipment.shipping_info?.recipient || shipment.order?.user?.name,
+            orderItems: shipment.items.map((i: any) => ({ productName: '의료기기 소모품' })), // 간략화
+            shippingInfo: shipment.shipping_info
+        };
+
+        const trackingNumber = await this.registerLogenInvoice(orderForLogen, 1, shipment.shipping_info);
+        
+        if (!trackingNumber || trackingNumber.includes('9000000000')) { // 로젠 API 실패 시 임시 번호 반환 로직 대응
+             console.warn('Logen API returned fallback tracking number:', trackingNumber);
+        }
+
+        // 3. shipment 상태 업데이트
+        const { error: updateShipErr } = await supabase
+            .from('shipments')
+            .update({
+                tracking_number: trackingNumber,
+                status: 'SHIPPED',
+                shipped_at: new Date().toISOString()
+            })
+            .eq('id', shipmentId);
+
+        if (updateShipErr) throw updateShipErr;
+
+        // 4. order_items 수량 및 인덱스 업데이트
+        for (const item of shipment.items) {
+            const { data: currentItem } = await supabase
+                .from('order_items')
+                .select('shipped_quantity, shipped_selected_indices')
+                .eq('id', item.order_item_id)
+                .single();
+
+            const newShippedQty = (currentItem?.shipped_quantity || 0) + item.shipped_quantity;
+            let newIndices = currentItem?.shipped_selected_indices || [];
+            if (item.shipped_selected_indices && item.shipped_selected_indices.length > 0) {
+                newIndices = [...newIndices, ...item.shipped_selected_indices];
+            }
+
+            await supabase
+                .from('order_items')
+                .update({
+                    shipped_quantity: newShippedQty,
+                    shipped_selected_indices: newIndices
+                })
+                .eq('id', item.order_item_id);
+            
+            // 재고 차감
+            if (item.product_id) {
+                const { data: product } = await supabase.from('products').select('stock').eq('id', item.product_id).single();
+                if (product && product.stock !== null) {
+                    await supabase.from('products').update({ stock: Math.max(0, product.stock - item.shipped_quantity) }).eq('id', item.product_id);
+                }
+            }
+        }
+
+        // 5. 전체 발송 여부 판단 및 주문 상태 업데이트
+        const { data: allItems } = await supabase
+            .from('order_items')
+            .select('quantity, shipped_quantity, selected_product_ids')
+            .eq('order_id', shipment.order_id);
+
+        const allShipped = allItems?.every(i => {
+            const isBundle = i.selected_product_ids && i.selected_product_ids.length > 0;
+            const targetQty = isBundle ? i.quantity * i.selected_product_ids.length : i.quantity;
+            return (i.shipped_quantity || 0) >= targetQty;
+        });
+
+        const newOrderStatus = allShipped ? 'shipped' : 'partially_shipped';
+        await supabase.from('orders').update({
+            status: newOrderStatus,
+            tracking_number: trackingNumber, // 마지막 발급된 송장 저장
+            ...(allShipped ? { shipped_at: new Date().toISOString() } : {})
+        }).eq('id', shipment.order_id);
+
+        // 히스토리 기록
+        await this.logOrderHistory(shipment.order_id, newOrderStatus, 
+            allShipped ? '전체 배송 시작 (번들)' : '부분 배송 시작 (번들)', 
+            `송장번호: ${trackingNumber} / 번들: ${shipment.label}`
+        );
+
+        return { trackingNumber, status: newOrderStatus };
+    },
+
     // 발송 취소 로직
     async cancelShipment(shipmentId: string, orderId: string) {
         // 1. 발송 아이템 조회 및 수량 복구
@@ -833,19 +992,70 @@ export const adminService = {
         return data;
     },
 
+    async updateMemberType(id: string, updates: Partial<{ name: string; color: string; partial_shipment: boolean }>) {
+        const { data, error } = await supabase
+            .from('member_types')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
+    },
+
     async deleteMemberType(id: string) {
-        // 해당 타입을 사용하는 users를 NULL로 초기화
-        await supabase.from('users').update({ member_type: null }).eq('member_type', id);
+        // 1. 삭제할 타입의 이름을 가져옴
+        const { data: typeToDelete } = await supabase.from('member_types').select('name').eq('id', id).single();
+        if (!typeToDelete) return;
+
+        const typeName = typeToDelete.name;
+
+        // 2. 해당 타입을 포함하고 있는 사용자가 있는지 확인
+        const { count, error: countError } = await supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .like('member_type', `%${typeName}%`);
+
+        if (countError) throw countError;
+
+        if (count && count > 0) {
+            // 사용 중인 회원이 있다면 에러 발생
+            const error = new Error(`현재 '${typeName}' 분류를 사용 중인 회원이 ${count}명 있습니다. 먼저 해당 회원들의 분류를 수정한 후 삭제해주세요.`);
+            (error as any).code = 'IN_USE';
+            throw error;
+        }
+
+        // 3. 타입 삭제
         const { error } = await supabase.from('member_types').delete().eq('id', id);
         if (error) throw error;
     },
 
-    async updateUserMemberType(userId: string, memberType: string | null) {
+    async updateUser(userId: string, data: any) {
+        console.log(`Updating member ${userId} with data:`, data);
         const { error } = await supabase
             .from('users')
-            .update({ member_type: memberType })
+            .update({
+                name: data.name,
+                hospital_name: data.hospitalName,
+                business_number: data.businessNumber,
+                phone: data.phone,
+                mobile: data.mobile,
+                zip_code: data.zipCode,
+                address: data.address,
+                address_detail: data.addressDetail,
+                region: data.region,
+                hospital_email: data.hospitalEmail,
+                tax_email: data.taxEmail,
+                role: data.role,
+                // member_type은 별도 핸들러에서 처리하지만 일괄 저장 시 포함될 수 있음
+                member_type: data.memberType
+            })
             .eq('id', userId);
-        if (error) throw error;
+
+        if (error) {
+            console.error('Update user error:', error);
+            throw error;
+        }
     },
     // ──────────────────────────────────────────────────────────────
 

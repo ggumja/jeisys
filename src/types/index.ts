@@ -19,6 +19,7 @@ export interface User {
   holidayDay?: string;
   isPublicHoliday?: boolean;
   role?: 'admin' | 'user';
+  memberType?: string;
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt?: string;
 }

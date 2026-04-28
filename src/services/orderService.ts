@@ -592,12 +592,16 @@ export const orderService = {
         }
     },
 
-    // 고객 클레임 신청 (반품/교환)
-    async requestClaim(orderId: string, type: 'RETURN' | 'EXCHANGE', reason: string): Promise<void> {
+    // 고객 클레임 신청 (취소/반품/교환)
+    async requestClaim(orderId: string, type: 'CANCEL' | 'RETURN' | 'EXCHANGE', reason: string): Promise<void> {
         const user = await authService.getCurrentUser();
         if (!user) throw new Error('User not authenticated');
 
-        const newStatus = type === 'RETURN' ? 'return_requested' : 'exchange_requested';
+        let newStatus = '';
+        if (type === 'CANCEL') newStatus = 'cancel_requested';
+        else if (type === 'RETURN') newStatus = 'return_requested';
+        else if (type === 'EXCHANGE') newStatus = 'exchange_requested';
+
         const claimInfo = {
             type,
             reason,
@@ -618,10 +622,11 @@ export const orderService = {
             throw error;
         }
 
+        const historyAction = type === 'CANCEL' ? '결제 취소 신청' : type === 'RETURN' ? '반품 신청' : '교환 신청';
         await this.logOrderHistory(
             orderId,
             newStatus,
-            type === 'RETURN' ? '반품 신청' : '교환 신청',
+            historyAction,
             `고객 신청 사유: ${reason}`
         );
     },

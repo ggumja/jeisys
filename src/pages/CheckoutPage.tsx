@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check, AlertCircle, Trash2 } from 'lucide-react';
 import { cartService } from '../services/cartService';
@@ -13,6 +13,8 @@ import { CartItemCard } from '../components/CartItemCard';
 import { CardRegistrationModal } from '../components/CardRegistrationModal';
 import { toast } from 'sonner';
 import cardLogos from '../assets/card-logos.png';
+import { adminService } from '../services/adminService';
+import { SplitShipmentModal } from '../components/SplitShipmentModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +60,39 @@ export function CheckoutPage() {
     detail: '',
   });
 
+  const [isPartialShipAllowed, setIsPartialShipAllowed] = useState(false);
+  const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
+  const [pendingBundles, setPendingBundles] = useState<any[]>([]);
+
+  const splitShipOrder = useMemo(() => {
+    if (!userProfile) return null;
+    return {
+      id: '',
+      userId: userProfile.id,
+      orderNumber: 'PRE-ORDER',
+      pendingBundles,
+      items: cart.map(item => {
+        const p = productsMap[item.productId];
+        const alreadyAllocated = pendingBundles.reduce((sum, b) => {
+          const bi = b.items?.find((i: any) => i.orderItemId === item.id && i.productId === item.productId);
+          return sum + (bi?.shipQty || 0);
+        }, 0);
+
+        return {
+          id: item.id || '',
+          productId: item.productId,
+          product: p,
+          productName: p?.name || '상품 정보 로딩 중...',
+          quantity: item.quantity,
+          shippedQuantity: 0,
+          selectedProductIds: item.selectedProductIds || [],
+          // 이미 등록된 번들들에서 할당된 수량 제외한 진짜 잔여 수량
+          remaining: Math.max(0, item.quantity - alreadyAllocated)
+        };
+      })
+    };
+  }, [cart, productsMap, pendingBundles, userProfile]);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -80,6 +115,13 @@ export function CheckoutPage() {
 
       if (user) {
         setUserProfile(user);
+        
+        // 분할배송 권한 체크
+        const types = await adminService.getMemberTypes();
+        const userTypes = user.memberType?.split(',').map(t => t.trim()) || [];
+        const allowed = user.role === 'admin' || (types as any[]).some(t => userTypes.includes(t.name) && t.partial_shipment);
+        setIsPartialShipAllowed(allowed);
+
         // 저장된 배송지 목록 로드
         const savedAddrs = await addressService.getAddresses(user.id);
         setSavedAddresses(savedAddrs);
@@ -319,6 +361,28 @@ export function CheckoutPage() {
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined
       });
 
+      // 사전 등록된 분할 배송 번들 생성
+      if (pendingBundles.length > 0) {
+        for (const bundle of pendingBundles) {
+          // order.items에서 일치하는 order_item_id 매칭
+          const matchedItems = bundle.items.map((bi: any) => {
+            const oi = order.items.find((i: any) => i.productId === bi.productId);
+            return {
+              ...bi,
+              orderItemId: oi?.id || bi.orderItemId
+            };
+          });
+
+          await adminService.createShippingBundle({
+            orderId: order.id,
+            label: bundle.label,
+            shippingInfo: bundle.shippingInfo,
+            items: matchedItems,
+            bonusItems: bundle.bonusItems
+          });
+        }
+      }
+
       navigate(`/order-complete/${order.id}`);
     } catch (error: any) {
       console.error('Order failed', error);
@@ -375,9 +439,112 @@ export function CheckoutPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-
-          {/* Delivery Address */}
+          {/* User Order Items */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl tracking-tight text-neutral-900 font-bold">주문 상품 정보</h2>
+              {isPartialShipAllowed && (
+                <button
+                  onClick={() => setIsSplitModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-100 text-xs font-bold hover:bg-blue-100 transition-colors"
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  분할배송등록
+                </button>
+              )}
+            </div>
+            <div className="space-y-4">
+              {cart.map(item => {
+                const product = productsMap[item.productId];
+                if (!product) return null;
+                const unitPrice = getTierPrice(item);
+                const subDiscount = (product?.subscriptionDiscount || 0) / 100;
+                const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
+                return (
+                  <CartItemCard
+                    key={item.id}
+                    item={item}
+                    product={product}
+                    productsMap={productsMap}
+                    unitPrice={unitPrice}
+                    itemTotal={itemTotal}
+                    readonly
+                  />
+                );
+              })}
+            </div>
+            {/* Registered Bundles Summary */}
+            {pendingBundles.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-neutral-100 space-y-4">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Package className="w-4 h-4" />
+                  <p className="text-sm font-bold uppercase tracking-tight">사전 등록된 분할 배송 번들 ({pendingBundles.length})</p>
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  {pendingBundles.map((bundle, idx) => (
+                    <div key={idx} className="p-4 bg-blue-50/30 border border-blue-100 rounded-lg relative group">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded">번들 {idx + 1}</span>
+                          <p className="text-sm font-bold text-neutral-900">{bundle.label}</p>
+                        </div>
+                        <button 
+                          onClick={() => setPendingBundles(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-neutral-400 hover:text-red-500 transition-colors"
+                          title="번들 삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="bg-white p-3 rounded-md border border-blue-50 text-xs mb-3">
+                        <p className="font-bold text-neutral-900 mb-2 border-b border-neutral-100 pb-1">발송 품목</p>
+                        <ul className="space-y-1.5">
+                          {bundle.items.map((item: any, i: number) => (
+                            <li key={i} className="flex justify-between text-neutral-600">
+                              <span className="truncate pr-2">- {item.productName}</span>
+                              <span className="font-medium flex-shrink-0">{item.shipQty}개</span>
+                            </li>
+                          ))}
+                          {bundle.bonusItems?.map((bonus: any, i: number) => (
+                            <li key={`b-${i}`} className="flex justify-between text-amber-600">
+                              <span className="truncate pr-2">- [증정] {bonus.productName}</span>
+                              <span className="font-medium flex-shrink-0">{bonus.quantity}개</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="text-xs text-neutral-600 space-y-1">
+                        <div className="flex gap-2">
+                          <span className="font-bold text-neutral-900 w-12 flex-shrink-0">수령인</span>
+                          <span>{bundle.shippingInfo.recipient} <span className="text-neutral-400">({bundle.shippingInfo.phone})</span></span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-bold text-neutral-900 w-12 flex-shrink-0">배송지</span>
+                          <span className="break-all">{bundle.shippingInfo.address} {bundle.shippingInfo.addressDetail} [{bundle.shippingInfo.zipCode}]</span>
+                        </div>
+                        {bundle.shippingInfo.deliveryMemo && (
+                          <div className="flex gap-2 text-blue-600 mt-1">
+                            <span className="font-bold w-12 flex-shrink-0">메모</span>
+                            <span>{bundle.shippingInfo.deliveryMemo}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-blue-500 bg-blue-50/50 p-2 rounded">
+                  * 위 품목들은 결제 완료 후 지정된 배송지로 별도 발송 예약됩니다.
+                </p>
+              </div>
+            )}
+          </div>
+
+
+          {/* Delivery Address - Hide if split bundles are being registered */}
+          {pendingBundles.length === 0 && (
+            <div className="bg-white border border-neutral-200 p-8 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl tracking-tight text-neutral-900 flex items-center gap-2 font-bold">
                 <MapPin className="w-5 h-5" />
@@ -532,6 +699,7 @@ export function CheckoutPage() {
               />
             </div>
           </div>
+        )}
 
           {/* Payment Methods */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
@@ -701,30 +869,6 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          {/* User Order Items */}
-          <div className="bg-white border border-neutral-200 p-8 shadow-sm">
-            <h2 className="text-xl tracking-tight text-neutral-900 mb-6 font-bold">주문 상품 정보</h2>
-            <div className="space-y-4">
-              {cart.map(item => {
-                const product = productsMap[item.productId];
-                if (!product) return null;
-                const unitPrice = getTierPrice(item);
-                const subDiscount = (product?.subscriptionDiscount || 0) / 100;
-                const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
-                return (
-                  <CartItemCard
-                    key={item.id}
-                    item={item}
-                    product={product}
-                    productsMap={productsMap}
-                    unitPrice={unitPrice}
-                    itemTotal={itemTotal}
-                    readonly
-                  />
-                );
-              })}
-            </div>
-          </div>
         </div>
 
 
@@ -795,6 +939,22 @@ export function CheckoutPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Split Shipment Modal */}
+      {isSplitModalOpen && splitShipOrder && (
+        <SplitShipmentModal
+          onClose={() => setIsSplitModalOpen(false)}
+          isPreOrder={true}
+          order={splitShipOrder}
+          onSuccess={(bundleData) => {
+            if (bundleData) {
+              setPendingBundles(prev => [...prev, bundleData]);
+              toast.success('배송 번들이 사전 등록되었습니다.');
+            }
+            setIsSplitModalOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

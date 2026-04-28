@@ -200,6 +200,7 @@ export const authService = {
             holidayDay: profile.holiday_day,
             isPublicHoliday: profile.is_public_holiday,
             role: profile.role,
+            memberType: profile.member_type,
             approvalStatus: profile.approval_status
         };
     },
