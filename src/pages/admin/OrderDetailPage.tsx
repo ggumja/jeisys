@@ -103,7 +103,11 @@ interface Order {
     trackingNumber: string;
     shippedAt: string;
     isPartial: boolean;
-    items: Array<{ productName: string; quantity: number }>;
+    status?: 'PLANNED' | 'SHIPPED';
+    label?: string;
+    shippingInfo?: { recipient?: string; phone?: string; zipCode?: string; address?: string; addressDetail?: string };
+    items: Array<{ productName: string; productId?: string; quantity: number }>;
+    bonusItems?: Array<{ productId: string; productName: string; quantity: number }>;
   }>;
   claimInfo?: {
     type: 'CANCEL' | 'RETURN' | 'EXCHANGE';
@@ -1226,8 +1230,116 @@ export function OrderDetailPage() {
           </table>
         </div>
       </div>
-      {/* Shipment History */}
-      {order.shipments && order.shipments.length > 0 && (
+      {/* PLANNED 번들 섹션 */}
+      {order.shipments && order.shipments.some(s => (s.status === 'PLANNED' || !s.trackingNumber) && s.status !== 'SHIPPED') && (
+        <div className="bg-white border border-blue-200 mt-6">
+          <div className="px-6 py-4 border-b border-blue-100 bg-blue-50/60 flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              대기 중인 배송 번들
+            </h4>
+            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full font-medium">
+              {order.shipments.filter(s => s.status === 'PLANNED' || (!s.trackingNumber && s.status !== 'SHIPPED')).length}건 대기
+            </span>
+          </div>
+          <div className="p-6">
+            <ul className="space-y-4">
+              {order.shipments
+                .filter(s => s.status === 'PLANNED' || (!s.trackingNumber && s.status !== 'SHIPPED'))
+                .map((shipment) => (
+                <li key={shipment.id} className="p-4 border border-blue-100 bg-blue-50/30 rounded-sm">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded bg-blue-100 text-blue-700">
+                        🕐 대기중
+                      </span>
+                      {shipment.label && (
+                        <span className="text-sm font-bold text-neutral-900">{shipment.label}</span>
+                      )}
+                      {shipment.shippingInfo && (
+                        <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
+                          📍 {shipment.shippingInfo.recipient}{shipment.shippingInfo.recipient ? ' · ' : ''}{shipment.shippingInfo.address}{shipment.shippingInfo.addressDetail ? ' ' + shipment.shippingInfo.addressDetail : ''}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={isUpdating}
+                        onClick={async () => {
+                          if (!confirm(`[${shipment.label || '번들'}] 로젠 API로 부분발송을 처리할까요?\n\n수령인: ${shipment.shippingInfo?.recipient || '-'}\n주소: ${shipment.shippingInfo?.address || '-'}`)) return;
+                          try {
+                            setIsUpdating(true);
+                            toast.info('로젠 API 송장 발급 중...');
+                            const result = await adminService.shipBundle(shipment.id);
+                            toast.success(`부분발송 완료! 송장번호: ${result.trackingNumber}`);
+                            await loadOrder();
+                          } catch (e: any) {
+                            console.error(e);
+                            toast.error(`발송 처리 실패: ${e.message || '알 수 없는 오류'}`);
+                          } finally {
+                            setIsUpdating(false);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+                        부분발송하기 (로젠 API)
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('이 번들을 삭제할까요?')) return;
+                          try {
+                            setIsUpdating(true);
+                            await adminService.cancelShipment(shipment.id, order.id);
+                            toast.success('번들이 삭제되었습니다.');
+                            await loadOrder();
+                          } catch (e) {
+                            toast.error('번들 삭제 중 오류가 발생했습니다.');
+                          } finally {
+                            setIsUpdating(false);
+                          }
+                        }}
+                        disabled={isUpdating}
+                        className="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded"
+                      >
+                        번들 삭제
+                      </button>
+                    </div>
+                  </div>
+                  {/* 번들 포함 상품 목록 */}
+                  <div className="border border-blue-100 overflow-hidden text-xs">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-blue-50 border-b border-blue-100">
+                          <th className="px-3 py-1.5 text-left font-medium text-blue-600">상품명</th>
+                          <th className="px-3 py-1.5 text-center font-medium text-blue-600 w-12">수량</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-blue-50">
+                        {shipment.items.map((it: any, idx: number) => (
+                          <tr key={idx} className="bg-white">
+                            <td className="px-3 py-2 text-neutral-900 font-medium">{it.productName || subProductsMap[it.productId]?.name || '-'}</td>
+                            <td className="px-3 py-2 text-center font-bold text-neutral-900">{it.quantity}</td>
+                          </tr>
+                        ))}
+                        {(shipment.bonusItems || []).map((bonus: any, bIdx: number) => (
+                          <tr key={`bonus-${bIdx}`} className="bg-amber-50">
+                            <td className="px-3 py-2 text-amber-800">{bonus.productName} <span className="px-1 py-0.5 bg-amber-100 text-amber-600 text-[10px] rounded">증정</span></td>
+                            <td className="px-3 py-2 text-center font-bold text-amber-800">{bonus.quantity}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Shipment History (SHIPPED 완료 건만) */}
+      {order.shipments && order.shipments.some(s => s.status === 'SHIPPED' || (s.trackingNumber && s.status !== 'PLANNED')) && (
         <div className="bg-white border border-neutral-200 mt-6">
           <div className="px-6 py-4 border-b border-neutral-200">
             <h4 className="text-sm font-medium text-neutral-900 flex items-center gap-2">
@@ -1237,7 +1349,7 @@ export function OrderDetailPage() {
           </div>
           <div className="p-6">
             <ul className="space-y-4">
-              {order.shipments.map((shipment) => (
+              {order.shipments.filter(s => s.status === 'SHIPPED' || (s.trackingNumber && s.status !== 'PLANNED')).map((shipment) => (
                 <li key={shipment.id} className="p-4 border border-neutral-100 bg-neutral-50 flex items-start gap-4">
                   <div className="flex-1">
                     <div className="flex flex-col md:flex-row justify-between md:items-center mb-3">

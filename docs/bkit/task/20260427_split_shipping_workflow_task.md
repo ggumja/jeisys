@@ -12,6 +12,9 @@
 - `[x]` **4단계: 어드민 프론트엔드 UI**
     - `[x]` `OrderDetailPage` 번들 그룹화 렌더링
     - `[x]` 대기 번들용 "부분발송하기 (로젠 API)" 버튼 및 연동
-- `[ ]` **5단계: 검증 및 완료**
-    - `[ ]` 실제 데이터 기반 번들 생성 테스트
+- `[/]` **5단계: 검증 및 완료**
+    - `[x]` 버그 수정: `createShippingBundle` - `shippedSelectedIndices` 필드명 오타 (`adminService.ts:701`)
+    - `[x]` 어드민 UI: PLANNED 번들 "대기 중인 배송 번들" 섹션 추가 (`OrderDetailPage.tsx`)
+    - `[x]` 어드민 UI: "부분발송하기 (로젠 API)" 버튼 → `shipBundle()` 연동
+    - `[ ]` 실제 데이터 기반 번들 생성 E2E 테스트 (고객 → 어드민 발송 처리)
     - `[ ]` 로젠 API 응답 파싱 및 송장 매칭 확인

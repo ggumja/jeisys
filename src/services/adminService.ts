@@ -698,7 +698,7 @@ export const adminService = {
                 order_item_id: item.orderItemId,
                 product_id: item.productId,
                 shipped_quantity: item.shipQty,
-                shipped_selected_indices: item.shipped_selected_indices || []
+                shipped_selected_indices: item.shippedSelectedIndices || []
             });
             if (itemErr) throw itemErr;
         }
