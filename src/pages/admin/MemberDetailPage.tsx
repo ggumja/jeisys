@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, User, Building2, Settings, Loader2,
   UserCheck, UserX, Clock, ShoppingCart, Tag, Check, Edit2, Save,
-  MapPin, History, Monitor, CreditCard, Package, ChevronLeft, ChevronRight
+  MapPin, History, Monitor, CreditCard, Package, ChevronLeft, ChevronRight,
+  PlusCircle, ChevronDown, X, Coins
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -13,6 +14,7 @@ import { useModal } from '../../context/ModalContext';
 import { adminService } from '../../services/adminService';
 import { shopSettingsService } from '../../services/shopSettingsService';
 import { proxyOrderService } from '../../services/cartService';
+import { creditService, UserCredit, CreditSummary, CreditTransaction } from '../../services/creditService';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { toast } from 'sonner';
@@ -75,6 +77,21 @@ export function MemberDetailPage() {
   const ORDER_PAGE_SIZE = 10;
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'equipment' | 'orders' | 'credit' | 'points'>('info');
+
+  // 크레딧
+  const [credits, setCredits] = useState<UserCredit[]>([]);
+  const [creditSummary, setCreditSummary] = useState<CreditSummary[]>([]);
+  const [creditLoading, setCreditLoading] = useState(false);
+  const [expandedCreditId, setExpandedCreditId] = useState<string | null>(null);
+  const [creditTransactions, setCreditTransactions] = useState<Record<string, CreditTransaction[]>>({});
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [issueForm, setIssueForm] = useState({
+    equipmentType: 'Density' as 'Density' | 'LinearZ',
+    amount: '',
+    expiryDate: '',
+    memo: '',
+  });
+  const [issuing, setIssuing] = useState(false);
 
   const member = (members as any[]).find(m => m.id === id);
 
@@ -140,6 +157,66 @@ export function MemberDetailPage() {
       .order('created_at', { ascending: false })
       .then(({ data }) => setInquiries(data || []));
   }, [member?.id]);
+
+  // 크레딧 탭 진입 시 로딩
+  useEffect(() => {
+    if (activeTab !== 'credit' || !member?.id) return;
+    setCreditLoading(true);
+    Promise.all([
+      creditService.getCreditsByUser(member.id),
+      creditService.getCreditSummary(member.id),
+    ]).then(([list, summary]) => {
+      setCredits(list);
+      setCreditSummary(summary);
+    }).catch(console.error)
+      .finally(() => setCreditLoading(false));
+  }, [activeTab, member?.id]);
+
+  const handleToggleCreditHistory = async (creditId: string) => {
+    if (expandedCreditId === creditId) {
+      setExpandedCreditId(null);
+      return;
+    }
+    setExpandedCreditId(creditId);
+    if (!creditTransactions[creditId]) {
+      const txs = await creditService.getCreditTransactions(creditId).catch(() => []);
+      setCreditTransactions(prev => ({ ...prev, [creditId]: txs }));
+    }
+  };
+
+  const handleIssueCredit = async () => {
+    if (!member?.id || !issueForm.amount || !issueForm.expiryDate) {
+      toast.error('장비, 금액, 유효기간은 필수입니다.');
+      return;
+    }
+    setIssuing(true);
+    try {
+      await creditService.issueCredit({
+        userId: member.id,
+        equipmentType: issueForm.equipmentType,
+        amount: Number(issueForm.amount),
+        expiryDate: issueForm.expiryDate,
+        memo: issueForm.memo || undefined,
+      });
+      toast.success('크레딧이 발급되었습니다.');
+      setShowIssueModal(false);
+      setIssueForm({ equipmentType: 'Density', amount: '', expiryDate: '', memo: '' });
+      // 목록 새로고침
+      const [list, summary] = await Promise.all([
+        creditService.getCreditsByUser(member.id),
+        creditService.getCreditSummary(member.id),
+      ]);
+      setCredits(list);
+      setCreditSummary(summary);
+    } catch (e: any) {
+      toast.error(e.message || '발급에 실패했습니다.');
+    } finally {
+      setIssuing(false);
+    }
+  };
+
+  const totalRemaining = creditSummary.reduce((s, c) => s + c.remaining, 0);
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -787,16 +864,23 @@ export function MemberDetailPage() {
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
                         order.status === 'delivered' ? 'bg-green-100 text-green-800' :
                         order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                        order.status === 'processing' ? 'bg-indigo-100 text-indigo-800' :
                         order.status === 'paid' ? 'bg-yellow-100 text-yellow-800' :
                         order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                         'bg-neutral-100 text-neutral-600'
                       }`}>
-                        {order.status === 'pending' ? '결제대기' :
-                         order.status === 'paid' ? '결제완료' :
-                         order.status === 'preparing' ? '상품준비중' :
-                         order.status === 'shipped' ? '배송중' :
-                         order.status === 'delivered' ? '배송완료' :
-                         order.status === 'cancelled' ? '취소' : order.status}
+                         {order.status === 'pending' ? '결제대기' :
+                          order.status === 'paid' ? '결제완료' :
+                          order.status === 'processing' ? '상품준비중' :
+                          order.status === 'preparing' ? '상품준비중' :
+                          order.status === 'partially_shipped' ? '부분발송' :
+                          order.status === 'shipped' ? '배송중' :
+                          order.status === 'delivered' ? '배송완료' :
+                          order.status === 'cancel_requested' ? '취소요청' :
+                          order.status === 'cancelled' ? '취소' :
+                          order.status === 'return_requested' ? '반품요청' :
+                          order.status === 'returning' ? '반품중' :
+                          order.status === 'returned' ? '반품완료' : order.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-neutral-900">
@@ -883,15 +967,259 @@ export function MemberDetailPage() {
 
       {/* ── 탭: 크레딧 */}
       {activeTab === 'credit' && <>
-      <section className="bg-white border border-neutral-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-neutral-100">
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">크레딧</h3>
+
+      {/* 발급 모달 */}
+      {showIssueModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowIssueModal(false)} />
+          <div className="relative bg-white w-full max-w-md mx-4 shadow-2xl rounded-sm" onClick={e => e.stopPropagation()}>
+            {/* 모달 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+              <div className="flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-500" />
+                <h3 className="text-base font-black text-neutral-900">크레딧 발급</h3>
+              </div>
+              <button onClick={() => setShowIssueModal(false)} className="p-1.5 hover:bg-neutral-100 rounded transition-colors">
+                <X className="w-4 h-4 text-neutral-500" />
+              </button>
+            </div>
+            {/* 모달 바디 */}
+            <div className="px-6 py-5 space-y-4">
+              {/* 회원 표시 */}
+              <p className="text-sm text-neutral-600">
+                <span className="font-bold text-neutral-900">{member?.name}</span>
+                <span className="text-neutral-400 ml-2">({member?.email})</span>
+              </p>
+
+              {/* 장비 선택 */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                  장비 선택 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={issueForm.equipmentType}
+                  onChange={e => setIssueForm(f => ({ ...f, equipmentType: e.target.value as any }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                  <option value="Density">Density</option>
+                  <option value="LinearZ">LinearZ</option>
+                </select>
+              </div>
+
+              {/* 크레딧 금액 */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                  크레딧 금액 <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number" min="0" step="1000"
+                    placeholder="0"
+                    value={issueForm.amount}
+                    onChange={e => setIssueForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full border border-neutral-300 rounded px-3 py-2 text-sm pr-8 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
+                </div>
+              </div>
+
+              {/* 유효기간 */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                  유효기간 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={issueForm.expiryDate}
+                  onChange={e => setIssueForm(f => ({ ...f, expiryDate: e.target.value }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              {/* 메모 */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">메모</label>
+                <input
+                  type="text"
+                  placeholder="발급 사유 또는 메모 (선택)"
+                  value={issueForm.memo}
+                  onChange={e => setIssueForm(f => ({ ...f, memo: e.target.value }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+              </div>
+
+              {/* 현재 잔액 표시 */}
+              <div className="bg-neutral-50 rounded px-4 py-2.5 text-sm text-neutral-600">
+                현재 잔액:{' '}
+                <span className="font-bold text-neutral-900">
+                  {(creditSummary.find(s => s.equipmentType === issueForm.equipmentType)?.remaining ?? 0).toLocaleString()}원
+                </span>
+                {' '}({issueForm.equipmentType})
+              </div>
+            </div>
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
+              <button onClick={() => setShowIssueModal(false)}
+                className="px-5 py-2.5 text-sm font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors rounded">
+                취소
+              </button>
+              <button onClick={handleIssueCredit} disabled={issuing}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors rounded disabled:opacity-60">
+                {issuing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
+                발급
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="p-6">
-          <p className="text-sm text-neutral-400 text-center py-8">크레딧 정보를 준비 중입니다.</p>
+      )}
+
+      {/* 크레딧 탭 본문 */}
+      <section className="bg-white border border-neutral-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">크레딧</h3>
+          <button onClick={() => setShowIssueModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors rounded">
+            <PlusCircle className="w-4 h-4" />
+            크레딧 발행하기
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* 장비별 잔액 요약 카드 */}
+          <div className="grid grid-cols-2 gap-4">
+            {(['Density', 'LinearZ'] as const).map(eq => {
+              const s = creditSummary.find(c => c.equipmentType === eq);
+              return (
+                <div key={eq} className="border border-neutral-200 rounded p-4 bg-neutral-50">
+                  <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">{eq} 크레딧</div>
+                  <div className="text-2xl font-black text-neutral-900">
+                    {(s?.remaining ?? 0).toLocaleString()}
+                    <span className="text-sm font-normal text-neutral-400 ml-1">원</span>
+                  </div>
+                  {s && (
+                    <div className="text-xs text-neutral-400 mt-1">
+                      총 발급 {s.totalAmount.toLocaleString()}원 · 사용 {s.usedAmount.toLocaleString()}원
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 발급 목록 */}
+          {creditLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-neutral-400" /></div>
+          ) : credits.length === 0 ? (
+            <p className="text-sm text-neutral-400 text-center py-8">발급된 크레딧이 없습니다.</p>
+          ) : (
+            <div className="border border-neutral-200 rounded overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 border-b border-neutral-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">발급일</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">장비</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-neutral-500 uppercase">발급금액</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-neutral-500 uppercase">잔액</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">유효기간</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">상태</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">이력</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {credits.map(credit => {
+                    const isExpanded = expandedCreditId === credit.id;
+                    const isExpired = credit.status === 'expired' || new Date(credit.expiryDate) < new Date();
+                    const txs = creditTransactions[credit.id];
+                    return (
+                      <React.Fragment key={credit.id}>
+                        <tr className="hover:bg-neutral-50 transition-colors">
+                          <td className="px-4 py-3 text-neutral-600">
+                            {new Date(credit.createdAt).toLocaleDateString('ko-KR')}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${
+                              credit.equipmentType === 'Density'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>{credit.equipmentType}</span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold">{credit.amount.toLocaleString()}원</td>
+                          <td className="px-4 py-3 text-right font-bold text-neutral-900">{credit.remaining.toLocaleString()}원</td>
+                          <td className="px-4 py-3 text-neutral-600">{credit.expiryDate}</td>
+                          <td className="px-4 py-3 text-center">
+                            {isExpired || credit.status === 'expired' ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">만료</span>
+                            ) : credit.status === 'exhausted' ? (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs bg-neutral-100 text-neutral-500">소진</span>
+                            ) : (
+                              <span className="inline-flex px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">활성</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => handleToggleCreditHistory(credit.id)}
+                              className="text-xs text-neutral-500 hover:text-neutral-900 flex items-center gap-1 mx-auto"
+                            >
+                              <History className="w-3.5 h-3.5" />
+                              <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={7} className="bg-neutral-50 px-6 py-4">
+                              <p className="text-xs font-bold text-neutral-500 uppercase mb-2">사용 이력</p>
+                              {!txs ? (
+                                <div className="flex justify-center py-2"><Loader2 className="w-4 h-4 animate-spin" /></div>
+                              ) : txs.length === 0 ? (
+                                <p className="text-xs text-neutral-400">이력이 없습니다.</p>
+                              ) : (
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-neutral-400">
+                                      <th className="text-left pb-1">일시</th>
+                                      <th className="text-left pb-1">유형</th>
+                                      <th className="text-right pb-1">금액</th>
+                                      <th className="text-left pb-1">메모</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-neutral-100">
+                                    {txs.map(tx => (
+                                      <tr key={tx.id}>
+                                        <td className="py-1.5 text-neutral-500">
+                                          {new Date(tx.createdAt).toLocaleDateString('ko-KR')}
+                                        </td>
+                                        <td className="py-1.5">
+                                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                                            tx.type === 'issue' ? 'bg-green-100 text-green-700' :
+                                            tx.type === 'use'   ? 'bg-blue-100 text-blue-700' :
+                                            tx.type === 'expire'? 'bg-red-100 text-red-700' :
+                                            'bg-yellow-100 text-yellow-700'
+                                          }`}>
+                                            {tx.type === 'issue' ? '발급' : tx.type === 'use' ? '사용' : tx.type === 'expire' ? '만료' : '환급'}
+                                          </span>
+                                        </td>
+                                        <td className="py-1.5 text-right font-semibold">{tx.amount.toLocaleString()}원</td>
+                                        <td className="py-1.5 text-neutral-500">{tx.description || '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
       </> /* end tab: 크레딧 */}
+
 
       {/* ── 탭: 포인트 */}
       {activeTab === 'points' && <>
