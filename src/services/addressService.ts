@@ -34,12 +34,9 @@ export const addressService = {
     userId: string,
     input: Omit<ShippingAddress, 'id' | 'userId' | 'createdAt'>
   ): Promise<ShippingAddress> {
-    // 기본배송지로 설정할 경우 기존 기본 해제
+    // 기본배송지로 설정할 경우 기존 기본 해제 (RPC 사용 - PATCH 우회)
     if (input.isDefault) {
-      await supabase
-        .from('shipping_addresses')
-        .update({ is_default: false })
-        .eq('user_id', userId);
+      await supabase.rpc('clear_default_shipping_addresses');
     }
 
     const { data, error } = await supabase
@@ -67,30 +64,25 @@ export const addressService = {
     userId: string,
     input: Partial<Omit<ShippingAddress, 'id' | 'userId' | 'createdAt'>>
   ): Promise<ShippingAddress> {
-    if (input.isDefault) {
-      await supabase
-        .from('shipping_addresses')
-        .update({ is_default: false })
-        .eq('user_id', userId);
-    }
+    // RPC로 업데이트 (PATCH CORS 우회)
+    const { error: rpcError } = await supabase.rpc('update_shipping_address', {
+      p_id: id,
+      p_label: input.label ?? null,
+      p_recipient: input.recipient ?? null,
+      p_phone: input.phone ?? null,
+      p_zip_code: input.zipCode ?? null,
+      p_address: input.address ?? null,
+      p_address_detail: input.addressDetail ?? null,
+      p_is_default: input.isDefault ?? null,
+    });
+    if (rpcError) throw rpcError;
 
-    const updatePayload: any = {};
-    if (input.label !== undefined) updatePayload.label = input.label;
-    if (input.recipient !== undefined) updatePayload.recipient = input.recipient;
-    if (input.phone !== undefined) updatePayload.phone = input.phone;
-    if (input.zipCode !== undefined) updatePayload.zip_code = input.zipCode;
-    if (input.address !== undefined) updatePayload.address = input.address;
-    if (input.addressDetail !== undefined) updatePayload.address_detail = input.addressDetail;
-    if (input.isDefault !== undefined) updatePayload.is_default = input.isDefault;
-    updatePayload.updated_at = new Date().toISOString();
-
+    // 업데이트된 데이터 재조회
     const { data, error } = await supabase
       .from('shipping_addresses')
-      .update(updatePayload)
-      .eq('id', id)
       .select()
+      .eq('id', id)
       .single();
-
     if (error) throw error;
     return fromRow(data);
   },
@@ -107,16 +99,9 @@ export const addressService = {
 
   /** 기본배송지 변경 */
   async setDefault(id: string, userId: string): Promise<void> {
-    await supabase
-      .from('shipping_addresses')
-      .update({ is_default: false })
-      .eq('user_id', userId);
-
-    const { error } = await supabase
-      .from('shipping_addresses')
-      .update({ is_default: true })
-      .eq('id', id);
-
+    const { error } = await supabase.rpc('set_default_shipping_address', {
+      p_id: id,
+    });
     if (error) throw error;
   },
 };
