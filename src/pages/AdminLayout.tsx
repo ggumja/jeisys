@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Wallet, CreditCard, Inbox } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Wallet, CreditCard, Inbox, Wrench } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -216,6 +216,18 @@ export function AdminLayout() {
                 >
                   <RefreshCw className="w-5 h-5" />
                   <span>정기배송목록</span>
+                </Link>
+
+                {/* Equipment Management */}
+                <Link
+                  to="/admin/equipments"
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${location.pathname.startsWith('/admin/equipments')
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-700 hover:bg-neutral-100'
+                    }`}
+                >
+                  <Wrench className="w-5 h-5" />
+                  <span>장비관리</span>
                 </Link>
 
                 {/* Communication Menu - Accordion */}
@@ -531,6 +543,16 @@ export function AdminLayout() {
                 >
                   <RefreshCw className="w-5 h-5" />
                   <span className="text-xs font-medium text-center">정기배송</span>
+                </Link>
+                <Link
+                  to="/admin/equipments"
+                  className={`flex flex-col items-center gap-1 py-3 transition-colors ${location.pathname.startsWith('/admin/equipments')
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600'
+                    }`}
+                >
+                  <Wrench className="w-5 h-5" />
+                  <span className="text-xs font-medium text-center">장비관리</span>
                 </Link>
                 <Link
                   to="/admin/products/single"

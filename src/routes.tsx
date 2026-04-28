@@ -65,6 +65,7 @@ import { SmsChargeHistoryPage } from "./pages/admin/marketing/SmsChargeHistoryPa
 import { EmailSendPage } from "./pages/admin/marketing/EmailSendPage";
 import { EmailHistoryPage } from "./pages/admin/marketing/EmailHistoryPage";
 import { EmailSystemHistoryPage } from "./pages/admin/marketing/EmailSystemHistoryPage";
+import { EquipmentManagementPage } from "./pages/admin/EquipmentManagementPage";
 
 export const router = createBrowserRouter([
     {
@@ -141,6 +142,7 @@ export const router = createBrowserRouter([
             { path: "marketing/email/send", Component: EmailSendPage },
             { path: "marketing/email/history", Component: EmailHistoryPage },
             { path: "marketing/email/system-history", Component: EmailSystemHistoryPage },
+            { path: "equipments", Component: EquipmentManagementPage },
         ],
     },
     {
