@@ -343,6 +343,13 @@ export function OrderDetailPage() {
             결제완료
           </Badge>
         );
+      case 'processing':
+        return (
+          <Badge variant="outline" className="bg-indigo-100 text-indigo-800 border-indigo-200">
+            <Package className="w-3 h-3 mr-1" />
+            상품준비중
+          </Badge>
+        );
       case 'shipped':
         return (
           <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
@@ -422,6 +429,7 @@ export function OrderDetailPage() {
     switch (status) {
       case 'pending': return '입금대기';
       case 'paid': return '결제완료';
+      case 'processing': return '상품준비중';
       case 'shipped': return '배송중';
       case 'delivered': return '배송완료';
       case 'cancelled': return '취소';
