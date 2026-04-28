@@ -218,18 +218,6 @@ export function AdminLayout() {
                   <span>정기배송목록</span>
                 </Link>
 
-                {/* Equipment Management */}
-                <Link
-                  to="/admin/equipments"
-                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${location.pathname.startsWith('/admin/equipments')
-                    ? 'bg-neutral-900 text-white'
-                    : 'text-neutral-700 hover:bg-neutral-100'
-                    }`}
-                >
-                  <Wrench className="w-5 h-5" />
-                  <span>장비관리</span>
-                </Link>
-
                 {/* Communication Menu - Accordion */}
                 <div>
                   <button
@@ -412,6 +400,18 @@ export function AdminLayout() {
                     </div>
                   )}
                 </div>
+
+                {/* Equipment Management */}
+                <Link
+                  to="/admin/equipments"
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm ${location.pathname.startsWith('/admin/equipments')
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-700 hover:bg-neutral-100'
+                    }`}
+                >
+                  <Wrench className="w-5 h-5" />
+                  <span>장비관리</span>
+                </Link>
 
                 {/* Marketing Menu - Accordion */}
                 <div>

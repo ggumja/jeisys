@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Pencil, Trash2, Loader2, X, Upload, Monitor } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { categoryService, Category } from '../../services/categoryService';
 import { toast } from 'sonner';
 
 interface Equipment {
@@ -13,11 +14,6 @@ interface Equipment {
   created_at: string;
 }
 
-const CATEGORY_OPTIONS = [
-  'AcGen', 'DENSITY', 'DLiv', 'INTRAcel', 'IntraGen', 'LinearFirm',
-  'LinearZ', 'POTENZA', 'ULTRAcel II', 'Volnewmer', '기타'
-];
-
 const emptyForm = {
   model_name: '',
   code: '',
@@ -28,6 +24,7 @@ const emptyForm = {
 
 export function EquipmentManagementPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -41,7 +38,18 @@ export function EquipmentManagementPage() {
 
   useEffect(() => {
     loadEquipments();
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const data = await categoryService.getCategories();
+      // 최상위 카테고리만 사용
+      setCategories(data.filter(c => !c.parentId));
+    } catch (e) {
+      console.error('카테고리 로드 실패', e);
+    }
+  };
 
   const loadEquipments = async () => {
     try {
@@ -107,11 +115,11 @@ export function EquipmentManagementPage() {
       const ext = imageFile.name.split('.').pop();
       const path = `equipments/${Date.now()}.${ext}`;
       const { error } = await supabase.storage
-        .from('product-images')
+        .from('products')
         .upload(path, imageFile, { upsert: true });
       if (error) throw error;
       const { data: urlData } = supabase.storage
-        .from('product-images')
+        .from('products')
         .getPublicUrl(path);
       return urlData.publicUrl;
     } finally {
@@ -127,23 +135,57 @@ export function EquipmentManagementPage() {
     setSaving(true);
     try {
       let image_url = form.image_url;
-      if (imageFile) image_url = await uploadImage();
+      if (imageFile) {
+        try {
+          image_url = await uploadImage();
+        } catch (uploadErr: any) {
+          toast.error(`이미지 업로드 실패: ${uploadErr.message}`);
+          setSaving(false);
+          return;
+        }
+      }
 
-      const payload = {
+      // 핵심 필드만 먼저 저장 (is_active 컬럼 존재 여부와 무관하게 동작)
+      const corePayload = {
         model_name: form.model_name.trim(),
         code: form.code.trim(),
         category: form.category,
         image_url,
-        is_active: form.is_active,
       };
 
       if (editTarget) {
-        const { error } = await supabase.from('equipments').update(payload).eq('id', editTarget.id);
+        const { data: updatedRows, error } = await supabase
+          .from('equipments')
+          .update(corePayload)
+          .eq('id', editTarget.id)
+          .select();
+
         if (error) throw error;
+        if (!updatedRows || updatedRows.length === 0) {
+          toast.error('저장 권한이 없거나 대상을 찾을 수 없습니다.');
+          setSaving(false);
+          return;
+        }
+
+        // is_active 별도 업데이트 (컬럼 없어도 무시)
+        await supabase.from('equipments').update({ is_active: form.is_active }).eq('id', editTarget.id).then(() => {});
+
+        // 옵티미스틱 업데이트: 리스트 즉시 반영
+        setEquipments(prev => prev.map(eq =>
+          eq.id === editTarget.id
+            ? { ...eq, ...corePayload, image_url }
+            : eq
+        ));
+
         toast.success('장비 정보가 수정되었습니다.');
       } else {
-        const { error } = await supabase.from('equipments').insert(payload);
-        if (error) throw error;
+        // 신규 등록 시도 - is_active 포함, 실패하면 핵심 필드만 재시도
+        const { error } = await supabase.from('equipments').insert({ ...corePayload, is_active: form.is_active });
+        if (error) {
+          // is_active 컬럼 없는 경우 핵심 필드만 insert
+          const { error: retryError } = await supabase.from('equipments').insert(corePayload);
+          if (retryError) throw retryError;
+        }
         toast.success('장비가 등록되었습니다.');
       }
       closeModal();
@@ -184,7 +226,7 @@ export function EquipmentManagementPage() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-semibold rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
           장비 등록
@@ -193,17 +235,15 @@ export function EquipmentManagementPage() {
 
       {/* Search */}
       <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="장비명으로 검색"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 rounded-sm bg-white"
-          />
-        </div>
-        <button className="px-5 py-2.5 bg-white border border-neutral-300 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors rounded-sm">
+        <input
+          type="text"
+          placeholder="장비명으로 검색"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="flex-1 px-4 py-2.5 text-sm border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900 rounded-sm bg-white"
+        />
+        <button className="flex items-center gap-2 px-5 py-2.5 bg-white border border-neutral-300 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors rounded-sm">
+          <Search className="w-4 h-4 text-neutral-400" />
           검색
         </button>
       </div>
@@ -261,7 +301,7 @@ export function EquipmentManagementPage() {
                   <td className="px-4 py-4">
                     <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
                       eq.is_active !== false
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        ? 'bg-green-100 text-green-800 border border-green-200'
                         : 'bg-neutral-100 text-neutral-500 border border-neutral-200'
                     }`}>
                       {eq.is_active !== false ? '활성' : '비활성'}
@@ -297,20 +337,21 @@ export function EquipmentManagementPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-              <h3 className="text-base font-bold text-neutral-900">
-                {editTarget ? '장비 수정' : '장비 등록'}
-              </h3>
-              <button onClick={closeModal} className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div style={{position:'fixed',inset:0,zIndex:9999,overflowY:'auto'}} className="bg-black/50">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl flex flex-col" style={{width:'100%',maxWidth:'440px',maxHeight:'90vh'}}>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 flex-shrink-0">
+                <h3 className="text-base font-bold text-neutral-900">
+                  {editTarget ? '장비 수정' : '장비 등록'}
+                </h3>
+                <button onClick={closeModal} className="p-1 text-neutral-400 hover:text-neutral-700 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-            {/* Modal Body */}
-            <div className="px-6 py-5 space-y-4">
+              {/* Modal Body - scrollable */}
+              <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
               {/* 장비명 */}
               <div>
                 <label className="block text-sm font-medium text-neutral-800 mb-1.5">
@@ -321,7 +362,7 @@ export function EquipmentManagementPage() {
                   value={form.model_name}
                   onChange={e => setForm(f => ({ ...f, model_name: e.target.value }))}
                   placeholder="장비명을 입력하세요"
-                  className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
                 />
               </div>
 
@@ -335,7 +376,7 @@ export function EquipmentManagementPage() {
                   value={form.code}
                   onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
                   placeholder="상품코드(SKU)를 입력하세요"
-                  className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
                 />
               </div>
 
@@ -347,11 +388,11 @@ export function EquipmentManagementPage() {
                 <select
                   value={form.category}
                   onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white appearance-none"
+                  className="w-full px-4 py-2.5 border border-neutral-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-transparent bg-white appearance-none"
                 >
                   <option value="">카테고리를 선택하세요</option>
-                  {CATEGORY_OPTIONS.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
                 </select>
               </div>
@@ -370,8 +411,8 @@ export function EquipmentManagementPage() {
                   }}
                 />
                 {imagePreview ? (
-                  <div className="relative border border-neutral-200 rounded-lg overflow-hidden bg-neutral-50 flex items-center justify-center h-36">
-                    <img src={imagePreview} alt="preview" className="max-h-32 object-contain" />
+                  <div className="relative border border-neutral-200 rounded-lg overflow-hidden bg-neutral-50 flex items-center justify-center h-28">
+                    <img src={imagePreview} alt="preview" className="max-h-24 object-contain" />
                     <button
                       onClick={() => { setImageFile(null); setImagePreview(''); setForm(f => ({ ...f, image_url: '' })); }}
                       className="absolute top-2 right-2 p-1 bg-white rounded-full shadow text-neutral-500 hover:text-red-500 transition-colors"
@@ -384,11 +425,11 @@ export function EquipmentManagementPage() {
                     onClick={() => fileInputRef.current?.click()}
                     onDrop={handleDrop}
                     onDragOver={e => e.preventDefault()}
-                    className="border-2 border-dashed border-neutral-200 rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-400 hover:bg-neutral-50 transition-colors"
+                    className="border-2 border-dashed border-neutral-200 rounded-lg p-5 flex flex-col items-center justify-center cursor-pointer hover:border-neutral-400 hover:bg-neutral-50 transition-colors"
                   >
-                    <Upload className="w-8 h-8 text-neutral-300 mb-2" />
-                    <p className="text-sm font-medium text-neutral-500">클릭하거나 이미지를 드래그해서 업로드</p>
-                    <p className="text-xs text-neutral-400 mt-1">JPG, PNG, GIF, WEBP / 최대 10MB</p>
+                    <Upload className="w-6 h-6 text-neutral-300 mb-1.5" />
+                    <p className="text-xs font-medium text-neutral-500">클릭하거나 이미지를 드래그해서 업로드</p>
+                    <p className="text-xs text-neutral-400 mt-0.5">JPG, PNG, GIF, WEBP / 최대 10MB</p>
                   </div>
                 )}
               </div>
@@ -400,14 +441,14 @@ export function EquipmentManagementPage() {
                   id="is_active"
                   checked={form.is_active}
                   onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
-                  className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                  className="w-4 h-4 rounded cursor-pointer"
                 />
                 <label htmlFor="is_active" className="text-sm text-neutral-700 cursor-pointer">활성화</label>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-neutral-100 bg-neutral-50 rounded-b-xl">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-neutral-100 bg-neutral-50 rounded-b-xl flex-shrink-0">
               <button
                 onClick={closeModal}
                 className="px-5 py-2 text-sm text-neutral-600 border border-neutral-300 rounded-lg hover:bg-neutral-100 transition-colors"
@@ -417,11 +458,12 @@ export function EquipmentManagementPage() {
               <button
                 onClick={handleSave}
                 disabled={saving || uploading}
-                className="px-5 py-2 text-sm font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-5 py-2 text-sm font-semibold text-white bg-neutral-900 hover:bg-neutral-800 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {(saving || uploading) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 저장
               </button>
+            </div>
             </div>
           </div>
         </div>
