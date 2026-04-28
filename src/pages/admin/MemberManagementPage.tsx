@@ -214,7 +214,7 @@ export function MemberManagementPage() {
         ? true
         : memberTypeFilter === 'none'
         ? !member.memberType
-        : member.memberType === memberTypeFilter;
+        : member.memberType?.split(',').includes(memberTypeFilter);
       const matchesStatus = status ? member.status === status : true;
       return matchesSearch && matchesGrade && matchesType && matchesStatus;
     });
@@ -251,18 +251,26 @@ export function MemberManagementPage() {
     return <Badge variant="outline" className={colors[grade]}>{grade}</Badge>;
   };
 
-  // 회원 분류 뱃지: color는 DB에서 가져옴
-  const getMemberTypeBadge = (typeName: string | null | undefined) => {
-    if (!typeName) return <span className="text-xs text-neutral-400">-</span>;
-    const type = memberTypes.find(t => t.name === typeName);
-    const color = type?.color || '#6B7280';
+  // 회원 분류 뱃지: 여러 개일 경우 모두 표시
+  const getMemberTypeBadges = (typesString: string | null | undefined) => {
+    if (!typesString) return null;
+    const typeNames = typesString.split(',').filter(Boolean);
     return (
-      <span
-        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
-        style={{ backgroundColor: color }}
-      >
-        {typeName}
-      </span>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {typeNames.map(name => {
+          const type = memberTypes.find(t => t.name === name);
+          const color = type?.color || '#6B7280';
+          return (
+            <span
+              key={name}
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-white leading-none"
+              style={{ backgroundColor: color }}
+            >
+              {name}
+            </span>
+          );
+        })}
+      </div>
     );
   };
 
@@ -362,6 +370,7 @@ export function MemberManagementPage() {
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-neutral-900">{member.name}</div>
                         <div className="text-xs text-neutral-500">{member.userId}</div>
+                        {getMemberTypeBadges(member.memberType)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-neutral-900">{member.hospitalName}</div>

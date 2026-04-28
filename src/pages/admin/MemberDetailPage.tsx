@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, User, Building2, Settings, Loader2,
-  UserCheck, UserX, Clock, ShoppingCart, Tag, Check
+  UserCheck, UserX, Clock, ShoppingCart, Tag, Check, Edit2, Save
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Input } from '../../components/ui/input';
 import { useAdminUsers, useUpdateUserStatus, useUserEquipments } from '../../hooks/useAdmin';
 import { useModal } from '../../context/ModalContext';
 import { adminService } from '../../services/adminService';
@@ -56,8 +57,22 @@ export function MemberDetailPage() {
   const [memberTypes, setMemberTypes] = useState<MemberType[]>([]);
   const [updatingType, setUpdatingType] = useState(false);
   const [gradesEnabled, setGradesEnabled] = useState(true);
+  
+  const [localMemberType, setLocalMemberType] = useState<string | null>(null);
+  
+  // 수정 모드 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
 
   const member = (members as any[]).find(m => m.id === id);
+
+  // 멤버 데이터 로드 시 로컬 상태 초기화
+  useEffect(() => {
+    if (member) {
+      setLocalMemberType(member.memberType || member.member_type || null);
+      setEditForm({ ...member });
+    }
+  }, [member]);
 
   useEffect(() => {
     adminService.getMemberTypes().then(setMemberTypes as any).catch(console.error);
@@ -85,18 +100,55 @@ export function MemberDetailPage() {
     return <Badge variant="outline" className={colors[grade] || ''}>{grade}</Badge>;
   };
 
-  const handleUpdateMemberType = async (typeName: string) => {
+  const handleUpdateMemberType = (typeName: string) => {
     if (!member) return;
+    
+    const currentTypes = localMemberType 
+      ? localMemberType.split(',').map((t: string) => t.trim()).filter(Boolean) 
+      : [];
+
+    let newValue: string | null = null;
+    if (typeName === '') {
+      newValue = null;
+    } else {
+      if (currentTypes.includes(typeName)) {
+        const filtered = currentTypes.filter((t: string) => t !== typeName);
+        newValue = filtered.length > 0 ? filtered.join(',') : null;
+      } else {
+        newValue = [...currentTypes, typeName].join(',');
+      }
+    }
+
+    // 로컬 상태만 업데이트 (저장 버튼 클릭 시 서버 반영)
+    setLocalMemberType(newValue);
+  };
+
+  const handleSaveAll = async () => {
+    if (!member || !editForm) return;
     setUpdatingType(true);
     try {
-      await adminService.updateUserMemberType(member.id, typeName === '' ? null : typeName);
+      // 폼 데이터와 현재 선택된 회원 분류를 합쳐서 전송
+      const finalData = {
+        ...editForm,
+        memberType: localMemberType
+      };
+      
+      await adminService.updateUser(member.id, finalData);
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast.success('회원 분류가 변경되었습니다.');
-    } catch {
-      toast.error('분류 변경에 실패했습니다.');
+      toast.success('회원 정보가 수정되었습니다.');
+      setIsEditing(false);
+    } catch (error: any) {
+      console.error('Update failed:', error);
+      toast.error(`수정 실패: ${error.message || '네트워크 오류'}`);
     } finally {
       setUpdatingType(false);
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditForm({ ...member });
+    setLocalMemberType(member.memberType || member.member_type || null);
+    setIsEditing(false);
   };
 
   const handleApprove = async () => {
@@ -144,7 +196,11 @@ export function MemberDetailPage() {
     );
   }
 
-  const currentTypeDef = memberTypes.find(t => t.name === member.memberType);
+  const selectedTypes = (localMemberType || '')
+    .toString()
+    .split(',')
+    .map((t: string) => t.trim())
+    .filter(Boolean);
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -162,30 +218,51 @@ export function MemberDetailPage() {
               <h2 className="text-2xl tracking-tight text-neutral-900">{member.name}</h2>
               {getStatusBadge(member.status)}
               {gradesEnabled && getGradeBadge(member.grade)}
-              {member.memberType && (
-                <span
-                  className="px-2 py-0.5 rounded text-xs font-semibold text-white"
-                  style={{ backgroundColor: currentTypeDef?.color || '#6B7280' }}
-                >
-                  {member.memberType}
-                </span>
-              )}
+              <div className="flex flex-wrap gap-1.5">
+                {selectedTypes.map(typeName => {
+                  const typeDef = memberTypes.find(t => t.name === typeName);
+                  return (
+                    <span
+                      key={typeName}
+                      className="px-2 py-0.5 rounded text-xs font-semibold text-white"
+                      style={{ backgroundColor: typeDef?.color || '#6B7280' }}
+                    >
+                      {typeName}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
             <p className="text-sm text-neutral-500 mt-1">{member.email}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {member.status === 'pending' && (
+          {isEditing ? (
             <>
-              <Button variant="outline" className="text-red-600 border-red-200" onClick={handleReject}>거절</Button>
-              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApprove}>승인</Button>
+              <Button variant="outline" size="sm" onClick={handleCancelEdit}>취소</Button>
+              <Button size="sm" className="bg-neutral-900 text-white" onClick={handleSaveAll} disabled={updatingType}>
+                {updatingType ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                저장하기
+              </Button>
             </>
-          )}
-          {member.status === 'active' && (
-            <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50" onClick={handleProxyOrder}>
-              <ShoppingCart className="w-4 h-4 mr-2" />대리주문
-            </Button>
+          ) : (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                <Edit2 className="w-4 h-4 mr-2" />정보 수정
+              </Button>
+              {member.status === 'pending' && (
+                <>
+                  <Button variant="outline" className="text-red-600 border-red-200" onClick={handleReject}>거절</Button>
+                  <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApprove}>승인</Button>
+                </>
+              )}
+              {member.status === 'active' && (
+                <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50" onClick={handleProxyOrder}>
+                  <ShoppingCart className="w-4 h-4 mr-2" />대리주문
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -207,15 +284,43 @@ export function MemberDetailPage() {
         <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
           <div>
             <span className="text-xs text-neutral-400 block mb-1">이름</span>
-            <p className="text-sm font-semibold text-neutral-900">{member.name}</p>
+            {isEditing ? (
+              <Input 
+                value={editForm?.name || ''} 
+                onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm font-semibold text-neutral-900">{member.name}</p>
+            )}
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">이메일</span>
             <p className="text-sm text-neutral-900">{member.email}</p>
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">연락처</span>
-            <p className="text-sm text-neutral-900">{member.phone || member.mobile || '-'}</p>
+            <span className="text-xs text-neutral-400 block mb-1">연락처 (일반)</span>
+            {isEditing ? (
+              <Input 
+                value={editForm?.phone || ''} 
+                onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm text-neutral-900">{member.phone || '-'}</p>
+            )}
+          </div>
+          <div>
+            <span className="text-xs text-neutral-400 block mb-1">휴대폰</span>
+            {isEditing ? (
+              <Input 
+                value={editForm?.mobile || ''} 
+                onChange={e => setEditForm({ ...editForm, mobile: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm text-neutral-900">{member.mobile || '-'}</p>
+            )}
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">가입일</span>
@@ -224,12 +329,6 @@ export function MemberDetailPage() {
           <div>
             <span className="text-xs text-neutral-400 block mb-1">누적주문</span>
             <p className="text-sm text-neutral-900">{member.totalOrders || 0}건</p>
-          </div>
-          <div>
-            <span className="text-xs text-neutral-400 block mb-1">누적매출</span>
-            <p className="text-sm font-semibold text-neutral-900">
-              {(member.totalSales || 0).toLocaleString()}원
-            </p>
           </div>
         </div>
       </section>
@@ -243,29 +342,92 @@ export function MemberDetailPage() {
         <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
           <div>
             <span className="text-xs text-neutral-400 block mb-1">병원/대리점명</span>
-            <p className="text-sm font-semibold text-neutral-900">{member.hospitalName || '-'}</p>
+            {isEditing ? (
+              <Input 
+                value={editForm?.hospitalName || ''} 
+                onChange={e => setEditForm({ ...editForm, hospitalName: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm font-semibold text-neutral-900">{member.hospitalName || '-'}</p>
+            )}
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">사업자번호</span>
-            <p className="text-sm text-neutral-900">{member.businessNumber || '-'}</p>
+            {isEditing ? (
+              <Input 
+                value={editForm?.businessNumber || ''} 
+                onChange={e => setEditForm({ ...editForm, businessNumber: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm text-neutral-900">{member.businessNumber || '-'}</p>
+            )}
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">지역</span>
-            <p className="text-sm text-neutral-900">{member.region || '-'}</p>
+            {isEditing ? (
+              <Input 
+                value={editForm?.region || ''} 
+                onChange={e => setEditForm({ ...editForm, region: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm text-neutral-900">{member.region || '-'}</p>
+            )}
           </div>
           <div className="col-span-2 md:col-span-3">
             <span className="text-xs text-neutral-400 block mb-1">주소</span>
-            <p className="text-sm text-neutral-900">
-              {member.zipCode ? `[${member.zipCode}] ` : ''}{member.address || '-'} {member.addressDetail}
-            </p>
+            {isEditing ? (
+              <div className="flex gap-2">
+                <Input 
+                  value={editForm?.zipCode || ''} 
+                  onChange={e => setEditForm({ ...editForm, zipCode: e.target.value })}
+                  placeholder="우편번호"
+                  className="h-8 text-sm w-24"
+                />
+                <Input 
+                  value={editForm?.address || ''} 
+                  onChange={e => setEditForm({ ...editForm, address: e.target.value })}
+                  placeholder="기본 주소"
+                  className="h-8 text-sm flex-1"
+                />
+                <Input 
+                  value={editForm?.addressDetail || ''} 
+                  onChange={e => setEditForm({ ...editForm, addressDetail: e.target.value })}
+                  placeholder="상세 주소"
+                  className="h-8 text-sm flex-1"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-900">
+                {member.zipCode ? `[${member.zipCode}] ` : ''}{member.address || '-'} {member.addressDetail}
+              </p>
+            )}
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">병원 이메일</span>
-            <p className="text-sm text-neutral-900">{member.hospitalEmail || '-'}</p>
+            {isEditing ? (
+              <Input 
+                value={editForm?.hospitalEmail || ''} 
+                onChange={e => setEditForm({ ...editForm, hospitalEmail: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm text-neutral-900">{member.hospitalEmail || '-'}</p>
+            )}
           </div>
           <div>
             <span className="text-xs text-neutral-400 block mb-1">세금계산서 이메일</span>
-            <p className="text-sm text-neutral-900">{member.taxEmail || '-'}</p>
+            {isEditing ? (
+              <Input 
+                value={editForm?.taxEmail || ''} 
+                onChange={e => setEditForm({ ...editForm, taxEmail: e.target.value })}
+                className="h-8 text-sm"
+              />
+            ) : (
+              <p className="text-sm text-neutral-900">{member.taxEmail || '-'}</p>
+            )}
           </div>
         </div>
       </section>
@@ -283,42 +445,66 @@ export function MemberDetailPage() {
 
       {/* ── 회원 분류 설정 (페이지 하단) */}
       <section className="bg-white border border-neutral-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
-          <Tag className="w-4 h-4 text-neutral-500" />
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">회원 분류</h3>
+        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-neutral-500" />
+            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">회원 분류</h3>
+          </div>
+          {isEditing ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-neutral-500 font-medium bg-neutral-100 px-2 py-1 rounded">수정 모드 활성</span>
+            </div>
+          ) : (
+            localMemberType !== (member.memberType || member.member_type || null) && (
+              <Button 
+                size="sm" 
+                className="bg-neutral-900 text-white"
+                onClick={handleSaveAll}
+                disabled={updatingType}
+              >
+                {updatingType ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Check className="w-3.5 h-3.5 mr-1" />}
+                변경사항 저장
+              </Button>
+            )
+          )}
         </div>
         <div className="p-6">
-          <p className="text-xs text-neutral-500 mb-4">이 회원의 분류를 선택하세요. 분류는 회원목록에서 필터링에 사용됩니다.</p>
+          <p className="text-xs text-neutral-500 mb-4">이 회원의 분류를 선택하세요(중복 선택 가능). 분류는 회원목록에서 필터링에 사용됩니다.</p>
           <div className="flex flex-wrap gap-2">
             {/* 미지정 */}
             <button
               onClick={() => handleUpdateMemberType('')}
               disabled={updatingType}
               className={`px-4 py-2 rounded text-sm font-medium border-2 transition-all flex items-center gap-1.5 ${
-                !member.memberType
+                selectedTypes.length === 0
                   ? 'border-neutral-900 bg-neutral-900 text-white'
                   : 'border-neutral-200 text-neutral-500 hover:border-neutral-400'
               }`}
             >
-              {!member.memberType && <Check className="w-3.5 h-3.5" />}
+              {selectedTypes.length === 0 && <Check className="w-3.5 h-3.5" />}
               미지정
             </button>
-            {memberTypes.map(type => (
-              <button
-                key={type.id}
-                onClick={() => handleUpdateMemberType(type.name)}
-                disabled={updatingType}
-                className={`px-4 py-2 rounded text-sm font-semibold border-2 transition-all flex items-center gap-1.5 text-white`}
-                style={{
-                  backgroundColor: member.memberType === type.name ? type.color : 'transparent',
-                  borderColor: type.color,
-                  color: member.memberType === type.name ? 'white' : type.color,
-                }}
-              >
-                {member.memberType === type.name && <Check className="w-3.5 h-3.5" />}
-                {type.name}
-              </button>
-            ))}
+            {memberTypes.map(type => {
+              const isSelected = selectedTypes.includes(type.name);
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => handleUpdateMemberType(type.name)}
+                  disabled={updatingType}
+                  className={`px-4 py-2 rounded text-sm font-semibold border-2 transition-all flex items-center gap-1.5 ${
+                    isSelected ? 'text-white' : ''
+                  }`}
+                  style={{
+                    backgroundColor: isSelected ? type.color : 'transparent',
+                    borderColor: type.color,
+                    color: isSelected ? 'white' : type.color,
+                  }}
+                >
+                  {isSelected ? <Check className="w-3.5 h-3.5" /> : <div className="w-3.5" />}
+                  {type.name}
+                </button>
+              );
+            })}
             {updatingType && <Loader2 className="w-5 h-5 animate-spin text-neutral-400 self-center" />}
           </div>
         </div>
