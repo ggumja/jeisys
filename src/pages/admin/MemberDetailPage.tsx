@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft, User, Building2, Settings, Loader2,
@@ -355,7 +355,7 @@ export function MemberDetailPage() {
 
       {/* ── 탭 네비게이션 */}
       <div className="flex border-b border-neutral-200">
-        {(['info', 'equipment', 'orders', 'credit', 'points'] as const).map((tab) => {
+        {(['info', 'orders', 'credit', 'points', 'equipment'] as const).map((tab) => {
           const labels = { info: '회원정보', equipment: '커뮤니케이션', orders: '주문/결제', credit: '크레딧', points: '포인트' };
           return (
             <button
@@ -835,10 +835,9 @@ export function MemberDetailPage() {
                 {Array.from({ length: Math.ceil(orderTotal / ORDER_PAGE_SIZE) }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === Math.ceil(orderTotal / ORDER_PAGE_SIZE) || Math.abs(p - orderPage) <= 2)
                   .map((p, idx, arr) => (
-                    <>
-                      {idx > 0 && arr[idx - 1] !== p - 1 && <span key={`dots-${p}`} className="px-1 text-neutral-400 text-xs">...</span>}
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-neutral-400 text-xs">...</span>}
                       <button
-                        key={p}
                         onClick={() => {
                           setOrderPage(p);
                           const from = (p - 1) * ORDER_PAGE_SIZE;
@@ -855,7 +854,7 @@ export function MemberDetailPage() {
                             : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
                         }`}
                       >{p}</button>
-                    </>
+                    </React.Fragment>
                   ))}
                 <Button
                   variant="outline" size="sm"

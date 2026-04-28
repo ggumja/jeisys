@@ -206,26 +206,24 @@ export const authService = {
     },
 
     async updateProfile(userId: string, data: Partial<User>) {
-        const { error } = await supabase
-            .from('users')
-            .update({
-                name: data.name,
-                hospital_name: data.hospitalName,
-                business_number: data.businessNumber,
-                phone: data.phone,
-                mobile: data.mobile,
-                zip_code: data.zipCode,
-                address: data.address,
-                address_detail: data.addressDetail,
-                region: data.region,
-                hospital_email: data.hospitalEmail,
-                tax_email: data.taxEmail,
-                email_notification: data.emailNotification,
-                holiday_week: data.holidayWeek,
-                holiday_day: data.holidayDay,
-                is_public_holiday: data.isPublicHoliday
-            })
-            .eq('id', userId);
+        // PATCH 대신 RPC(POST)로 호출 - CORS 우회
+        const { error } = await supabase.rpc('update_user_profile', {
+            p_name: data.name ?? null,
+            p_hospital_name: data.hospitalName ?? null,
+            p_business_number: data.businessNumber ?? null,
+            p_phone: data.phone ?? null,
+            p_mobile: data.mobile ?? null,
+            p_zip_code: data.zipCode ?? null,
+            p_address: data.address ?? null,
+            p_address_detail: data.addressDetail ?? null,
+            p_region: data.region ?? null,
+            p_hospital_email: data.hospitalEmail ?? null,
+            p_tax_email: data.taxEmail ?? null,
+            p_email_notification: data.emailNotification ?? null,
+            p_holiday_week: data.holidayWeek ?? null,
+            p_holiday_day: data.holidayDay ?? null,
+            p_is_public_holiday: data.isPublicHoliday ?? null,
+        });
 
         if (error) throw error;
     }
