@@ -15,6 +15,7 @@ import { adminService } from '../../services/adminService';
 import { shopSettingsService } from '../../services/shopSettingsService';
 import { proxyOrderService } from '../../services/cartService';
 import { creditService, UserCredit, CreditSummary, CreditTransaction } from '../../services/creditService';
+import { equipmentService, EquipmentModel } from '../../services/equipmentService';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
 import { toast } from 'sonner';
@@ -86,12 +87,13 @@ export function MemberDetailPage() {
   const [creditTransactions, setCreditTransactions] = useState<Record<string, CreditTransaction[]>>({});
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueForm, setIssueForm] = useState({
-    equipmentType: 'Density' as 'Density' | 'LinearZ',
+    equipmentType: '',
     amount: '',
     expiryDate: '',
     memo: '',
   });
   const [issuing, setIssuing] = useState(false);
+  const [equipmentModels, setEquipmentModels] = useState<EquipmentModel[]>([]);
 
   const member = (members as any[]).find(m => m.id === id);
 
@@ -165,9 +167,14 @@ export function MemberDetailPage() {
     Promise.all([
       creditService.getCreditsByUser(member.id),
       creditService.getCreditSummary(member.id),
-    ]).then(([list, summary]) => {
+      equipmentService.getEquipmentModels(),
+    ]).then(([list, summary, models]) => {
       setCredits(list);
       setCreditSummary(summary);
+      setEquipmentModels(models);
+      if (models.length > 0) {
+        setIssueForm(f => ({ ...f, equipmentType: f.equipmentType || models[0].model_name }));
+      }
     }).catch(console.error)
       .finally(() => setCreditLoading(false));
   }, [activeTab, member?.id]);
@@ -972,7 +979,7 @@ export function MemberDetailPage() {
       {showIssueModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowIssueModal(false)} />
-          <div className="relative bg-white w-full max-w-md mx-4 shadow-2xl rounded-sm" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white shadow-2xl rounded-sm" style={{ width: '100%', maxWidth: '460px', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
             {/* 모달 헤더 */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
               <div className="flex items-center gap-2">
@@ -998,11 +1005,16 @@ export function MemberDetailPage() {
                 </label>
                 <select
                   value={issueForm.equipmentType}
-                  onChange={e => setIssueForm(f => ({ ...f, equipmentType: e.target.value as any }))}
+                  onChange={e => setIssueForm(f => ({ ...f, equipmentType: e.target.value }))}
                   className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                 >
-                  <option value="Density">Density</option>
-                  <option value="LinearZ">LinearZ</option>
+                  {equipmentModels.length === 0 ? (
+                    <option value="">장비를 불러오는 중...</option>
+                  ) : (
+                    equipmentModels.map(eq => (
+                      <option key={eq.id} value={eq.model_name}>{eq.model_name}</option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -1064,7 +1076,10 @@ export function MemberDetailPage() {
                 취소
               </button>
               <button onClick={handleIssueCredit} disabled={issuing}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors rounded disabled:opacity-60">
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded disabled:opacity-60 transition-colors"
+                style={{ backgroundColor: '#F59E0B' }}
+                onMouseEnter={e => { if (!issuing) e.currentTarget.style.backgroundColor = '#D97706'; }}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#F59E0B')}>
                 {issuing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
                 발급
               </button>
@@ -1078,33 +1093,33 @@ export function MemberDetailPage() {
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">크레딧</h3>
           <button onClick={() => setShowIssueModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors rounded">
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white rounded transition-colors"
+            style={{ backgroundColor: '#F59E0B' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#D97706')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#F59E0B')}>
             <PlusCircle className="w-4 h-4" />
             크레딧 발행하기
           </button>
         </div>
 
         <div className="p-6 space-y-6">
-          {/* 장비별 잔액 요약 카드 */}
-          <div className="grid grid-cols-2 gap-4">
-            {(['Density', 'LinearZ'] as const).map(eq => {
-              const s = creditSummary.find(c => c.equipmentType === eq);
-              return (
-                <div key={eq} className="border border-neutral-200 rounded p-4 bg-neutral-50">
-                  <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">{eq} 크레딧</div>
+          {/* 장비별 잔액 요약 카드 (크레딧이 있는 장비만) */}
+          {creditSummary.length > 0 && (
+            <div className={`grid gap-4 ${creditSummary.length === 1 ? 'grid-cols-1' : creditSummary.length <= 3 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {creditSummary.map(s => (
+                <div key={s.equipmentType} className="border border-neutral-200 rounded p-4 bg-neutral-50">
+                  <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">{s.equipmentType} 크레딧</div>
                   <div className="text-2xl font-black text-neutral-900">
-                    {(s?.remaining ?? 0).toLocaleString()}
+                    {s.remaining.toLocaleString()}
                     <span className="text-sm font-normal text-neutral-400 ml-1">원</span>
                   </div>
-                  {s && (
-                    <div className="text-xs text-neutral-400 mt-1">
-                      총 발급 {s.totalAmount.toLocaleString()}원 · 사용 {s.usedAmount.toLocaleString()}원
-                    </div>
-                  )}
+                  <div className="text-xs text-neutral-400 mt-1">
+                    총 발급 {s.totalAmount.toLocaleString()}원 · 사용 {s.usedAmount.toLocaleString()}원
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* 발급 목록 */}
           {creditLoading ? (
@@ -1174,33 +1189,33 @@ export function MemberDetailPage() {
                               ) : txs.length === 0 ? (
                                 <p className="text-xs text-neutral-400">이력이 없습니다.</p>
                               ) : (
-                                <table className="w-full text-xs">
+                                <table className="w-full text-xs" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                                   <thead>
-                                    <tr className="text-neutral-400">
-                                      <th className="text-left pb-1">일시</th>
-                                      <th className="text-left pb-1">유형</th>
-                                      <th className="text-right pb-1">금액</th>
-                                      <th className="text-left pb-1">메모</th>
+                                    <tr className="text-neutral-400" style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                      <th style={{ textAlign: 'left', paddingBottom: '8px', paddingRight: '16px', width: '90px' }}>일시</th>
+                                      <th style={{ textAlign: 'left', paddingBottom: '8px', paddingRight: '16px', width: '50px' }}>유형</th>
+                                      <th style={{ textAlign: 'right', paddingBottom: '8px', paddingRight: '24px', width: '110px' }}>금액</th>
+                                      <th style={{ textAlign: 'left', paddingBottom: '8px', paddingLeft: '8px' }}>메모</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-neutral-100">
+                                  <tbody>
                                     {txs.map(tx => (
-                                      <tr key={tx.id}>
-                                        <td className="py-1.5 text-neutral-500">
-                                          {new Date(tx.createdAt).toLocaleDateString('ko-KR')}
+                                      <tr key={tx.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                                        <td style={{ padding: '8px 16px 8px 0', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                                          {new Date(tx.createdAt).toLocaleDateString('ko-KR')} {new Date(tx.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                                         </td>
-                                        <td className="py-1.5">
-                                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[11px] font-bold ${
-                                            tx.type === 'issue' ? 'bg-green-100 text-green-700' :
-                                            tx.type === 'use'   ? 'bg-blue-100 text-blue-700' :
-                                            tx.type === 'expire'? 'bg-red-100 text-red-700' :
-                                            'bg-yellow-100 text-yellow-700'
-                                          }`}>
+                                        <td style={{ padding: '8px 16px 8px 0' }}>
+                                          <span style={{
+                                            display: 'inline-flex', padding: '2px 6px', borderRadius: '4px',
+                                            fontSize: '11px', fontWeight: 700,
+                                            backgroundColor: tx.type === 'issue' ? '#dcfce7' : tx.type === 'use' ? '#dbeafe' : tx.type === 'expire' ? '#fee2e2' : '#fef9c3',
+                                            color: tx.type === 'issue' ? '#15803d' : tx.type === 'use' ? '#1d4ed8' : tx.type === 'expire' ? '#b91c1c' : '#a16207',
+                                          }}>
                                             {tx.type === 'issue' ? '발급' : tx.type === 'use' ? '사용' : tx.type === 'expire' ? '만료' : '환급'}
                                           </span>
                                         </td>
-                                        <td className="py-1.5 text-right font-semibold">{tx.amount.toLocaleString()}원</td>
-                                        <td className="py-1.5 text-neutral-500">{tx.description || '-'}</td>
+                                        <td style={{ padding: '8px 24px 8px 0', textAlign: 'right', fontWeight: 600 }}>{tx.amount.toLocaleString()}원</td>
+                                        <td style={{ padding: '8px 0 8px 8px', color: '#6b7280' }}>{tx.description || '-'}</td>
                                       </tr>
                                     ))}
                                   </tbody>

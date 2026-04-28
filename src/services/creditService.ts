@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 
-export type EquipmentType = 'Density' | 'LinearZ';
+export type EquipmentType = string; // equipments 테이블 model_name 동적 참조
 export type CreditStatus = 'active' | 'expired' | 'exhausted';
 export type TransactionType = 'issue' | 'use' | 'expire' | 'refund';
 
