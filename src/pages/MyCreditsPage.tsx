@@ -167,10 +167,10 @@ export function MyCreditsPage() {
                                   <span style={{
                                     display: 'inline-flex', padding: '2px 6px', borderRadius: '4px',
                                     fontSize: '11px', fontWeight: 700,
-                                    backgroundColor: tx.type === 'issue' ? '#dcfce7' : tx.type === 'use' ? '#dbeafe' : tx.type === 'expire' ? '#fee2e2' : '#fef9c3',
-                                    color: tx.type === 'issue' ? '#15803d' : tx.type === 'use' ? '#1d4ed8' : tx.type === 'expire' ? '#b91c1c' : '#a16207',
+                                    backgroundColor: tx.type === 'issue' ? '#dcfce7' : tx.type === 'use' ? '#dbeafe' : tx.type === 'expire' ? '#fee2e2' : tx.type === 'revoke' ? '#f3f4f6' : '#fef9c3',
+                                    color: tx.type === 'issue' ? '#15803d' : tx.type === 'use' ? '#1d4ed8' : tx.type === 'expire' ? '#b91c1c' : tx.type === 'revoke' ? '#374151' : '#a16207',
                                   }}>
-                                    {tx.type === 'issue' ? '발급' : tx.type === 'use' ? '사용' : tx.type === 'expire' ? '만료' : '환급'}
+                                    {tx.type === 'issue' ? '발급' : tx.type === 'use' ? '사용' : tx.type === 'expire' ? '만료' : tx.type === 'revoke' ? '회수' : '환급'}
                                   </span>
                                 </td>
                                 <td style={{ padding: '7px 20px 7px 0', textAlign: 'right', fontWeight: 600 }}>{tx.amount.toLocaleString()}원</td>
