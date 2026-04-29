@@ -339,11 +339,24 @@ export function CheckoutPage() {
       (sum, code) => sum + (equipmentCreditMap[code] || 0), 0
     );
 
-  /** 해당 상품에 현재 사용 가능한 잔여 크레딧 (다른 상품 사용분 차감) */
+  /** 해당 상품에 현재 사용 가능한 잔여 크레딧
+   *  → 같은 장비 풀을 공유하는 다른 상품의 사용분만 차감 (다른 장비 풀은 영향 없음) */
   const getRemainingCredit = (cartItemId: string, product: Product): number => {
+    const productEquipments = new Set(product.compatibleEquipment || []);
+
+    // 같은 장비를 공유하는 다른 상품이 사용 중인 크레딧 합산
+    let usedByOthersInSamePool = 0;
+    cart.forEach(ci => {
+      const key = ci.id || ci.productId;
+      if (key === cartItemId) return;
+      const otherProduct = productsMap[ci.productId];
+      if (!otherProduct?.compatibleEquipment) return;
+      const hasOverlap = otherProduct.compatibleEquipment.some(eq => productEquipments.has(eq));
+      if (hasOverlap) usedByOthersInSamePool += itemCredits[key] || 0;
+    });
+
     const poolTotal = getAvailableForProduct(product);
-    const usedByOthers = totalCreditUsed - (itemCredits[cartItemId] || 0);
-    return Math.max(0, poolTotal - usedByOthers);
+    return Math.max(0, poolTotal - usedByOthersInSamePool);
   };
 
   const handleItemCreditChange = (cartItemId: string, amount: number) => {
