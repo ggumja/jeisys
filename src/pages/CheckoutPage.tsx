@@ -11,6 +11,7 @@ import { addressService } from '../services/addressService';
 import { ProductImage } from '../components/ui/ProductImage';
 import { CartItemCard } from '../components/CartItemCard';
 import { CardRegistrationModal } from '../components/CardRegistrationModal';
+import { AddressSearchModal } from '../components/AddressSearchModal';
 import { toast } from 'sonner';
 import cardLogos from '../assets/card-logos.png';
 import { adminService } from '../services/adminService';
@@ -64,6 +65,7 @@ export function CheckoutPage() {
   const [isPartialShipAllowed, setIsPartialShipAllowed] = useState(false);
   const [isSplitModalOpen, setIsSplitModalOpen] = useState(false);
   const [pendingBundles, setPendingBundles] = useState<any[]>([]);
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   // 크레딧
   const [availableCredit, setAvailableCredit] = useState(0);
@@ -273,29 +275,7 @@ export function CheckoutPage() {
   };
 
   const handleAddressSearch = () => {
-    new window.daum.Postcode({
-      oncomplete: (data: any) => {
-        let fullAddress = data.roadAddress;
-        let extraAddress = '';
-
-        if (data.addressType === 'R') {
-          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) {
-            extraAddress += data.bname;
-          }
-          if (data.buildingName !== '') {
-            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
-          }
-          fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
-        }
-
-        setAddress(prev => ({
-          ...prev,
-          zipCode: data.zonecode,
-          address: fullAddress,
-          detail: '',
-        }));
-      },
-    }).open();
+    setShowAddressModal(true);
   };
 
   const getTierPrice = (item: CartItem) => {
@@ -1060,6 +1040,15 @@ export function CheckoutPage() {
       </AlertDialog>
 
       {/* Split Shipment Modal */}
+      {showAddressModal && (
+        <AddressSearchModal
+          onSelect={({ zipCode, address: addr }) => {
+            setAddress(prev => ({ ...prev, zipCode, address: addr, detail: '' }));
+          }}
+          onClose={() => setShowAddressModal(false)}
+        />
+      )}
+
       {isSplitModalOpen && splitShipOrder && (
         <SplitShipmentModal
           onClose={() => setIsSplitModalOpen(false)}

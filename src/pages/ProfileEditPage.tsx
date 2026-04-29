@@ -4,6 +4,7 @@ import { storage } from "../lib/storage";
 import { User } from "../types";
 import { Check } from "lucide-react";
 import { authService } from "../services/authService";
+import { AddressSearchModal } from "../components/AddressSearchModal";
 
 declare global {
   interface Window {
@@ -41,30 +42,10 @@ export function ProfileEditPage() {
     }));
   };
 
+  const [showAddressModal, setShowAddressModal] = useState(false);
+
   const handleAddressSearch = () => {
-    new window.daum.Postcode({
-      oncomplete: (data: any) => {
-        let fullAddress = data.roadAddress;
-        let extraAddress = '';
-
-        if (data.addressType === 'R') {
-          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) {
-            extraAddress += data.bname;
-          }
-          if (data.buildingName !== '') {
-            extraAddress += (extraAddress !== '' ? ', ' + data.buildingName : data.buildingName);
-          }
-          fullAddress += (extraAddress !== '' ? ` (${extraAddress})` : '');
-        }
-
-        setFormData(prev => ({
-          ...prev,
-          zipCode: data.zonecode,
-          businessAddress: fullAddress,
-          businessAddressDetail: '',
-        }));
-      },
-    }).open();
+    setShowAddressModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,8 +87,9 @@ export function ProfileEditPage() {
   };
 
   return (
-    <div className="bg-white border border-neutral-200 p-6 lg:p-8">
-      <div className="mb-8">
+    <>
+      <div className="bg-white border border-neutral-200 p-6 lg:p-8">
+        <div className="mb-8">
         <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">
           정보 수정
         </h2>
@@ -331,5 +313,15 @@ export function ProfileEditPage() {
         </div>
       )}
     </div>
+
+    {showAddressModal && (
+      <AddressSearchModal
+        onSelect={({ zipCode, address }) => {
+          setFormData(prev => ({ ...prev, zipCode, businessAddress: address, businessAddressDetail: '' }));
+        }}
+        onClose={() => setShowAddressModal(false)}
+      />
+    )}
+    </>
   );
 }

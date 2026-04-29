@@ -4,6 +4,7 @@ import { ShippingAddress, User } from '../types';
 import { addressService } from '../services/addressService';
 import { authService } from '../services/authService';
 import { toast } from 'sonner';
+import { AddressSearchModal } from '../components/AddressSearchModal';
 
 interface AddressForm {
   label: string;
@@ -37,6 +38,7 @@ export function ShippingAddressPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressForm>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [showAddressSearchModal, setShowAddressSearchModal] = useState(false);
 
   // 삭제 확인
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -105,19 +107,7 @@ export function ShippingAddressPage() {
   };
 
   const handleAddressSearch = () => {
-    new (window as any).daum.Postcode({
-      oncomplete: (data: any) => {
-        let fullAddress = data.roadAddress;
-        let extraAddress = '';
-        if (data.addressType === 'R') {
-          if (data.bname !== '' && /[동|로|가]$/g.test(data.bname)) extraAddress += data.bname;
-          if (data.buildingName !== '')
-            extraAddress += extraAddress !== '' ? ', ' + data.buildingName : data.buildingName;
-          fullAddress += extraAddress !== '' ? ` (${extraAddress})` : '';
-        }
-        setForm(prev => ({ ...prev, zipCode: data.zonecode, address: fullAddress, addressDetail: '' }));
-      },
-    }).open();
+    setShowAddressSearchModal(true);
   };
 
   const handleSave = async () => {
@@ -435,6 +425,15 @@ export function ShippingAddressPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showAddressSearchModal && (
+        <AddressSearchModal
+          onSelect={({ zipCode, address }) => {
+            setForm(prev => ({ ...prev, zipCode, address, addressDetail: '' }));
+          }}
+          onClose={() => setShowAddressSearchModal(false)}
+        />
       )}
     </div>
   );
