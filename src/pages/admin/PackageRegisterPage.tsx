@@ -708,7 +708,7 @@ export function PackageRegisterPage() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
 
       if (isEditMode) {
-        navigate('/admin/products');
+        navigate('/admin/products/package');
       } else {
         setResultModal({
           isOpen: true,
