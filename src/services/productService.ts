@@ -540,5 +540,31 @@ export const productService = {
     }
 
     return updated;
-  }
+  },
+
+  /** 상품에 연결된 장비 ID 목록 조회 */
+  async getProductCompatibilityIds(productId: string): Promise<string[]> {
+    const { data, error } = await supabase
+      .from('product_compatibility')
+      .select('equipment_id')
+      .eq('product_id', productId);
+    if (error) throw error;
+    return (data || []).map((row: any) => row.equipment_id);
+  },
+
+  /** 상품-장비 호환성 저장 (기존 삭제 후 재등록) */
+  async saveProductCompatibility(productId: string, equipmentIds: string[]): Promise<void> {
+    const { error: delError } = await supabase
+      .from('product_compatibility')
+      .delete()
+      .eq('product_id', productId);
+    if (delError) throw delError;
+
+    if (equipmentIds.length > 0) {
+      const { error } = await supabase
+        .from('product_compatibility')
+        .insert(equipmentIds.map(id => ({ product_id: productId, equipment_id: id })));
+      if (error) throw error;
+    }
+  },
 };
