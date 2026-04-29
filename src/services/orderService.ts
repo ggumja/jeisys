@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { CartItem, Order } from '../types';
 import { authService } from './authService';
 import { paymentService } from './paymentService';
+import { creditService } from './creditService';
 
 export interface OrderInput {
     userId: string;
@@ -277,6 +278,17 @@ export const orderService = {
 
         // 히스토리 기록
         await this.logOrderHistory(orderId, 'cancelled', '주문 취소 (사용자)', '사용자가 직접 주문을 취소하였습니다.');
+
+        // 크레딧 환불 처리
+        try {
+          const refunded = await creditService.refundOrderCredits(orderId);
+          if (refunded > 0) {
+            console.log(`크레딧 환불 완료: ₩${refunded.toLocaleString()}`);
+          }
+        } catch (creditError) {
+          // 환불 실패 시 콘솔 에러만 - 주문 취소 자체는 유지
+          console.error('크레딧 환불 중 오류:', creditError);
+        }
     },
 
     // Create a new order

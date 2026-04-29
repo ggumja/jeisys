@@ -146,4 +146,13 @@ export const creditService = {
     if (error) throw error;
     return data;
   },
+
+  /** 주문 취소 시 크레딧 환불 (RPC) */
+  async refundOrderCredits(orderId: string): Promise<number> {
+    const { data, error } = await supabase.rpc('refund_order_credits', {
+      p_order_id: orderId,
+    });
+    if (error) throw error;
+    return Number((data as any)?.refunded ?? 0);
+  },
 };
