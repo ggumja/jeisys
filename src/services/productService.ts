@@ -45,7 +45,8 @@ export const productService = {
         *,
         product_compatibility (
           equipment:equipments (
-            code
+            code,
+            model_name
           )
         ),
         product_pricing_tiers (
@@ -78,7 +79,8 @@ export const productService = {
         *,
         product_compatibility (
           equipment:equipments (
-            code
+            code,
+            model_name
           )
         ),
         product_pricing_tiers (
@@ -322,7 +324,7 @@ export const productService = {
       name: item.name,
       category: item.category,
       subcategory: item.subcategory,
-      compatibleEquipment: item.product_compatibility?.map((pc: any) => pc.equipment?.code).filter(Boolean) || [],
+      compatibleEquipment: item.product_compatibility?.map((pc: any) => pc.equipment?.model_name).filter(Boolean) || [],
       price: item.price,
       tierPricing: item.product_pricing_tiers?.map((pt: any) => ({
         quantity: pt.min_quantity,
