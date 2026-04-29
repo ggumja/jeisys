@@ -19,7 +19,7 @@ DECLARE
   v_deduct        NUMERIC;
   v_total_used    NUMERIC := 0;
 BEGIN
-  -- 유효기간 내 활성 크레딧을 발급일 오래된 순(FIFO)으로 차감
+  -- 만료일이 가까운 크레딧부터 차감 (expiry_date ASC), 동일 만료일이면 발급일 오래된 순
   FOR v_credit IN
     SELECT id, amount, used_amount, (amount - used_amount) AS balance
     FROM public.user_credits
@@ -27,7 +27,7 @@ BEGIN
       AND status = 'active'
       AND expiry_date >= CURRENT_DATE
       AND (amount - used_amount) > 0
-    ORDER BY created_at ASC
+    ORDER BY expiry_date ASC, created_at ASC
     FOR UPDATE
   LOOP
     EXIT WHEN v_remaining <= 0;
