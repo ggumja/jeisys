@@ -159,6 +159,25 @@ export const creditService = {
     return data;
   },
 
+  /** 장비 타입별 크레딧 차감 - equipment_type 필터 적용 */
+  async useEquipmentCredits(input: {
+    userId: string;
+    equipmentType: string;
+    amount: number;
+    orderId?: string;
+    description?: string;
+  }): Promise<void> {
+    const { data, error } = await supabase.rpc('use_equipment_credits', {
+      p_user_id:        input.userId,
+      p_equipment_type: input.equipmentType,
+      p_amount:         input.amount,
+      p_order_id:       input.orderId || null,
+      p_description:    input.description || `${input.equipmentType} 크레딧 사용`,
+    });
+    if (error) throw error;
+    return data;
+  },
+
   /** 주문 취소 시 크레딧 환불 (RPC) */
   async refundOrderCredits(orderId: string): Promise<number> {
     const { data, error } = await supabase.rpc('refund_order_credits', {

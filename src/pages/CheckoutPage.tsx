@@ -396,18 +396,39 @@ export function CheckoutPage() {
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined
       });
 
-      // 크레딧 사용 처리
+      // 크레딧 사용 처리 - 상품별 장비 타입으로 분리 차감
       if (totalCreditUsed > 0) {
-        try {
-          await creditService.useCredits({
-            userId: user.id,
-            amount: totalCreditUsed,
-            orderId: order.id,
-            description: `주문 크레딧 사용 (${order.order_number || order.id.slice(0, 8)})`,
-          });
-        } catch (creditError: any) {
-          console.error('Credit deduction failed:', creditError);
-          toast.error('크레딧 차감 중 오류가 발생했습니다. 고객센터에 문의해주세요.');
+        for (const cartItem of cart) {
+          const key = cartItem.id || cartItem.productId;
+          const creditAmt = itemCredits[key] || 0;
+          if (creditAmt <= 0) continue;
+
+          const product = productsMap[cartItem.productId];
+          const equipmentType = product?.compatibleEquipment?.[0];
+
+          try {
+            if (equipmentType) {
+              // 장비 타입별 차감
+              await creditService.useEquipmentCredits({
+                userId: user.id,
+                equipmentType,
+                amount: creditAmt,
+                orderId: order.id,
+                description: `${equipmentType} 크레딧 사용 (${order.order_number || order.id.slice(0, 8)})`,
+              });
+            } else {
+              // 장비 정보 없을 때 기존 RPC 사용
+              await creditService.useCredits({
+                userId: user.id,
+                amount: creditAmt,
+                orderId: order.id,
+                description: `주문 크레딧 사용 (${order.order_number || order.id.slice(0, 8)})`,
+              });
+            }
+          } catch (creditError: any) {
+            console.error('Credit deduction failed:', creditError);
+            toast.error(`크레딧 차감 중 오류가 발생했습니다. (${equipmentType || '알 수 없음'})`);
+          }
         }
       }
 
