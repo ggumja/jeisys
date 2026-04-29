@@ -529,15 +529,20 @@ export function ProductRegisterPage() {
       // 6. 장비 호환성 저장
       await productService.saveProductCompatibility(productId, selectedEquipmentIds);
 
-      setResultModal({
-        isOpen: true,
-        title: isEditMode ? '수정 완료' : '등록 완료',
-        description: `상품이 성공적으로 ${isEditMode ? '수정' : '등록'}되었습니다.`,
-        type: 'success'
-      });
-
       // Invalidate products query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['products'] });
+
+      if (isEditMode) {
+        // 수정 완료 시 목록으로 이동
+        navigate('/admin/products');
+      } else {
+        setResultModal({
+          isOpen: true,
+          title: '등록 완료',
+          description: '상품이 성공적으로 등록되었습니다.',
+          type: 'success'
+        });
+      }
     } catch (error: any) {
       console.error('Error saving product:', error);
       let errorMessage = error.message || '상품 저장 중 오류가 발생했습니다. 데이터 연결 상태를 확인해주세요.';
@@ -868,16 +873,16 @@ export function ProductRegisterPage() {
           {equipmentModels.length === 0 ? (
             <p className="text-sm text-neutral-400">등록된 장비 모델이 없습니다.</p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="flex flex-wrap gap-2">
               {equipmentModels.map(eq => {
                 const checked = selectedEquipmentIds.includes(eq.id);
                 return (
                   <label
                     key={eq.id}
-                    className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 border cursor-pointer transition-all select-none ${
                       checked
-                        ? 'border-neutral-900 bg-neutral-50'
-                        : 'border-neutral-200 hover:border-neutral-400'
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-700 hover:border-neutral-500'
                     }`}
                   >
                     <input
@@ -890,12 +895,9 @@ export function ProductRegisterPage() {
                             : prev.filter(i => i !== eq.id)
                         );
                       }}
-                      className="w-4 h-4 accent-neutral-900 cursor-pointer flex-shrink-0"
+                      className="sr-only"
                     />
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-neutral-900 truncate">{eq.model_name}</div>
-                      <div className="text-[11px] text-neutral-400 truncate">{eq.code}</div>
-                    </div>
+                    <span className="text-xs font-bold">{eq.model_name}</span>
                   </label>
                 );
               })}

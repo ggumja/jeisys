@@ -7,6 +7,7 @@ import { RichTextEditor } from '../../components/RichTextEditor';
 import { useProduct, useCreateProduct, useUpdateProduct } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
+import { equipmentService, EquipmentModel } from '../../services/equipmentService';
 import { Product, PackageItem } from '../../types';
 import {
   Dialog,
@@ -124,6 +125,10 @@ export function PackageRegisterPage() {
   const [isBonusDropdownOpen, setIsBonusDropdownOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 장비 호환성
+  const [equipmentModels, setEquipmentModels] = useState<EquipmentModel[]>([]);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
+
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [additionalImages, setAdditionalImages] = useState<string[]>([]);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -153,6 +158,20 @@ export function PackageRegisterPage() {
     };
     fetchProducts();
   }, []);
+
+  // 장비 모델 목록 로드
+  useEffect(() => {
+    equipmentService.getEquipmentModels().then(setEquipmentModels).catch(console.error);
+  }, []);
+
+  // 수정 모드: 기존 장비 호환성 로드
+  useEffect(() => {
+    if (isEditMode && id) {
+      productService.getProductCompatibilityIds(id)
+        .then(setSelectedEquipmentIds)
+        .catch(console.error);
+    }
+  }, [isEditMode, id]);
 
   // Load existing package data in edit mode
   useEffect(() => {
@@ -682,15 +701,22 @@ export function PackageRegisterPage() {
         }))
       );
 
-      setResultModal({
-        isOpen: true,
-        title: isEditMode ? '패키지 수정 완료' : '패키지 등록 완료',
-        description: isEditMode ? '패키지 정보가 성공적으로 수정되었습니다.' : '새로운 패키지가 성공적으로 등록되었습니다.',
-        type: 'success'
-      });
+      // 장비 호환성 저장
+      await productService.saveProductCompatibility(packageId, selectedEquipmentIds);
 
       // Invalidate products query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['products'] });
+
+      if (isEditMode) {
+        navigate('/admin/products');
+      } else {
+        setResultModal({
+          isOpen: true,
+          title: '패키지 등록 완료',
+          description: '새로운 패키지가 성공적으로 등록되었습니다.',
+          type: 'success'
+        });
+      }
     } catch (error) {
       console.error('Error saving package:', error);
       setResultModal({
@@ -1006,6 +1032,48 @@ export function PackageRegisterPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 호환 장비 설정 */}
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">호환 장비 설정</h3>
+            <span className="text-xs text-neutral-500 font-normal">크레딧 장비별 적용 대상을 지정합니다</span>
+          </div>
+          {equipmentModels.length === 0 ? (
+            <p className="text-sm text-neutral-400">등록된 장비 모델이 없습니다.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {equipmentModels.map(eq => {
+                const checked = selectedEquipmentIds.includes(eq.id);
+                return (
+                  <label
+                    key={eq.id}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 border cursor-pointer transition-all select-none ${
+                      checked
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-700 hover:border-neutral-500'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => {
+                        setSelectedEquipmentIds(prev =>
+                          e.target.checked
+                            ? [...prev, eq.id]
+                            : prev.filter(i => i !== eq.id)
+                        );
+                      }}
+                      className="sr-only"
+                    />
+                    <span className="text-xs font-bold">{eq.model_name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-xs text-neutral-400 mt-3">선택한 장비의 크레딧을 해당 상품 구매 시 사용할 수 있습니다.</p>
         </div>
 
         {/* Order Options */}
