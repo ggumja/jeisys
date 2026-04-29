@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { productService } from '../../services/productService';
+import { equipmentService, EquipmentModel } from '../../services/equipmentService';
 import { Product } from '../../types/product';
 import { useCategories } from '../../hooks/useCategories';
 import { formatWithCommas, unformatNumber } from '../../lib/utils';
@@ -76,6 +77,10 @@ export function PromotionRegisterPage() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+
+  // 장비 호환성
+  const [equipmentModels, setEquipmentModels] = useState<EquipmentModel[]>([]);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<string[]>([]);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [additionalImages, setAdditionalImages] = useState<string[]>([]);
   const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
@@ -97,6 +102,20 @@ export function PromotionRegisterPage() {
       loadPromotionData(id);
     }
     loadProducts();
+  }, [isEdit, id]);
+
+  // 장비 모델 목록 로드
+  useEffect(() => {
+    equipmentService.getEquipmentModels().then(setEquipmentModels).catch(console.error);
+  }, []);
+
+  // 수정 모드: 기존 장비 호환성 로드
+  useEffect(() => {
+    if (isEdit && id) {
+      productService.getProductCompatibilityIds(id)
+        .then(setSelectedEquipmentIds)
+        .catch(console.error);
+    }
   }, [isEdit, id]);
 
   const loadProducts = async () => {
@@ -312,15 +331,22 @@ export function PromotionRegisterPage() {
         await productService.addProductImages(productId, allUrls);
       }
 
-      setResultModal({
-        isOpen: true,
-        title: isEdit ? '수정 완료' : '등록 완료',
-        description: `프로모션 상품이 성공적으로 ${isEdit ? '수정' : '등록'}되었습니다.`,
-        type: 'success'
-      });
+      // 장비 호환성 저장
+      await productService.saveProductCompatibility(productId, selectedEquipmentIds);
 
       // Invalidate products query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['products'] });
+
+      if (isEdit) {
+        navigate('/admin/products/promotion');
+      } else {
+        setResultModal({
+          isOpen: true,
+          title: '등록 완료',
+          description: '프로모션 상품이 성공적으로 등록되었습니다.',
+          type: 'success'
+        });
+      }
     } catch (error) {
       console.error('Failed to save promotion', error);
       setResultModal({
@@ -686,6 +712,48 @@ export function PromotionRegisterPage() {
               </table>
             </div>
           </div>
+        </div>
+
+        {/* 호환 장비 설정 */}
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <h3 className="text-lg font-bold">호환 장비 설정</h3>
+            <span className="text-xs text-neutral-500 font-normal">크레딧 장비별 적용 대상을 지정합니다</span>
+          </div>
+          {equipmentModels.length === 0 ? (
+            <p className="text-sm text-neutral-400">등록된 장비 모델이 없습니다.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {equipmentModels.map(eq => {
+                const checked = selectedEquipmentIds.includes(eq.id);
+                return (
+                  <label
+                    key={eq.id}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 border cursor-pointer transition-all select-none ${
+                      checked
+                        ? 'border-neutral-900 bg-neutral-900 text-white'
+                        : 'border-neutral-200 text-neutral-700 hover:border-neutral-500'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => {
+                        setSelectedEquipmentIds(prev =>
+                          e.target.checked
+                            ? [...prev, eq.id]
+                            : prev.filter(i => i !== eq.id)
+                        );
+                      }}
+                      className="sr-only"
+                    />
+                    <span className="text-xs font-bold">{eq.model_name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-xs text-neutral-400 mt-3">선택한 장비의 크레딧을 해당 상품 구매 시 사용할 수 있습니다.</p>
         </div>
 
         {/* Action Buttons - Sticky Layer at the bottom */}
