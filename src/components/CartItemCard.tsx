@@ -417,7 +417,7 @@ export function CartItemCard({
                         <button
                           type="button"
                           onClick={() => onCreditChange(Math.min(availableCredit, itemTotal))}
-                          className="text-[10px] px-2 py-1 bg-emerald-600 text-white font-bold hover:bg-emerald-700 whitespace-nowrap border-0"
+                          className="text-[10px] px-2 py-1 bg-neutral-900 text-white font-bold hover:bg-neutral-700 whitespace-nowrap border-0"
                         >
                           전액
                         </button>
