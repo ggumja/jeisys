@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import cardLogos from '../assets/card-logos.png';
 import { adminService } from '../services/adminService';
 import { SplitShipmentModal } from '../components/SplitShipmentModal';
-import { creditService } from '../services/creditService';
+import { creditService, CreditSummary } from '../services/creditService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,7 +68,7 @@ export function CheckoutPage() {
   const [showAddressModal, setShowAddressModal] = useState(false);
 
   // 크레딧 (상품별)
-  const [availableCredit, setAvailableCredit] = useState(0);
+  const [equipmentCreditMap, setEquipmentCreditMap] = useState<Record<string, number>>({});
   const [itemCredits, setItemCredits] = useState<Record<string, number>>({});
   const [creditLoading, setCreditLoading] = useState(false);
 
@@ -179,12 +179,16 @@ export function CheckoutPage() {
         });
         setProductsMap(map);
 
-        // 크레딧 가능 상품이 있으면 잔액 로딩
+        // 크레딧 가능 상품이 있으면 장비별 잔액 로딩
         const hasCreditItems = products.some(p => p?.creditAvailable);
         if (hasCreditItems && user) {
           setCreditLoading(true);
-          creditService.getTotalRemaining(user.id)
-            .then(setAvailableCredit)
+          creditService.getCreditSummary(user.id)
+            .then(summaries => {
+              const map: Record<string, number> = {};
+              summaries.forEach(s => { map[s.equipmentType] = s.remaining; });
+              setEquipmentCreditMap(map);
+            })
             .catch(console.error)
             .finally(() => setCreditLoading(false));
         }
@@ -329,10 +333,17 @@ export function CheckoutPage() {
   const totalCreditUsed = Object.values(itemCredits).reduce((a, b) => a + b, 0);
   const finalTotal = Math.max(0, calculateTotal() - totalCreditUsed);
 
-  // 해당 상품에 사용 가능한 잔여 크레딧 (다른 상품 사용액 제외)
-  const getRemainingCredit = (cartItemId: string) => {
+  /** 상품의 호환 장비 코드 기반 총 가용 크레딧 */
+  const getAvailableForProduct = (product: Product): number =>
+    (product.compatibleEquipment || []).reduce(
+      (sum, code) => sum + (equipmentCreditMap[code] || 0), 0
+    );
+
+  /** 해당 상품에 현재 사용 가능한 잔여 크레딧 (다른 상품 사용분 차감) */
+  const getRemainingCredit = (cartItemId: string, product: Product): number => {
+    const poolTotal = getAvailableForProduct(product);
     const usedByOthers = totalCreditUsed - (itemCredits[cartItemId] || 0);
-    return Math.max(0, availableCredit - usedByOthers);
+    return Math.max(0, poolTotal - usedByOthers);
   };
 
   const handleItemCreditChange = (cartItemId: string, amount: number) => {
@@ -496,9 +507,9 @@ export function CheckoutPage() {
                     itemTotal={itemTotal}
                     readonly
                     creditAvailable={product.creditAvailable}
-                    availableCredit={product.creditAvailable ? getRemainingCredit(item.id || item.productId) : 0}
+                    availableCredit={product.creditAvailable ? getRemainingCredit(item.id || item.productId, product) : 0}
                     creditUsed={itemCredits[item.id || item.productId] || 0}
-                    onCreditChange={product.creditAvailable && availableCredit > 0
+                    onCreditChange={product.creditAvailable && getAvailableForProduct(product) > 0
                       ? (val) => handleItemCreditChange(item.id || item.productId, val)
                       : undefined
                     }
