@@ -575,7 +575,7 @@ export function SetRegisterPage() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
 
       if (isEditMode) {
-        navigate('/admin/products');
+        navigate('/admin/products/set');
       } else {
         setResultModal({
           isOpen: true,
