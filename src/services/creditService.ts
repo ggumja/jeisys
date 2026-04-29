@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 
 export type EquipmentType = string; // equipments 테이블 model_name 동적 참조
 export type CreditStatus = 'active' | 'expired' | 'exhausted';
-export type TransactionType = 'issue' | 'use' | 'expire' | 'refund';
+export type TransactionType = 'issue' | 'use' | 'expire' | 'refund' | 'revoke';
 
 export interface UserCredit {
   id: string;
@@ -176,6 +176,21 @@ export const creditService = {
     });
     if (error) throw error;
     return data;
+  },
+
+  /** 크레딧 일부 회수 (관리자) */
+  async revokeCredit(input: {
+    creditId: string;
+    amount: number;
+    reason: string;
+  }): Promise<{ revoked: number; remaining: number }> {
+    const { data, error } = await supabase.rpc('revoke_user_credit', {
+      p_credit_id: input.creditId,
+      p_amount:    input.amount,
+      p_reason:    input.reason,
+    });
+    if (error) throw error;
+    return data as { revoked: number; remaining: number };
   },
 
   /** 주문 취소 시 크레딧 환불 (RPC) */

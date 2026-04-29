@@ -95,6 +95,11 @@ export function MemberDetailPage() {
   const [issuing, setIssuing] = useState(false);
   const [equipmentModels, setEquipmentModels] = useState<EquipmentModel[]>([]);
 
+  // 크레딧 회수
+  const [revokeModal, setRevokeModal] = useState<{ credit: UserCredit } | null>(null);
+  const [revokeForm, setRevokeForm] = useState({ amount: '', reason: '' });
+  const [revoking, setRevoking] = useState(false);
+
   const member = (members as any[]).find(m => m.id === id);
 
   // 멤버 데이터 로드 시 로컬 상태 초기화
@@ -223,6 +228,49 @@ export function MemberDetailPage() {
   };
 
   const totalRemaining = creditSummary.reduce((s, c) => s + c.remaining, 0);
+
+  const handleRevokeCredit = async () => {
+    if (!revokeModal?.credit || !revokeForm.amount || !revokeForm.reason.trim()) {
+      toast.error('회수 금액과 사유를 모두 입력해주세요.');
+      return;
+    }
+    const amount = Number(revokeForm.amount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('올바른 금액을 입력해주세요.');
+      return;
+    }
+    if (amount > revokeModal.credit.remaining) {
+      toast.error(`잔액(${revokeModal.credit.remaining.toLocaleString()}원)을 초과할 수 없습니다.`);
+      return;
+    }
+    setRevoking(true);
+    try {
+      await creditService.revokeCredit({
+        creditId: revokeModal.credit.id,
+        amount,
+        reason: revokeForm.reason,
+      });
+      toast.success(`${amount.toLocaleString()}원이 회수되었습니다.`);
+      setRevokeModal(null);
+      setRevokeForm({ amount: '', reason: '' });
+      // 목록 새로고침
+      const [list, summary] = await Promise.all([
+        creditService.getCreditsByUser(member.id),
+        creditService.getCreditSummary(member.id),
+      ]);
+      setCredits(list);
+      setCreditSummary(summary);
+      // 펼쳐진 이력도 새로고침
+      if (expandedCreditId === revokeModal.credit.id) {
+        const txs = await creditService.getCreditTransactions(revokeModal.credit.id).catch(() => []);
+        setCreditTransactions(prev => ({ ...prev, [revokeModal.credit.id]: txs }));
+      }
+    } catch (e: any) {
+      toast.error(e.message || '회수에 실패했습니다.');
+    } finally {
+      setRevoking(false);
+    }
+  };
 
 
   const getStatusBadge = (status: string) => {
@@ -975,6 +1023,88 @@ export function MemberDetailPage() {
       {/* ── 탭: 크레딧 */}
       {activeTab === 'credit' && <>
 
+      {/* 회수 모달 */}
+      {revokeModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setRevokeModal(null)} />
+          <div className="relative bg-white shadow-2xl rounded-sm" style={{ width: '100%', maxWidth: '440px', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+              <div className="flex items-center gap-2">
+                <span className="text-base">💸</span>
+                <h3 className="text-base font-black text-neutral-900">크레딧 회수</h3>
+              </div>
+              <button onClick={() => setRevokeModal(null)} className="p-1.5 hover:bg-neutral-100 rounded transition-colors">
+                <X className="w-4 h-4 text-neutral-500" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {/* 대상 크레딧 정보 */}
+              <div className="bg-neutral-50 rounded px-4 py-3 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">장비</span>
+                  <span className="font-bold text-neutral-900">{revokeModal.credit.equipmentType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">현재 잔액</span>
+                  <span className="font-bold text-neutral-900">{revokeModal.credit.remaining.toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">유효기간</span>
+                  <span className="font-semibold text-neutral-700">{revokeModal.credit.expiryDate}</span>
+                </div>
+              </div>
+              {/* 회수 금액 */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                  회수 금액 <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number" min="1" step="1000"
+                    placeholder="0"
+                    value={revokeForm.amount}
+                    onChange={e => setRevokeForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full border border-neutral-300 rounded px-3 py-2 text-sm pr-8 focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
+                </div>
+                {revokeForm.amount && Number(revokeForm.amount) > 0 && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    회수 후 잔액: <span className="font-bold text-neutral-900">
+                      {Math.max(0, revokeModal.credit.remaining - Number(revokeForm.amount)).toLocaleString()}원
+                    </span>
+                  </p>
+                )}
+              </div>
+              {/* 회수 사유 */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                  회수 사유 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="회수 사유를 입력해주세요"
+                  value={revokeForm.reason}
+                  onChange={e => setRevokeForm(f => ({ ...f, reason: e.target.value }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
+              <button onClick={() => { setRevokeModal(null); setRevokeForm({ amount: '', reason: '' }); }}
+                className="px-5 py-2.5 text-sm font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 transition-colors rounded">
+                취소
+              </button>
+              <button onClick={handleRevokeCredit} disabled={revoking}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-60 transition-colors">
+                {revoking ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                회수 확정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 발급 모달 */}
       {showIssueModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center">
@@ -1137,6 +1267,7 @@ export function MemberDetailPage() {
                     <th className="px-4 py-3 text-right text-xs font-bold text-neutral-500 uppercase">잔액</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">유효기간</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">상태</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">회수</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">이력</th>
                   </tr>
                 </thead>
@@ -1171,6 +1302,18 @@ export function MemberDetailPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
+                            {credit.status === 'active' && !isExpired && credit.remaining > 0 ? (
+                              <button
+                                onClick={() => { setRevokeModal({ credit }); setRevokeForm({ amount: '', reason: '' }); }}
+                                className="text-xs px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100 font-bold transition-colors"
+                              >
+                                회수
+                              </button>
+                            ) : (
+                              <span className="text-xs text-neutral-300">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
                             <button
                               onClick={() => handleToggleCreditHistory(credit.id)}
                               className="text-xs text-neutral-500 hover:text-neutral-900 flex items-center gap-1 mx-auto"
@@ -1182,7 +1325,7 @@ export function MemberDetailPage() {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={7} className="bg-neutral-50 px-6 py-4">
+                            <td colSpan={8} className="bg-neutral-50 px-6 py-4">
                               <p className="text-xs font-bold text-neutral-500 uppercase mb-2">사용 이력</p>
                               {!txs ? (
                                 <div className="flex justify-center py-2"><Loader2 className="w-4 h-4 animate-spin" /></div>
