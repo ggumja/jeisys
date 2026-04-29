@@ -390,7 +390,7 @@ export function CartItemCard({
                   </td>
                   <td colSpan={2} className="px-3 py-2 text-right text-[11px] text-emerald-700 font-bold">
                     {availableCredit > 0
-                      ? `₩${availableCredit.toLocaleString()}`
+                      ? `₩${Math.max(0, availableCredit - creditUsed).toLocaleString()}`
                       : <span className="text-emerald-400">잔액 없음</span>
                     }
                   </td>
