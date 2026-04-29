@@ -14,6 +14,11 @@ interface CartItemCardProps {
   onRemove?: () => void;
   onQtyChange?: (newQty: number) => void;
   onToggleSubscription?: () => void;
+  /** 크레딧 관련 (체크아웃용) */
+  creditAvailable?: boolean;
+  availableCredit?: number;   // 이 상품에 사용 가능한 잔여 크레딧
+  creditUsed?: number;        // 현재 입력된 크레딧 사용액
+  onCreditChange?: (amount: number) => void;
 }
 
 export function CartItemCard({
@@ -26,6 +31,10 @@ export function CartItemCard({
   onRemove,
   onQtyChange,
   onToggleSubscription,
+  creditAvailable = false,
+  availableCredit = 0,
+  creditUsed = 0,
+  onCreditChange,
 }: CartItemCardProps) {
   // ── 번들 구성 계산 ────────────────────────────────────────
   const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
@@ -229,6 +238,11 @@ export function CartItemCard({
                     {product.name}
                     {item.optionName ? ` (${item.optionName})` : ''}
                   </span>
+                  {creditAvailable && (
+                    <span className="px-1 py-0.5 bg-emerald-600 text-white text-[9px] font-bold rounded">
+                      크레딧
+                    </span>
+                  )}
                   <span className="px-1 py-0.5 bg-neutral-900 text-white text-[9px] font-bold rounded">
                     구매
                   </span>
@@ -372,6 +386,74 @@ export function CartItemCard({
               </td>
               <td colSpan={1} className="px-3 py-2 text-right font-bold text-neutral-900 text-base">
                 ₩{itemTotal.toLocaleString()}
+              </td>
+            </tr>
+          </tfoot>
+          {/* 크레딧 사용 행 (합계 위) */}
+          {creditAvailable && onCreditChange && (
+            <tfoot>
+              <tr className="bg-emerald-50 border-t border-emerald-200">
+                <td colSpan={3} className="px-3 py-2 text-right text-[11px] text-emerald-700 font-medium">
+                  사용가능 크레딧
+                </td>
+                <td colSpan={2} className="px-3 py-2 text-right text-[11px] text-emerald-700 font-bold">
+                  {availableCredit > 0
+                    ? `₩${availableCredit.toLocaleString()}`
+                    : <span className="text-emerald-400">잔액 없음</span>
+                  }
+                </td>
+              </tr>
+              {availableCredit > 0 && (
+                <tr className="bg-emerald-50">
+                  <td colSpan={3} className="px-3 py-1.5 text-right text-[11px] text-emerald-800 font-bold">
+                    크레딧 사용
+                  </td>
+                  <td colSpan={2} className="px-3 py-1.5">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={creditUsed > 0 ? creditUsed.toLocaleString() : ''}
+                        onChange={e => {
+                          const num = Number(e.target.value.replace(/[^0-9]/g, ''));
+                          const capped = Math.min(num, availableCredit, itemTotal);
+                          onCreditChange(isNaN(capped) ? 0 : capped);
+                        }}
+                        placeholder="0"
+                        className="w-28 text-right border border-emerald-300 bg-white px-2 py-1 text-xs font-bold text-emerald-800 focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onCreditChange(Math.min(availableCredit, itemTotal))}
+                        className="text-[10px] px-2 py-1 bg-emerald-600 text-white font-bold hover:bg-emerald-700 whitespace-nowrap"
+                      >
+                        전액
+                      </button>
+                      {creditUsed > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onCreditChange(0)}
+                          className="text-[10px] px-2 py-1 border border-neutral-200 text-neutral-500 hover:bg-neutral-100 font-bold"
+                        >
+                          취소
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tfoot>
+          )}
+          <tfoot>
+            <tr className="bg-neutral-100 border-t-2 border-neutral-300">
+              <td colSpan={4} className="px-3 py-2 text-right font-bold text-neutral-900 text-xs">합계</td>
+              <td colSpan={1} className="px-3 py-2 text-right font-bold text-neutral-900 text-base">
+                ₩{Math.max(0, itemTotal - creditUsed).toLocaleString()}
+                {creditUsed > 0 && (
+                  <div className="text-[10px] font-bold text-emerald-600">
+                    크레딧 -₩{creditUsed.toLocaleString()}
+                  </div>
+                )}
               </td>
             </tr>
           </tfoot>

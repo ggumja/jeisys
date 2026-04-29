@@ -67,10 +67,9 @@ export function CheckoutPage() {
   const [pendingBundles, setPendingBundles] = useState<any[]>([]);
   const [showAddressModal, setShowAddressModal] = useState(false);
 
-  // 크레딧
+  // 크레딧 (상품별)
   const [availableCredit, setAvailableCredit] = useState(0);
-  const [creditInputValue, setCreditInputValue] = useState('');
-  const [creditAmount, setCreditAmount] = useState(0);
+  const [itemCredits, setItemCredits] = useState<Record<string, number>>({});
   const [creditLoading, setCreditLoading] = useState(false);
 
   const splitShipOrder = useMemo(() => {
@@ -325,24 +324,19 @@ export function CheckoutPage() {
 
   const hasSubscriptionItems = cart.some(i => i.isSubscription);
   const hasCreditProducts = cart.some(i => productsMap[i.productId]?.creditAvailable);
-  const finalTotal = Math.max(0, calculateTotal() - creditAmount);
 
-  const handleCreditInput = (val: string) => {
-    setCreditInputValue(val);
-    const num = Number(val.replace(/[^0-9]/g, ''));
-    const capped = Math.min(num, availableCredit, calculateTotal());
-    setCreditAmount(isNaN(capped) ? 0 : capped);
+  // 상품별 크레딧 사용 합계
+  const totalCreditUsed = Object.values(itemCredits).reduce((a, b) => a + b, 0);
+  const finalTotal = Math.max(0, calculateTotal() - totalCreditUsed);
+
+  // 해당 상품에 사용 가능한 잔여 크레딧 (다른 상품 사용액 제외)
+  const getRemainingCredit = (cartItemId: string) => {
+    const usedByOthers = totalCreditUsed - (itemCredits[cartItemId] || 0);
+    return Math.max(0, availableCredit - usedByOthers);
   };
 
-  const handleUseAllCredit = () => {
-    const max = Math.min(availableCredit, calculateTotal());
-    setCreditAmount(max);
-    setCreditInputValue(max.toLocaleString());
-  };
-
-  const handleClearCredit = () => {
-    setCreditAmount(0);
-    setCreditInputValue('');
+  const handleItemCreditChange = (cartItemId: string, amount: number) => {
+    setItemCredits(prev => ({ ...prev, [cartItemId]: amount }));
   };
 
   const handleOrder = async () => {
@@ -379,17 +373,16 @@ export function CheckoutPage() {
       });
 
       // 크레딧 사용 처리
-      if (creditAmount > 0) {
+      if (totalCreditUsed > 0) {
         try {
           await creditService.useCredits({
             userId: user.id,
-            amount: creditAmount,
+            amount: totalCreditUsed,
             orderId: order.id,
             description: `주문 크레딧 사용 (${order.order_number || order.id.slice(0, 8)})`,
           });
         } catch (creditError: any) {
           console.error('Credit deduction failed:', creditError);
-          // 주문은 완료됐지만 크레딧 차감 실패 — 토스트만 표시
           toast.error('크레딧 차감 중 오류가 발생했습니다. 고객센터에 문의해주세요.');
         }
       }
@@ -502,6 +495,13 @@ export function CheckoutPage() {
                     unitPrice={unitPrice}
                     itemTotal={itemTotal}
                     readonly
+                    creditAvailable={product.creditAvailable}
+                    availableCredit={product.creditAvailable ? getRemainingCredit(item.id || item.productId) : 0}
+                    creditUsed={itemCredits[item.id || item.productId] || 0}
+                    onCreditChange={product.creditAvailable && availableCredit > 0
+                      ? (val) => handleItemCreditChange(item.id || item.productId, val)
+                      : undefined
+                    }
                   />
                 );
               })}
@@ -902,62 +902,6 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          {/* ── 크레딧 사용 섹션 (크레딧 가능 상품이 있을 때만) */}
-          {hasCreditProducts && (
-            <div className="bg-white border border-neutral-200 p-8 shadow-sm">
-              <div className="flex items-center gap-3 mb-5">
-                <Coins className="w-5 h-5" style={{ color: '#F59E0B' }} />
-                <h2 className="text-xl tracking-tight text-neutral-900 font-bold">크레딧 사용</h2>
-                {creditLoading && <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />}
-              </div>
-
-              <div className="flex items-center justify-between mb-4 bg-neutral-50 border border-neutral-200 px-4 py-3 rounded">
-                <div className="text-sm text-neutral-600">사용 가능한 크레딧</div>
-                <div className="text-lg font-black text-neutral-900">₩{availableCredit.toLocaleString()}</div>
-              </div>
-
-              {availableCredit > 0 ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={creditInputValue}
-                        onChange={e => handleCreditInput(e.target.value)}
-                        placeholder="사용할 금액 입력"
-                        className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm pr-8"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleUseAllCredit}
-                      className="px-4 py-3 text-sm font-bold border border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors whitespace-nowrap"
-                    >
-                      전액 사용
-                    </button>
-                    {creditAmount > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearCredit}
-                        className="px-4 py-3 text-sm font-bold border border-neutral-200 text-neutral-500 hover:bg-neutral-100 transition-colors"
-                      >
-                        취소
-                      </button>
-                    )}
-                  </div>
-                  {creditAmount > 0 && (
-                    <p className="text-xs font-semibold" style={{ color: '#F59E0B' }}>
-                      ₩{creditAmount.toLocaleString()} 크레딧이 결제금액에서 차감됩니다.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-neutral-400">사용 가능한 크레딧이 없습니다.</p>
-              )}
-            </div>
-          )}
 
         </div>{/* /lg:col-span-2 */}
 
@@ -976,13 +920,13 @@ export function CheckoutPage() {
                 <span>배송비</span>
                 <span className="text-green-600 font-bold uppercase text-[10px] tracking-tight border border-green-200 px-1.5 py-0.5 bg-green-50">Free Shipping</span>
               </div>
-              {creditAmount > 0 && (
-                <div className="flex justify-between text-sm font-semibold" style={{ color: '#F59E0B' }}>
+              {totalCreditUsed > 0 && (
+                <div className="flex justify-between text-sm font-semibold" style={{ color: '#059669' }}>
                   <span className="flex items-center gap-1">
                     <Coins className="w-3.5 h-3.5" />
                     크레딧 차감
                   </span>
-                  <span>- ₩{creditAmount.toLocaleString()}</span>
+                  <span>- ₩{totalCreditUsed.toLocaleString()}</span>
                 </div>
               )}
               <div className="pt-6 border-t border-neutral-100">
