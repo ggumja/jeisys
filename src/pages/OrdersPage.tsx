@@ -9,6 +9,7 @@ import { orderService } from '../services/orderService';
 import { Product, ClaimInfo, User } from '../types';
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
+import { creditService } from '../services/creditService';
 import { SplitShipmentModal } from '../components/SplitShipmentModal';
 import { toast } from 'sonner';
 
@@ -156,6 +157,7 @@ export function OrdersPage() {
   const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [isPartialShipAllowed, setIsPartialShipAllowed] = useState(false);
+  const [orderCreditMap, setOrderCreditMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const checkPermission = async () => {
@@ -193,6 +195,23 @@ export function OrdersPage() {
       }
     };
     if (orders.length > 0) loadSubProducts();
+  }, [orders]);
+
+  // 주문별 크레딧 사용 내역 로딩
+  useEffect(() => {
+    if (orders.length === 0) return;
+    const loadCredits = async () => {
+      const entries = await Promise.all(
+        orders.map(async (o) => {
+          try {
+            const used = await creditService.getOrderCreditUsed(o.id);
+            return [o.id, used] as [string, number];
+          } catch { return [o.id, 0] as [string, number]; }
+        })
+      );
+      setOrderCreditMap(Object.fromEntries(entries.filter(([, v]) => v > 0)));
+    };
+    loadCredits();
   }, [orders]);
 
   const toggleExpand = (orderId: string) => {
@@ -664,6 +683,22 @@ export function OrdersPage() {
                                 ₩{Math.round(paidTotal).toLocaleString()}
                               </td>
                             </tr>
+                            {(orderCreditMap[order.id] ?? 0) > 0 && (
+                              <tr className="bg-emerald-50">
+                                <td colSpan={4} className="px-3 py-2 text-right text-xs font-bold text-emerald-700">크레딧 차감</td>
+                                <td className="px-3 py-2 text-right text-xs font-bold text-emerald-700">
+                                  -₩{(orderCreditMap[order.id]).toLocaleString()}
+                                </td>
+                              </tr>
+                            )}
+                            {(orderCreditMap[order.id] ?? 0) > 0 && (
+                              <tr className="bg-neutral-100 border-t border-neutral-200">
+                                <td colSpan={4} className="px-3 py-2 text-right text-sm font-bold text-neutral-900">실 결제 금액</td>
+                                <td className="px-3 py-2 text-right text-base font-black text-neutral-900">
+                                  ₩{Math.max(0, Math.round(paidTotal) - (orderCreditMap[order.id] ?? 0)).toLocaleString()}
+                                </td>
+                              </tr>
+                            )}
                           </>
                         );
 
@@ -822,6 +857,11 @@ export function OrdersPage() {
                   }[order.paymentMethod] ?? order.paymentMethod}
                 </div>
                 <div className="text-right">
+                  {(orderCreditMap[order.id] ?? 0) > 0 && (
+                    <p className="text-xs text-emerald-600 font-bold mb-0.5">
+                      크레딧 차감 -₩{(orderCreditMap[order.id]).toLocaleString()}
+                    </p>
+                  )}
                   <p className="text-xs text-neutral-500 mb-0.5">총 결제 금액</p>
                   <p className="text-xl font-bold tracking-tight text-neutral-900">
                     {(() => {
@@ -854,7 +894,7 @@ export function OrdersPage() {
                           total += it.quantity * unitPrice;
                         }
                       });
-                      return `₩${Math.round(total).toLocaleString()}`;
+                      return `₩${Math.max(0, Math.round(total) - (orderCreditMap[order.id] ?? 0)).toLocaleString()}`;
                     })()}
                   </p>
                 </div>

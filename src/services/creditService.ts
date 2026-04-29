@@ -124,6 +124,18 @@ export const creditService = {
     return (data || []).map(fromTransactionRow);
   },
 
+  /** 주문별 크레딧 사용 합계 ('use' 타입 합산) */
+  async getOrderCreditUsed(orderId: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('credit_transactions')
+      .select('amount')
+      .eq('order_id', orderId)
+      .eq('type', 'use');
+
+    if (error) throw error;
+    return (data || []).reduce((sum, row) => sum + Number(row.amount), 0);
+  },
+
   /** 전체 잔액 합산 (모든 장비 합계) */
   async getTotalRemaining(userId: string): Promise<number> {
     const summary = await creditService.getCreditSummary(userId);
