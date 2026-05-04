@@ -317,10 +317,10 @@ export function HomePage() {
                         </span>
                         <h3
                           style={{
-                            fontSize: '20px',
+                            fontSize: '18px',
                             lineHeight: '26px',
                             color: '#1E293B',
-                            fontWeight: 700,
+                            fontWeight: 400,
                             marginBottom: '24px',
                             minHeight: '56px'
                           }}
@@ -423,7 +423,7 @@ export function HomePage() {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-neutral-900 mb-3 line-clamp-2 leading-relaxed group-hover:text-[#21358D] transition-colors">
+                    <h3 className="text-lg text-neutral-900 mb-3 line-clamp-2 leading-relaxed group-hover:text-[#21358D] transition-colors">
                       {post.title}
                     </h3>
                     <p className="text-xs text-neutral-500 font-medium tracking-tight">
@@ -504,7 +504,7 @@ export function HomePage() {
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-neutral-900 mb-1.5 line-clamp-2 leading-snug group-hover:text-[#21358D] transition-colors">
+                    <h3 className="text-lg text-neutral-900 mb-1.5 line-clamp-2 leading-snug group-hover:text-[#21358D] transition-colors">
                       {post.title}
                     </h3>
 

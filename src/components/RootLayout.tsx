@@ -130,7 +130,7 @@ function RootLayoutContent() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className="text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors whitespace-nowrap"
+                  className="text-base font-normal tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors whitespace-nowrap"
                 >
                   {item.label}
                 </Link>
@@ -141,7 +141,7 @@ function RootLayoutContent() {
                 onMouseEnter={() => setShowCommunicationDropdown(true)}
                 onMouseLeave={() => setShowCommunicationDropdown(false)}
               >
-                <button className="flex items-center gap-1 text-sm font-bold tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors whitespace-nowrap">
+                <button className="flex items-center gap-1 text-base font-normal tracking-tight text-neutral-900 hover:text-neutral-500 transition-colors whitespace-nowrap">
                   커뮤니케이션
                   <ChevronDown className="w-4 h-4" />
                 </button>
