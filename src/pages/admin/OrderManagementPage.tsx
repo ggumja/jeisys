@@ -633,7 +633,7 @@ export function OrderManagementPage() {
 
                 {matchedDeposits.length > 0 && (
                   <div className="mb-6">
-                    <h4 className="font-bold text-neutral-900 mb-2">매칭된 주문 (입금확인 대상)</h4>
+                    <h4 className="font-bold text-green-700 mb-2">매칭된 주문 (입금확인 대상)</h4>
                     <div className="max-h-60 overflow-y-auto border border-neutral-200 rounded-md">
                       <table className="w-full text-sm text-left">
                         <thead className="bg-neutral-50 border-b border-neutral-200 sticky top-0">
@@ -645,15 +645,51 @@ export function OrderManagementPage() {
                         </thead>
                         <tbody className="divide-y divide-neutral-200">
                           {matchedDeposits.map((m, idx) => (
-                            <tr key={idx}>
+                            <tr key={`matched-${idx}`}>
                               <td className="px-4 py-2 text-neutral-900">{m.order.orderNumber}</td>
-                              <td className="px-4 py-2 text-neutral-600">{m.order.customerName}</td>
+                              <td className="px-4 py-2 text-neutral-600">{m.order.vactName || m.order.customerName}</td>
                               <td className="px-4 py-2 text-neutral-900">₩{m.order.totalAmount.toLocaleString()}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
+                  </div>
+                )}
+
+                {unmatchedRows.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="font-bold text-orange-700 mb-2">수기확인 필요 내역 (매칭 실패)</h4>
+                    <div className="max-h-60 overflow-y-auto border border-neutral-200 rounded-md">
+                      <table className="w-full text-sm text-left bg-orange-50/30">
+                        <thead className="bg-orange-50 border-b border-orange-200 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 font-medium text-orange-800">엑셀 입금자(기재내용)</th>
+                            <th className="px-4 py-2 font-medium text-orange-800">엑셀 입금액</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-orange-100">
+                          {unmatchedRows.map((row, idx) => {
+                            // 안전하게 키 추출
+                            const cleanRow: any = {};
+                            Object.keys(row).forEach(k => {
+                              cleanRow[k.trim()] = row[k];
+                            });
+                            const depositorName = cleanRow['기재내용'] || cleanRow['입금자명'] || cleanRow['적요'] || '알 수 없음';
+                            const depositAmountRaw = cleanRow['거래내역(입금)'] || cleanRow['거래금액(입금)'] || cleanRow['입금액'] || cleanRow['거래금액'] || 0;
+                            const depositAmount = parseInt(String(depositAmountRaw).replace(/,/g, '').trim(), 10) || 0;
+                            
+                            return (
+                              <tr key={`unmatched-${idx}`}>
+                                <td className="px-4 py-2 text-orange-900">{String(depositorName)}</td>
+                                <td className="px-4 py-2 text-orange-900 font-medium">₩{depositAmount.toLocaleString()}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-xs text-orange-600 mt-2">* 시스템의 입금대기 상태인 주문 내역과 이름/금액이 정확히 일치하지 않거나, 중복건이 발생한 항목입니다.</p>
                   </div>
                 )}
                 
