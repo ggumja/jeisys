@@ -21,6 +21,7 @@ export function HomePage() {
   const [activeBanners, setActiveBanners] = useState<Ad[]>([]);
   const [activePopup, setActivePopup] = useState<Ad | null>(null);
   const [newsPosts, setNewsPosts] = useState<Post[]>([]);
+  const [mediaPosts, setMediaPosts] = useState<Post[]>([]);
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -60,6 +61,15 @@ export function HomePage() {
       }
     };
 
+    const fetchMedia = async () => {
+      try {
+        const posts = await postService.getPosts("media");
+        setMediaPosts(posts.filter(p => p.isVisible).slice(0, 6));
+      } catch (error) {
+        console.error("Failed to fetch media posts:", error);
+      }
+    };
+
     const fetchProducts = async () => {
       try {
         setIsLoadingProducts(true);
@@ -81,6 +91,7 @@ export function HomePage() {
 
     fetchAds();
     fetchNews();
+    fetchMedia();
     fetchProducts();
   }, []);
 
@@ -427,6 +438,85 @@ export function HomePage() {
                   <div className="aspect-video bg-neutral-100 mb-6" />
                   <div className="h-4 bg-neutral-100 w-3/4 mb-3" />
                   <div className="h-3 bg-neutral-100 w-1/4" />
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* 3-2. Media Section */}
+      <section className="w-full bg-[#F8F9FB] py-20 md:py-[160px] border-t border-neutral-100 font-sans">
+        <div className="max-w-[1440px] mx-auto px-4">
+          <div className="text-center mb-[56px] relative">
+            <h1
+              className="text-[54px] text-[#515151] mb-[12px] tracking-tight"
+              style={{
+                fontFamily: "'Palatino', 'Palatino Linotype', 'Palatino LT STD', 'Book Antiqua', Georgia, serif",
+                lineHeight: '48px',
+                fontSize: '54px'
+              }}
+            >
+              Media
+            </h1>
+            <h2 className="text-[24px] font-semibold mt-3 mb-4" style={{ color: '#21358D' }}>
+              제이시스 미디어
+            </h2>
+            <Link
+              to="/communication/media"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 p-5 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
+            >
+              전체보기
+            </Link>
+          </div>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
+            {mediaPosts.length > 0 ? (
+              mediaPosts.map((post) => (
+                <a
+                  key={post.id}
+                  href={post.imageUrl || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex flex-col"
+                >
+                  <div className="w-full bg-neutral-100 overflow-hidden mb-4 relative rounded-lg" style={{ aspectRatio: '9/16' }}>
+                    {post.thumbnailUrl ? (
+                      <img
+                        src={post.thumbnailUrl}
+                        alt={post.title}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (img.src.includes('maxresdefault')) {
+                            img.src = img.src.replace('maxresdefault', 'hqdefault');
+                          } else if (img.src.includes('hqdefault')) {
+                            img.src = img.src.replace('hqdefault', 'mqdefault');
+                          }
+                        }}
+                      />
+                    ) : post.imageUrl ? (
+                      <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-300">
+                        <Layout className="w-12 h-12 stroke-[1]" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-neutral-900 mb-1.5 line-clamp-2 leading-snug group-hover:text-[#21358D] transition-colors">
+                      {post.title}
+                    </h3>
+
+                  </div>
+                </a>
+              ))
+            ) : (
+              [1, 2, 3, 4].map((n) => (
+                <div key={n} className="flex flex-col animate-pulse">
+                  <div className="w-full bg-neutral-200 mb-4 rounded-lg" style={{ aspectRatio: '9/16' }} />
+                  <div className="h-4 bg-neutral-200 w-3/4 mb-3" />
+                  <div className="h-3 bg-neutral-200 w-1/4" />
                 </div>
               ))
             )}

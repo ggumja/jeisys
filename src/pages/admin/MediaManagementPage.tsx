@@ -11,6 +11,19 @@ const platforms = [
   { id: 'facebook', label: 'Facebook', icon: Facebook },
 ];
 
+// YouTube 비디오 ID 추출 (컴포넌트 외부 순수 함수)
+const extractYouTubeId = (url: string): string | null => {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+};
+
 export function MediaManagementPage() {
   const { alert: globalAlert, confirm: globalConfirm } = useModal();
   const [mediaList, setMediaList] = useState<Post[]>([]);
@@ -22,8 +35,9 @@ export function MediaManagementPage() {
   const [formData, setFormData] = useState({
     title: '',
     image_url: '',
+    thumbnail_url: '',
     isVisible: true,
-    platform: 'youtube', // Default
+    platform: 'youtube',
   });
 
   useEffect(() => {
@@ -45,9 +59,16 @@ export function MediaManagementPage() {
   const handleOpenModal = (media?: Post) => {
     if (media) {
       setEditingMedia(media);
+      // 기존 YouTube URL에서 videoId 재추출 → maxresdefault로 업그레이드
+      const imageUrl = media.imageUrl || '';
+      const videoId = extractYouTubeId(imageUrl);
+      const upgradedThumb = videoId
+        ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        : (media.thumbnailUrl || '');
       setFormData({
         title: media.title,
-        image_url: media.imageUrl || '',
+        image_url: imageUrl,
+        thumbnail_url: upgradedThumb,
         isVisible: media.isVisible,
         platform: media.platform || 'youtube',
       });
@@ -56,6 +77,7 @@ export function MediaManagementPage() {
       setFormData({
         title: '',
         image_url: '',
+        thumbnail_url: '',
         isVisible: true,
         platform: 'youtube',
       });
@@ -68,13 +90,23 @@ export function MediaManagementPage() {
     setEditingMedia(null);
   };
 
+  const handleUrlChange = (url: string) => {
+    const updated = { ...formData, image_url: url };
+    const videoId = extractYouTubeId(url);
+    if (videoId) {
+      updated.thumbnail_url = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    }
+    setFormData(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (editingMedia) {
         await postService.updatePost(editingMedia.id, {
           title: formData.title,
-          image_url: formData.image_url,
+          imageUrl: formData.image_url,
+          thumbnailUrl: formData.thumbnail_url,
           isVisible: formData.isVisible,
           platform: formData.platform,
         });
@@ -82,7 +114,8 @@ export function MediaManagementPage() {
         await postService.createPost({
           type: 'media',
           title: formData.title,
-          image_url: formData.image_url,
+          imageUrl: formData.image_url,
+          thumbnailUrl: formData.thumbnail_url,
           isVisible: formData.isVisible,
           platform: formData.platform,
         });
@@ -271,17 +304,56 @@ export function MediaManagementPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">썸네일/영상 URL</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">영상 링크 URL</label>
                 <div className="relative">
                   <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                   <input
                     type="text"
                     value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    onChange={(e) => handleUrlChange(e.target.value)}
                     className="w-full pl-12 pr-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm"
-                    placeholder="https://..."
+                    placeholder="https://youtube.com/shorts/... 또는 https://youtu.be/..."
                   />
                 </div>
+              </div>
+
+              {/* 썸네일 미리보기 */}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">썸네일 미리보기</label>
+                {formData.thumbnail_url ? (
+                  <div className="flex items-start gap-4">
+                    <div className="relative w-24 flex-shrink-0">
+                      <img
+                        src={formData.thumbnail_url}
+                        alt="썸네일"
+                        className="w-full object-cover rounded border border-neutral-200 bg-neutral-100"
+                        style={{ aspectRatio: '9/16' }}
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (img.src.includes('maxresdefault')) {
+                            img.src = img.src.replace('maxresdefault', 'hqdefault');
+                          } else if (img.src.includes('hqdefault')) {
+                            img.src = img.src.replace('hqdefault', 'mqdefault');
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-neutral-500 mb-2">YouTube에서 자동 추출된 썸네일</p>
+                      <input
+                        type="text"
+                        value={formData.thumbnail_url}
+                        onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                        className="w-full px-3 py-1.5 border border-neutral-300 rounded text-xs outline-none focus:ring-1 focus:ring-neutral-500 text-neutral-600"
+                        placeholder="썸네일 URL 직접 수정"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-16 border border-dashed border-neutral-300 rounded text-xs text-neutral-400">
+                    YouTube URL 입력 시 썸네일이 자동으로 표시됩니다
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <input
