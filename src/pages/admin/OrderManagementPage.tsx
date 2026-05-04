@@ -265,20 +265,26 @@ export function OrderManagementPage() {
         const unmatched: any[] = [];
 
         data.forEach((row: any) => {
+          // 안전하게 키를 찾기 위해 모든 키의 공백을 제거한 새 객체 생성
+          const cleanRow: any = {};
+          Object.keys(row).forEach(k => {
+            cleanRow[k.trim()] = row[k];
+          });
+
           // 알려주신 컬럼명: '기재내용', '거래금액(입금)', '거래내역(입금)'
-          const depositorName = row['기재내용'] || row['입금자명'] || row['적요'];
-          const depositAmountRaw = row['거래내역(입금)'] || row['거래금액(입금)'] || row['입금액'] || row['거래금액'];
+          const depositorNameRaw = cleanRow['기재내용'] || cleanRow['입금자명'] || cleanRow['적요'];
+          const depositAmountRaw = cleanRow['거래내역(입금)'] || cleanRow['거래금액(입금)'] || cleanRow['입금액'] || cleanRow['거래금액'];
           
-          if (!depositorName || depositAmountRaw === undefined) {
-            // 입금액이나 입금자명이 명확하지 않은 행은 패스하거나 unmatched로 처리
+          if (!depositorNameRaw || depositAmountRaw === undefined) {
             return;
           }
 
-          const depositAmount = parseInt(String(depositAmountRaw).replace(/,/g, ''), 10);
+          const depositorName = String(depositorNameRaw).trim();
+          const depositAmount = parseInt(String(depositAmountRaw).replace(/,/g, '').trim(), 10);
 
           // 동일이름(vactName 우선, 없을 시 customerName), 동일금액을 가진 모든 대기 주문 찾기
           const allPotentialMatches = pendingOrders.filter(o => {
-             const targetName = o.vactName || o.customerName;
+             const targetName = (o.vactName || o.customerName || '').trim();
              return targetName === depositorName && o.totalAmount === depositAmount;
           });
 
@@ -295,7 +301,7 @@ export function OrderManagementPage() {
             unmatched.push(row);
           }
         });
-
+        
         setMatchedDeposits(matched);
         setUnmatchedRows(unmatched);
         setIsMatchingModalOpen(true);
