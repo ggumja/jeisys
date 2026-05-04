@@ -249,3 +249,11 @@ export interface Subscription {
   lastBillingDate?: string;
   createdAt: string;
 }
+
+export interface SplitPaymentMethod {
+  id: string;
+  type: 'credit' | 'virtual';
+  cardId?: string;
+  amount: number;
+}
+

@@ -6,7 +6,7 @@ import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
 import { paymentService } from '../services/paymentService';
-import { CartItem, Product, PaymentMethod, ShippingAddress, User } from '../types';
+import { CartItem, Product, PaymentMethod, ShippingAddress, User, SplitPaymentMethod } from '../types';
 import { addressService } from '../services/addressService';
 import { ProductImage } from '../components/ui/ProductImage';
 import { CartItemCard } from '../components/CartItemCard';
@@ -42,6 +42,11 @@ export function CheckoutPage() {
   const [placingOrder, setPlacingOrder] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'virtual'>('credit');
+  const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
+  const [splitMethods, setSplitMethods] = useState<SplitPaymentMethod[]>([
+    { id: '1', type: 'credit', amount: 0 },
+    { id: '2', type: 'virtual', amount: 0 }
+  ]);
   const [userCards, setUserCards] = useState<PaymentMethod[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [subscriptionCycle, setSubscriptionCycle] = useState<number>(30);
@@ -333,6 +338,9 @@ export function CheckoutPage() {
   const totalCreditUsed = Object.values(itemCredits).reduce((a, b) => a + b, 0);
   const finalTotal = Math.max(0, calculateTotal() - totalCreditUsed);
 
+  const splitTotal = splitMethods.reduce((sum, sm) => sum + (Number(sm.amount) || 0), 0);
+  const splitRemaining = Math.max(0, finalTotal - splitTotal);
+
   /** 상품의 호환 장비 코드 기반 총 가용 크레딧 */
   const getAvailableForProduct = (product: Product): number =>
     (product.compatibleEquipment || []).reduce(
@@ -369,9 +377,26 @@ export function CheckoutPage() {
       return;
     }
 
-    if (paymentMethod === 'credit' && !selectedCardId) {
-      toast.error('결제할 카드를 선택하거나 새로 등록해주세요.');
-      return;
+    if (paymentMode === 'single' || hasSubscriptionItems) {
+      if (paymentMethod === 'credit' && !selectedCardId) {
+        toast.error('결제할 카드를 선택하거나 새로 등록해주세요.');
+        return;
+      }
+    } else {
+      if (splitRemaining !== 0) {
+        toast.error(`남은 결제 금액(${splitRemaining.toLocaleString()}원)을 모두 분배해주세요.`);
+        return;
+      }
+      for (const sm of splitMethods) {
+        if (sm.type === 'credit' && !sm.cardId) {
+          toast.error('복합 결제에 사용될 법인카드를 모두 선택해주세요.');
+          return;
+        }
+        if (sm.amount <= 0) {
+          toast.error('결제 금액은 0원보다 커야 합니다.');
+          return;
+        }
+      }
     }
 
     try {
@@ -389,11 +414,17 @@ export function CheckoutPage() {
         userId: user.id,
         items: cart,
         totalAmount: finalTotal,
-        paymentMethod: paymentMethod,
+        paymentMethod: (paymentMode === 'single' || hasSubscriptionItems) ? paymentMethod : 'split',
         deliveryAddress: fullAddress,
-        billingKeyId: selectedCard?.id,
-        billingKey: selectedCard?.billingKey,
-        subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined
+        billingKeyId: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.id : undefined,
+        billingKey: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.billingKey : undefined,
+        subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined,
+        splitPayments: (paymentMode === 'split' && !hasSubscriptionItems) ? splitMethods.map(sm => ({
+            method: sm.type,
+            amount: sm.amount,
+            billingKeyId: sm.type === 'credit' ? sm.cardId : undefined,
+            billingKey: sm.type === 'credit' ? userCards.find(c => c.id === sm.cardId)?.billingKey : undefined
+        })) : undefined
       });
 
       // 크레딧 사용 처리 - 상품별 장비 타입으로 분리 차감
@@ -781,8 +812,36 @@ export function CheckoutPage() {
 
           {/* Payment Methods */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
-            <h2 className="text-xl tracking-tight text-neutral-900 mb-6 font-bold">결제 수단</h2>
-            <div className="space-y-4">
+            <div className="mb-6">
+              <h2 className="text-xl tracking-tight text-neutral-900 font-bold mb-4">결제 수단</h2>
+              
+              {!hasSubscriptionItems && (
+                <div className="flex bg-neutral-100 p-1 rounded-sm w-full">
+                  <button
+                    onClick={() => setPaymentMode('single')}
+                    className={`flex-1 px-4 py-2 text-xs font-bold transition-all ${paymentMode === 'single' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}
+                  >
+                    단일 결제
+                  </button>
+                  <button
+                    onClick={() => setPaymentMode('split')}
+                    className={`flex-1 px-4 py-2 text-xs font-bold transition-all ${paymentMode === 'split' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}
+                  >
+                    복합 결제
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {hasSubscriptionItems && (
+                <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-xs border border-blue-200 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>정기배송 상품이 포함되어 있어 <strong>복합 결제</strong>를 사용할 수 없습니다. (단일 결제수단 필수)</p>
+                </div>
+            )}
+
+            {(paymentMode === 'single' || hasSubscriptionItems) ? (
+              <div className="space-y-4">
               {/* KICC EasyPay Billing */}
               <div
                 className={`border-2 transition-all ${paymentMethod === 'credit'
@@ -945,6 +1004,86 @@ export function CheckoutPage() {
                 </div>
               </label>
             </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="border border-neutral-200 rounded p-4 space-y-4">
+                  {splitMethods.map((sm, index) => (
+                    <div key={sm.id} className="flex flex-col gap-3 p-4 bg-neutral-50 border border-neutral-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-neutral-700">결제 수단 {index + 1}</span>
+                        {splitMethods.length > 1 && (
+                          <button onClick={() => setSplitMethods(prev => prev.filter(m => m.id !== sm.id))} className="text-neutral-400 hover:text-red-500 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <select 
+                          value={sm.type} 
+                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, type: e.target.value as 'credit' | 'virtual' } : m))}
+                          className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 bg-white"
+                        >
+                          <option value="credit">법인카드</option>
+                          <option value="virtual">가상계좌</option>
+                        </select>
+                        
+                        {sm.type === 'credit' && (
+                          <select
+                            value={sm.cardId || ''}
+                            onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, cardId: e.target.value } : m))}
+                            className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 md:col-span-2 bg-white"
+                          >
+                            <option value="">카드를 선택해주세요</option>
+                            {userCards.map(c => <option key={c.id} value={c.id}>{c.alias || c.cardName} ({c.cardNumberMasked})</option>)}
+                          </select>
+                        )}
+                        {sm.type === 'virtual' && (
+                          <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">가상계좌 (결제 시 발급)</div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            value={sm.amount ? sm.amount.toLocaleString() : ''}
+                            onChange={(e) => {
+                              const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                              setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, amount: Number(rawValue) } : m));
+                            }}
+                            placeholder="결제 금액"
+                            className="w-full px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 text-right font-medium"
+                          />
+                          <button 
+                            onClick={() => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, amount: Number(m.amount) + splitRemaining } : m))}
+                            className="px-4 py-2 bg-black text-white text-xs whitespace-nowrap hover:bg-neutral-800 transition-colors font-bold"
+                          >
+                            잔액 적용
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {splitMethods.length < 5 && (
+                    <button 
+                      onClick={() => setSplitMethods(prev => [...prev, { id: Date.now().toString(), type: 'credit', amount: 0 }])}
+                      className="w-full py-4 border border-dashed border-neutral-300 text-sm text-neutral-600 font-bold hover:bg-neutral-50 hover:text-neutral-900 transition-colors flex justify-center items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" /> 결제 수단 추가
+                    </button>
+                  )}
+                </div>
+
+                <div className="bg-white p-4 border border-neutral-200 flex justify-between items-center shadow-sm">
+                  <span className="text-sm font-bold text-neutral-700">남은 결제 금액</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-2xl font-black ${splitRemaining > 0 ? 'text-red-600' : splitRemaining < 0 ? 'text-orange-600' : 'text-neutral-900'}`}>
+                      {splitRemaining.toLocaleString()}
+                    </span>
+                    <span className="text-sm font-bold text-neutral-500">원</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
 
@@ -986,10 +1125,10 @@ export function CheckoutPage() {
 
             <button
               onClick={handleOrder}
-              disabled={placingOrder}
+              disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 카드 결제하기` : '가상계좌 주문 완료')}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `복합결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 카드 결제하기` : '가상계좌 주문 완료'))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">

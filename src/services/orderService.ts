@@ -14,6 +14,12 @@ export interface OrderInput {
     billingKeyId?: string; // KICC Billing Key ID from user_payment_methods
     billingKey?: string;   // KICC Billing Key string
     subscriptionCycle?: number; // Days (30, 60, 90)
+    splitPayments?: {
+        method: 'credit' | 'virtual';
+        amount: number;
+        billingKeyId?: string;
+        billingKey?: string;
+    }[];
 }
 
 export const orderService = {
