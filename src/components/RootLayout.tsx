@@ -1,8 +1,9 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
 import { ShoppingCart, Package, Zap, ChevronDown, LogOut, User, Globe, AlertCircle, X, Send, Copy, Check } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { storage } from '../lib/storage';
 import { cartService, proxyOrderService } from '../services/cartService';
+import { creditService, CreditSummary } from '../services/creditService';
 import { FloatingButtons } from './FloatingButtons';
 import { ModalProvider } from '../context/ModalContext';
 import { ScrollToTop } from './ScrollToTop';
@@ -18,9 +19,11 @@ function RootLayoutContent() {
   const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
   const [showCommunicationDropdown, setShowCommunicationDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [proxyName, setProxyName] = useState<string | null>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [creditSummary, setCreditSummary] = useState<CreditSummary[]>([]);
   const user = storage.getUser();
 
   useEffect(() => {
@@ -35,6 +38,11 @@ function RootLayoutContent() {
         .then(items => setCartCount(items.length))
         .catch(() => setCartCount(0));
 
+      // 크레딧 조회
+      creditService.getCreditSummary(user.id)
+        .then(setCreditSummary)
+        .catch(() => setCreditSummary([]));
+
       // proxy 모드 배너
       setProxyName(proxyOrderService.getProxyCustomerName());
     }
@@ -42,7 +50,7 @@ function RootLayoutContent() {
 
   const handleLogout = () => {
     storage.clearAll();
-    navigate('/');
+    window.location.href = '/';
   };
 
   const navItems = [
@@ -166,30 +174,99 @@ function RootLayoutContent() {
             <div className="flex items-center justify-end gap-3">
               {user ? (
                 <>
-                  {/* ADMIN 배지 + 마이페이지 아이콘 */}
+                  {/* ADMIN 배지 + 마이페이지 hover 드롭다운 */}
                   {user.role === 'admin' ? (
-                    <>
-                      {/* ADMIN 배지 → /admin */}
-                      <Link
-                        to="/admin"
-                        className="hidden md:flex items-center hover:opacity-80 transition-opacity"
-                      >
-                        <span className="bg-neutral-900 text-white text-[10px] font-black px-2 py-0.5 rounded-sm tracking-widest uppercase">
-                          ADMIN
-                        </span>
-                      </Link>
-                      {/* 사람 아이콘 → /mypage/orders */}
-                      <Link to="/mypage/orders" className="hidden md:flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
-                        <User className="w-5 h-5" />
-                      </Link>
-                    </>
-                  ) : (
-                    <Link to="/mypage/orders" className="hidden md:flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                    <Link to="/admin" className="hidden md:flex items-center hover:opacity-80 transition-opacity">
+                      <span className="bg-neutral-900 text-white text-[10px] font-black px-2 py-0.5 rounded-sm tracking-widest uppercase">ADMIN</span>
+                    </Link>
+                  ) : null}
+
+                  {/* 마이페이지 아이콘 + hover 드롭다운 */}
+                  <div
+                    className="relative hidden md:flex"
+                    onMouseEnter={() => setShowUserDropdown(true)}
+                    onMouseLeave={() => setShowUserDropdown(false)}
+                  >
+                    <Link to="/mypage/orders" className="flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
                       <User className="w-5 h-5" />
                     </Link>
-                  )}
 
-                  {/* 로그아웃 아이콘 */}
+                    {showUserDropdown && (
+                      /* paddingTop으로 아이콘-드롭다운 간 gap을 투명하게 메워 mouseLeave 방지 */
+                      <div style={{ position: 'absolute', top: '100%', right: 0, paddingTop: '8px', zIndex: 100 }}>
+                        <div style={{
+                          width: '280px', backgroundColor: '#fff',
+                          border: '1px solid #e5e7eb', borderRadius: '8px',
+                          boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+                          padding: '20px',
+                        }}>
+                          {/* 이름 + VIP 배지 */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <span style={{ fontSize: '16px', fontWeight: 700, color: '#111' }}>
+                              {user.name} {user.hospitalName ? `원장` : ''}
+                            </span>
+                            {user.memberType && (
+                              <span style={{
+                                backgroundColor: '#FACC15', color: '#111',
+                                fontSize: '11px', fontWeight: 800,
+                                padding: '2px 8px', borderRadius: '4px',
+                                letterSpacing: '0.05em',
+                              }}>
+                                {user.memberType.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+
+                          <hr style={{ borderColor: '#f3f4f6', marginBottom: '14px' }} />
+
+                          {/* 보유크레딧 → /mypage/credits 이동 */}
+                          <Link to="/mypage/credits" style={{ display: 'block', textDecoration: 'none', marginBottom: '14px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>보유크레딧</div>
+                            {creditSummary.length === 0 ? (
+                              <div style={{ fontSize: '13px', color: '#9ca3af' }}>크레딧 없음</div>
+                            ) : (
+                              creditSummary.map(c => (
+                                <div key={c.equipmentType} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <span style={{ fontSize: '13px', color: '#374151' }}>{c.equipmentType}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#111' }}>
+                                      {c.remaining.toLocaleString()}
+                                    </span>
+                                    <span style={{
+                                      backgroundColor: '#3b82f6', color: '#fff',
+                                      fontSize: '10px', fontWeight: 700,
+                                      width: '16px', height: '16px',
+                                      borderRadius: '9999px',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>C</span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 장바구니 + 빨간 뱃지 */}
+                  <Link to="/cart" className="relative flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                    <ShoppingCart className="w-5 h-5" />
+                    {cartCount > 0 && (
+                      <span style={{
+                        position: 'absolute', top: '-4px', right: '-4px',
+                        backgroundColor: '#ef4444', color: '#fff',
+                        fontSize: '10px', fontWeight: 700,
+                        borderRadius: '9999px', width: '16px', height: '16px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        lineHeight: 1,
+                      }}>
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* 로그아웃 */}
                   <button
                     onClick={handleLogout}
                     className="hidden md:flex items-center justify-center p-1 text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
@@ -197,16 +274,6 @@ function RootLayoutContent() {
                   >
                     <LogOut className="w-5 h-5" />
                   </button>
-
-                  {/* 장바구니 아이콘 + 배지 */}
-                  <Link to="/cart" className="relative flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
-                    <ShoppingCart className="w-5 h-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
-                        {cartCount > 99 ? '99+' : cartCount}
-                      </span>
-                    )}
-                  </Link>
                 </>
               ) : (
                 <>
