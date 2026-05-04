@@ -10,6 +10,7 @@ export interface Post {
   viewCount: number;
   isVisible: boolean;
   imageUrl: string | null;
+  thumbnailUrl: string | null;
   createdAt: string;
   category?: string;
   platform?: string;
@@ -51,6 +52,7 @@ export const postService = {
       viewCount: item.view_count,
       isVisible: item.is_visible,
       imageUrl: item.image_url,
+      thumbnailUrl: item.thumbnail_url,
       createdAt: item.created_at,
       platform: item.platform,
       category: item.category,
@@ -77,6 +79,7 @@ export const postService = {
       viewCount: data.view_count,
       isVisible: data.is_visible,
       imageUrl: data.image_url,
+      thumbnailUrl: data.thumbnail_url,
       createdAt: data.created_at,
       platform: data.platform,
       category: data.category,
@@ -90,6 +93,7 @@ export const postService = {
       content: input.content,
       is_visible: input.isVisible ?? true,
       image_url: input.imageUrl,
+      thumbnail_url: input.thumbnailUrl,
       category: input.category,
       platform: input.platform,
     };
@@ -115,6 +119,7 @@ export const postService = {
     if (input.content !== undefined) updateData.content = input.content;
     if (input.isVisible !== undefined) updateData.is_visible = input.isVisible;
     if (input.imageUrl !== undefined) updateData.image_url = input.imageUrl;
+    if (input.thumbnailUrl !== undefined) updateData.thumbnail_url = input.thumbnailUrl;
 
     // category and platform might not exist yet if schema update wasn't run
     if (input.category !== undefined) updateData.category = input.category;

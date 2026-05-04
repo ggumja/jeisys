@@ -18,11 +18,15 @@ export function NewsManagementPage() {
     title: '',
     content: '',
     image_url: '',
+    thumbnail_url: '',
     isVisible: true,
   });
   const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchNews();
@@ -47,18 +51,23 @@ export function NewsManagementPage() {
         title: news.title,
         content: news.content || '',
         image_url: news.imageUrl || '',
+        thumbnail_url: news.thumbnailUrl || '',
         isVisible: news.isVisible,
       });
+      setThumbnailPreview(news.thumbnailUrl || '');
     } else {
       setEditingNews(null);
       setFormData({
         title: '',
         content: '',
         image_url: '',
+        thumbnail_url: '',
         isVisible: true,
       });
+      setThumbnailPreview('');
     }
     setAttachFile(null);
+    setThumbnailFile(null);
     setIsModalOpen(true);
   };
 
@@ -77,9 +86,24 @@ export function NewsManagementPage() {
         .from('marketing')
         .upload(path, attachFile, { upsert: true });
       if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = supabase.storage.from('marketing').getPublicUrl(path);
+      return publicUrl;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const uploadThumbnail = async (): Promise<string> => {
+    if (!thumbnailFile) return formData.thumbnail_url;
+    setUploading(true);
+    try {
+      const ext = thumbnailFile.name.split('.').pop();
+      const path = `news/thumb_${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
         .from('marketing')
-        .getPublicUrl(path);
+        .upload(path, thumbnailFile, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from('marketing').getPublicUrl(path);
       return publicUrl;
     } finally {
       setUploading(false);
@@ -89,12 +113,13 @@ export function NewsManagementPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const fileUrl = await uploadAttachment();
+      const [fileUrl, thumbUrl] = await Promise.all([uploadAttachment(), uploadThumbnail()]);
       if (editingNews) {
         await postService.updatePost(editingNews.id, {
           title: formData.title,
           content: formData.content,
-          image_url: fileUrl,
+          imageUrl: fileUrl,
+          thumbnailUrl: thumbUrl,
           isVisible: formData.isVisible,
         });
       } else {
@@ -102,7 +127,8 @@ export function NewsManagementPage() {
           type: 'news',
           title: formData.title,
           content: formData.content,
-          image_url: fileUrl,
+          imageUrl: fileUrl,
+          thumbnailUrl: thumbUrl,
           isVisible: formData.isVisible,
         });
       }
@@ -252,7 +278,51 @@ export function NewsManagementPage() {
                   required
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 썸네일 이미지 */}
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">썸네일 이미지</label>
+                  <input
+                    ref={thumbnailInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setThumbnailFile(file);
+                      if (file) setThumbnailPreview(URL.createObjectURL(file));
+                    }}
+                  />
+                  <div className="flex flex-col gap-2">
+                    {thumbnailPreview ? (
+                      <div className="relative">
+                        <img src={thumbnailPreview} alt="썸네일 미리보기" className="w-full h-28 object-cover border border-neutral-200 rounded" />
+                        <button
+                          type="button"
+                          onClick={() => { setThumbnailFile(null); setThumbnailPreview(''); setFormData({ ...formData, thumbnail_url: '' }); }}
+                          className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/70"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => thumbnailInputRef.current?.click()}
+                        className="flex flex-col items-center justify-center gap-1 h-28 border border-dashed border-neutral-300 text-neutral-500 hover:bg-neutral-50 transition-colors rounded text-xs"
+                      >
+                        <Upload className="w-5 h-5" />
+                        이미지 선택
+                      </button>
+                    )}
+                    {thumbnailPreview && (
+                      <button type="button" onClick={() => thumbnailInputRef.current?.click()} className="text-xs text-neutral-500 hover:text-neutral-700 underline">
+                        변경
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {/* 첨부파일 */}
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1">첨부파일</label>
                   <input
@@ -283,6 +353,7 @@ export function NewsManagementPage() {
                     )}
                   </div>
                 </div>
+                {/* 노출 설정 */}
                 <div className="flex items-end pb-2">
                   <div className="flex items-center gap-2">
                     <input

@@ -70,7 +70,8 @@ export function NewsPage() {
         <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-4 border-b border-neutral-200 bg-neutral-50 text-sm font-medium text-neutral-700">
           <div className="col-span-1 text-center">번호</div>
           <div className="col-span-2 text-center">분류</div>
-          <div className="col-span-6">제목</div>
+          <div className="col-span-1 text-center">썸네일</div>
+          <div className="col-span-5">제목</div>
           <div className="col-span-2 text-center">작성일</div>
           <div className="col-span-1 text-center">조회</div>
         </div>
@@ -92,8 +93,8 @@ export function NewsPage() {
                   to={`/communication/news/${item.id}`}
                   className="block hover:bg-neutral-50 transition-colors bg-blue-50/30"
                 >
-                  {/* Desktop */}
-                  <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-4 items-center">
+                  {/* Desktop - Pinned */}
+                  <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 items-center">
                     <div className="col-span-1 flex justify-center">
                       <Pin className="w-5 h-5 text-blue-600" />
                     </div>
@@ -102,7 +103,12 @@ export function NewsPage() {
                         뉴스
                       </span>
                     </div>
-                    <div className="col-span-6">
+                    <div className="col-span-1 flex justify-center">
+                      {item.thumbnailUrl
+                        ? <img src={item.thumbnailUrl} alt="" className="w-12 h-9 object-cover rounded border border-neutral-200" />
+                        : <div className="w-12 h-9 bg-neutral-100 rounded border border-neutral-200" />}
+                    </div>
+                    <div className="col-span-5">
                       <p className="text-base text-neutral-900 hover:text-neutral-600 font-medium flex items-center gap-1.5">
                         {item.title}
                         {item.imageUrl && <Paperclip className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />}
@@ -148,8 +154,8 @@ export function NewsPage() {
                   to={`/communication/news/${item.id}`}
                   className="block hover:bg-neutral-50 transition-colors"
                 >
-                  {/* Desktop */}
-                  <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-4 items-center">
+                  {/* Desktop - Regular */}
+                  <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-3 items-center">
                     <div className="col-span-1 text-center text-sm text-neutral-600">
                       {regularNews.length - index}
                     </div>
@@ -158,7 +164,12 @@ export function NewsPage() {
                         뉴스
                       </span>
                     </div>
-                    <div className="col-span-6">
+                    <div className="col-span-1 flex justify-center">
+                      {item.thumbnailUrl
+                        ? <img src={item.thumbnailUrl} alt="" className="w-12 h-9 object-cover rounded border border-neutral-200" />
+                        : <div className="w-12 h-9 bg-neutral-100 rounded border border-neutral-200" />}
+                    </div>
+                    <div className="col-span-5">
                       <p className="text-base text-neutral-900 hover:text-neutral-600 flex items-center gap-1.5">
                         {item.title}
                         {item.imageUrl && <Paperclip className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />}
