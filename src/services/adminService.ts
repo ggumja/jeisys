@@ -1174,5 +1174,43 @@ export const adminService = {
             .eq('id', userId);
 
         if (error) throw error;
+    },
+
+    /** 무통장입금 엑셀 일괄 매칭 확인 처리 */
+    async bulkConfirmDeposits(orderIds: string[]) {
+        if (!orderIds || orderIds.length === 0) return;
+
+        // 1. 주문 상태 일괄 변경
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({ status: 'paid' })
+            .in('id', orderIds);
+
+        if (updateError) throw updateError;
+
+        // 2. 각 주문에 대한 Payment History 및 Order History 추가
+        for (const orderId of orderIds) {
+            // 주문 정보 가져오기 (금액 확인용)
+            const { data: orderData } = await supabase
+                .from('orders')
+                .select('total_amount, payment_method')
+                .eq('id', orderId)
+                .single();
+
+            if (orderData) {
+                // payment_history 추가
+                await supabase.from('payment_history').insert({
+                    order_id: orderId,
+                    transaction_type: 'PAYMENT',
+                    amount: orderData.total_amount,
+                    status: 'SUCCESS',
+                    method: orderData.payment_method,
+                    reason: '무통장입금 엑셀 일괄 승인'
+                });
+            }
+
+            // 히스토리 기록
+            await this.logOrderHistory(orderId, 'paid', '무통장입금 입금 확인 (엑셀 일괄)', '관리자 엑셀 업로드로 입금 확인됨');
+        }
     }
 };

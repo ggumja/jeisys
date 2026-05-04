@@ -41,7 +41,7 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'general' | 'virtual'>('credit');
+  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'general' | 'virtual' | 'transfer'>('credit');
   const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
   const [splitMethods, setSplitMethods] = useState<SplitPaymentMethod[]>([
     { id: '1', type: 'credit', amount: 0 },
@@ -887,6 +887,21 @@ export function CheckoutPage() {
                       <p className="text-[11px] text-neutral-500 mt-0.5">발급된 계좌로 입금</p>
                     </div>
                   </div>
+
+                  <div
+                    onClick={() => setPaymentMethod('transfer')}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
+                      paymentMethod === 'transfer'
+                        ? 'border-[#D9534F] bg-[#FFF8F5]'
+                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                    }`}
+                  >
+                    <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'transfer' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <div>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'transfer' ? 'text-neutral-900' : 'text-neutral-700'}`}>무통장입금</h3>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">지정 계좌로 직접 입금</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="border border-neutral-200 rounded-sm p-6 bg-neutral-50 min-h-[200px] flex flex-col justify-center">
@@ -978,8 +993,23 @@ export function CheckoutPage() {
                   {paymentMethod === 'virtual' && (
                     <div className="text-center py-8">
                       <Wallet className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
-                      <p className="text-sm font-bold text-neutral-700">가상계좌 (무통장 입금)</p>
-                      <p className="text-xs text-neutral-500 mt-1">입금 확인 후 배송이 시작됩니다. (발행된 계좌번호로 입금해주세요)</p>
+                      <p className="text-sm font-bold text-neutral-700">가상계좌 (발급)</p>
+                      <p className="text-xs text-neutral-500 mt-1">결제 완료 시 고유 가상계좌가 발급됩니다. (해당 계좌로 입금해주세요)</p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'transfer' && (
+                    <div className="text-center py-8 bg-neutral-50/50">
+                      <Wallet className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                      <p className="text-sm font-bold text-neutral-700 mb-2">무통장입금 계좌정보</p>
+                      <div className="inline-block bg-white border border-neutral-200 p-6 rounded-xl text-left shadow-md">
+                        <p className="text-2xl font-black text-neutral-900 tracking-wider">우리은행 1005-803-786090</p>
+                        <p className="text-base font-bold text-neutral-600 mt-2">예금주 : <span className="text-neutral-900">㈜제이시스메디칼</span></p>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-4 px-4">
+                        * 주문자와 입금자명이 동일해야 빠른 입금 확인이 가능합니다.<br/>
+                        * 입금 확인 후 상품 배송이 시작됩니다.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1033,12 +1063,13 @@ export function CheckoutPage() {
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <select 
                           value={sm.type} 
-                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, type: e.target.value as 'credit' | 'general' | 'virtual' } : m))}
+                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, type: e.target.value as 'credit' | 'general' | 'virtual' | 'transfer' } : m))}
                           className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 bg-white"
                         >
                           <option value="credit">등록된 신용카드</option>
                           <option value="general">일반결제</option>
                           <option value="virtual">가상계좌</option>
+                          <option value="transfer">무통장입금</option>
                         </select>
                         
                         {sm.type === 'credit' && (
@@ -1056,6 +1087,9 @@ export function CheckoutPage() {
                         )}
                         {sm.type === 'virtual' && (
                           <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">가상계좌 (결제 시 발급)</div>
+                        )}
+                        {sm.type === 'transfer' && (
+                          <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">무통장입금 (우리은행 1005-803-786090)</div>
                         )}
 
                         <div className="flex gap-2">
@@ -1145,7 +1179,7 @@ export function CheckoutPage() {
               disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `복합결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 간편 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : '가상계좌 주문 완료'))}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `복합결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 간편 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : paymentMethod === 'transfer' ? '무통장입금 주문 완료' : '가상계좌 주문 완료'))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">

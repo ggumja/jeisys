@@ -68,10 +68,10 @@ export function OrderCompletePage() {
           <CheckCircle className="w-12 h-12 text-green-600" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          {order.paymentMethod === 'virtual' ? '입금 대기 중입니다' : '주문이 완료되었습니다'}
+          {order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' ? '입금 대기 중입니다' : '주문이 완료되었습니다'}
         </h1>
         <p className="text-gray-600">
-          {order.paymentMethod === 'virtual' 
+          {order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' 
             ? '아래 계좌로 입금해 주시면 결제가 완료됩니다.' 
             : '주문해주셔서 감사합니다. 빠르게 준비하여 배송해드리겠습니다.'}
         </p>
@@ -147,6 +147,62 @@ export function OrderCompletePage() {
         </div>
       )}
 
+      {/* Transfer Info Box */}
+      {order.paymentMethod === 'transfer' && (
+        <div className="bg-neutral-900 rounded-2xl p-8 mb-8 text-white shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Landmark className="w-32 h-32" />
+          </div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+              <span className="text-sm font-bold text-blue-400 uppercase tracking-widest">Manual Transfer Information</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase mb-2">입금 은행</label>
+                  <p className="text-xl font-bold flex items-center gap-2">
+                    <Landmark className="w-5 h-5 text-neutral-400" />
+                    우리은행
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase mb-2">입금 계좌번호</label>
+                  <div className="flex items-center gap-3">
+                    <p className="text-3xl font-black tracking-wider text-blue-100">1005-803-786090</p>
+                    <button 
+                      onClick={() => handleCopy('1005-803-786090')}
+                      className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                      title="계좌번호 복사"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase mb-2">예금주</label>
+                  <p className="text-2xl font-black text-white">㈜제이시스메디칼</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-white/10 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-neutral-400 shrink-0 mt-0.5" />
+              <p className="text-sm text-neutral-400 leading-relaxed">
+                * 주문자와 입금자명이 동일해야 빠른 입금 확인이 가능합니다. <br />
+                * 입금 확인 후 상품 배송이 시작됩니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Order Info */}
       <div className="bg-white rounded-xl border border-gray-200 p-8 mb-6 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -169,7 +225,7 @@ export function OrderCompletePage() {
         </h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li>• 주문 확인 후 영업일 기준 2-3일 내 배송됩니다.</li>
-          <li>• {order.paymentMethod === 'virtual' ? '입금 확인 즉시' : '배송 시작 시'} SMS/이메일로 알림을 보내드립니다.</li>
+          <li>• {order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' ? '입금 확인 즉시' : '배송 시작 시'} SMS/이메일로 알림을 보내드립니다.</li>
           <li>• 증빙 서류가 필요한 경우 고객센터로 문의해주세요.</li>
         </ul>
       </div>

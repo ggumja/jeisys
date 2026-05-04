@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, Package, Truck, Printer, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Package, Truck, Printer, Loader2, ChevronLeft, ChevronRight, Upload, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { adminService } from '../../services/adminService';
@@ -74,6 +75,12 @@ export function OrderManagementPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('paid');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Excel Matching States
+  const [matchedDeposits, setMatchedDeposits] = useState<{ order: Order, row: any }[]>([]);
+  const [unmatchedRows, setUnmatchedRows] = useState<any[]>([]);
+  const [isMatchingModalOpen, setIsMatchingModalOpen] = useState(false);
+  const [isProcessingDeposits, setIsProcessingDeposits] = useState(false);
 
   // Dialog states
   const [shippingDialog, setShippingDialog] = useState<{
@@ -239,6 +246,83 @@ export function OrderManagementPage() {
     }
   };
 
+
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        const pendingOrders = orders.filter(o => o.status === 'pending');
+        const matched: { order: Order, row: any }[] = [];
+        const unmatched: any[] = [];
+
+        data.forEach((row: any) => {
+          // 알려주신 컬럼명: '기재내용', '거래금액(입금)'
+          const depositorName = row['기재내용'] || row['입금자명'] || row['적요'];
+          const depositAmountRaw = row['거래금액(입금)'] || row['입금액'] || row['거래금액'];
+          
+          if (!depositorName || depositAmountRaw === undefined) {
+            // 입금액이나 입금자명이 명확하지 않은 행은 패스하거나 unmatched로 처리
+            return;
+          }
+
+          const depositAmount = parseInt(String(depositAmountRaw).replace(/,/g, ''), 10);
+
+          // 동일이름, 동일금액을 가진 모든 대기 주문 찾기
+          const allPotentialMatches = pendingOrders.filter(o => 
+             o.customerName === depositorName && o.totalAmount === depositAmount
+          );
+
+          if (allPotentialMatches.length === 1) {
+            // 단 1건만 존재할 경우에만 안전하게 매칭
+            const match = allPotentialMatches[0];
+            if (!matched.some(m => m.order.id === match.id)) {
+              matched.push({ order: match, row });
+            } else {
+              unmatched.push(row);
+            }
+          } else {
+            // 0건이거나 2건 이상(동일금액/동명이인 등 중복)인 경우 자동 매칭 방지 및 수기 처리
+            unmatched.push(row);
+          }
+        });
+
+        setMatchedDeposits(matched);
+        setUnmatchedRows(unmatched);
+        setIsMatchingModalOpen(true);
+      } catch (err) {
+        console.error(err);
+        toast.error('엑셀 파일을 읽는 중 오류가 발생했습니다.');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  const confirmBulkDeposits = async () => {
+    if (matchedDeposits.length === 0) return;
+    try {
+      setIsProcessingDeposits(true);
+      const orderIds = matchedDeposits.map(m => m.order.id);
+      await adminService.bulkConfirmDeposits(orderIds);
+      toast.success(`${orderIds.length}건의 무통장입금이 승인 처리되었습니다.`);
+      setIsMatchingModalOpen(false);
+      loadOrders();
+    } catch (error) {
+      console.error(error);
+      toast.error('승인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsProcessingDeposits(false);
+    }
+  };
 
   // 내부 포맷 주문서 출력
   const handlePrintInternalOrders = () => {
@@ -437,6 +521,34 @@ export function OrderManagementPage() {
         )}
       </div>
 
+      {/* Excel Upload Section for Pending Orders */}
+      {selectedStatus === 'pending' && (
+        <div className="bg-white border border-neutral-200 p-6 mt-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
+              <FileSpreadsheet className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-neutral-900">무통장입금 일괄 매칭</h3>
+              <p className="text-sm text-neutral-500">은행에서 다운로드한 엑셀 파일(거래금액, 기재내용 포함)을 업로드하여 입금내역을 자동으로 매칭합니다.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white rounded-md cursor-pointer hover:bg-neutral-800 transition-colors font-medium text-sm shadow-sm">
+              <Upload className="w-4 h-4" />
+              엑셀 파일 업로드
+              <input 
+                type="file" 
+                accept=".xlsx, .xls" 
+                className="hidden" 
+                onChange={handleExcelUpload} 
+              />
+            </label>
+            <span className="text-xs text-neutral-400">* 지원 포맷: .xlsx, .xls</span>
+          </div>
+        </div>
+      )}
+
       {/* Shipping Confirmation Dialog */}
       <AlertDialog open={shippingDialog.open} onOpenChange={(open: boolean) => setShippingDialog(prev => ({ ...prev, open }))}>
         <AlertDialogContent>
@@ -473,6 +585,78 @@ export function OrderManagementPage() {
                 </AlertDialogAction>
               </>
             )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Excel Matching Preview Dialog */}
+      <AlertDialog open={isMatchingModalOpen} onOpenChange={setIsMatchingModalOpen}>
+        <AlertDialogContent className="max-w-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>엑셀 무통장입금 매칭 결과</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="mt-4">
+                <div className="flex gap-4 mb-6">
+                  <div className="flex-1 bg-green-50 border border-green-200 p-4 rounded-lg text-center">
+                    <p className="text-sm text-green-700 mb-1">매칭 성공</p>
+                    <p className="text-2xl font-bold text-green-800">{matchedDeposits.length}건</p>
+                  </div>
+                  <div className="flex-1 bg-orange-50 border border-orange-200 p-4 rounded-lg text-center">
+                    <p className="text-sm text-orange-700 mb-1">매칭 실패(수기확인 필요)</p>
+                    <p className="text-2xl font-bold text-orange-800">{unmatchedRows.length}건</p>
+                  </div>
+                </div>
+
+                {matchedDeposits.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="font-bold text-neutral-900 mb-2">매칭된 주문 (입금확인 대상)</h4>
+                    <div className="max-h-60 overflow-y-auto border border-neutral-200 rounded-md">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-neutral-50 border-b border-neutral-200 sticky top-0">
+                          <tr>
+                            <th className="px-4 py-2 font-medium text-neutral-700">주문번호</th>
+                            <th className="px-4 py-2 font-medium text-neutral-700">입금자(기재내용)</th>
+                            <th className="px-4 py-2 font-medium text-neutral-700">금액</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-200">
+                          {matchedDeposits.map((m, idx) => (
+                            <tr key={idx}>
+                              <td className="px-4 py-2 text-neutral-900">{m.order.orderNumber}</td>
+                              <td className="px-4 py-2 text-neutral-600">{m.order.customerName}</td>
+                              <td className="px-4 py-2 text-neutral-900">₩{m.order.totalAmount.toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                
+                {matchedDeposits.length > 0 && (
+                  <p className="text-sm text-neutral-600 bg-neutral-50 p-3 rounded border border-neutral-200 mt-4">
+                    매칭된 {matchedDeposits.length}건의 주문 상태를 <span className="font-bold text-blue-600">결제완료(발송대기)</span>로 일괄 변경합니다. 계속하시겠습니까?
+                  </p>
+                )}
+                
+                {matchedDeposits.length === 0 && (
+                  <p className="text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200 mt-4 text-center font-bold">
+                    매칭되는 대기 주문이 없습니다. 파일 양식과 대기 리스트를 확인해주세요.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <Button 
+              onClick={confirmBulkDeposits} 
+              disabled={matchedDeposits.length === 0 || isProcessingDeposits}
+              className="bg-neutral-900 text-white hover:bg-neutral-800"
+            >
+              {isProcessingDeposits ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              일괄 승인 처리
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -252,7 +252,7 @@ export interface Subscription {
 
 export interface SplitPaymentMethod {
   id: string;
-  type: 'credit' | 'general' | 'virtual';
+  type: 'credit' | 'general' | 'virtual' | 'transfer';
   cardId?: string;
   amount: number;
 }

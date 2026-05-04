@@ -338,6 +338,8 @@ export const orderService = {
             } else {
                 throw new Error('Virtual account issuance failed');
             }
+        } else if (paymentMethod === 'transfer') {
+            initialStatus = 'pending';
         }
 
         // 2. Create Order Record
@@ -362,15 +364,15 @@ export const orderService = {
         if (orderError) throw orderError;
 
         // 2-1. Record Initial Payment in History
-        if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo)) {
+        if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo) || paymentMethod === 'transfer') {
             await supabase.from('payment_history').insert({
                 order_id: order.id,
                 transaction_type: 'PAYMENT',
                 amount: totalAmount,
-                pg_tid: vactInfo?.tid || paymentReference,
-                status: 'SUCCESS',
+                pg_tid: vactInfo?.tid || paymentReference || null,
+                status: paymentMethod === 'transfer' ? 'PENDING' : 'SUCCESS',
                 method: paymentMethod,
-                reason: paymentMethod === 'virtual' ? '가상계좌 발급 완료' : '신용카드 결제 완료'
+                reason: paymentMethod === 'virtual' ? '가상계좌 발급 완료' : paymentMethod === 'transfer' ? '무통장입금 대기' : '신용카드 결제 완료'
             });
         }
 
