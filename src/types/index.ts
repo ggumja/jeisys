@@ -141,6 +141,9 @@ export interface ClaimInfo {
   rejectedReason?: string;
   returnTrackingNumber?: string;
   exchangeTrackingNumber?: string;
+  refundBank?: string;
+  refundAccount?: string;
+  refundHolder?: string;
 }
 
 export interface Shipment {

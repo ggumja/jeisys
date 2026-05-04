@@ -118,9 +118,12 @@ export const adminService = {
             hospitalName: order.user?.hospital_name || '',
             orderDate: new Date(order.ordered_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             totalAmount: Number(order.total_amount),
-            paymentMethod: order.payment_method === 'virtual' ? '가상계좌결제' :
-                order.payment_method === 'credit' ? '신용카드결제' :
-                    order.payment_method,
+            paymentMethod: order.payment_method === 'virtual' ? '가상계좌' :
+                order.payment_method === 'transfer' ? '무통장입금' :
+                order.payment_method === 'credit' ? '신용카드(저장)' :
+                order.payment_method === 'general' ? '일반결제(신용카드)' :
+                order.payment_method === 'split' ? '복합결제' :
+                order.payment_method,
             status: order.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: order.order_items?.length || 0,
             itemsSummary: order.order_items?.[0]
@@ -141,7 +144,12 @@ export const adminService = {
                 phone: order.user?.phone || ''
             },
             paymentInfo: {
-                method: order.payment_method
+                method: order.payment_method === 'virtual' ? '가상계좌' :
+                    order.payment_method === 'transfer' ? '무통장입금' :
+                    order.payment_method === 'credit' ? '신용카드(저장)' :
+                    order.payment_method === 'general' ? '일반결제(신용카드)' :
+                    order.payment_method === 'split' ? '복합결제' :
+                    order.payment_method
             },
             // Keep original dates for sorting if needed
             orderedAt: order.ordered_at
@@ -284,8 +292,11 @@ export const adminService = {
                 email: orderData.user?.email
             },
             paymentInfo: {
-                method: orderData.payment_method === 'virtual' ? '가상계좌결제' :
-                    orderData.payment_method === 'credit' ? '신용카드결제' :
+                method: orderData.payment_method === 'virtual' ? '가상계좌' :
+                    orderData.payment_method === 'transfer' ? '무통장입금' :
+                    orderData.payment_method === 'credit' ? '신용카드(저장)' :
+                    orderData.payment_method === 'general' ? '일반결제(신용카드)' :
+                    orderData.payment_method === 'split' ? '복합결제' :
                         orderData.payment_method
             },
             paymentMethod: orderData.payment_method,

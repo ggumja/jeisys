@@ -15,11 +15,12 @@ export interface OrderInput {
     billingKey?: string;   // KICC Billing Key string
     subscriptionCycle?: number; // Days (30, 60, 90)
     splitPayments?: {
-        method: 'credit' | 'virtual';
+        method: 'credit' | 'virtual' | 'transfer' | 'general';
         amount: number;
         billingKeyId?: string;
         billingKey?: string;
     }[];
+    depositorName?: string; // 무통장입금 실 입금자명
 }
 
 export const orderService = {
@@ -355,7 +356,7 @@ export const orderService = {
                 pg_tid: vactInfo?.tid || paymentReference, // Store TID for reference/refunds
                 vact_bank_name: vactInfo?.bankName,
                 vact_num: vactInfo?.accountNum,
-                vact_name: vactInfo?.accountName,
+                vact_name: paymentMethod === 'transfer' ? orderInput.depositorName : vactInfo?.accountName,
                 vact_input_deadline: vactInfo?.deadline
             })
             .select()
@@ -613,7 +614,12 @@ export const orderService = {
     },
 
     // 고객 클레임 신청 (취소/반품/교환)
-    async requestClaim(orderId: string, type: 'CANCEL' | 'RETURN' | 'EXCHANGE', reason: string): Promise<void> {
+    async requestClaim(
+        orderId: string, 
+        type: 'CANCEL' | 'RETURN' | 'EXCHANGE', 
+        reason: string,
+        refundInfo?: { bank: string; account: string; holder: string; }
+    ): Promise<void> {
         const user = await authService.getCurrentUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -622,11 +628,17 @@ export const orderService = {
         else if (type === 'RETURN') newStatus = 'return_requested';
         else if (type === 'EXCHANGE') newStatus = 'exchange_requested';
 
-        const claimInfo = {
+        const claimInfo: any = {
             type,
             reason,
             requested_at: new Date().toISOString(),
         };
+
+        if (refundInfo) {
+            claimInfo.refundBank = refundInfo.bank;
+            claimInfo.refundAccount = refundInfo.account;
+            claimInfo.refundHolder = refundInfo.holder;
+        }
 
         const { error } = await supabase
             .from('orders')

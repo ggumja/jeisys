@@ -276,10 +276,11 @@ export function OrderManagementPage() {
 
           const depositAmount = parseInt(String(depositAmountRaw).replace(/,/g, ''), 10);
 
-          // 동일이름, 동일금액을 가진 모든 대기 주문 찾기
-          const allPotentialMatches = pendingOrders.filter(o => 
-             o.customerName === depositorName && o.totalAmount === depositAmount
-          );
+          // 동일이름(vactName 우선, 없을 시 customerName), 동일금액을 가진 모든 대기 주문 찾기
+          const allPotentialMatches = pendingOrders.filter(o => {
+             const targetName = o.vactName || o.customerName;
+             return targetName === depositorName && o.totalAmount === depositAmount;
+          });
 
           if (allPotentialMatches.length === 1) {
             // 단 1건만 존재할 경우에만 안전하게 매칭

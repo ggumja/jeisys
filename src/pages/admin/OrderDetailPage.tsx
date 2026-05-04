@@ -117,6 +117,9 @@ interface Order {
     rejectedReason?: string;
     returnTrackingNumber?: string;
     exchangeTrackingNumber?: string;
+    refundBank?: string;
+    refundAccount?: string;
+    refundHolder?: string;
   };
   paymentMethod?: string;
 }
@@ -793,6 +796,20 @@ export function OrderDetailPage() {
               )}
             </div>
           </div>
+          
+          {/* 환불 계좌 정보 (무통장입금 취소/반품 시) */}
+          {(order.claimInfo.refundBank || order.claimInfo.refundAccount) && (
+            <div className="mt-4 bg-white p-4 border border-red-100 shadow-sm">
+              <dt className="text-xs font-bold text-red-700 mb-2 uppercase flex items-center gap-1">
+                <CreditCard className="w-3 h-3" /> 환불 계좌 정보
+              </dt>
+              <dd className="text-sm font-bold text-red-900 flex items-center gap-4">
+                <span><span className="text-neutral-500 font-normal mr-1">은행:</span> {order.claimInfo.refundBank}</span>
+                <span><span className="text-neutral-500 font-normal mr-1">계좌번호:</span> {order.claimInfo.refundAccount}</span>
+                <span><span className="text-neutral-500 font-normal mr-1">예금주:</span> {order.claimInfo.refundHolder}</span>
+              </dd>
+            </div>
+          )}
         </div>
       )}
 

@@ -17,23 +17,35 @@ import { toast } from 'sonner';
 interface ClaimModalProps {
   orderId: string;
   type: 'RETURN' | 'EXCHANGE' | 'CANCEL';
+  paymentMethod: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
+function ClaimModal({ orderId, type, paymentMethod, onClose, onSuccess }: ClaimModalProps) {
   const [reason, setReason] = useState('');
+  const [refundBank, setRefundBank] = useState('');
+  const [refundAccount, setRefundAccount] = useState('');
+  const [refundHolder, setRefundHolder] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const title = type === 'RETURN' ? '반품 신청' : type === 'EXCHANGE' ? '교환 신청' : '결제 취소';
+
+  const isManualRefund = paymentMethod === 'transfer' && (type === 'CANCEL' || type === 'RETURN');
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
       alert('사유를 입력해주세요.');
       return;
     }
+    if (isManualRefund && (!refundBank || !refundAccount || !refundHolder)) {
+      alert('환불 받으실 계좌 정보를 모두 입력해주세요.');
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
-      await orderService.requestClaim(orderId, type, reason);
+      const refundInfo = isManualRefund ? { bank: refundBank, account: refundAccount, holder: refundHolder } : undefined;
+      await orderService.requestClaim(orderId, type, reason, refundInfo);
       onSuccess();
     } catch (e) {
       alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -62,6 +74,40 @@ function ClaimModal({ orderId, type, onClose, onSuccess }: ClaimModalProps) {
               className="w-full px-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 transition-all resize-none placeholder:text-neutral-300"
             />
           </div>
+          
+          {isManualRefund && (
+            <div className="pt-4 border-t border-neutral-100 space-y-3">
+              <label className="block text-sm font-semibold text-neutral-900">
+                환불 계좌 정보 <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="은행명"
+                  value={refundBank}
+                  onChange={e => setRefundBank(e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+                <input
+                  type="text"
+                  placeholder="예금주"
+                  value={refundHolder}
+                  onChange={e => setRefundHolder(e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="계좌번호 (- 제외)"
+                value={refundAccount}
+                onChange={e => setRefundAccount(e.target.value.replace(/[^0-9]/g, ''))}
+                className="w-full px-3 py-2 border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
+              <p className="text-[11px] text-orange-600">
+                * 무통장입금 취소/반품 시 환불받을 본인 명의의 계좌를 입력해주세요.
+              </p>
+            </div>
+          )}
           <p className="text-[11px] text-neutral-500 leading-relaxed">
             신청 후 영업일 기준 1~3일 이내 담당자가 확인 후 연락드립니다.
           </p>
@@ -151,7 +197,7 @@ function ClaimInfoBanner({ claimInfo, status }: { claimInfo: ClaimInfo; status: 
 export function OrdersPage() {
   const { data: orders = [], isLoading, refetch } = useOrders();
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
-  const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL' } | null>(null);
+  const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL'; paymentMethod: string } | null>(null);
   const [splitShipModalOrder, setSplitShipModalOrder] = useState<any | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
@@ -245,6 +291,7 @@ export function OrdersPage() {
         <ClaimModal
           orderId={claimModal.orderId}
           type={claimModal.type}
+          paymentMethod={claimModal.paymentMethod}
           onClose={() => setClaimModal(null)}
           onSuccess={() => {
             setClaimModal(null);
@@ -328,7 +375,7 @@ export function OrdersPage() {
                   {/* 결제 취소 버튼 (입금대기, 결제완료 상태 && 클레임 없을 때) */}
                   {['pending', 'paid'].includes(order.status) && !hasClaim && (
                     <button
-                      onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL' })}
+                      onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod })}
                       className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors"
                     >
                       <XCircle className="w-3.5 h-3.5" />
@@ -339,14 +386,14 @@ export function OrdersPage() {
                   {canClaim && !hasClaim && (
                     <>
                       <button
-                        onClick={() => setClaimModal({ orderId: order.id, type: 'RETURN' })}
+                        onClick={() => setClaimModal({ orderId: order.id, type: 'RETURN', paymentMethod: order.paymentMethod })}
                         className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-800 text-xs font-semibold border border-red-200 transition-colors"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         반품신청
                       </button>
                       <button
-                        onClick={() => setClaimModal({ orderId: order.id, type: 'EXCHANGE' })}
+                        onClick={() => setClaimModal({ orderId: order.id, type: 'EXCHANGE', paymentMethod: order.paymentMethod })}
                         className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold border border-blue-200 transition-colors"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />

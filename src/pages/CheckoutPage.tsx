@@ -58,6 +58,7 @@ export function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [depositorName, setDepositorName] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [address, setAddress] = useState({
     recipient: '',
@@ -109,6 +110,12 @@ export function CheckoutPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (userProfile?.name && !depositorName) {
+      setDepositorName(userProfile.name);
+    }
+  }, [userProfile, depositorName]);
 
   const loadData = async () => {
     try {
@@ -416,6 +423,7 @@ export function CheckoutPage() {
         totalAmount: finalTotal,
         paymentMethod: (paymentMode === 'single' || hasSubscriptionItems) ? paymentMethod : 'split',
         deliveryAddress: fullAddress,
+        depositorName: paymentMethod === 'transfer' ? depositorName : undefined,
         billingKeyId: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.id : undefined,
         billingKey: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.billingKey : undefined,
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined,
@@ -1006,6 +1014,20 @@ export function CheckoutPage() {
                         <p className="text-2xl font-black text-neutral-900 tracking-wider">우리은행 1005-803-786090</p>
                         <p className="text-base font-bold text-neutral-600 mt-2">예금주 : <span className="text-neutral-900">㈜제이시스메디칼</span></p>
                       </div>
+                      
+                      <div className="mt-6 max-w-sm mx-auto text-left">
+                        <label className="block text-sm font-bold text-neutral-900 mb-2">
+                          실제 입금자명 <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={depositorName}
+                          onChange={(e) => setDepositorName(e.target.value)}
+                          placeholder="입금하실 분의 성함 또는 병원명"
+                          className="w-full px-4 py-3 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 text-neutral-900 font-medium"
+                        />
+                      </div>
+
                       <p className="text-xs text-neutral-500 mt-4 px-4">
                         * 주문자와 입금자명이 동일해야 빠른 입금 확인이 가능합니다.<br/>
                         * 입금 확인 후 상품 배송이 시작됩니다.
