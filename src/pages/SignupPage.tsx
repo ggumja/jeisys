@@ -397,13 +397,6 @@ export function SignupPage() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={!termsAgreed.service || !termsAgreed.privacy || !termsAgreed.retention || !termsAgreed.collection || !termsAgreed.processing}
-                  className="w-full bg-[#1e3a8a] text-white py-4 font-medium hover:bg-[#1e40af] transition-colors disabled:bg-neutral-300 disabled:cursor-not-allowed mt-8"
-                >
-                  약관동의
-                </button>
               </div>
             )}
 
@@ -454,7 +447,7 @@ export function SignupPage() {
                   </div>
                   <div>
                     <label className="block text-sm text-neutral-900 mb-2">
-                      구매지 <span className="text-red-600">*</span>
+                      구매처 <span className="text-red-600">*</span>
                     </label>
                     <select
                       value={formData.region}
@@ -544,6 +537,7 @@ export function SignupPage() {
                     <label className="block text-sm text-neutral-900 mb-2">
                       휴대폰번호 <span className="text-red-600">*</span>
                     </label>
+                    {/* 휴대폰번호 + 인증번호 발송 인라인 */}
                     <div className="flex gap-2">
                       <select className="px-4 py-3 border border-neutral-300">
                         <option>010</option>
@@ -555,12 +549,33 @@ export function SignupPage() {
                         value={formData.mobile}
                         onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
                         className="flex-1 px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent"
+                        placeholder="숫자만 입력"
                       />
+                      <button
+                        type="button"
+                        className="bg-neutral-900 text-white px-5 py-3 text-sm font-medium hover:bg-neutral-700 transition-colors whitespace-nowrap"
+                      >
+                        인증번호 발송
+                      </button>
+                    </div>
+                    {/* 인증번호 입력 */}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={phoneVerification.verificationCode}
+                        onChange={(e) => setPhoneVerification({ ...phoneVerification, verificationCode: e.target.value })}
+                        className="flex-1 px-4 py-3 border border-neutral-300 focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent"
+                        placeholder="인증번호 6자리 입력"
+                      />
+                      <button
+                        type="button"
+                        className="bg-neutral-100 text-neutral-900 px-5 py-3 text-sm font-medium hover:bg-neutral-200 transition-colors whitespace-nowrap"
+                      >
+                        확인
+                      </button>
                     </div>
                   </div>
                 </div>
-
-                {/* 주소 */}
                 <div>
                   <label className="block text-sm text-neutral-900 mb-2">
                     주소 <span className="text-red-600">*</span>
@@ -678,43 +693,6 @@ export function SignupPage() {
                       />
                       <span className="text-sm text-neutral-900 whitespace-nowrap">공휴일</span>
                     </label>
-                  </div>
-                </div>
-
-                {/* 본인인증 섹션 */}
-                <div className="border-t border-neutral-300 pt-6 mt-8">
-                  <h3 className="text-lg tracking-tight text-neutral-900 mb-4">본인인증</h3>
-                  <div className="bg-neutral-50 border border-neutral-200 p-6 space-y-4">
-                    <div>
-                      <label className="block text-sm text-neutral-900 mb-2">
-                        휴대폰 번호
-                      </label>
-                      <input
-                        type="tel"
-                        value={phoneVerification.phone}
-                        onChange={(e) => setPhoneVerification({ ...phoneVerification, phone: e.target.value })}
-                        className="w-full px-4 py-3 border border-neutral-300 bg-white"
-                        placeholder="010-1234-5678"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="w-full bg-neutral-100 text-neutral-900 py-3 font-medium hover:bg-neutral-200 transition-colors"
-                    >
-                      인증번호 발송
-                    </button>
-                    <div>
-                      <label className="block text-sm text-neutral-900 mb-2">
-                        인증번호
-                      </label>
-                      <input
-                        type="text"
-                        value={phoneVerification.verificationCode}
-                        onChange={(e) => setPhoneVerification({ ...phoneVerification, verificationCode: e.target.value })}
-                        className="w-full px-4 py-3 border border-neutral-300 bg-white"
-                        placeholder="6자리 숫자"
-                      />
-                    </div>
                   </div>
                 </div>
 

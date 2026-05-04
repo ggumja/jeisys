@@ -24,22 +24,25 @@ function RootLayoutContent() {
   const user = storage.getUser();
 
   useEffect(() => {
-    if (!user) {
+    // 홈('/')은 비로그인도 허용, 나머지는 로그인 필요
+    if (!user && location.pathname !== '/') {
       navigate('/login');
       return;
     }
 
-    cartService.getCart()
-      .then(items => setCartCount(items.length))
-      .catch(() => setCartCount(0));
+    if (user) {
+      cartService.getCart()
+        .then(items => setCartCount(items.length))
+        .catch(() => setCartCount(0));
 
-    // proxy 모드 배너
-    setProxyName(proxyOrderService.getProxyCustomerName());
+      // proxy 모드 배너
+      setProxyName(proxyOrderService.getProxyCustomerName());
+    }
   }, [user, navigate, location]);
 
   const handleLogout = () => {
     storage.clearAll();
-    navigate('/login');
+    navigate('/');
   };
 
   const navItems = [
@@ -60,16 +63,15 @@ function RootLayoutContent() {
 
 
   return (
-    <div className="min-h-screen bg-white flex justify-center">
+    <div className="w-full bg-white flex flex-col min-h-screen" style={{ maxWidth: '1440px', margin: '0 auto' }}>
       <ScrollToTop />
-      <div 
-        className="w-full bg-white flex flex-col min-h-screen relative"
-        style={{ maxWidth: '1440px', margin: '0 auto' }}
-      >
-        <header className="bg-white border-b border-neutral-200 sticky top-0 z-50">
+        <header
+          className="bg-white border-b border-neutral-200 sticky top-0 z-50"
+          style={{ width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
+        >
           {/* 대리주문 모드 배너 */}
           {proxyName && (
-            <div className="bg-amber-50 border-b-2 border-amber-300 px-4 py-2.5 flex items-center justify-between gap-4">
+            <div className="max-w-[1440px] mx-auto bg-amber-50 border-b-2 border-amber-300 px-4 py-2.5 flex items-center justify-between gap-4">
               {/* 좌: 상태 표시 */}
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="flex items-center justify-center w-7 h-7 bg-amber-400 rounded-sm flex-shrink-0">
@@ -108,41 +110,22 @@ function RootLayoutContent() {
               </div>
             </div>
           )}
-          {/* ── Top utility bar ───────────────────────────── */}
-          <div className="hidden md:flex items-center justify-end gap-4 px-4 h-8 border-b border-neutral-100">
-            {user?.role === 'admin' && (
-              <Link
-                to="/admin"
-                className="text-[11px] font-black text-[#21358D] hover:text-[#1a2b72] transition-colors uppercase"
-              >
-                Admin
-              </Link>
-            )}
-            <button
-              onClick={handleLogout}
-              className="text-[11px] text-neutral-400 hover:text-neutral-700 transition-colors"
-            >
-              로그아웃
-            </button>
-            <Link
-              to="/mypage/orders"
-              className="text-[11px] text-neutral-500 hover:text-neutral-900 transition-colors"
-            >
-              마이페이지
-            </Link>
-          </div>
 
-          {/* ── Main nav bar ──────────────────────────────── */}
-          <div className="flex items-center h-14 px-4">
-            {/* Logo */}
-            <div className="flex-1 flex justify-start z-10">
-              <Link to="/" className="flex items-center">
+          {/* ── Single row nav bar ──────────────────────────────── */}
+          <div
+            className="max-w-[1440px] mx-auto grid items-center px-4"
+            style={{ height: '80px', gridTemplateColumns: '1fr auto 1fr' }}
+          >
+            {/* 왼쪽: Logo + B2B 쇼핑몰 */}
+            <div className="flex items-center">
+              <Link to="/" className="flex items-center gap-2 flex-shrink-0">
                 <img src={logoImage} alt="Jeisys" className="h-6" />
+                <span className="text-[11px] text-neutral-400 font-medium whitespace-nowrap">B2B쇼핑몰</span>
               </Link>
             </div>
 
-            {/* Center Navigation */}
-            <nav className="hidden md:flex items-center justify-center gap-8 z-20">
+            {/* 가운데: Navigation */}
+            <nav className="hidden md:flex items-center gap-6">
               {navItems.map(item => (
                 <Link
                   key={item.to}
@@ -181,28 +164,69 @@ function RootLayoutContent() {
               </div>
             </nav>
 
-            {/* Right Icons */}
-            <div className="flex-1 flex items-center justify-end gap-4 z-10">
-              {/* 마이페이지 아이콘 */}
-              <Link to="/mypage/orders" className="hidden md:flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
-                <User className="w-5 h-5" />
-              </Link>
+            {/* 오른쪽: Icons / Auth */}
+            <div className="flex items-center justify-end gap-3">
+              {user ? (
+                <>
+                  {/* ADMIN 배지 + 마이페이지 아이콘 */}
+                  {user.role === 'admin' ? (
+                    <>
+                      {/* ADMIN 배지 → /admin */}
+                      <Link
+                        to="/admin"
+                        className="hidden md:flex items-center hover:opacity-80 transition-opacity"
+                      >
+                        <span className="bg-neutral-900 text-white text-[10px] font-black px-2 py-0.5 rounded-sm tracking-widest uppercase">
+                          ADMIN
+                        </span>
+                      </Link>
+                      {/* 사람 아이콘 → /mypage/orders */}
+                      <Link to="/mypage/orders" className="hidden md:flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                        <User className="w-5 h-5" />
+                      </Link>
+                    </>
+                  ) : (
+                    <Link to="/mypage/orders" className="hidden md:flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                      <User className="w-5 h-5" />
+                    </Link>
+                  )}
 
-              {/* 장바구니 아이콘 + 배지 */}
-              <Link to="/cart" className="relative flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
-                <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </Link>
+                  {/* 로그아웃 아이콘 */}
+                  <button
+                    onClick={handleLogout}
+                    className="hidden md:flex items-center justify-center p-1 text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                    title="로그아웃"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
 
-              {/* 언어 선택 아이콘 */}
-              <div className="hidden md:flex items-center gap-0.5 p-1 text-neutral-700 hover:text-neutral-900 transition-colors cursor-pointer">
-                <Globe className="w-5 h-5" />
-                <ChevronDown className="w-3 h-3" />
-              </div>
+                  {/* 장바구니 아이콘 + 배지 */}
+                  <Link to="/cart" className="relative flex items-center justify-center p-1 text-neutral-700 hover:text-neutral-900 transition-colors">
+                    <ShoppingCart className="w-5 h-5" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
+                        {cartCount > 99 ? '99+' : cartCount}
+                      </span>
+                    )}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {/* 비로그인: 로그인 / 회원가입 */}
+                  <Link
+                    to="/login"
+                    className="text-sm font-medium text-neutral-700 hover:text-neutral-900 transition-colors"
+                  >
+                    로그인
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="text-sm font-medium bg-neutral-900 text-white px-4 py-1.5 hover:bg-neutral-700 transition-colors"
+                  >
+                    회원가입
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -212,7 +236,10 @@ function RootLayoutContent() {
         </main>
 
 
-        <footer className="text-white w-full mt-16" style={{ backgroundColor: '#1A1F2C' }}>
+        <footer
+          className="text-white mt-16"
+          style={{ backgroundColor: '#1A1F2C', width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
+        >
           {/* Top Divider & Links */}
           <div className="border-b border-white/10">
             <div className="max-w-[1440px] mx-auto px-4 h-16 flex items-center justify-between text-[13px] font-medium">
@@ -396,7 +423,6 @@ function RootLayoutContent() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

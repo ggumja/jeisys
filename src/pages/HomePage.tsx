@@ -236,7 +236,8 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 2. Product Section - Boxed Content */}
+      {/* 2. Product Section - 로그인한 사용자만 표시 */}
+      {user && (
       <section className="w-full bg-white py-20 md:py-[160px] border-t border-neutral-50">
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="text-center mb-[56px] relative">
@@ -369,6 +370,7 @@ export function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
 
       {/* 3. News Section - Boxed Content */}
