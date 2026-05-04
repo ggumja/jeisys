@@ -100,19 +100,56 @@ export function AdminLayout() {
   const isSmsMktActive = location.pathname.startsWith('/admin/marketing/sms');
   const isEmailMktActive = location.pathname.startsWith('/admin/marketing/email');
 
-  // Auto-expand menus if active
+  // Auto-expand menus if active and collapse others
   useEffect(() => {
     if (isOrdersActive) setIsOrdersOpen(true);
-    if (isCommunicationActive) setIsCommunicationOpen(true);
-    if (isStatisticsActive) setIsStatisticsOpen(true);
-    if (isAdsActive) setIsAdsOpen(true);
-    if (isProductsActive) setIsProductsOpen(true);
-    if (isMarketingActive) {
+    
+    if (isCommunicationActive) {
+      setIsCommunicationOpen(true);
+      setIsStatisticsOpen(false);
+      setIsAdsOpen(false);
+      setIsProductsOpen(false);
+      setIsMarketingOpen(false);
+    } else if (isStatisticsActive) {
+      setIsCommunicationOpen(false);
+      setIsStatisticsOpen(true);
+      setIsAdsOpen(false);
+      setIsProductsOpen(false);
+      setIsMarketingOpen(false);
+    } else if (isAdsActive) {
+      setIsCommunicationOpen(false);
+      setIsStatisticsOpen(false);
+      setIsAdsOpen(true);
+      setIsProductsOpen(false);
+      setIsMarketingOpen(false);
+    } else if (isProductsActive) {
+      setIsCommunicationOpen(false);
+      setIsStatisticsOpen(false);
+      setIsAdsOpen(false);
+      setIsProductsOpen(true);
+      setIsMarketingOpen(false);
+    } else if (isMarketingActive) {
+      setIsCommunicationOpen(false);
+      setIsStatisticsOpen(false);
+      setIsAdsOpen(false);
+      setIsProductsOpen(false);
       setIsMarketingOpen(true);
       if (isSmsMktActive) setIsSmsMktOpen(true);
       if (isEmailMktActive) setIsEmailMktOpen(true);
+    } else {
+      // If we are on a page with no submenus (like Dashboard), 
+      // we don't forcefully close the menus here so the user can freely toggle them.
+      // They will close automatically when the user clicks another menu via toggleMenu.
     }
-  }, [isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive]);
+  }, [location.pathname, isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive]);
+
+  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'marketing') => {
+    setIsCommunicationOpen(menu === 'communication' ? !isCommunicationOpen : false);
+    setIsStatisticsOpen(menu === 'statistics' ? !isStatisticsOpen : false);
+    setIsAdsOpen(menu === 'ads' ? !isAdsOpen : false);
+    setIsProductsOpen(menu === 'products' ? !isProductsOpen : false);
+    setIsMarketingOpen(menu === 'marketing' ? !isMarketingOpen : false);
+  };
 
   // Redirect to dashboard if at base admin path
   useEffect(() => {
@@ -225,7 +262,7 @@ export function AdminLayout() {
                       ? 'bg-neutral-900 text-white'
                       : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
-                    onClick={() => setIsCommunicationOpen(!isCommunicationOpen)}
+                    onClick={() => toggleMenu('communication')}
                   >
                     <div className="flex items-center gap-3">
                       <MessageSquare className="w-5 h-5" />
@@ -266,7 +303,7 @@ export function AdminLayout() {
                       ? 'bg-neutral-900 text-white'
                       : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
-                    onClick={() => setIsStatisticsOpen(!isStatisticsOpen)}
+                    onClick={() => toggleMenu('statistics')}
                   >
                     <div className="flex items-center gap-3">
                       <BarChart3 className="w-5 h-5" />
@@ -307,7 +344,7 @@ export function AdminLayout() {
                       ? 'bg-neutral-900 text-white'
                       : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
-                    onClick={() => setIsAdsOpen(!isAdsOpen)}
+                    onClick={() => toggleMenu('ads')}
                   >
                     <div className="flex items-center gap-3">
                       <Megaphone className="w-5 h-5" />
@@ -348,7 +385,7 @@ export function AdminLayout() {
                       ? 'bg-neutral-900 text-white'
                       : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
-                    onClick={() => setIsProductsOpen(!isProductsOpen)}
+                    onClick={() => toggleMenu('products')}
                   >
                     <div className="flex items-center gap-3">
                       <Package className="w-5 h-5" />
@@ -417,7 +454,7 @@ export function AdminLayout() {
                 <div>
                   <button
                     className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMarketingActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'}`}
-                    onClick={() => setIsMarketingOpen(!isMarketingOpen)}
+                    onClick={() => toggleMenu('marketing')}
                   >
                     <div className="flex items-center gap-3">
                       <Megaphone className="w-5 h-5" />
