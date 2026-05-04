@@ -281,7 +281,7 @@ export function HomePage() {
             </h2>
             <Link
               to="/products"
-              className="absolute right-0 bottom-0 text-[14px] font-medium text-[#1E293B] border border-[#21358D]/30 px-[24px] py-[8px] rounded-full hover:bg-neutral-50 hover:border-[#21358D] transition-all font-sans"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-5 py-2 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
             >
               전체보기
             </Link>
@@ -466,7 +466,7 @@ export function HomePage() {
             </h2>
             <Link
               to="/communication/news"
-              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 p-5 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-5 py-2 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
             >
               전체보기
             </Link>
@@ -527,7 +527,7 @@ export function HomePage() {
             </h2>
             <Link
               to="/communication/media"
-              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 p-5 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
+              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-5 py-2 rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
             >
               전체보기
             </Link>
