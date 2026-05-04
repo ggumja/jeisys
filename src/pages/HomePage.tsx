@@ -29,7 +29,7 @@ export function HomePage() {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: 'start',
     containScroll: 'trimSnaps',
-    dragFree: true
+    slidesToScroll: 6,
   });
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -263,7 +263,7 @@ export function HomePage() {
 
       {/* 2. Product Section - 로그인한 사용자만 표시 */}
       {user && (
-      <section className="w-full bg-white py-20 md:py-[160px] border-t border-neutral-50">
+      <section className="w-full bg-white py-20 md:pt-[120px] md:pb-[160px] border-t border-neutral-50">
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="text-center mb-[56px] relative">
             <h1
@@ -281,80 +281,90 @@ export function HomePage() {
             </h2>
             <Link
               to="/products"
-              className="absolute right-0 bottom-0 text-[18px] font-medium text-[#1E293B] border border-[#21358D]/30 px-[36px] py-[12px] rounded-full hover:bg-neutral-50 hover:border-[#21358D] shadow-sm transition-all font-sans"
+              className="absolute right-0 bottom-0 text-[14px] font-medium text-[#1E293B] border border-[#21358D]/30 px-[24px] py-[8px] rounded-full hover:bg-neutral-50 hover:border-[#21358D] transition-all font-sans"
             >
               전체보기
             </Link>
           </div>
 
-          <div className="overflow-hidden mb-[40px] w-full" ref={emblaRef}>
-            <div className="flex" style={{ marginLeft: '-20px' }}>
+          {/* Carousel */}
+          <div style={{ overflow: 'hidden', marginBottom: '60px', width: '100%' }} ref={emblaRef}>
+            <div className="flex" style={{ gap: '15px' }}>
               {isLoadingProducts ? (
                 [1, 2, 3, 4, 5, 6].map((n) => (
-                  <div key={n} style={{ flex: '0 0 223px', minWidth: '223px', paddingLeft: '20px' }} className="min-w-0 flex-shrink-0 flex flex-col animate-pulse">
-                    <div className="aspect-[4/5] bg-neutral-100 mb-[16px]" />
-                    <div className="h-3 bg-neutral-100 w-1/3 mb-[8px]" />
-                    <div className="h-5 bg-neutral-100 w-full mb-[10px]" />
-                    <div className="h-3 bg-neutral-100 w-1/2 mb-[10px]" />
-                    <div className="h-5 bg-neutral-100 w-1/3" />
+                  <div key={n} style={{ flex: '0 0 calc((100% - 75px) / 6)', minWidth: 0 }} className="flex flex-col animate-pulse">
+                    <div className="aspect-square bg-neutral-100 mb-5" />
+                    <div className="h-2.5 bg-neutral-100 w-1/3 mb-2" />
+                    <div className="h-4 bg-neutral-100 w-full mb-2" />
+                    <div className="h-2.5 bg-neutral-100 w-1/2 mb-2" />
+                    <div className="h-4 bg-neutral-100 w-1/3" />
                   </div>
                 ))
               ) : recommendedProducts.length > 0 ? (
                 recommendedProducts.map((product) => (
-                  <div key={product.id} style={{ flex: '0 0 223px', minWidth: '223px', paddingLeft: '20px' }} className="min-w-0 flex-shrink-0">
-                    <Link
-                      to={`/products/${product.id}`}
-                      className="flex flex-col group font-sans h-full w-full"
-                    >
-                      <div className="w-full aspect-[4/4.8] bg-[#F8F9FA] overflow-hidden mb-[16px] flex items-center justify-center relative transition-all duration-500 group-hover:bg-white group-hover:shadow-[0_15px_40px_rgba(0,0,0,0.05)] group-hover:-translate-y-1.5 focus-within:ring-2 focus-within:ring-[#1E3A8A]">
+                  <div key={product.id} style={{ flex: '0 0 calc((100% - 75px) / 6)', minWidth: 0 }}>
+                    <Link to={`/products/${product.id}`} className="flex flex-col group font-sans h-full w-full">
+
+                      {/* 이미지 - 1:1 정사각형 */}
+                      <div className="w-full aspect-square bg-[#f8f9fa] overflow-hidden mb-5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
                         <ProductImage
                           src={product.imageUrl}
                           alt={product.name}
-                          className="w-full h-full object-contain p-4"
-                          containerClassName="w-full h-full"
+                          className="w-4/5 h-4/5 object-contain"
+                          containerClassName="w-full h-full flex items-center justify-center"
                         />
                       </div>
-                      <div className="flex flex-col">
-                        <span
-                          style={{
-                            fontSize: '13px',
-                            lineHeight: '18px',
-                            color: '#94A3B8',
-                            fontWeight: 500,
-                            marginBottom: '10px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '-0.025em'
-                          }}
-                          className="truncate"
-                        >
-                          {product.category || "JEISYS-PROD-001"}
+
+                      {/* 텍스트 정보 */}
+                      <div className="flex flex-col px-[10px]">
+                        {/* 카테고리 */}
+                        <span style={{
+                          fontSize: '11px',
+                          color: '#888',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          marginBottom: '6px',
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {product.category || 'JEISYS'}
                         </span>
-                        <h3
-                          style={{
-                            fontSize: '18px',
-                            lineHeight: '26px',
-                            color: '#1E293B',
-                            fontWeight: 400,
-                            marginBottom: '24px',
-                            minHeight: '56px'
-                          }}
-                          className="line-clamp-2 group-hover:text-[#21358D] transition-colors"
-                        >
+
+                        {/* 상품명 - 2줄 고정 */}
+                        <h3 style={{
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          color: '#333',
+                          lineHeight: '1.4',
+                          height: '3.2em',
+                          overflow: 'hidden',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          marginBottom: '12px',
+                        }}>
                           {product.name}
                         </h3>
-                        <div className="flex items-center gap-[0px]" style={{ marginBottom: '12px' }}>
-                          <div className="flex items-center gap-[6px] text-[#64748B] overflow-hidden whitespace-nowrap">
-                            <Clock className="w-[14px] h-[14px] opacity-70 flex-shrink-0" />
-                            <span style={{ fontSize: '14px' }} className="truncate">2026-03-21</span>
-                          </div>
-                          <span style={{ color: '#64748B', margin: '0 8px', opacity: 0.5 }}>-</span>
-                          <div style={{ color: '#64748B', fontSize: '14px' }} className="flex-shrink-0">
-                            <span style={{ fontWeight: 500, color: '#1E293B' }}>8</span>회 구매
-                          </div>
+
+                        {/* 메타 정보 */}
+                        <div style={{
+                          fontSize: '11px',
+                          color: '#888',
+                          marginBottom: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}>
+                          <Clock className="w-3 h-3 opacity-70 flex-shrink-0" />
+                          <span>2026-03-21 · 8회 구매</span>
                         </div>
-                        <p style={{ fontSize: '18px', fontWeight: 700, color: '#21358D' }}>
+
+                        {/* 가격 */}
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#2b4c9c' }}>
                           ₩{product.price.toLocaleString()}
-                        </p>
+                        </span>
                       </div>
                     </Link>
                   </div>
@@ -367,32 +377,62 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-[20px] pt-[40px]">
-            <div className="flex-1 h-[48px] flex items-center">
-              <div className="w-full h-[2px] bg-[#E2E8F0] relative overflow-hidden">
-                <div
-                  className="absolute left-0 top-0 h-full bg-[#21358D] transition-all duration-300 ease-out"
-                  style={{ width: `${scrollProgress}%` }}
-                />
-              </div>
+          {/* Controls: 슬라이더 바 + 네비 버튼 */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            {/* 슬라이더 바 */}
+            <div style={{ flex: 1, height: '2px', backgroundColor: '#e0e0e0', position: 'relative', marginRight: '16px' }}>
+              <div style={{
+                width: '50px',
+                height: '3px',
+                backgroundColor: '#333',
+                position: 'absolute',
+                top: '-0.5px',
+                left: `${scrollProgress * 0.7}%`,
+                transition: 'left 0.3s ease-out',
+              }} />
             </div>
-            <div className="flex items-center gap-[12px]">
+
+            {/* 네비 버튼 */}
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={scrollPrev}
-                className="w-[56px] h-[56px] bg-white border border-[#21358D]/20 rounded-full flex items-center justify-center text-[#21358D] hover:bg-neutral-50 active:scale-95 shadow-lg shadow-black/5 transition-all"
+                style={{
+                  width: '36px', height: '36px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#f8f9fa',
+                  color: '#333',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s',
+                }}
                 aria-label="Previous products"
               >
-                <ChevronLeft className="w-[28px] h-[28px]" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={scrollNext}
-                className="w-[56px] h-[56px] bg-[#21358D] rounded-full flex items-center justify-center text-white hover:bg-[#1a2b75] active:scale-95 shadow-lg shadow-[#21358D]/20 transition-all"
+                style={{
+                  width: '36px', height: '36px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#1d3a7d',
+                  color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s',
+                }}
                 aria-label="Next products"
               >
-                <ChevronRight className="w-[28px] h-[28px]" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
+
         </div>
       </section>
       )}
