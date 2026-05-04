@@ -257,8 +257,20 @@ export function OrderManagementPage() {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
+        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        
+        // 1. 실제 헤더가 있는 행(Row) 찾기 (최대 20번째 줄까지 탐색)
+        let headerRowIdx = 0;
+        for (let i = 0; i < Math.min(20, rawData.length); i++) {
+          const rowArray = rawData[i] as any[];
+          if (rowArray && rowArray.some(cell => typeof cell === 'string' && (cell.includes('기재내용') || cell.includes('입금액') || cell.includes('입금') || cell.includes('거래내역')))) {
+            headerRowIdx = i;
+            break;
+          }
+        }
+
+        // 2. 헤더 행을 기준으로 정확하게 JSON 파싱
+        const data = XLSX.utils.sheet_to_json(ws, { range: headerRowIdx });
         
         const pendingOrders = orders.filter(o => o.status === 'pending');
         const matched: { order: Order, row: any }[] = [];
@@ -302,6 +314,10 @@ export function OrderManagementPage() {
           }
         });
         
+        if (data.length > 0 && matched.length === 0) {
+          alert(`엑셀 파일에서 ${data.length}건의 입금 내역을 찾았지만, 시스템의 입금대기 주문(${pendingOrders.length}건)과 일치하는 내역이 없습니다.\n\n주문 목록의 '입금자명'과 '입금액'이 엑셀 내역과 정확히 일치하는지 확인해주세요.`);
+        }
+
         setMatchedDeposits(matched);
         setUnmatchedRows(unmatched);
         setIsMatchingModalOpen(true);
