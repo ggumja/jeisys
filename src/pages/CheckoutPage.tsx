@@ -495,7 +495,7 @@ export function CheckoutPage() {
   const total = calculateTotal();
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       <button
         onClick={() => navigate('/cart')}
         className="flex items-center gap-2 text-sm text-neutral-600 hover:text-neutral-900 mb-8 transition-colors"

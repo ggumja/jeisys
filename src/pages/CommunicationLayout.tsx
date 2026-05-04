@@ -24,7 +24,7 @@ export function CommunicationLayout() {
   }, [location.pathname, navigate]);
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       <div className="mb-8 lg:mb-12">
         <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">
           커뮤니케이션

@@ -126,14 +126,14 @@ export function QuickOrderPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-20 flex items-center justify-center">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-20 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 lg:mb-10">
         <div>
@@ -291,7 +291,7 @@ export function QuickOrderPage() {
       {/* 하단 일괄 담기 바 */}
       {totalItems > 0 && (
         <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-white border-t border-neutral-200 shadow-xl z-40">
-          <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-4">
+          <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs text-neutral-500 mb-0.5">

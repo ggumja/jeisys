@@ -380,7 +380,7 @@ export function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 text-center">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-16 text-center">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">상품을 찾을 수 없습니다</h1>
         <Link to="/products" className="text-blue-600 hover:text-blue-700">
           상품 목록으로 돌아가기
@@ -390,7 +390,7 @@ export function ProductDetailPage() {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       {/* Breadcrumb */}
       <div className="text-sm text-neutral-600 mb-8">
         <Link to="/products" className="hover:text-neutral-900">상품</Link>

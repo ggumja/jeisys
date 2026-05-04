@@ -414,7 +414,7 @@ export function CartPage() {
 
   if (cart.length === 0) {
     return (
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-20">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-20">
         <div className="text-center">
           <div className="w-24 h-24 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-8">
             <ShoppingBag className="w-12 h-12 text-neutral-400" />
@@ -437,7 +437,7 @@ export function CartPage() {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       <div className="mb-8 lg:mb-12">
         <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">장바구니</h1>
         <p className="text-sm text-neutral-600">총 {cart.length}개 상품</p>

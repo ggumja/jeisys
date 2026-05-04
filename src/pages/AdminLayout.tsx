@@ -141,7 +141,7 @@ export function AdminLayout() {
     <div className="min-h-screen bg-neutral-50">
       {/* Admin Header */}
       <header className="bg-neutral-900 text-white sticky top-0 z-50">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-8">
+        <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <Shield className="w-6 h-6" />
@@ -167,7 +167,7 @@ export function AdminLayout() {
         </div>
       </header>
 
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+      <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Sidebar - Desktop */}
           <div className="hidden lg:block lg:col-span-1">

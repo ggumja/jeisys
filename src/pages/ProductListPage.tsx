@@ -73,110 +73,103 @@ export function ProductListPage() {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
-      <div className="flex gap-6">
-        {/* Left Sidebar - Category Dropdown */}
-        <div className="w-[200px] flex-shrink-0 hidden lg:block relative z-40">
-          <div className="sticky top-8">
-            {/* Category Dropdown Button */}
-            <button
-              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              className="w-full bg-[#1e3a8a] hover:bg-[#1e40af] text-white px-4 py-3 flex items-center justify-between transition-colors text-sm font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <Menu className="w-4 h-4" />
-                <span>보유장비</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
-            </button>
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+      {/* Header - Moved to top */}
+      <div className="mb-8 lg:mb-12">
+        <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">전체 상품</h1>
+        <p className="text-base text-neutral-600">
+          의료 미용 기기 및 소모품을 찾아보세요
+        </p>
+      </div>
 
-            {/* Category List */}
-            {showCategoryDropdown && (
-              <div className="bg-white border border-neutral-200 border-t-0 flex flex-col p-1">
-                <button
-                  onClick={() => {
-                    setSelectedCategory('all');
-                    setSelectedSubcategory('all');
-                    setExpandedCategory(null);
-                  }}
-                  className={`flex items-center gap-3 px-4 py-3 transition-colors text-sm mb-1 ${selectedCategory === 'all' 
-                    ? 'bg-neutral-900 text-white font-bold' 
-                    : 'text-neutral-700 hover:bg-neutral-100'}`}
-                >
-                  <span>전체 상품</span>
-                </button>
-
-                {rootCategories.map(categoryObj => {
-                  const category = categoryObj.name;
-                  const displayName = category.trim();
-                  const subcategories = getSubcategories(category);
-                  const hasSubcategories = subcategories.length > 0;
-                  const isMainCategoryActive = selectedCategory === category;
-
-                  return (
-                    <div 
-                      key={category} 
-                      className="flex flex-col mb-1 relative group"
-                      onMouseEnter={() => hasSubcategories && setExpandedCategory(category)}
-                      onMouseLeave={() => setExpandedCategory(null)}
-                    >
-                      <button
-                        onClick={() => {
-                          setSelectedCategory(category);
-                          setSelectedSubcategory('all');
-                        }}
-                        className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMainCategoryActive
-                          ? 'bg-neutral-900 text-white font-bold' 
-                          : 'text-neutral-700 hover:bg-neutral-100'}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span>{displayName}</span>
-                        </div>
-                      </button>
-
-                      {/* Accordion Subcategory List */}
-                      {isMainCategoryActive && hasSubcategories && (
-                        <div className="bg-neutral-50 flex flex-col border-b border-neutral-200 animate-in slide-in-from-top-2 duration-300 overflow-hidden">
-                          {subcategories.map(subcategory => {
-                            const isSubActive = selectedSubcategory === subcategory;
-                            return (
-                              <button
-                                key={subcategory}
-                                onClick={() => setSelectedSubcategory(subcategory)}
-                                className={`flex items-center gap-2 px-6 py-2.5 transition-colors text-xs ${isSubActive 
-                                  ? 'text-[#1e3a8a] font-bold' 
-                                  : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'}`}
-                              >
-                                <span>{subcategory}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Optional Tab - 데모신청 */}
-            <div className="mt-4">
-              <button className="w-full bg-white hover:bg-neutral-50 border border-neutral-200 text-neutral-900 px-4 py-3 text-sm font-medium transition-colors">
-                데모신청
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Sidebar - Desktop */}
+        <div className="hidden lg:block lg:col-span-1">
+          <div className="bg-white border border-neutral-200 p-6 sticky top-24">
+            <nav className="space-y-1">
+              <button
+                onClick={() => {
+                  setSelectedCategory('all');
+                  setSelectedSubcategory('all');
+                  setExpandedCategory(null);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 transition-colors text-sm ${selectedCategory === 'all' 
+                  ? 'bg-neutral-900 text-white font-medium' 
+                  : 'text-neutral-700 hover:bg-neutral-100'}`}
+              >
+                <span>전체 상품</span>
               </button>
+
+              {rootCategories.map(categoryObj => {
+                const category = categoryObj.name;
+                const displayName = category.trim();
+                const subcategories = getSubcategories(category);
+                const hasSubcategories = subcategories.length > 0;
+                const isMainCategoryActive = selectedCategory === category;
+
+                return (
+                  <div 
+                    key={category} 
+                    className="flex flex-col relative group"
+                    onMouseEnter={() => hasSubcategories && setExpandedCategory(category)}
+                    onMouseLeave={() => setExpandedCategory(null)}
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setSelectedSubcategory('all');
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMainCategoryActive
+                        ? 'bg-neutral-900 text-white font-medium' 
+                        : 'text-neutral-700 hover:bg-neutral-100'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span>{displayName}</span>
+                      </div>
+                    </button>
+
+                    {/* Accordion Subcategory List */}
+                    {isMainCategoryActive && hasSubcategories && (
+                      <div className="bg-neutral-50 flex flex-col border-y border-neutral-200 animate-in slide-in-from-top-2 duration-300 overflow-hidden my-1">
+                        {subcategories.map(subcategory => {
+                          const isSubActive = selectedSubcategory === subcategory;
+                          return (
+                            <button
+                              key={subcategory}
+                              onClick={() => setSelectedSubcategory(subcategory)}
+                              className={`w-full flex items-center gap-2 px-8 py-2.5 transition-colors text-xs ${isSubActive 
+                                ? 'text-neutral-900 font-bold' 
+                                : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'}`}
+                            >
+                              <span>{subcategory}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+
+            {/* Help Info (Matches Communication Layout) */}
+            <div className="mt-6 pt-6 border-t border-neutral-200">
+              <p className="text-xs text-neutral-600 mb-2">고객지원센터</p>
+              <a
+                href="tel:070-7435-4927"
+                className="text-sm font-medium text-neutral-900 hover:text-neutral-600 transition-colors"
+              >
+                070-7435-4927
+              </a>
+              <p className="text-xs text-neutral-500 mt-2">
+                평일 오전 9시 ~ 오후 5시
+              </p>
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="mb-8 lg:mb-12">
-            <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">전체 상품</h1>
-            <p className="text-base text-neutral-600">
-              의료 미용 기기 및 소모품을 찾아보세요
-            </p>
-          </div>
+        <div className="lg:col-span-3 min-w-0">
 
           {/* Search and Filter Bar */}
           <div className="bg-white border border-neutral-200 p-6 mb-8">
@@ -226,8 +219,8 @@ export function ProductListPage() {
                       className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 text-sm"
                     >
                       <option value="all">전체</option>
-                      {allCategories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                      {rootCategories.map(cat => (
+                        <option key={cat.name} value={cat.name}>{cat.name.trim()}</option>
                       ))}
                     </select>
                   </div>

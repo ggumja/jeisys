@@ -21,7 +21,7 @@ export function MyPageLayout() {
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
+    <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
       <div className="mb-8 lg:mb-12">
         <h1 className="text-3xl lg:text-4xl tracking-tight text-neutral-900 mb-2">마이페이지</h1>
         <p className="text-base text-neutral-600">{user?.name}님, 안녕하세요</p>
