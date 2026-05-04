@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router';
 import { ShoppingCart, Package, Zap, ChevronDown, LogOut, User, Globe, AlertCircle, X, Send, Copy, Check } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { cartService, proxyOrderService } from '../services/cartService';
 import { creditService, CreditSummary } from '../services/creditService';
@@ -20,10 +20,10 @@ function RootLayoutContent() {
   const [cartCount, setCartCount] = useState(0);
   const [showCommunicationDropdown, setShowCommunicationDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [creditSummary, setCreditSummary] = useState<CreditSummary[]>([]);
   const [proxyName, setProxyName] = useState<string | null>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [creditSummary, setCreditSummary] = useState<CreditSummary[]>([]);
   const user = storage.getUser();
 
   useEffect(() => {
@@ -174,7 +174,7 @@ function RootLayoutContent() {
             <div className="flex items-center justify-end gap-3">
               {user ? (
                 <>
-                  {/* ADMIN 배지 + 마이페이지 hover 드롭다운 */}
+                  {/* ADMIN 배지 + 마이페이지 */}
                   {user.role === 'admin' ? (
                     <Link to="/admin" className="hidden md:flex items-center hover:opacity-80 transition-opacity">
                       <span className="bg-neutral-900 text-white text-[10px] font-black px-2 py-0.5 rounded-sm tracking-widest uppercase">ADMIN</span>
@@ -192,7 +192,6 @@ function RootLayoutContent() {
                     </Link>
 
                     {showUserDropdown && (
-                      /* paddingTop으로 아이콘-드롭다운 간 gap을 투명하게 메워 mouseLeave 방지 */
                       <div style={{ position: 'absolute', top: '100%', right: 0, paddingTop: '8px', zIndex: 100 }}>
                         <div style={{
                           width: '280px', backgroundColor: '#fff',
@@ -200,10 +199,10 @@ function RootLayoutContent() {
                           boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
                           padding: '20px',
                         }}>
-                          {/* 이름 + VIP 배지 */}
+                          {/* 이름 + 멤버타입 배지 */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                             <span style={{ fontSize: '16px', fontWeight: 700, color: '#111' }}>
-                              {user.name} {user.hospitalName ? `원장` : ''}
+                              {user.name} {user.hospitalName ? '원장' : ''}
                             </span>
                             {user.memberType && (
                               <span style={{
@@ -219,8 +218,8 @@ function RootLayoutContent() {
 
                           <hr style={{ borderColor: '#f3f4f6', marginBottom: '14px' }} />
 
-                          {/* 보유크레딧 → /mypage/credits 이동 */}
-                          <Link to="/mypage/credits" style={{ display: 'block', textDecoration: 'none', marginBottom: '14px' }}>
+                          {/* 보유크레딧 → /mypage/credits */}
+                          <Link to="/mypage/credits" style={{ display: 'block', textDecoration: 'none' }}>
                             <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>보유크레딧</div>
                             {creditSummary.length === 0 ? (
                               <div style={{ fontSize: '13px', color: '#9ca3af' }}>크레딧 없음</div>
