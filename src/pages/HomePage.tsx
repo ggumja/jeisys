@@ -166,8 +166,17 @@ export function HomePage() {
   return (
     <div className="w-full bg-white">
       {/* 1. Main Banner - Full Background with Boxed Content */}
-      <section className="w-full bg-[#F0F3F7] overflow-hidden relative border-b border-neutral-100" style={{ height: '560px' }}>
-        <div className="max-w-[1440px] mx-auto h-full relative">
+      <section
+        className="relative border-b border-neutral-100"
+        style={{
+          backgroundColor: '#F0F3F7',
+          width: '100vw',
+          marginLeft: 'calc(50% - 50vw)',
+          height: '560px',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ maxWidth: '1440px', margin: '0 auto', height: '100%', position: 'relative' }}>
           {activeBanners.length > 0 ? (
             <div className="relative w-full h-full group">
               <div className="h-full overflow-hidden">

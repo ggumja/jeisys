@@ -71,7 +71,7 @@ function RootLayoutContent() {
         >
           {/* 대리주문 모드 배너 */}
           {proxyName && (
-            <div className="max-w-[1440px] mx-auto bg-amber-50 border-b-2 border-amber-300 px-4 py-2.5 flex items-center justify-between gap-4">
+            <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '0' }} className="bg-amber-50 border-b-2 border-amber-300 py-2.5 flex items-center justify-between gap-4">
               {/* 좌: 상태 표시 */}
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="flex items-center justify-center w-7 h-7 bg-amber-400 rounded-sm flex-shrink-0">
@@ -113,14 +113,12 @@ function RootLayoutContent() {
 
           {/* ── Single row nav bar ──────────────────────────────── */}
           <div
-            className="max-w-[1440px] mx-auto grid items-center px-4"
-            style={{ height: '80px', gridTemplateColumns: '1fr auto 1fr' }}
+            style={{ maxWidth: '1440px', margin: '0 auto', padding: '0', height: '80px', display: 'grid', alignItems: 'center', gridTemplateColumns: '1fr auto 1fr' }}
           >
             {/* 왼쪽: Logo + B2B 쇼핑몰 */}
             <div className="flex items-center">
-              <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-                <img src={logoImage} alt="Jeisys" className="h-6" />
-                <span className="text-[11px] text-neutral-400 font-medium whitespace-nowrap">B2B쇼핑몰</span>
+              <Link to="/" className="flex items-center flex-shrink-0">
+                <img src={logoImage} alt="Jeisys" className="h-9" />
               </Link>
             </div>
 
@@ -236,86 +234,117 @@ function RootLayoutContent() {
         </main>
 
 
+
         <footer
-          className="text-white mt-16"
-          style={{ backgroundColor: '#1A1F2C', width: '100vw', marginLeft: 'calc(50% - 50vw)' }}
+          style={{
+            backgroundColor: '#1f262e',
+            color: '#9ba3af',
+            fontSize: '14px',
+            lineHeight: '1.6',
+            width: '100vw',
+            marginLeft: 'calc(50% - 50vw)',
+            boxSizing: 'border-box',
+          }}
         >
-          {/* Top Divider & Links */}
-          <div className="border-b border-white/10">
-            <div className="max-w-[1440px] mx-auto px-4 h-16 flex items-center justify-between text-[13px] font-medium">
-              <div className="flex items-center gap-8 text-white/60">
-                <Link to="/cyber" className="hover:text-white transition-colors">사이버신문고</Link>
-                <Link to="/privacy" className="hover:text-white transition-colors">개인정보처리방침</Link>
-              </div>
-              <div className="relative group">
-                <button className="flex items-center gap-4 bg-white/5 border border-white/10 px-4 py-2 rounded-sm hover:bg-white/10 transition-colors">
-                  <span>Family site</span>
-                  <ChevronDown className="w-4 h-4 opacity-50" />
-                </button>
-              </div>
+          {/* 1440px 내부 컨테이너 */}
+          <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '40px 0' }}>
+          {/* Top bar */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingBottom: '30px',
+            borderBottom: '1px solid #2d3641',
+            marginBottom: '50px',
+          }}>
+            <div style={{ display: 'flex', gap: '20px' }}>
+              <Link to="/cyber" style={{ color: '#d1d5db', textDecoration: 'none' }}>사이버신문고</Link>
+              <Link to="/privacy" style={{ color: '#d1d5db', textDecoration: 'none', fontWeight: 'bold' }}>개인정보처리방침</Link>
             </div>
+            <select style={{
+              backgroundColor: '#2d3641',
+              color: '#d1d5db',
+              border: '1px solid #3f4a56',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              width: '180px',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}>
+              <option>Family site</option>
+            </select>
           </div>
 
-          <div className="max-w-[1440px] mx-auto px-4 py-16">
-            <div className="flex flex-col lg:flex-row gap-16">
-              {/* Left Section: Company Logo & Info */}
-              <div className="flex-1">
-                <div 
-                  className="text-[40px] text-white/90 mb-8"
-                  style={{ fontFamily: "'Palatino', serif" }}
-                >
-                  Jeisys
-                </div>
-                <div className="text-[13px] leading-relaxed text-white/50 space-y-1">
-                  <p className="font-bold text-white/80 mb-2">(주)제이시스메디칼</p>
-                  <p>대표자: 이라미  |  대표번호: 070-7435-4927  |  E-mail: webmaster@jeisys.com  |  사업자등록번호: 424-87-00852</p>
-                  <p>통신판매업 신고번호: 제 2022-서울금천-0845호  |  개인정보관리책임자: 박종선</p>
-                  <p>주소: 서울특별시 금천구 가마산로 96 대륭테크노타운6동</p>
+          {/* Bottom content */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '40px' }}>
+
+            {/* Left: Company Info */}
+            <div style={{ flex: 1, minWidth: '400px' }}>
+              <span style={{
+                display: 'block',
+                fontSize: '48px',
+                fontWeight: 'bold',
+                color: '#4b5563',
+                marginBottom: '20px',
+                fontFamily: "'Palatino', 'Palatino Linotype', Georgia, serif",
+              }}>
+                Jeisys
+              </span>
+              <p style={{ fontWeight: 'bold', color: '#d1d5db', marginBottom: '15px' }}>(주)제이시스메디칼</p>
+              <ul style={{
+                listStyle: 'none',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '5px 15px',
+                marginBottom: '20px',
+                padding: 0,
+              }}>
+                <li><span style={{ marginRight: '5px' }}>대표자:</span>이라미</li>
+                <li><span style={{ marginRight: '5px' }}>대표번호:</span>070-7435-4927</li>
+                <li><span style={{ marginRight: '5px' }}>E-mail:</span>webmaster@jeisys.com</li>
+                <li><span style={{ marginRight: '5px' }}>사업자등록번호:</span>424-87-00852</li>
+                <li><span style={{ marginRight: '5px' }}>통신판매업 신고번호:</span>제 2022-서울금천-0845호</li>
+                <li><span style={{ marginRight: '5px' }}>개인정보관리책임자:</span>박종선</li>
+                <li>주소: 서울특별시 금천구 가산산로 96 대륭테크노타운6동</li>
+              </ul>
+              <p style={{ marginTop: '30px', fontSize: '13px' }}>
+                본 사이트의 이미지에 대한 모든 권한은 (주)제이시스메디칼에 있습니다. 무단 도용 시 법적 제재를 받으실 수 있습니다.
+              </p>
+            </div>
+
+            {/* Right: CS Centers */}
+            <div style={{ display: 'flex', gap: '60px' }}>
+
+              <div>
+                <h3 style={{ color: '#d1d5db', fontSize: '16px', marginBottom: '15px', fontWeight: 500 }}>고객지원센터</h3>
+                <span style={{ display: 'block', fontSize: '28px', fontWeight: 700, color: '#fff', marginBottom: '15px' }}>070-7435-4927</span>
+                <div style={{ fontSize: '13px', color: '#9ba3af' }}>
+                  평일: 오전 9시 ~ 오후 5시<br />
+                  휴일: 토요일, 일요일, 공휴일<br />
+                  주문마감: 오후 2시 30분<br />
+                  배달 및 제주(도) 오후 1시 마감
                 </div>
               </div>
 
-              {/* Right Section: Support Info Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-[13px] min-w-[600px]">
-                <div className="space-y-4">
-                  <h4 className="text-white/40 uppercase tracking-wider font-bold">고객지원센터</h4>
-                  <div className="space-y-2">
-                    <p className="text-[20px] font-bold text-white">070-7435-4927</p>
-                    <div className="text-white/50 leading-tight">
-                      <p>평일: 오전 9시 ~ 오후 5시</p>
-                      <p>휴일: 토요일, 일요일, 공휴일</p>
-                      <p>주문마감: 오후 2시 30분분</p>
-                      <p>배달 및 제주(도) 오후 1시 마감</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-white/40 uppercase tracking-wider font-bold">AS고객센터</h4>
-                  <div className="space-y-2">
-                    <p className="text-[20px] font-bold text-white">1544-1639</p>
-                    <div className="text-white/50 leading-tight">
-                      <p>평일: 오전 10시 ~ 오후 4시</p>
-                      <p>휴일: 토요일, 일요일, 공휴일</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-white/40 uppercase tracking-wider font-bold">입급계좌 우리은행</h4>
-                  <div className="space-y-2">
-                    <p className="text-[20px] font-bold text-white">1005-803-786090</p>
-                    <div className="text-white/50 leading-tight">
-                      <p>예금주: (주)제이시스메디칼</p>
-                    </div>
-                  </div>
+              <div>
+                <h3 style={{ color: '#d1d5db', fontSize: '16px', marginBottom: '15px', fontWeight: 500 }}>AS고객센터</h3>
+                <span style={{ display: 'block', fontSize: '28px', fontWeight: 700, color: '#fff', marginBottom: '15px' }}>1544-1639</span>
+                <div style={{ fontSize: '13px', color: '#9ba3af' }}>
+                  평일: 오전 10시 ~ 오후 4시<br />
+                  휴일: 토요일, 일요일, 공휴일
                 </div>
               </div>
-            </div>
 
-            {/* Bottom Copyright */}
-            <div className="mt-16 pt-8 border-t border-white/5 text-[12px] text-white/30">
-              본 사이트의 이미지에 대한 모든 권한은 (주)제이시스메디칼에 있습니다. 무단 도용 시 법적 제재를 받으실 수 있습니다.
+              <div>
+                <h3 style={{ color: '#d1d5db', fontSize: '16px', marginBottom: '15px', fontWeight: 500 }}>입금계좌 우리은행</h3>
+                <span style={{ display: 'block', fontSize: '28px', fontWeight: 700, color: '#fff', marginBottom: '15px' }}>1005-803-786090</span>
+                <div style={{ fontSize: '13px', color: '#9ba3af' }}>
+                  예금주: (주)제이시스메디칼
+                </div>
+              </div>
+
             </div>
+          </div>
           </div>
         </footer>
 
