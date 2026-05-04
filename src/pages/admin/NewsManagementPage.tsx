@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, EyeOff, X, Save, Image as ImageIcon } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, X, Save, Paperclip, Upload } from 'lucide-react';
 import { postService, Post } from '../../services/postService';
 import { formatDate } from '../../lib/utils';
 import { useModal } from '../../context/ModalContext';
+import { supabase } from '../../lib/supabaseClient';
+import { RichTextEditor } from '../../components/ui/RichTextEditor';
 
 export function NewsManagementPage() {
   const { alert: globalAlert, confirm: globalConfirm } = useModal();
@@ -18,6 +20,9 @@ export function NewsManagementPage() {
     image_url: '',
     isVisible: true,
   });
+  const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchNews();
@@ -53,6 +58,7 @@ export function NewsManagementPage() {
         isVisible: true,
       });
     }
+    setAttachFile(null);
     setIsModalOpen(true);
   };
 
@@ -61,14 +67,34 @@ export function NewsManagementPage() {
     setEditingNews(null);
   };
 
+  const uploadAttachment = async (): Promise<string> => {
+    if (!attachFile) return formData.image_url;
+    setUploading(true);
+    try {
+      const ext = attachFile.name.split('.').pop();
+      const path = `news/${Date.now()}_${attachFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const { error } = await supabase.storage
+        .from('marketing')
+        .upload(path, attachFile, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage
+        .from('marketing')
+        .getPublicUrl(path);
+      return publicUrl;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const fileUrl = await uploadAttachment();
       if (editingNews) {
         await postService.updatePost(editingNews.id, {
           title: formData.title,
           content: formData.content,
-          image_url: formData.image_url,
+          image_url: fileUrl,
           isVisible: formData.isVisible,
         });
       } else {
@@ -76,7 +102,7 @@ export function NewsManagementPage() {
           type: 'news',
           title: formData.title,
           content: formData.content,
-          image_url: formData.image_url,
+          image_url: fileUrl,
           isVisible: formData.isVisible,
         });
       }
@@ -228,16 +254,33 @@ export function NewsManagementPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">대표 이미지 URL</label>
-                  <div className="relative">
-                    <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                    <input
-                      type="text"
-                      value={formData.image_url}
-                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                      className="w-full pl-9 pr-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm"
-                      placeholder="https://..."
-                    />
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">첨부파일</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setAttachFile(e.target.files?.[0] || null)}
+                  />
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 border border-neutral-300 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {attachFile ? attachFile.name : '파일 선택'}
+                    </button>
+                    {!attachFile && formData.image_url && (
+                      <a
+                        href={formData.image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline"
+                      >
+                        <Paperclip className="w-3 h-3" />
+                        현재 첨부파일 보기
+                      </a>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-end pb-2">
@@ -255,18 +298,18 @@ export function NewsManagementPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">뉴스 본문</label>
-                <textarea
+                <RichTextEditor
                   value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-4 py-2 border border-neutral-300 rounded focus:ring-2 focus:ring-neutral-900 outline-none text-sm min-h-[300px]"
-                  required
+                  onChange={(html) => setFormData({ ...formData, content: html })}
+                  placeholder="뉴스 본문을 입력하세요..."
+                  minHeight="320px"
                 />
               </div>
             </form>
             <div className="px-6 py-4 border-t border-neutral-200 flex justify-end gap-3 bg-neutral-50">
               <button onClick={handleCloseModal} className="px-4 py-2 text-sm font-medium text-neutral-700 hover:text-neutral-900">취소</button>
-              <button onClick={handleSubmit} className="px-4 py-2 bg-neutral-900 text-white rounded text-sm font-medium hover:bg-neutral-800 flex items-center gap-2">
-                <Save className="w-4 h-4" /> 저장
+              <button onClick={handleSubmit} disabled={uploading} className="px-4 py-2 bg-neutral-900 text-white rounded text-sm font-medium hover:bg-neutral-800 flex items-center gap-2 disabled:opacity-60">
+                <Save className="w-4 h-4" /> {uploading ? '업로드 중...' : '저장'}
               </button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Pin, Eye, Calendar } from 'lucide-react';
+import { Pin, Eye, Calendar, Paperclip } from 'lucide-react';
 import { postService, Post } from '../services/postService';
 import { formatDate } from '../lib/utils';
 
@@ -103,8 +103,9 @@ export function NewsPage() {
                       </span>
                     </div>
                     <div className="col-span-6">
-                      <p className="text-base text-neutral-900 hover:text-neutral-600 font-medium">
+                      <p className="text-base text-neutral-900 hover:text-neutral-600 font-medium flex items-center gap-1.5">
                         {item.title}
+                        {item.imageUrl && <Paperclip className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />}
                       </p>
                     </div>
                     <div className="col-span-2 text-center text-sm text-neutral-600">
@@ -158,8 +159,9 @@ export function NewsPage() {
                       </span>
                     </div>
                     <div className="col-span-6">
-                      <p className="text-base text-neutral-900 hover:text-neutral-600">
+                      <p className="text-base text-neutral-900 hover:text-neutral-600 flex items-center gap-1.5">
                         {item.title}
+                        {item.imageUrl && <Paperclip className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />}
                       </p>
                     </div>
                     <div className="col-span-2 text-center text-sm text-neutral-600">

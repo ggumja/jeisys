@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Calendar, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Calendar, Eye, ChevronLeft, ChevronRight, Paperclip, Download } from 'lucide-react';
 import { postService, Post } from '../services/postService';
 import { formatDate } from '../lib/utils';
 
@@ -80,10 +80,31 @@ export function NewsDetailPage() {
 
         {/* Content */}
         <div className="px-6 lg:px-8 py-8">
-          <div className="text-base text-neutral-900 whitespace-pre-wrap leading-relaxed">
-            {newsItem.content}
-          </div>
+          <div
+            className="prose prose-sm max-w-none text-neutral-900 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: newsItem.content || '' }}
+          />
         </div>
+
+        {/* 첨부파일 */}
+        {newsItem.imageUrl && (
+          <div className="px-6 lg:px-8 py-5 border-t border-neutral-100 bg-neutral-50">
+            <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-3">첨부파일</p>
+            <a
+              href={newsItem.imageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="inline-flex items-center gap-2.5 px-4 py-2.5 bg-white border border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50 transition-colors text-sm text-neutral-800 group"
+            >
+              <Paperclip className="w-4 h-4 text-neutral-500 group-hover:text-neutral-700" />
+              <span className="flex-1 truncate max-w-xs">
+                {newsItem.imageUrl.split('/').pop()?.replace(/^\d+_/, '') || '첨부파일 다운로드'}
+              </span>
+              <Download className="w-4 h-4 text-neutral-400 group-hover:text-neutral-600" />
+            </a>
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="border-t border-neutral-200">
