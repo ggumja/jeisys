@@ -84,11 +84,11 @@ export function HomePage() {
         if (activeProducts.length > 0) {
           setRecommendedProducts(activeProducts.slice(0, 24));
         } else {
-          setRecommendedProducts(mockProducts.slice(0, 24));
+          setRecommendedProducts([]);
         }
       } catch (error) {
         console.error('Failed to fetch real products:', error);
-        setRecommendedProducts(mockProducts.slice(0, 6));
+        setRecommendedProducts([]);
       } finally {
         setIsLoadingProducts(false);
       }
