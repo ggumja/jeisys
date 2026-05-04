@@ -265,9 +265,9 @@ export function OrderManagementPage() {
         const unmatched: any[] = [];
 
         data.forEach((row: any) => {
-          // 알려주신 컬럼명: '기재내용', '거래금액(입금)'
+          // 알려주신 컬럼명: '기재내용', '거래금액(입금)', '거래내역(입금)'
           const depositorName = row['기재내용'] || row['입금자명'] || row['적요'];
-          const depositAmountRaw = row['거래금액(입금)'] || row['입금액'] || row['거래금액'];
+          const depositAmountRaw = row['거래내역(입금)'] || row['거래금액(입금)'] || row['입금액'] || row['거래금액'];
           
           if (!depositorName || depositAmountRaw === undefined) {
             // 입금액이나 입금자명이 명확하지 않은 행은 패스하거나 unmatched로 처리
