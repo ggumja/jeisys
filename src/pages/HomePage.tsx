@@ -11,6 +11,7 @@ import { Layout, Clock, ChevronLeft, ChevronRight, X, Package, Coins, ArrowRight
 import { productImages } from "../lib/productImages";
 import useEmblaCarousel from 'embla-carousel-react';
 import { useCallback } from "react";
+import bannerEducation from '../assets/banner_education.png';
 
 export function HomePage() {
   const user = storage.getUser();
@@ -19,6 +20,7 @@ export function HomePage() {
   const [showPopup, setShowPopup] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [activeBanners, setActiveBanners] = useState<Ad[]>([]);
+  const [subBanners, setSubBanners] = useState<Ad[]>([]);
   const [activePopup, setActivePopup] = useState<Ad | null>(null);
   const [newsPosts, setNewsPosts] = useState<Post[]>([]);
   const [mediaPosts, setMediaPosts] = useState<Post[]>([]);
@@ -37,6 +39,9 @@ export function HomePage() {
       try {
         const banners = await adService.getActiveAds('main_banner');
         setActiveBanners(banners);
+
+        const subs = await adService.getActiveAds('sub_banner');
+        setSubBanners(subs);
 
         const popups = await adService.getActiveAds('popup');
         if (popups.length > 0) {
@@ -580,6 +585,51 @@ export function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* 4-1. Sub Banner Row: 좌=광고관리 sub_banner / 우=교육신청 고정 */}
+      <section className="w-full bg-white" style={{ paddingTop: '40px', paddingBottom: '80px' }}>
+        <div
+          style={{
+            maxWidth: '1440px',
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '16px',
+            alignItems: 'stretch',
+          }}
+        >
+          {/* 좌: 광고관리에서 등록한 sub_banner */}
+          {subBanners.length > 0 ? (
+            <a
+              href={subBanners[0].linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => handleAdClick(subBanners[0])}
+              style={{ display: 'block', borderRadius: '8px', overflow: 'hidden', lineHeight: 0 }}
+            >
+              <img
+                src={subBanners[0].imagePcUrl || ''}
+                alt={subBanners[0].title}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </a>
+          ) : (
+            <div style={{ borderRadius: '8px', backgroundColor: '#f0f3f7', minHeight: '200px' }} />
+          )}
+
+          {/* 우: 교육신청 고정 배너 */}
+          <a
+            href="/communication/education"
+            style={{ display: 'block', borderRadius: '8px', overflow: 'hidden', lineHeight: 0 }}
+          >
+            <img
+              src={bannerEducation}
+              alt="제이시스메디칼 교육신청"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          </a>
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { formatDate } from '../../lib/utils';
 
 const placements: { id: AdPlacement; label: string; icon: any }[] = [
     { id: 'main_banner', label: '메인 배너', icon: Layout },
+    { id: 'sub_banner', label: '서브 배너', icon: Layout },
     { id: 'email_banner', label: '이메일 배너', icon: Mail },
     { id: 'popup', label: '팝업 광고', icon: Maximize },
     { id: 'side_banner', label: '사이드 배너', icon: Sidebar },

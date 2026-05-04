@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 
-export type AdPlacement = 'main_banner' | 'email_banner' | 'popup' | 'side_banner';
+export type AdPlacement = 'main_banner' | 'email_banner' | 'popup' | 'side_banner' | 'sub_banner';
 
 export interface Ad {
     id: string;
