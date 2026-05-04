@@ -152,7 +152,8 @@ export const adminService = {
                     order.payment_method
             },
             // Keep original dates for sorting if needed
-            orderedAt: order.ordered_at
+            orderedAt: order.ordered_at,
+            vactName: order.vact_name
         }));
     },
     async getOrderById(orderId: string) {
