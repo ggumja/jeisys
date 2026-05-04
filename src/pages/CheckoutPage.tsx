@@ -41,7 +41,7 @@ export function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [placingOrder, setPlacingOrder] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'virtual'>('credit');
+  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'general' | 'virtual'>('credit');
   const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
   const [splitMethods, setSplitMethods] = useState<SplitPaymentMethod[]>([
     { id: '1', type: 'credit', amount: 0 },
@@ -842,168 +842,181 @@ export function CheckoutPage() {
 
             {(paymentMode === 'single' || hasSubscriptionItems) ? (
               <div className="space-y-4">
-              {/* KICC EasyPay Billing */}
-              <div
-                className={`border-2 transition-all ${paymentMethod === 'credit'
-                  ? 'border-neutral-900 bg-white'
-                  : 'border-neutral-100 bg-neutral-50'
-                  }`}
-              >
-                <label className="flex items-start gap-4 p-6 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="credit"
-                    checked={paymentMethod === 'credit'}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    className="mt-0.5 w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CreditCard className="w-5 h-5 text-neutral-700" />
-                      <span className="font-bold text-neutral-900">등록 법인카드 (이지페이)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div
+                    onClick={() => setPaymentMethod('credit')}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
+                      paymentMethod === 'credit'
+                        ? 'border-[#D9534F] bg-[#FFF8F5]'
+                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                    }`}
+                  >
+                    <CreditCard className={`w-5 h-5 mt-0.5 ${paymentMethod === 'credit' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <div>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'credit' ? 'text-neutral-900' : 'text-neutral-700'}`}>등록된 신용카드</h3>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">등록된 카드로 간편 결제</p>
                     </div>
-                    <p className="text-xs text-neutral-500 mb-4">등록된 카드로 비밀번호 입력 없이 간편하게 결제하세요.</p>
+                  </div>
 
-                    {paymentMethod === 'credit' && (
-                      <div className="mt-4 space-y-4">
-                        {userCards.length > 0 ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {userCards.map(card => {
-                              const brandStyle = getCardBrandStyles(card.cardName);
-                              return (
-                                <div
-                                  key={card.id}
-                                  onClick={() => setSelectedCardId(card.id)}
-                                  className={`p-4 border-2 cursor-pointer transition-all relative ${
-                                    selectedCardId === card.id 
-                                      ? 'border-neutral-900 bg-neutral-50 shadow-sm' 
-                                      : 'border-neutral-200 hover:border-neutral-300'
-                                  }`}
-                                >
-                                  <div className="flex justify-between items-start mb-3 group/card">
-                                    <div className="flex items-center gap-2">
-                                      <div 
-                                        className={`w-12 h-8 ${brandStyle.bg} rounded-sm border border-neutral-100 shadow-sm shrink-0`}
-                                        style={brandStyle.pos ? {
-                                          backgroundImage: `url(${cardLogos})`,
-                                          backgroundSize: '400% 300%',
-                                          backgroundPosition: brandStyle.pos,
-                                          backgroundRepeat: 'no-repeat'
-                                        } : {}}
-                                      >
-                                        {!brandStyle.pos && (
-                                          <span className={`${brandStyle.text} text-[10px] font-black flex items-center justify-center h-full`}>
-                                            {brandStyle.short}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <span className="text-xs font-bold text-neutral-900 uppercase truncate max-w-[100px]">
-                                        {card.alias || card.cardName}
-                                      </span>
+                  <div
+                    onClick={() => setPaymentMethod('general')}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
+                      paymentMethod === 'general'
+                        ? 'border-[#D9534F] bg-[#FFF8F5]'
+                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                    }`}
+                  >
+                    <CreditCard className={`w-5 h-5 mt-0.5 ${paymentMethod === 'general' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <div>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'general' ? 'text-neutral-900' : 'text-neutral-700'}`}>일반결제</h3>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">신용카드 결제</p>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setPaymentMethod('virtual')}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
+                      paymentMethod === 'virtual'
+                        ? 'border-[#D9534F] bg-[#FFF8F5]'
+                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                    }`}
+                  >
+                    <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'virtual' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <div>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'virtual' ? 'text-neutral-900' : 'text-neutral-700'}`}>가상계좌</h3>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">발급된 계좌로 입금</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-neutral-200 rounded-sm p-6 bg-neutral-50 min-h-[200px] flex flex-col justify-center">
+                  {paymentMethod === 'credit' && (
+                    <div className="space-y-4 w-full">
+                      {userCards.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {userCards.map(card => {
+                            const brandStyle = getCardBrandStyles(card.cardName);
+                            return (
+                              <div
+                                key={card.id}
+                                onClick={() => setSelectedCardId(card.id)}
+                                className={`p-4 border-2 cursor-pointer transition-all relative bg-white ${
+                                  selectedCardId === card.id 
+                                    ? 'border-neutral-900 shadow-sm' 
+                                    : 'border-neutral-200 hover:border-neutral-300'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start mb-3 group/card">
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className={`w-12 h-8 ${brandStyle.bg} rounded-sm border border-neutral-100 shadow-sm shrink-0`}
+                                      style={brandStyle.pos ? {
+                                        backgroundImage: `url(${cardLogos})`,
+                                        backgroundSize: '400% 300%',
+                                        backgroundPosition: brandStyle.pos,
+                                        backgroundRepeat: 'no-repeat'
+                                      } : {}}
+                                    >
+                                      {!brandStyle.pos && (
+                                        <span className={`${brandStyle.text} text-[10px] font-black flex items-center justify-center h-full`}>
+                                          {brandStyle.short}
+                                        </span>
+                                      )}
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                      {card.isDefault && <span className="text-[10px] bg-neutral-900 text-white px-1.5 py-0.5 font-bold uppercase shrink-0">Basic</span>}
-                                      <button
-                                        onClick={(e) => handleDeleteCard(e, card.id)}
-                                        className="p-1 hover:bg-neutral-200 rounded-sm text-neutral-400 hover:text-red-500 transition-colors"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
+                                    <span className="text-xs font-bold text-neutral-900 uppercase truncate max-w-[100px]">
+                                      {card.alias || card.cardName}
+                                    </span>
                                   </div>
-                                  <div className="flex justify-between items-end">
-                                    <p className="text-sm font-medium text-neutral-900 tracking-wider">
-                                      {card.cardNumberMasked}
-                                    </p>
-                                    {card.alias && (
-                                      <span className="text-[10px] text-neutral-400">{card.cardName}</span>
-                                    )}
+                                  <div className="flex items-center gap-1.5">
+                                    {card.isDefault && <span className="text-[10px] bg-neutral-900 text-white px-1.5 py-0.5 font-bold uppercase shrink-0">Basic</span>}
+                                    <button
+                                      onClick={(e) => handleDeleteCard(e, card.id)}
+                                      className="p-1 hover:bg-neutral-200 rounded-sm text-neutral-400 hover:text-red-500 transition-colors"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="bg-neutral-50 border border-neutral-200 p-6 text-center">
-                            <AlertCircle className="w-6 h-6 text-neutral-400 mx-auto mb-2" />
-                            <p className="text-sm text-neutral-600 mb-1">등록된 카드가 없습니다.</p>
-                            <p className="text-xs text-neutral-400">최초 1회 카드 등록이 필요합니다.</p>
-                          </div>
-                        )}
+                                <div className="flex justify-between items-end">
+                                  <p className="text-sm font-medium text-neutral-900 tracking-wider">
+                                    {card.cardNumberMasked}
+                                  </p>
+                                  {card.alias && (
+                                    <span className="text-[10px] text-neutral-400">{card.cardName}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center">
+                          <AlertCircle className="w-6 h-6 text-neutral-300 mx-auto mb-3" />
+                          <p className="text-sm text-neutral-500 mb-1 font-bold">등록된 카드가 없습니다.</p>
+                          <p className="text-xs text-neutral-400">최초 1회 카드 등록이 필요합니다.</p>
+                        </div>
+                      )}
 
-                        <button 
-                          onClick={handleAddCard}
-                          className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-neutral-200 hover:border-neutral-900 hover:bg-neutral-50 transition-colors text-sm font-bold text-neutral-900"
-                        >
-                          <Plus className="w-4 h-4" />
-                          새 법인카드 등록하기
-                        </button>
+                      <button 
+                        onClick={handleAddCard}
+                        className="w-full flex items-center justify-center gap-2 py-4 border border-dashed border-neutral-300 hover:border-neutral-900 bg-white transition-colors text-sm font-bold text-neutral-500 hover:text-neutral-900 mt-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        새 신용카드 등록하기
+                      </button>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'general' && (
+                    <div className="text-center py-8">
+                      <CreditCard className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                      <p className="text-sm font-bold text-neutral-700">일반 신용카드 결제</p>
+                      <p className="text-xs text-neutral-500 mt-1">결제하기 버튼을 누르면 신용카드 결제창이 나타납니다.</p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'virtual' && (
+                    <div className="text-center py-8">
+                      <Wallet className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                      <p className="text-sm font-bold text-neutral-700">가상계좌 (무통장 입금)</p>
+                      <p className="text-xs text-neutral-500 mt-1">입금 확인 후 배송이 시작됩니다. (발행된 계좌번호로 입금해주세요)</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recurring Payment Cycle Selection */}
+                {hasSubscriptionItems && paymentMethod === 'credit' && (
+                  <div className="bg-blue-50 border border-blue-100 p-6 mt-4">
+                    <div className="flex items-start gap-4">
+                      <div className="pt-1">
+                        <div className="w-8 h-8 bg-blue-600 text-white flex items-center justify-center rounded-full font-bold text-xs">
+                          {subscriptionCycle / 30}
+                        </div>
                       </div>
-                    )}
+                      <div className="flex-1">
+                        <h3 className="text-sm font-bold text-blue-900 mb-1">정기 배송 주기 선택</h3>
+                        <p className="text-[11px] text-blue-700 mb-4 opacity-80">선택하신 주기에 따라 등록된 카드로 자동 결제 및 배송이 진행됩니다.</p>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {[30, 60, 90].map(days => (
+                            <button
+                              key={days}
+                              onClick={() => setSubscriptionCycle(days)}
+                              className={`px-6 py-2.5 text-xs font-bold transition-all border ${
+                                subscriptionCycle === days 
+                                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                  : 'bg-white border-blue-200 text-blue-700 hover:border-blue-400'
+                              }`}
+                            >
+                              {days / 30}개월 마다 (매 {days}일)
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </label>
+                )}
               </div>
-
-              {/* Recurring Payment Cycle Selection */}
-              {hasSubscriptionItems && paymentMethod === 'credit' && (
-                <div className="bg-blue-50 border border-blue-100 p-6 mt-4">
-                  <div className="flex items-start gap-4">
-                    <div className="pt-1">
-                      <div className="w-8 h-8 bg-blue-600 text-white flex items-center justify-center rounded-full font-bold text-xs">
-                        {subscriptionCycle / 30}
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-bold text-blue-900 mb-1">정기 배송 주기 선택</h3>
-                      <p className="text-[11px] text-blue-700 mb-4 opacity-80">선택하신 주기에 따라 등록된 카드로 자동 결제 및 배송이 진행됩니다.</p>
-                      
-                      <div className="flex flex-wrap gap-2">
-                        {[30, 60, 90].map(days => (
-                          <button
-                            key={days}
-                            onClick={() => setSubscriptionCycle(days)}
-                            className={`px-6 py-2.5 text-xs font-bold transition-all border ${
-                              subscriptionCycle === days 
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                                : 'bg-white border-blue-200 text-blue-700 hover:border-blue-400'
-                            }`}
-                          >
-                            {days / 30}개월 마다 (매 {days}일)
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Virtual Account */}
-              <label
-                className={`flex items-start gap-4 p-6 border-2 cursor-pointer transition-all ${paymentMethod === 'virtual'
-                  ? 'border-neutral-900 bg-white'
-                  : 'border-neutral-100 bg-neutral-50'
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="virtual"
-                  checked={paymentMethod === 'virtual'}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  className="mt-0.5 w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Wallet className="w-5 h-5 text-neutral-700" />
-                    <span className="font-bold text-neutral-900">가상계좌 (무통장 입금)</span>
-                  </div>
-                  <p className="text-xs text-neutral-500">
-                    입금 확인 후 배송이 시작됩니다. (발행된 계좌번호로 입금해주세요)
-                  </p>
-                </div>
-              </label>
-            </div>
             ) : (
               <div className="space-y-4">
                 <div className="border border-neutral-200 rounded p-4 space-y-4">
@@ -1128,7 +1141,7 @@ export function CheckoutPage() {
               disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `복합결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 카드 결제하기` : '가상계좌 주문 완료'))}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `복합결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 간편 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : '가상계좌 주문 완료'))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">
