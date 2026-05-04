@@ -1033,10 +1033,11 @@ export function CheckoutPage() {
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <select 
                           value={sm.type} 
-                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, type: e.target.value as 'credit' | 'virtual' } : m))}
+                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, type: e.target.value as 'credit' | 'general' | 'virtual' } : m))}
                           className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 bg-white"
                         >
-                          <option value="credit">법인카드</option>
+                          <option value="credit">등록된 신용카드</option>
+                          <option value="general">일반결제</option>
                           <option value="virtual">가상계좌</option>
                         </select>
                         
@@ -1049,6 +1050,9 @@ export function CheckoutPage() {
                             <option value="">카드를 선택해주세요</option>
                             {userCards.map(c => <option key={c.id} value={c.id}>{c.alias || c.cardName} ({c.cardNumberMasked})</option>)}
                           </select>
+                        )}
+                        {sm.type === 'general' && (
+                          <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">일반 신용카드 결제 (결제창 호출)</div>
                         )}
                         {sm.type === 'virtual' && (
                           <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">가상계좌 (결제 시 발급)</div>
