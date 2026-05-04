@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Search, Filter, ScanLine, ChevronDown, Menu, ChevronRight, Package, Loader2, Home } from 'lucide-react';
+import { Search, Filter, ChevronDown, Menu, ChevronRight, Package, Loader2, Home } from 'lucide-react';
 import { mockEquipment } from '../lib/mockData';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
@@ -23,6 +23,12 @@ export function ProductListPage() {
   // 최상위 카테고리 객체만 추출 (parentId가 없거나 빈 값인 항목)
   const rootCategories = dbCategories
     .filter(cat => !cat.parentId || cat.parentId === '');
+
+  useEffect(() => {
+    if (rootCategories.length > 0 && selectedCategory === 'all') {
+      setSelectedCategory(rootCategories[0].name);
+    }
+  }, [rootCategories, selectedCategory]);
 
   // 선택된 카테고리의 중분류 추출 (DB 마스터 데이터 기준)
   const getSubcategories = (category: string) => {
@@ -86,7 +92,9 @@ export function ProductListPage() {
         {/* Sidebar - Desktop */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="bg-white border border-neutral-200 p-6 sticky top-24">
+            <h3 className="text-base font-bold text-neutral-900 mb-4">보유기기</h3>
             <nav className="space-y-1">
+              {/*
               <button
                 onClick={() => {
                   setSelectedCategory('all');
@@ -99,6 +107,7 @@ export function ProductListPage() {
               >
                 <span>전체 상품</span>
               </button>
+              */}
 
               {rootCategories.map(categoryObj => {
                 const category = categoryObj.name;
@@ -187,12 +196,6 @@ export function ProductListPage() {
               </div>
 
               <div className="flex gap-3">
-                {/* Barcode Scan Button */}
-                <button className="flex-1 sm:flex-none bg-neutral-100 hover:bg-neutral-200 px-6 py-3 font-medium flex items-center justify-center gap-2 transition-colors text-sm">
-                  <ScanLine className="w-5 h-5" />
-                  <span>스캔</span>
-                </button>
-
                 {/* Filter Toggle */}
                 <button
                   onClick={() => setShowFilters(!showFilters)}
@@ -218,7 +221,7 @@ export function ProductListPage() {
                       onChange={(e) => setSelectedCategory(e.target.value)}
                       className="w-full px-4 py-3 border border-neutral-300 focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 text-sm"
                     >
-                      <option value="all">전체</option>
+                      {/* <option value="all">전체</option> */}
                       {rootCategories.map(cat => (
                         <option key={cat.name} value={cat.name}>{cat.name.trim()}</option>
                       ))}

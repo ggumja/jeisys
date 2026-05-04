@@ -168,9 +168,9 @@ export function AdminLayout() {
       </header>
 
       <div className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8 lg:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar - Desktop */}
-          <div className="hidden lg:block lg:col-span-1">
+          <div className="hidden lg:block w-[280px] shrink-0">
             <div className="bg-white border border-neutral-200 p-6 sticky top-24">
               <nav className="space-y-1">
                 {/* Dashboard */}
@@ -589,7 +589,7 @@ export function AdminLayout() {
           </div>
 
           {/* Content */}
-          <div className="lg:col-span-3">
+          <div className="flex-1 min-w-0">
             <Outlet />
           </div>
         </div>
