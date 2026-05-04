@@ -334,7 +334,7 @@ export function HomePage() {
 
                         {/* 상품명 - 2줄 고정 */}
                         <h3 style={{
-                          fontSize: '14px',
+                          fontSize: '18px',
                           fontWeight: 500,
                           color: '#333',
                           lineHeight: '1.4',
@@ -439,7 +439,16 @@ export function HomePage() {
 
 
       {/* 3. News Section - Boxed Content */}
-      <section className="w-full bg-white py-20 md:py-[160px] border-t border-neutral-50 font-sans">
+      <section
+        className="py-20 md:py-[160px] border-t border-neutral-100 font-sans"
+        style={{
+          backgroundColor: '#F8F9FB',
+          marginLeft: 'calc(50% - 50vw)',
+          marginRight: 'calc(50% - 50vw)',
+          paddingLeft: 'calc(50vw - 50%)',
+          paddingRight: 'calc(50vw - 50%)',
+        }}
+      >
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="text-center mb-[56px] relative">
             <h1
@@ -500,7 +509,7 @@ export function HomePage() {
       </section>
 
       {/* 3-2. Media Section */}
-      <section className="w-full bg-[#F8F9FB] py-20 md:py-[160px] border-t border-neutral-100 font-sans">
+      <section className="w-full py-20 md:py-[160px] border-t border-neutral-100 font-sans" style={{ backgroundColor: '#ffffff' }}>
         <div className="max-w-[1440px] mx-auto px-4">
           <div className="text-center mb-[56px] relative">
             <h1
