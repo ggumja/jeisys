@@ -257,6 +257,7 @@ export function OrderManagementPage() {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
         
         // 1. 실제 헤더가 있는 행(Row) 찾기 (최대 20번째 줄까지 탐색)
