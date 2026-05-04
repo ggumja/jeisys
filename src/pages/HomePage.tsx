@@ -402,8 +402,8 @@ export function HomePage() {
               newsPosts.map((post) => (
                 <Link key={post.id} to={`/communication/news/${post.id}`} className="group flex flex-col">
                   <div className="aspect-video bg-neutral-100 overflow-hidden mb-6 relative">
-                    {post.imageUrl ? (
-                      <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                    {post.thumbnailUrl ? (
+                      <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-neutral-300">
                         <Layout className="w-12 h-12 stroke-[1]" />
@@ -448,7 +448,7 @@ export function HomePage() {
             >
               Application
             </h1>
-            <h2 className="text-[24px] font-semibold mb-4" style={{ color: '#21358D' }}>
+            <h2 className="text-[24px] font-semibold mt-3 mb-4" style={{ color: '#21358D' }}>
               제이시스메디컬 장비 데모 신청
             </h2>
             <p className="text-[15px] text-neutral-400">
