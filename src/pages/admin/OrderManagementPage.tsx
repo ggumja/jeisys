@@ -138,7 +138,7 @@ export function OrderManagementPage() {
       case 'delivered':
         return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">배송완료</Badge>;
       case 'cancelled':
-        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">취소됨</Badge>;
+        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">취소완료</Badge>;
       case 'cancel_requested':
         return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-100 font-bold animate-pulse">취소요청</Badge>;
       case 'return_requested':
@@ -391,7 +391,7 @@ export function OrderManagementPage() {
           { id: 'partially_shipped', label: '부분발송', count: stats.partially_shipped },
           { id: 'shipped', label: '배송중', count: stats.shipped },
           { id: 'delivered', label: '배송완료', count: stats.delivered },
-          { id: 'cancelled', label: '취소됨', count: stats.cancelled },
+          { id: 'cancelled', label: '취소완료', count: stats.cancelled },
           { id: 'claims', label: '취소/반품/교환', count: stats.claims },
         ].map(tab => (
           <button

@@ -218,7 +218,7 @@ export function OrderHistoryPage() {
         return (
           <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
             <XCircle className="w-3 h-3 mr-1" />
-            취소됨
+            취소완료
           </Badge>
         );
     }

@@ -169,7 +169,7 @@ export function SubscriptionListPage() {
         return (
           <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
             <XCircle className="w-3 h-3 mr-1" />
-            취소됨
+            취소완료
           </Badge>
         );
     }
@@ -240,7 +240,7 @@ export function SubscriptionListPage() {
           </div>
         </div>
         <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">취소됨</div>
+          <div className="text-xs text-neutral-600 mb-1">취소완료</div>
           <div className="text-2xl font-medium text-red-600">
             {cancelledSubscriptions.length}
           </div>
@@ -276,7 +276,7 @@ export function SubscriptionListPage() {
               <option value="all">전체 상태</option>
               <option value="active">진행중</option>
               <option value="paused">일시정지</option>
-              <option value="cancelled">취소됨</option>
+              <option value="cancelled">취소완료</option>
             </select>
           </div>
         </div>
