@@ -255,6 +255,13 @@ export const adminService = {
             console.error('Error fetching order history:', historyError);
         }
 
+        // 5. 포인트 및 크레딧 사용 내역 조회
+        const { data: pointData } = await supabase.from('point_transactions').select('amount').eq('order_id', orderId).eq('type', 'use');
+        const pointsUsed = pointData?.reduce((sum, row) => sum + Math.abs(row.amount), 0) || orderData.points_used || 0;
+
+        const { data: creditData } = await supabase.from('credit_transactions').select('amount').eq('order_id', orderId).eq('type', 'use');
+        const creditsUsed = creditData?.reduce((sum, row) => sum + Math.abs(row.amount), 0) || 0;
+
         return {
             id: orderData.id,
             userId: orderData.user_id,
@@ -354,7 +361,9 @@ export const adminService = {
                 rejectedReason: orderData.claim_rejected_reason,
                 returnTrackingNumber: orderData.return_tracking_number,
                 exchangeTrackingNumber: orderData.exchange_tracking_number
-            } : undefined
+            } : undefined,
+            pointsUsed,
+            creditsUsed
         };
     },
     async registerLogenInvoice(order: any, boxCount: number = 1, overrideAddress?: {

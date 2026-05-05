@@ -122,6 +122,8 @@ interface Order {
     refundHolder?: string;
   };
   paymentMethod?: string;
+  pointsUsed?: number;
+  creditsUsed?: number;
 }
 
 
@@ -1635,21 +1637,28 @@ export function OrderDetailPage() {
                 <dt className="text-xs font-medium text-neutral-600 mb-1">결제 방법</dt>
                 <dd className="text-sm text-neutral-900">
                   {order.paymentInfo.method}
-                  <span className="ml-2 text-neutral-400 text-xs">
-                    ({(() => {
-                      const calculatedTotal = order.orderItems?.reduce((sum, item) => sum + (item.quantity * item.price), 0) || 0;
-                      const amountStr = calculatedTotal.toLocaleString();
-                      
-                      if (order.paymentMethod === 'credit') {
-                        return `총 결제 완료: ${amountStr}원`;
-                      } else {
-                        const label = order.status === 'pending' ? '입금 예정' : '입금 완료';
-                        return `${label}: ${amountStr}원`;
-                      }
-                    })()})
-                  </span>
                 </dd>
               </div>
+              <div>
+                <dt className="text-xs font-medium text-neutral-600 mb-1">
+                  {order.status === 'pending' && order.paymentMethod !== 'credit' ? '입금 예정 금액' : '최종 결제 금액'}
+                </dt>
+                <dd className="text-sm font-bold text-blue-700">
+                  {(order.totalAmount || 0).toLocaleString()}원
+                </dd>
+              </div>
+              {order.creditsUsed ? (
+                <div>
+                  <dt className="text-xs font-medium text-neutral-600 mb-1">장비 크레딧 결제</dt>
+                  <dd className="text-sm text-emerald-600 font-bold">- {order.creditsUsed.toLocaleString()}원</dd>
+                </div>
+              ) : null}
+              {order.pointsUsed ? (
+                <div>
+                  <dt className="text-xs font-medium text-neutral-600 mb-1">포인트 결제</dt>
+                  <dd className="text-sm text-amber-600 font-bold">- {order.pointsUsed.toLocaleString()} P</dd>
+                </div>
+              ) : null}
               {order.paymentInfo.bankName && (
                 <div>
                   <dt className="text-xs font-medium text-neutral-600 mb-1">입금 은행</dt>

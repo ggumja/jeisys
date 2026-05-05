@@ -3,6 +3,7 @@ import { CartItem, Order } from '../types';
 import { authService } from './authService';
 import { paymentService } from './paymentService';
 import { creditService } from './creditService';
+import { pointService } from './pointService';
 
 export interface OrderInput {
     userId: string;
@@ -21,6 +22,7 @@ export interface OrderInput {
         billingKey?: string;
     }[];
     depositorName?: string; // 무통장입금 실 입금자명
+    pointsUsed?: number;    // 사용한 포인트 금액
 }
 
 export const orderService = {
@@ -165,6 +167,7 @@ export const orderService = {
             vactNum: order.vact_num,
             vactName: order.vact_name,
             vactInputDeadline: order.vact_input_deadline,
+            pointsUsed: order.points_used || 0,
             items: order.order_items?.map((item: any) => ({
                 product: item.product ? {
                     id: item.product.id,
@@ -245,6 +248,7 @@ export const orderService = {
             vactNum: data.vact_num,
             vactName: data.vact_name,
             vactInputDeadline: data.vact_input_deadline,
+            pointsUsed: data.points_used || 0,
             items: data.order_items?.map((item: any) => ({
                 product: item.product ? {
                     id: item.product.id,
@@ -296,11 +300,21 @@ export const orderService = {
           // 환불 실패 시 콘솔 에러만 - 주문 취소 자체는 유지
           console.error('크레딧 환불 중 오류:', creditError);
         }
+
+        // 포인트 환불 처리
+        try {
+          const pointsRefunded = await pointService.refundOrderPoints(orderId);
+          if (pointsRefunded > 0) {
+            console.log(`포인트 환불 완료: ₩${pointsRefunded.toLocaleString()}`);
+          }
+        } catch (pointError) {
+          console.error('포인트 환불 중 오류:', pointError);
+        }
     },
 
     // Create a new order
     async createOrder(orderInput: OrderInput) {
-        const { userId, items, totalAmount, paymentMethod, deliveryAddress, billingKeyId, billingKey, subscriptionCycle } = orderInput;
+        const { userId, items, totalAmount, paymentMethod, deliveryAddress, billingKeyId, billingKey, subscriptionCycle, pointsUsed } = orderInput;
 
         if (!items || items.length === 0) {
             throw new Error('No items in order');
@@ -357,7 +371,8 @@ export const orderService = {
                 vact_bank_name: vactInfo?.bankName,
                 vact_num: vactInfo?.accountNum,
                 vact_name: paymentMethod === 'transfer' ? orderInput.depositorName : vactInfo?.accountName,
-                vact_input_deadline: vactInfo?.deadline
+                vact_input_deadline: vactInfo?.deadline,
+                points_used: pointsUsed || 0
             })
             .select()
             .single();
@@ -584,6 +599,20 @@ export const orderService = {
             .eq('user_id', userId);
 
         if (clearError) console.error('Failed to clear cart after order', clearError);
+
+        // 7. 포인트 사용 내역 기록
+        if (pointsUsed && pointsUsed > 0) {
+            try {
+                await pointService.usePoints({
+                    userId,
+                    amount: pointsUsed,
+                    orderId: order.id,
+                    description: `주문 결제 시 포인트 사용 (${order.order_number})`
+                });
+            } catch (pointError) {
+                console.error('포인트 차감 처리 실패:', pointError);
+            }
+        }
 
         // 히스토리 기록
         const methodLabel = paymentMethod === 'credit' ? '신용카드' : paymentMethod === 'virtual' ? '가상계좌' : paymentMethod;

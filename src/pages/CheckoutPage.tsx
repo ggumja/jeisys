@@ -17,6 +17,7 @@ import cardLogos from '../assets/card-logos.png';
 import { adminService } from '../services/adminService';
 import { SplitShipmentModal } from '../components/SplitShipmentModal';
 import { creditService, CreditSummary } from '../services/creditService';
+import { pointService } from '../services/pointService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,6 +78,10 @@ export function CheckoutPage() {
   const [equipmentCreditMap, setEquipmentCreditMap] = useState<Record<string, number>>({});
   const [itemCredits, setItemCredits] = useState<Record<string, number>>({});
   const [creditLoading, setCreditLoading] = useState(false);
+
+  // 포인트
+  const [availablePoints, setAvailablePoints] = useState<number>(0);
+  const [pointsUsed, setPointsUsed] = useState<number | ''>('');
 
   const splitShipOrder = useMemo(() => {
     if (!userProfile) return null;
@@ -203,6 +208,12 @@ export function CheckoutPage() {
             })
             .catch(console.error)
             .finally(() => setCreditLoading(false));
+        }
+
+        if (user) {
+          pointService.getPointSummary(user.id)
+            .then(summary => setAvailablePoints(summary.remaining))
+            .catch(console.error);
         }
       } else {
         navigate('/cart');
@@ -343,7 +354,7 @@ export function CheckoutPage() {
 
   // 상품별 크레딧 사용 합계
   const totalCreditUsed = Object.values(itemCredits).reduce((a, b) => a + b, 0);
-  const finalTotal = Math.max(0, calculateTotal() - totalCreditUsed);
+  const finalTotal = Math.max(0, calculateTotal() - totalCreditUsed - (Number(pointsUsed) || 0));
 
   const splitTotal = splitMethods.reduce((sum, sm) => sum + (Number(sm.amount) || 0), 0);
   const splitRemaining = Math.max(0, finalTotal - splitTotal);
@@ -427,6 +438,7 @@ export function CheckoutPage() {
         billingKeyId: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.id : undefined,
         billingKey: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.billingKey : undefined,
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined,
+        pointsUsed: Number(pointsUsed) || 0,
         splitPayments: (paymentMode === 'split' && !hasSubscriptionItems) ? splitMethods.map(sm => ({
             method: sm.type,
             amount: sm.amount,
@@ -658,6 +670,58 @@ export function CheckoutPage() {
             )}
           </div>
 
+          {/* 포인트 사용 블록 */}
+          {availablePoints >= 0 && (
+            <div className="bg-white border border-neutral-200 p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl tracking-tight text-neutral-900 flex items-center gap-2 font-bold">
+                  <Coins className="w-5 h-5 text-amber-500" />
+                  포인트 사용
+                </h2>
+                <span className="text-sm font-bold text-neutral-500">
+                  보유 포인트: <span className="text-amber-600">{availablePoints.toLocaleString()}</span> P
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max={Math.min(availablePoints, calculateTotal() - totalCreditUsed)}
+                    value={pointsUsed}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setPointsUsed('');
+                        return;
+                      }
+                      let num = parseInt(val, 10);
+                      if (isNaN(num)) return;
+                      const maxUsable = Math.min(availablePoints, calculateTotal() - totalCreditUsed);
+                      if (num > maxUsable) num = maxUsable;
+                      setPointsUsed(num);
+                    }}
+                    onBlur={() => {
+                      if (pointsUsed === '') setPointsUsed(0);
+                    }}
+                    placeholder="0"
+                    className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm bg-neutral-50 text-right pr-8 outline-none"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-neutral-500 font-bold">P</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const maxUsable = Math.min(availablePoints, calculateTotal() - totalCreditUsed);
+                    setPointsUsed(maxUsable);
+                  }}
+                  className="px-6 py-3 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-colors whitespace-nowrap"
+                >
+                  전액 사용
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Delivery Address - Hide if split bundles are being registered */}
           {pendingBundles.length === 0 && (
@@ -1184,6 +1248,15 @@ export function CheckoutPage() {
                     크레딧 차감
                   </span>
                   <span>- ₩{totalCreditUsed.toLocaleString()}</span>
+                </div>
+              )}
+              {Number(pointsUsed) > 0 && (
+                <div className="flex justify-between text-sm font-semibold" style={{ color: '#d97706' }}>
+                  <span className="flex items-center gap-1">
+                    <Coins className="w-3.5 h-3.5" />
+                    포인트 차감
+                  </span>
+                  <span>- ₩{Number(pointsUsed).toLocaleString()}</span>
                 </div>
               )}
               <div className="pt-6 border-t border-neutral-100">

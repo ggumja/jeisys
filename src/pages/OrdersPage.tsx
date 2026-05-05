@@ -738,11 +738,19 @@ export function OrdersPage() {
                                 </td>
                               </tr>
                             )}
-                            {(orderCreditMap[order.id] ?? 0) > 0 && (
+                            {(order.pointsUsed ?? 0) > 0 && (
+                              <tr className="bg-amber-50">
+                                <td colSpan={4} className="px-3 py-2 text-right text-xs font-bold text-amber-700">포인트 차감</td>
+                                <td className="px-3 py-2 text-right text-xs font-bold text-amber-700">
+                                  -{(order.pointsUsed!).toLocaleString()} P
+                                </td>
+                              </tr>
+                            )}
+                            {((orderCreditMap[order.id] ?? 0) > 0 || (order.pointsUsed ?? 0) > 0) && (
                               <tr className="bg-neutral-100 border-t border-neutral-200">
                                 <td colSpan={4} className="px-3 py-2 text-right text-sm font-bold text-neutral-900">실 결제 금액</td>
                                 <td className="px-3 py-2 text-right text-base font-black text-neutral-900">
-                                  ₩{Math.max(0, Math.round(paidTotal) - (orderCreditMap[order.id] ?? 0)).toLocaleString()}
+                                  ₩{Math.max(0, Math.round(paidTotal) - (orderCreditMap[order.id] ?? 0) - (order.pointsUsed ?? 0)).toLocaleString()}
                                 </td>
                               </tr>
                             )}
@@ -901,12 +909,18 @@ export function OrdersPage() {
                     credit: '신용카드',
                     bank: '계좌이체',
                     cash: '현금',
+                    transfer: '무통장 입금',
                   }[order.paymentMethod] ?? order.paymentMethod}
                 </div>
                 <div className="text-right">
                   {(orderCreditMap[order.id] ?? 0) > 0 && (
                     <p className="text-xs text-emerald-600 font-bold mb-0.5">
                       크레딧 차감 -₩{(orderCreditMap[order.id]).toLocaleString()}
+                    </p>
+                  )}
+                  {(order.pointsUsed ?? 0) > 0 && (
+                    <p className="text-xs text-amber-600 font-bold mb-0.5">
+                      포인트 차감 -{(order.pointsUsed!).toLocaleString()} P
                     </p>
                   )}
                   <p className="text-xs text-neutral-500 mb-0.5">총 결제 금액</p>
@@ -941,7 +955,7 @@ export function OrdersPage() {
                           total += it.quantity * unitPrice;
                         }
                       });
-                      return `₩${Math.max(0, Math.round(total) - (orderCreditMap[order.id] ?? 0)).toLocaleString()}`;
+                      return `₩${Math.max(0, Math.round(total) - (orderCreditMap[order.id] ?? 0) - (order.pointsUsed ?? 0)).toLocaleString()}`;
                     })()}
                   </p>
                 </div>

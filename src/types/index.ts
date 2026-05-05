@@ -195,6 +195,7 @@ export interface Order {
   vactNum?: string;
   vactName?: string;
   vactInputDeadline?: string;
+  pointsUsed?: number;
 }
 
 export interface Inquiry {

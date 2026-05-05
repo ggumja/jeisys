@@ -115,5 +115,71 @@ export const pointService = {
       });
 
     if (error) throw error;
+  },
+
+  // 5. 포인트 사용 (주문 결제용)
+  async usePoints({ userId, amount, orderId, description }: { userId: string; amount: number; orderId: string; description?: string }): Promise<void> {
+    if (amount <= 0) throw new Error('사용액은 0보다 커야 합니다.');
+
+    const summary = await this.getPointSummary(userId);
+    if (summary.remaining < amount) {
+      throw new Error(`잔여 포인트(${summary.remaining.toLocaleString()}원)를 초과하여 사용할 수 없습니다.`);
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const { error } = await supabase
+      .from('point_transactions')
+      .insert({
+        user_id: userId,
+        amount: -Math.abs(amount), // 사용은 음수로 저장
+        type: 'use',
+        order_id: orderId,
+        description: description || '상품 주문 시 포인트 사용',
+        created_by: session?.user?.id,
+      });
+
+    if (error) throw error;
+  },
+
+  // 6. 주문 취소 시 사용된 포인트 롤백 (환불)
+  async refundOrderPoints(orderId: string): Promise<number> {
+    // 해당 주문에서 사용된 포인트 총합 조회
+    const { data, error } = await supabase
+      .from('point_transactions')
+      .select('amount, user_id')
+      .eq('order_id', orderId)
+      .eq('type', 'use');
+
+    if (error) throw error;
+    if (!data || data.length === 0) return 0;
+
+    // 사용된 포인트의 합 계산 (음수로 저장되어 있으므로 절댓값 합산)
+    let totalUsed = 0;
+    let userId = data[0].user_id;
+
+    data.forEach(tx => {
+      totalUsed += Math.abs(tx.amount);
+    });
+
+    if (totalUsed > 0) {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // 환불 내역 인서트 (양수)
+      const { error: refundError } = await supabase
+        .from('point_transactions')
+        .insert({
+          user_id: userId,
+          amount: totalUsed,
+          type: 'refund',
+          order_id: orderId,
+          description: '주문 취소에 따른 포인트 자동 환불',
+          created_by: session?.user?.id,
+        });
+
+      if (refundError) throw refundError;
+    }
+
+    return totalUsed;
   }
 };
