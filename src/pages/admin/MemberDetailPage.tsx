@@ -564,7 +564,7 @@ export function MemberDetailPage() {
       )}
 
       {/* ── 통계 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-neutral-200 px-5 py-4">
           <p className="text-xs text-neutral-400 mb-1">누적 구매금액</p>
           <p className="text-xl font-bold text-neutral-900">{fmt(memberStats.totalAmount)}</p>
@@ -572,6 +572,10 @@ export function MemberDetailPage() {
         <div className="bg-white border border-neutral-200 px-5 py-4">
           <p className="text-xs text-neutral-400 mb-1">주문수</p>
           <p className="text-xl font-bold text-neutral-900">{memberStats.totalOrders}건</p>
+        </div>
+        <div className="bg-white border border-neutral-200 px-5 py-4">
+          <p className="text-xs text-neutral-400 mb-1">크레딧 합계</p>
+          <p className="text-xl font-bold text-neutral-900">{fmt(totalRemaining)}</p>
         </div>
         <div className="bg-white border border-neutral-200 px-5 py-4">
           <p className="text-xs text-neutral-400 mb-1">포인트 잔액</p>
@@ -587,10 +591,10 @@ export function MemberDetailPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-5 py-3 text-base font-bold border-b-2 transition-colors ${
                 activeTab === tab
                   ? 'border-neutral-900 text-neutral-900'
-                  : 'border-transparent text-neutral-400 hover:text-neutral-600'
+                  : 'border-transparent text-neutral-400 hover:text-neutral-600 font-medium'
               }`}
             >
               {labels[tab]}
@@ -605,7 +609,7 @@ export function MemberDetailPage() {
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
           <User className="w-4 h-4 text-neutral-500" />
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">기본 정보</h3>
+          <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">기본 정보</h3>
         </div>
         <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
           <div>
@@ -673,7 +677,7 @@ export function MemberDetailPage() {
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
           <Building2 className="w-4 h-4 text-neutral-500" />
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">사업자 및 병원 정보</h3>
+          <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">사업자 및 병원 정보</h3>
         </div>
         <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
           <div>
@@ -773,7 +777,7 @@ export function MemberDetailPage() {
         <section className="bg-white border border-neutral-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-neutral-500" />
-            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">기본 배송지</h3>
+            <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">기본 배송지</h3>
           </div>
           <div className="p-6 space-y-2">
             {defaultAddress ? (
@@ -791,7 +795,7 @@ export function MemberDetailPage() {
         <section className="bg-white border border-neutral-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
             <History className="w-4 h-4 text-neutral-500" />
-            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">관리 이력</h3>
+            <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">관리 이력</h3>
           </div>
           <div className="p-6 space-y-3">
             <div>
@@ -821,7 +825,7 @@ export function MemberDetailPage() {
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
           <Settings className="w-4 h-4 text-neutral-500" />
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">보유 장비</h3>
+          <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">보유 장비</h3>
         </div>
         <div className="p-6">
           <EquipmentList userId={member.id} />
@@ -835,7 +839,7 @@ export function MemberDetailPage() {
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Tag className="w-4 h-4 text-neutral-500" />
-            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">회원 분류</h3>
+            <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">회원 분류</h3>
           </div>
           {isEditing ? (
             <div className="flex items-center gap-2">
@@ -904,7 +908,7 @@ export function MemberDetailPage() {
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
           <Monitor className="w-4 h-4 text-neutral-500" />
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">장비 대모신청 내역</h3>
+          <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">장비 대모신청 내역</h3>
         </div>
         <div className="p-6">
           {demoRequests.length === 0 ? (
@@ -929,7 +933,7 @@ export function MemberDetailPage() {
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center gap-2">
           <Package className="w-4 h-4 text-neutral-500" />
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">1:1 문의 내역</h3>
+          <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">1:1 문의 내역</h3>
         </div>
         <div className="p-6">
           {inquiries.length === 0 ? (
@@ -968,7 +972,7 @@ export function MemberDetailPage() {
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingCart className="w-4 h-4 text-neutral-500" />
-            <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">주문 내역</h3>
+            <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">주문 내역</h3>
           </div>
           <span className="text-xs text-neutral-400">최근 50건</span>
         </div>
@@ -1315,7 +1319,10 @@ export function MemberDetailPage() {
       {/* 크레딧 탭 본문 */}
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">크레딧</h3>
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-neutral-500" />
+            <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">크레딧</h3>
+          </div>
           <button onClick={() => setShowIssueModal(true)}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white rounded transition-colors"
             style={{ backgroundColor: '#F59E0B' }}
@@ -1477,7 +1484,7 @@ export function MemberDetailPage() {
       {showPointIssueModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPointIssueModal(false)} />
-          <div className="relative bg-white shadow-2xl rounded-sm" style={{ width: '100%', maxWidth: '400px', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white shadow-2xl border border-neutral-300 rounded-sm" style={{ width: '100%', maxWidth: '400px', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
               <div className="flex items-center gap-2">
                 <Coins className="w-4 h-4 text-emerald-500" />
@@ -1487,12 +1494,12 @@ export function MemberDetailPage() {
                 <X className="w-4 h-4 text-neutral-500" />
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="p-8 space-y-6">
               <p className="text-sm text-neutral-600">
                 <span className="font-bold text-neutral-900">{member?.name}</span>님에게 포인트를 지급합니다.
               </p>
               <div>
-                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">
                   포인트 금액 <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -1506,7 +1513,7 @@ export function MemberDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">지급 사유 <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">지급 사유 <span className="text-red-500">*</span></label>
                 <input
                   type="text" placeholder="예: 이벤트 당첨, 리뷰 작성 등"
                   value={pointIssueForm.memo}
@@ -1515,7 +1522,14 @@ export function MemberDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">유효기간 (선택)</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider">유효기간 (선택)</label>
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={() => { const d = new Date(); d.setMonth(d.getMonth() + 6); setPointIssueForm(f => ({ ...f, expiryDate: d.toISOString().split('T')[0] })); }} className="bg-neutral-900 hover:bg-neutral-800 text-white rounded transition-colors" style={{ fontSize: '11px', padding: '5px 10px', fontWeight: 500, lineHeight: 1 }}>6개월</button>
+                    <button type="button" onClick={() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); setPointIssueForm(f => ({ ...f, expiryDate: d.toISOString().split('T')[0] })); }} className="bg-neutral-900 hover:bg-neutral-800 text-white rounded transition-colors" style={{ fontSize: '11px', padding: '5px 10px', fontWeight: 500, lineHeight: 1 }}>1년</button>
+                    <button type="button" onClick={() => { const d = new Date(); d.setFullYear(d.getFullYear() + 2); setPointIssueForm(f => ({ ...f, expiryDate: d.toISOString().split('T')[0] })); }} className="bg-neutral-900 hover:bg-neutral-800 text-white rounded transition-colors" style={{ fontSize: '11px', padding: '5px 10px', fontWeight: 500, lineHeight: 1 }}>2년</button>
+                  </div>
+                </div>
                 <input
                   type="date"
                   value={pointIssueForm.expiryDate}
@@ -1590,7 +1604,10 @@ export function MemberDetailPage() {
       {activeTab === 'points' && <>
       <section className="bg-white border border-neutral-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">포인트 관리</h3>
+          <div className="flex items-center gap-2">
+            <Coins className="w-4 h-4 text-neutral-500" />
+            <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">포인트 관리</h3>
+          </div>
           <button onClick={() => setShowPointIssueModal(true)}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-800 rounded transition-colors">
             <PlusCircle className="w-4 h-4" />
