@@ -15,6 +15,7 @@ import { adminService } from '../../services/adminService';
 import { shopSettingsService } from '../../services/shopSettingsService';
 import { proxyOrderService } from '../../services/cartService';
 import { creditService, UserCredit, CreditSummary, CreditTransaction } from '../../services/creditService';
+import { pointService, PointTransaction, PointSummary } from '../../services/pointService';
 import { equipmentService, EquipmentModel } from '../../services/equipmentService';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabaseClient';
@@ -100,6 +101,17 @@ export function MemberDetailPage() {
   const [revokeForm, setRevokeForm] = useState({ amount: '', reason: '' });
   const [revoking, setRevoking] = useState(false);
 
+  // 포인트
+  const [pointSummary, setPointSummary] = useState<PointSummary | null>(null);
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([]);
+  const [pointLoading, setPointLoading] = useState(false);
+  const [showPointIssueModal, setShowPointIssueModal] = useState(false);
+  const [pointIssueForm, setPointIssueForm] = useState({ amount: '', memo: '' });
+  const [issuingPoint, setIssuingPoint] = useState(false);
+  const [showPointRevokeModal, setShowPointRevokeModal] = useState(false);
+  const [pointRevokeForm, setPointRevokeForm] = useState({ amount: '', reason: '' });
+  const [revokingPoint, setRevokingPoint] = useState(false);
+
   const member = (members as any[]).find(m => m.id === id);
 
   // 멤버 데이터 로드 시 로컬 상태 초기화
@@ -128,6 +140,11 @@ export function MemberDetailPage() {
         const total = data.reduce((s: number, o: any) => s + (o.total_amount || 0), 0);
         setMemberStats(prev => ({ ...prev, totalOrders: data.length, totalAmount: total }));
       });
+
+    // 포인트 요약
+    pointService.getPointSummary(uid).then(summary => {
+      setMemberStats(prev => ({ ...prev, points: summary.remaining }));
+    }).catch(console.error);
 
     // 기본 배송지
     supabase.from('shipping_addresses').select('*').eq('user_id', uid).eq('is_default', true).limit(1)
@@ -164,6 +181,78 @@ export function MemberDetailPage() {
       .order('created_at', { ascending: false })
       .then(({ data }) => setInquiries(data || []));
   }, [member?.id]);
+
+  // 포인트 탭 진입 시 로딩
+  useEffect(() => {
+    if (activeTab !== 'points' || !member?.id) return;
+    setPointLoading(true);
+    Promise.all([
+      pointService.getPointSummary(member.id),
+      pointService.getPointTransactions(member.id),
+    ]).then(([summary, txs]) => {
+      setPointSummary(summary);
+      setPointTransactions(txs);
+    }).catch(console.error)
+      .finally(() => setPointLoading(false));
+  }, [activeTab, member?.id]);
+
+  const handleIssuePoint = async () => {
+    if (!member?.id || !pointIssueForm.amount) {
+      toast.error('금액을 입력해주세요.');
+      return;
+    }
+    setIssuingPoint(true);
+    try {
+      await pointService.issuePoints({
+        userId: member.id,
+        amount: Number(pointIssueForm.amount),
+        description: pointIssueForm.memo || undefined,
+      });
+      toast.success('포인트가 지급되었습니다.');
+      setShowPointIssueModal(false);
+      setPointIssueForm({ amount: '', memo: '' });
+      const [summary, txs] = await Promise.all([
+        pointService.getPointSummary(member.id),
+        pointService.getPointTransactions(member.id),
+      ]);
+      setPointSummary(summary);
+      setPointTransactions(txs);
+      setMemberStats(prev => ({ ...prev, points: summary.remaining }));
+    } catch (e: any) {
+      toast.error(e.message || '지급에 실패했습니다.');
+    } finally {
+      setIssuingPoint(false);
+    }
+  };
+
+  const handleRevokePoint = async () => {
+    if (!member?.id || !pointRevokeForm.amount || !pointRevokeForm.reason.trim()) {
+      toast.error('금액과 사유를 모두 입력해주세요.');
+      return;
+    }
+    setRevokingPoint(true);
+    try {
+      await pointService.revokePoints({
+        userId: member.id,
+        amount: Number(pointRevokeForm.amount),
+        description: pointRevokeForm.reason,
+      });
+      toast.success('포인트가 회수되었습니다.');
+      setShowPointRevokeModal(false);
+      setPointRevokeForm({ amount: '', reason: '' });
+      const [summary, txs] = await Promise.all([
+        pointService.getPointSummary(member.id),
+        pointService.getPointTransactions(member.id),
+      ]);
+      setPointSummary(summary);
+      setPointTransactions(txs);
+      setMemberStats(prev => ({ ...prev, points: summary.remaining }));
+    } catch (e: any) {
+      toast.error(e.message || '회수에 실패했습니다.');
+    } finally {
+      setRevokingPoint(false);
+    }
+  };
 
   // 크레딧 탭 진입 시 로딩
   useEffect(() => {
@@ -1379,17 +1468,206 @@ export function MemberDetailPage() {
       </> /* end tab: 크레딧 */}
 
 
+      {/* 포인트 발급 모달 */}
+      {showPointIssueModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPointIssueModal(false)} />
+          <div className="relative bg-white shadow-2xl rounded-sm" style={{ width: '100%', maxWidth: '400px', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+              <div className="flex items-center gap-2">
+                <Coins className="w-4 h-4 text-emerald-500" />
+                <h3 className="text-base font-black text-neutral-900">포인트 지급</h3>
+              </div>
+              <button onClick={() => setShowPointIssueModal(false)} className="p-1.5 hover:bg-neutral-100 rounded transition-colors">
+                <X className="w-4 h-4 text-neutral-500" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-neutral-600">
+                <span className="font-bold text-neutral-900">{member?.name}</span>님에게 포인트를 지급합니다.
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">
+                  포인트 금액 <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number" min="0" step="1000" placeholder="0"
+                    value={pointIssueForm.amount}
+                    onChange={e => setPointIssueForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full border border-neutral-300 rounded px-3 py-2 text-sm pr-8 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">지급 사유 (선택)</label>
+                <input
+                  type="text" placeholder="예: 이벤트 당첨, 리뷰 작성 등"
+                  value={pointIssueForm.memo}
+                  onChange={e => setPointIssueForm(f => ({ ...f, memo: e.target.value }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
+              <button onClick={() => setShowPointIssueModal(false)}
+                className="px-5 py-2.5 text-sm font-bold border border-neutral-200 text-neutral-700 hover:bg-neutral-50 rounded">
+                취소
+              </button>
+              <button onClick={handleIssuePoint} disabled={issuingPoint}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded disabled:opacity-60 bg-emerald-500 hover:bg-emerald-600 transition-colors">
+                {issuingPoint ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
+                지급하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 포인트 회수 모달 */}
+      {showPointRevokeModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPointRevokeModal(false)} />
+          <div className="relative bg-white shadow-2xl rounded-sm" style={{ width: '100%', maxWidth: '400px', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+              <h3 className="text-base font-black text-neutral-900">포인트 회수</h3>
+              <button onClick={() => setShowPointRevokeModal(false)} className="p-1.5 hover:bg-neutral-100 rounded transition-colors">
+                <X className="w-4 h-4 text-neutral-500" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="bg-neutral-50 rounded px-4 py-3 text-sm text-neutral-600 mb-2">
+                현재 잔여 포인트: <span className="font-bold text-neutral-900">{(pointSummary?.remaining ?? 0).toLocaleString()}원</span>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">회수할 금액</label>
+                <div className="relative">
+                  <input
+                    type="number" min="0" step="1000"
+                    value={pointRevokeForm.amount}
+                    onChange={e => setPointRevokeForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full border border-neutral-300 rounded px-3 py-2 text-sm pr-8 focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">회수 사유 <span className="text-red-500">*</span></label>
+                <input
+                  type="text" placeholder="예: 오지급 회수, 관리자 직권 등"
+                  value={pointRevokeForm.reason}
+                  onChange={e => setPointRevokeForm(f => ({ ...f, reason: e.target.value }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-neutral-100 flex justify-end gap-2">
+              <button onClick={() => setShowPointRevokeModal(false)} className="px-5 py-2.5 text-sm font-bold border border-neutral-200 hover:bg-neutral-50 rounded transition-colors">취소</button>
+              <button onClick={handleRevokePoint} disabled={revokingPoint} className="px-5 py-2.5 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-60 flex items-center gap-2 transition-colors">
+                {revokingPoint ? <Loader2 className="w-4 h-4 animate-spin" /> : null}회수 확정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 탭: 포인트 */}
       {activeTab === 'points' && <>
       <section className="bg-white border border-neutral-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-neutral-100">
-          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">포인트</h3>
+        <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">포인트 관리</h3>
+          <button onClick={() => setShowPointIssueModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white rounded transition-colors bg-emerald-500 hover:bg-emerald-600">
+            <PlusCircle className="w-4 h-4" />
+            포인트 지급
+          </button>
         </div>
-        <div className="p-6">
-          <p className="text-sm text-neutral-400 text-center py-8">포인트 정보를 준비 중입니다.</p>
+        <div className="p-6 space-y-6">
+          {/* 포인트 요약 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-neutral-200 rounded p-4 bg-emerald-50">
+              <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">잔여 포인트</div>
+              <div className="text-2xl font-black text-emerald-900">
+                {(pointSummary?.remaining ?? 0).toLocaleString()}
+                <span className="text-sm font-normal text-emerald-700 ml-1">원</span>
+              </div>
+            </div>
+            <div className="border border-neutral-200 rounded p-4 bg-neutral-50">
+              <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">누적 지급</div>
+              <div className="text-xl font-bold text-neutral-900">
+                {(pointSummary?.totalIssued ?? 0).toLocaleString()}원
+              </div>
+            </div>
+            <div className="border border-neutral-200 rounded p-4 bg-neutral-50">
+              <div className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1">누적 사용/회수</div>
+              <div className="text-xl font-bold text-neutral-900">
+                {((pointSummary?.totalUsed ?? 0) + (pointSummary?.totalRevoked ?? 0)).toLocaleString()}원
+              </div>
+            </div>
+          </div>
+
+          {/* 내역 목록 */}
+          {pointLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-neutral-400" /></div>
+          ) : pointTransactions.length === 0 ? (
+            <p className="text-sm text-neutral-400 text-center py-8 border border-dashed border-neutral-200 rounded">포인트 내역이 없습니다.</p>
+          ) : (
+            <div className="border border-neutral-200 rounded overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-neutral-50 border-b border-neutral-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">일시</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">유형</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-neutral-500 uppercase">증감액</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">사유/메모</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {pointTransactions.map(tx => (
+                    <tr key={tx.id} className="hover:bg-neutral-50 transition-colors">
+                      <td className="px-4 py-3 text-neutral-600">
+                        {new Date(tx.createdAt).toLocaleDateString('ko-KR')} {new Date(tx.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${
+                          tx.type === 'issue' ? 'bg-green-100 text-green-700' :
+                          tx.type === 'use' ? 'bg-blue-100 text-blue-700' :
+                          tx.type === 'revoke' ? 'bg-neutral-100 text-neutral-600' :
+                          tx.type === 'expire' ? 'bg-red-100 text-red-700' :
+                          'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {tx.type === 'issue' ? '지급' : tx.type === 'use' ? '사용' : tx.type === 'revoke' ? '회수' : tx.type === 'expire' ? '만료' : '환불'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold">
+                        <span className={tx.amount > 0 ? 'text-emerald-600' : 'text-neutral-600'}>
+                          {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}원
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">{tx.description || '-'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {tx.type === 'issue' && tx.amount > 0 && (pointSummary?.remaining || 0) > 0 ? (
+                          <button
+                            onClick={() => { setPointRevokeForm({ amount: String(Math.min(tx.amount, pointSummary?.remaining || 0)), reason: '' }); setShowPointRevokeModal(true); }}
+                            className="text-xs px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold rounded transition-colors"
+                          >
+                            회수
+                          </button>
+                        ) : (
+                          <span className="text-xs text-neutral-300">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
-      </> /* end tab: 포인트 */}
+      </> /* end tab: 포인트 */
     </div>
   );
 }
