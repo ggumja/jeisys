@@ -611,9 +611,9 @@ export function MemberDetailPage() {
           <User className="w-4 h-4 text-neutral-500" />
           <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">기본 정보</h3>
         </div>
-        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
+        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8" style={{ rowGap: '24px' }}>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">이름</span>
+            <span className="text-xs text-neutral-400 block">이름</span>
             {isEditing ? (
               <Input 
                 value={editForm?.name || ''} 
@@ -625,11 +625,11 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">이메일</span>
+            <span className="text-xs text-neutral-400 block">이메일</span>
             <p className="text-sm text-neutral-900">{member.email}</p>
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">연락처 (일반)</span>
+            <span className="text-xs text-neutral-400 block">연락처 (일반)</span>
             {isEditing ? (
               <Input 
                 value={editForm?.phone || ''} 
@@ -641,7 +641,7 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">휴대폰</span>
+            <span className="text-xs text-neutral-400 block">휴대폰</span>
             {isEditing ? (
               <Input 
                 value={editForm?.mobile || ''} 
@@ -653,21 +653,21 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">가입일</span>
+            <span className="text-xs text-neutral-400 block">가입일</span>
             <p className="text-sm text-neutral-900">{member.joinDate}</p>
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">승인일</span>
+            <span className="text-xs text-neutral-400 block">승인일</span>
             <p className="text-sm text-neutral-900">{member.approvedAt ? new Date(member.approvedAt).toLocaleDateString('ko-KR') : '-'}</p>
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">회원유형</span>
+            <span className="text-xs text-neutral-400 block">회원유형</span>
             <p className="text-sm text-neutral-900">
               {selectedTypes.length > 0 ? selectedTypes.join(', ') : '-'}
             </p>
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">누적주문</span>
+            <span className="text-xs text-neutral-400 block">누적주문</span>
             <p className="text-sm text-neutral-900">{member.totalOrders || 0}건</p>
           </div>
         </div>
@@ -679,9 +679,9 @@ export function MemberDetailPage() {
           <Building2 className="w-4 h-4 text-neutral-500" />
           <h3 className="text-base font-bold text-neutral-800 uppercase tracking-wider">사업자 및 병원 정보</h3>
         </div>
-        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-5">
+        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-x-8" style={{ rowGap: '24px' }}>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">병원/대리점명</span>
+            <span className="text-xs text-neutral-400 block">병원/대리점명</span>
             {isEditing ? (
               <Input 
                 value={editForm?.hospitalName || ''} 
@@ -693,7 +693,7 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">사업자번호</span>
+            <span className="text-xs text-neutral-400 block">사업자번호</span>
             {isEditing ? (
               <Input 
                 value={editForm?.businessNumber || ''} 
@@ -705,7 +705,7 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">지역</span>
+            <span className="text-xs text-neutral-400 block">지역</span>
             {isEditing ? (
               <Input 
                 value={editForm?.region || ''} 
@@ -717,7 +717,7 @@ export function MemberDetailPage() {
             )}
           </div>
           <div className="col-span-2 md:col-span-3">
-            <span className="text-xs text-neutral-400 block mb-1">주소</span>
+            <span className="text-xs text-neutral-400 block">주소</span>
             {isEditing ? (
               <div className="flex gap-2">
                 <Input 
@@ -746,7 +746,7 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">병원 이메일</span>
+            <span className="text-xs text-neutral-400 block">병원 이메일</span>
             {isEditing ? (
               <Input 
                 value={editForm?.hospitalEmail || ''} 
@@ -758,7 +758,7 @@ export function MemberDetailPage() {
             )}
           </div>
           <div>
-            <span className="text-xs text-neutral-400 block mb-1">세금계산서 이메일</span>
+            <span className="text-xs text-neutral-400 block">세금계산서 이메일</span>
             {isEditing ? (
               <Input 
                 value={editForm?.taxEmail || ''} 
