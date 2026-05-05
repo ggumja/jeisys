@@ -6,6 +6,7 @@ export interface PointTransaction {
   amount: number;
   type: 'issue' | 'use' | 'revoke' | 'expire' | 'refund';
   description?: string;
+  expiryDate?: string;
   createdAt: string;
   createdBy?: string;
 }
@@ -64,13 +65,14 @@ export const pointService = {
       amount: row.amount,
       type: row.type as PointTransaction['type'],
       description: row.description,
+      expiryDate: row.expiry_date,
       createdAt: row.created_at,
       createdBy: row.created_by,
     }));
   },
 
   // 3. 포인트 지급
-  async issuePoints({ userId, amount, description }: { userId: string; amount: number; description?: string }): Promise<void> {
+  async issuePoints({ userId, amount, description, expiryDate }: { userId: string; amount: number; description?: string; expiryDate?: string }): Promise<void> {
     if (amount <= 0) throw new Error('지급액은 0보다 커야 합니다.');
     
     // 현재 로그인된 관리자 정보를 가져옵니다.
@@ -83,6 +85,7 @@ export const pointService = {
         amount,
         type: 'issue',
         description,
+        expiry_date: expiryDate || null,
         created_by: session?.user?.id,
       });
 

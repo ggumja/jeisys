@@ -106,7 +106,7 @@ export function MemberDetailPage() {
   const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([]);
   const [pointLoading, setPointLoading] = useState(false);
   const [showPointIssueModal, setShowPointIssueModal] = useState(false);
-  const [pointIssueForm, setPointIssueForm] = useState({ amount: '', memo: '' });
+  const [pointIssueForm, setPointIssueForm] = useState({ amount: '', memo: '', expiryDate: '' });
   const [issuingPoint, setIssuingPoint] = useState(false);
   const [showPointRevokeModal, setShowPointRevokeModal] = useState(false);
   const [pointRevokeForm, setPointRevokeForm] = useState({ amount: '', reason: '' });
@@ -201,16 +201,21 @@ export function MemberDetailPage() {
       toast.error('금액을 입력해주세요.');
       return;
     }
+    if (!pointIssueForm.memo.trim()) {
+      toast.error('지급 사유를 입력해주세요.');
+      return;
+    }
     setIssuingPoint(true);
     try {
       await pointService.issuePoints({
         userId: member.id,
         amount: Number(pointIssueForm.amount),
         description: pointIssueForm.memo || undefined,
+        expiryDate: pointIssueForm.expiryDate ? new Date(pointIssueForm.expiryDate).toISOString() : undefined,
       });
       toast.success('포인트가 지급되었습니다.');
       setShowPointIssueModal(false);
-      setPointIssueForm({ amount: '', memo: '' });
+      setPointIssueForm({ amount: '', memo: '', expiryDate: '' });
       const [summary, txs] = await Promise.all([
         pointService.getPointSummary(member.id),
         pointService.getPointTransactions(member.id),
@@ -1501,11 +1506,20 @@ export function MemberDetailPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">지급 사유 (선택)</label>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">지급 사유 <span className="text-red-500">*</span></label>
                 <input
                   type="text" placeholder="예: 이벤트 당첨, 리뷰 작성 등"
                   value={pointIssueForm.memo}
                   onChange={e => setPointIssueForm(f => ({ ...f, memo: e.target.value }))}
+                  className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">유효기간 (선택)</label>
+                <input
+                  type="date"
+                  value={pointIssueForm.expiryDate}
+                  onChange={e => setPointIssueForm(f => ({ ...f, expiryDate: e.target.value }))}
                   className="w-full border border-neutral-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 />
               </div>
@@ -1516,7 +1530,7 @@ export function MemberDetailPage() {
                 취소
               </button>
               <button onClick={handleIssuePoint} disabled={issuingPoint}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded disabled:opacity-60 bg-emerald-500 hover:bg-emerald-600 transition-colors">
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded disabled:opacity-60 bg-neutral-900 hover:bg-neutral-800 transition-colors">
                 {issuingPoint ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
                 지급하기
               </button>
@@ -1578,7 +1592,7 @@ export function MemberDetailPage() {
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
           <h3 className="text-sm font-bold text-neutral-700 uppercase tracking-wider">포인트 관리</h3>
           <button onClick={() => setShowPointIssueModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white rounded transition-colors bg-emerald-500 hover:bg-emerald-600">
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-neutral-900 hover:bg-neutral-800 rounded transition-colors">
             <PlusCircle className="w-4 h-4" />
             포인트 지급
           </button>
@@ -1620,6 +1634,7 @@ export function MemberDetailPage() {
                     <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">일시</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">유형</th>
                     <th className="px-4 py-3 text-right text-xs font-bold text-neutral-500 uppercase">증감액</th>
+                    <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">유효기간</th>
                     <th className="px-4 py-3 text-left text-xs font-bold text-neutral-500 uppercase">사유/메모</th>
                     <th className="px-4 py-3 text-center text-xs font-bold text-neutral-500 uppercase">관리</th>
                   </tr>
@@ -1646,6 +1661,9 @@ export function MemberDetailPage() {
                           {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}원
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-center text-neutral-600 text-xs">
+                        {tx.expiryDate ? new Date(tx.expiryDate).toLocaleDateString('ko-KR') : '-'}
+                      </td>
                       <td className="px-4 py-3 text-neutral-600">{tx.description || '-'}</td>
                       <td className="px-4 py-3 text-center">
                         {tx.type === 'issue' && tx.amount > 0 && (pointSummary?.remaining || 0) > 0 ? (
@@ -1667,7 +1685,7 @@ export function MemberDetailPage() {
           )}
         </div>
       </section>
-      </> /* end tab: 포인트 */
+      </> /* end tab: 포인트 */}
     </div>
   );
 }

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.point_transactions (
     amount INTEGER NOT NULL, -- 지급 시 양수, 사용/회수 시 음수
     type VARCHAR NOT NULL, -- 'issue' (지급), 'use' (사용), 'revoke' (회수), 'expire' (만료), 'refund' (환불)
     description VARCHAR,
+    expiry_date TIMESTAMPTZ, -- 지급 시 만료일자
     created_at TIMESTAMPTZ DEFAULT NOW(),
     created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
