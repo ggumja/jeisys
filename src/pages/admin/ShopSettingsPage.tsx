@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight, Tag, Plus, Trash2, Edit2, ArrowLeft } from 'lucide-react';
+import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight, Tag, Plus, Trash2, Edit2, ArrowLeft, Wallet } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
 import { useModal } from '../../context/ModalContext';
 import { shopSettingsService } from '../../services/shopSettingsService';
 
-type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'member_type' | 'notification';
+type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'member_type' | 'notification' | 'payment';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'delivery', label: '배송 정책', icon: Truck },
@@ -16,6 +16,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'grade', label: '회원 등급', icon: Award },
   { id: 'member_type', label: '회원 분류', icon: Tag },
   { id: 'notification', label: '알림 설정', icon: Bell },
+  { id: 'payment', label: '결제/PG 연동', icon: Wallet },
 ];
 
 interface FieldDef {
@@ -73,6 +74,14 @@ const TAB_FIELDS: Record<TabId, FieldDef[]> = {
     { key: 'grade_gold_threshold', label: 'Gold 기준 연간 구매액', type: 'number', suffix: '원' },
     { key: 'grade_silver_label', label: 'Silver 등급 표시명', type: 'text' },
     { key: 'grade_silver_threshold', label: 'Silver 기준 연간 구매액', type: 'number', suffix: '원' },
+  ],
+  payment: [
+    { key: 'pg_kicc_enabled', label: 'KICC 결제 사용 여부', type: 'boolean' },
+    { key: 'pg_kicc_site_code', label: '운영 사이트 코드 (Site Code)', type: 'text' },
+    { key: 'pg_kicc_site_key', label: '운영 사이트 키 (Site Key)', type: 'text' },
+    { key: 'pg_kicc_test_site_code', label: '테스트 사이트 코드', type: 'text' },
+    { key: 'pg_kicc_test_site_key', label: '테스트 사이트 키', type: 'text' },
+    { key: 'pg_kicc_test_mode', label: '테스트 모드', type: 'boolean' },
   ],
   // notification, member_type tab은 별도 렌더링
   member_type: [],
