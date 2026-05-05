@@ -115,6 +115,7 @@ export function OrderManagementPage() {
     all: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
     paid: orders.filter(o => o.status === 'paid').length,
+    processing: orders.filter(o => o.status === 'processing').length,
     partially_shipped: orders.filter(o => o.status === 'partially_shipped').length,
     shipped: orders.filter(o => o.status === 'shipped').length,
     delivered: orders.filter(o => o.status === 'delivered').length,
@@ -127,7 +128,9 @@ export function OrderManagementPage() {
       case 'pending':
         return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">입금대기</Badge>;
       case 'paid':
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">결제완료/발송대기</Badge>;
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">결제완료</Badge>;
+      case 'processing':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">상품준비중</Badge>;
       case 'partially_shipped':
         return <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">결제완료/부분발송</Badge>;
       case 'shipped':
@@ -192,7 +195,7 @@ export function OrderManagementPage() {
   };
 
   const handleBulkLogenInvoice = async () => {
-    if (selectedStatus !== 'paid' && selectedStatus !== 'partially_shipped') {
+    if (selectedStatus !== 'paid' && selectedStatus !== 'processing' && selectedStatus !== 'partially_shipped') {
       toast.error('발송대상 관련된 탭에서만 일괄 처리가 가능합니다.');
       return;
     }
@@ -235,7 +238,7 @@ export function OrderManagementPage() {
       if (!shippingDialog.ordersToProcess) return;
 
       const promises = shippingDialog.ordersToProcess
-        .filter((o: Order) => o.status === 'paid')
+        .filter((o: Order) => ['paid', 'processing'].includes(o.status))
         .map((o: Order) => adminService.updateOrderStatus(o.id, 'shipped', o.trackingNumber));
       await Promise.all(promises);
       setShippingDialog(prev => ({ ...prev, type: 'bulk-success' }));
@@ -383,7 +386,8 @@ export function OrderManagementPage() {
         {[
           { id: 'all', label: '전체', count: stats.all },
           { id: 'pending', label: '입금대기', count: stats.pending },
-          { id: 'paid', label: '발송대기', count: stats.paid },
+          { id: 'paid', label: '결제완료', count: stats.paid },
+          { id: 'processing', label: '상품준비중', count: stats.processing },
           { id: 'partially_shipped', label: '부분발송', count: stats.partially_shipped },
           { id: 'shipped', label: '배송중', count: stats.shipped },
           { id: 'delivered', label: '배송완료', count: stats.delivered },
