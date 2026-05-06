@@ -353,14 +353,17 @@ export const adminService = {
                 adminId: h.admin_id,
                 createdAt: h.created_at
             })) || [],
-            claimInfo: orderData.claim_type ? {
-                type: orderData.claim_type,
-                reason: orderData.claim_reason,
-                requestedAt: orderData.claim_requested_at,
-                processedAt: orderData.claim_processed_at,
-                rejectedReason: orderData.claim_rejected_reason,
-                returnTrackingNumber: orderData.return_tracking_number,
-                exchangeTrackingNumber: orderData.exchange_tracking_number
+            claimInfo: orderData.claim_info ? {
+                type: orderData.claim_info.type,
+                reason: orderData.claim_info.reason,
+                requestedAt: orderData.claim_info.requested_at,
+                processedAt: orderData.claim_info.processed_at,
+                rejectedReason: orderData.claim_info.rejected_reason,
+                returnTrackingNumber: orderData.claim_info.return_tracking_number,
+                exchangeTrackingNumber: orderData.claim_info.exchange_tracking_number,
+                refundBank: orderData.claim_info.refundBank,
+                refundAccount: orderData.claim_info.refundAccount,
+                refundHolder: orderData.claim_info.refundHolder
             } : undefined,
             pointsUsed,
             creditsUsed
@@ -1109,6 +1112,8 @@ export const adminService = {
         const { claimType, reason, refundAmount } = params;
         let newStatus = '';
 
+        const { data: currentOrder } = await supabase.from('orders').select('status, claim_info').eq('id', orderId).single();
+
         if (action === 'APPROVE') {
             switch (claimType) {
                 case 'CANCEL': newStatus = 'cancelled'; break;
@@ -1116,20 +1121,37 @@ export const adminService = {
                 case 'EXCHANGE': newStatus = 'shipped'; break; // 교환 출고 시 다시 배송중으로
             }
         } else {
-            // 거절 시 이전 상태로 복구? 여기서는 단순하게 다시 이전 상태로 돌리는 로직이 필요할 수 있으나
-            // 우선은 현재 상태 유지하며 거절 사유만 기록
-            const { data: currentOrder } = await supabase.from('orders').select('status').eq('id', orderId).single();
-            newStatus = currentOrder?.status || 'paid';
+            // 거절 시 이전 상태로 복구하여 취소/교환/환불 리스트에서 사라지게 함
+            const { data: historyData } = await supabase
+                .from('order_status_history')
+                .select('after_status')
+                .eq('order_id', orderId)
+                .neq('after_status', 'cancel_requested')
+                .neq('after_status', 'return_requested')
+                .neq('after_status', 'exchange_requested')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (historyData && historyData.length > 0 && historyData[0].after_status) {
+                newStatus = historyData[0].after_status;
+            } else {
+                newStatus = 'paid'; // Fallback
+            }
+        }
+
+        const updatedClaimInfo = {
+            ...(currentOrder?.claim_info || {}),
+            processed_at: new Date().toISOString()
+        };
+
+        if (action === 'REJECT') {
+            updatedClaimInfo.rejected_reason = reason;
         }
 
         const updateData: any = {
             status: newStatus,
-            claim_processed_at: new Date().toISOString()
+            claim_info: updatedClaimInfo
         };
-
-        if (action === 'REJECT') {
-            updateData.claim_rejected_reason = reason;
-        }
 
         const { error } = await supabase
             .from('orders')

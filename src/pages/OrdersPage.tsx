@@ -18,11 +18,12 @@ interface ClaimModalProps {
   orderId: string;
   type: 'RETURN' | 'EXCHANGE' | 'CANCEL';
   paymentMethod: string;
+  status: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-function ClaimModal({ orderId, type, paymentMethod, onClose, onSuccess }: ClaimModalProps) {
+function ClaimModal({ orderId, type, paymentMethod, status, onClose, onSuccess }: ClaimModalProps) {
   const [reason, setReason] = useState('');
   const [refundBank, setRefundBank] = useState('');
   const [refundAccount, setRefundAccount] = useState('');
@@ -30,7 +31,11 @@ function ClaimModal({ orderId, type, paymentMethod, onClose, onSuccess }: ClaimM
   const [isSubmitting, setIsSubmitting] = useState(false);
   const title = type === 'RETURN' ? '반품 신청' : type === 'EXCHANGE' ? '교환 신청' : '결제 취소';
 
-  const isManualRefund = paymentMethod === 'transfer' && (type === 'CANCEL' || type === 'RETURN');
+  const isCreditImmediate = ['credit', 'split'].includes(paymentMethod) && ['pending', 'paid'].includes(status);
+  const isBankImmediate = ['transfer', 'virtual'].includes(paymentMethod) && status === 'pending';
+  const isImmediate = type === 'CANCEL' && (isCreditImmediate || isBankImmediate);
+
+  const isManualRefund = ['transfer', 'virtual'].includes(paymentMethod) && (type === 'CANCEL' || type === 'RETURN') && !isImmediate;
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
@@ -197,7 +202,7 @@ function ClaimInfoBanner({ claimInfo, status }: { claimInfo: ClaimInfo; status: 
 export function OrdersPage() {
   const { data: orders = [], isLoading, refetch } = useOrders();
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
-  const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL'; paymentMethod: string } | null>(null);
+  const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL'; paymentMethod: string; status: string } | null>(null);
   const [splitShipModalOrder, setSplitShipModalOrder] = useState<any | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
@@ -292,6 +297,7 @@ export function OrdersPage() {
           orderId={claimModal.orderId}
           type={claimModal.type}
           paymentMethod={claimModal.paymentMethod}
+          status={claimModal.status}
           onClose={() => setClaimModal(null)}
           onSuccess={() => {
             setClaimModal(null);
@@ -372,28 +378,28 @@ export function OrdersPage() {
                     <Copy className="w-3.5 h-3.5" />
                     재주문
                   </button>
-                  {/* 결제 취소 버튼 (입금대기, 결제완료 상태 && 클레임 없을 때) */}
-                  {['pending', 'paid'].includes(order.status) && !hasClaim && (
+                  {/* 결제 취소 버튼 (입금대기, 결제완료, 상품준비중 상태 && 클레임 없을 때) */}
+                  {['pending', 'paid', 'processing'].includes(order.status) && !hasClaim && (
                     <button
-                      onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod })}
+                      onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod, status: order.status })}
                       className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors"
                     >
                       <XCircle className="w-3.5 h-3.5" />
-                      결제 취소
+                      {order.status === 'processing' ? '취소 신청' : '결제 취소'}
                     </button>
                   )}
                   {/* 반품/교환 버튼 (배송완료 && 클레임 없을 때만) */}
                   {canClaim && !hasClaim && (
                     <>
                       <button
-                        onClick={() => setClaimModal({ orderId: order.id, type: 'RETURN', paymentMethod: order.paymentMethod })}
+                        onClick={() => setClaimModal({ orderId: order.id, type: 'RETURN', paymentMethod: order.paymentMethod, status: order.status })}
                         className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-800 text-xs font-semibold border border-red-200 transition-colors"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         반품신청
                       </button>
                       <button
-                        onClick={() => setClaimModal({ orderId: order.id, type: 'EXCHANGE', paymentMethod: order.paymentMethod })}
+                        onClick={() => setClaimModal({ orderId: order.id, type: 'EXCHANGE', paymentMethod: order.paymentMethod, status: order.status })}
                         className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 text-xs font-semibold border border-blue-200 transition-colors"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
@@ -401,8 +407,8 @@ export function OrdersPage() {
                       </button>
                     </>
                   )}
-                  {/* 분할배송등록 버튼 (허용된 경우 && 결제완료/상품준비중/부분발송 상태일 때) */}
-                  {isPartialShipAllowed && ['paid', 'processing', 'partially_shipped'].includes(order.status) && (
+                  {/* 분할배송등록 버튼 (허용된 경우 && 결제완료/부분발송 상태일 때) */}
+                  {isPartialShipAllowed && ['paid', 'partially_shipped'].includes(order.status) && (
                     <button
                       onClick={() => setSplitShipModalOrder(order)}
                       className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shadow-sm"
@@ -910,7 +916,19 @@ export function OrdersPage() {
                     bank: '계좌이체',
                     cash: '현금',
                     transfer: '무통장 입금',
+                    split: '복합 결제',
                   }[order.paymentMethod] ?? order.paymentMethod}
+                  {order.paymentMethod === 'split' && order.paymentHistory && order.paymentHistory.length > 0 && (
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      {order.paymentHistory.filter((p: any) => p.transaction_type === 'PAYMENT').map((p: any, idx: number) => (
+                        <div key={idx} className="text-xs text-neutral-500 flex items-center gap-2">
+                          <span className="w-1 h-1 bg-neutral-300 rounded-full"></span>
+                          <span>{{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}</span>
+                          <span className="font-medium">₩{p.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
                   {(orderCreditMap[order.id] ?? 0) > 0 && (

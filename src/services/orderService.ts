@@ -47,7 +47,8 @@ export const orderService = {
                         buy_quantity,
                         get_quantity
                     )
-                )
+                ),
+                payment_history (*)
             `)
             .eq('user_id', user.id)
             .order('ordered_at', { ascending: false });
@@ -168,6 +169,7 @@ export const orderService = {
             vactName: order.vact_name,
             vactInputDeadline: order.vact_input_deadline,
             pointsUsed: order.points_used || 0,
+            paymentHistory: order.payment_history || [],
             items: order.order_items?.map((item: any) => ({
                 product: item.product ? {
                     id: item.product.id,
@@ -213,7 +215,8 @@ export const orderService = {
                         buy_quantity,
                         get_quantity
                     )
-                )
+                ),
+                payment_history (*)
             `)
             .eq('id', orderId)
             .eq('user_id', user.id)
@@ -249,6 +252,7 @@ export const orderService = {
             vactName: data.vact_name,
             vactInputDeadline: data.vact_input_deadline,
             pointsUsed: data.points_used || 0,
+            paymentHistory: data.payment_history || [],
             items: data.order_items?.map((item: any) => ({
                 product: item.product ? {
                     id: item.product.id,
@@ -380,7 +384,18 @@ export const orderService = {
         if (orderError) throw orderError;
 
         // 2-1. Record Initial Payment in History
-        if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo) || paymentMethod === 'transfer') {
+        if (paymentMethod === 'split' && orderInput.splitPayments) {
+            const splitInserts = orderInput.splitPayments.map(sp => ({
+                order_id: order.id,
+                transaction_type: 'PAYMENT',
+                amount: sp.amount,
+                pg_tid: sp.billingKeyId || paymentReference || null,
+                status: sp.method === 'transfer' ? 'PENDING' : 'SUCCESS',
+                method: sp.method,
+                reason: `복합결제 - ${sp.method}`
+            }));
+            await supabase.from('payment_history').insert(splitInserts);
+        } else if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo) || paymentMethod === 'transfer') {
             await supabase.from('payment_history').insert({
                 order_id: order.id,
                 transaction_type: 'PAYMENT',
@@ -651,6 +666,23 @@ export const orderService = {
     ): Promise<void> {
         const user = await authService.getCurrentUser();
         if (!user) throw new Error('User not authenticated');
+
+        const { data: orderData } = await supabase.from('orders').select('status, payment_method').eq('id', orderId).single();
+        if (!orderData) throw new Error('Order not found');
+
+        const { status: currentStatus, payment_method } = orderData;
+
+        // 즉시 취소 조건 처리
+        if (type === 'CANCEL') {
+            const isCreditImmediate = ['credit', 'split'].includes(payment_method) && ['pending', 'paid'].includes(currentStatus);
+            const isBankImmediate = ['transfer', 'virtual'].includes(payment_method) && currentStatus === 'pending';
+
+            if (isCreditImmediate || isBankImmediate) {
+                // 바로 취소 (cancelOrder 활용)
+                await this.cancelOrder(orderId);
+                return;
+            }
+        }
 
         let newStatus = '';
         if (type === 'CANCEL') newStatus = 'cancel_requested';

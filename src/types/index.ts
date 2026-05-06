@@ -196,6 +196,7 @@ export interface Order {
   vactName?: string;
   vactInputDeadline?: string;
   pointsUsed?: number;
+  paymentHistory?: any[];
 }
 
 export interface Inquiry {

@@ -1637,6 +1637,16 @@ export function OrderDetailPage() {
                 <dt className="text-xs font-medium text-neutral-600 mb-1">결제 방법</dt>
                 <dd className="text-sm text-neutral-900">
                   {order.paymentInfo.method}
+                  {order.paymentMethod === 'split' && order.paymentHistory && order.paymentHistory.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-1 border-l-2 border-neutral-200 pl-2">
+                      {order.paymentHistory.filter((p: any) => p.transactionType === 'PAYMENT').map((p: any, idx: number) => (
+                        <div key={idx} className="text-xs text-neutral-500 flex items-center justify-between">
+                          <span>{{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}</span>
+                          <span className="font-medium text-neutral-700">₩{p.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </dd>
               </div>
               <div>
@@ -1683,6 +1693,14 @@ export function OrderDetailPage() {
                     {order.isSubscription ? '자동결제 일정' : '입금 완료일시'}
                   </dt>
                   <dd className="text-sm text-neutral-900">{order.paymentInfo.paidAt}</dd>
+                </div>
+              )}
+              {order.claimInfo?.refundBank && (
+                <div className="col-span-1 md:col-span-2 mt-2 p-3 bg-red-50 border border-red-100">
+                  <dt className="text-xs font-bold text-red-800 mb-1">환불 요청 계좌 (클레임 접수건)</dt>
+                  <dd className="text-sm text-red-900 font-medium">
+                    {order.claimInfo.refundBank} | {order.claimInfo.refundAccount} | 예금주: {order.claimInfo.refundHolder}
+                  </dd>
                 </div>
               )}
             </dl>
