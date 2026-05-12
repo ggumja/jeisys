@@ -46,7 +46,7 @@ export function CheckoutPage() {
   const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
   const [splitMethods, setSplitMethods] = useState<SplitPaymentMethod[]>([
     { id: '1', type: 'credit', amount: 0 },
-    { id: '2', type: 'virtual', amount: 0 }
+    { id: '2', type: 'credit', amount: 0 }
   ]);
   const [userCards, setUserCards] = useState<PaymentMethod[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>('');
@@ -899,7 +899,7 @@ export function CheckoutPage() {
                     onClick={() => setPaymentMode('split')}
                     className={`flex-1 px-4 py-2 text-xs font-bold transition-all ${paymentMode === 'split' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}
                   >
-                    복합 결제
+                    카드분할결제
                   </button>
                 </div>
               )}
@@ -1139,7 +1139,7 @@ export function CheckoutPage() {
                   {splitMethods.map((sm, index) => (
                     <div key={sm.id} className="flex flex-col gap-3 p-4 bg-neutral-50 border border-neutral-200">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-neutral-700">결제 수단 {index + 1}</span>
+                        <span className="text-xs font-bold text-neutral-700">신용카드 {index + 1}</span>
                         {splitMethods.length > 1 && (
                           <button onClick={() => setSplitMethods(prev => prev.filter(m => m.id !== sm.id))} className="text-neutral-400 hover:text-red-500 transition-colors">
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1147,36 +1147,18 @@ export function CheckoutPage() {
                         )}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <select 
-                          value={sm.type} 
-                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, type: e.target.value as 'credit' | 'general' | 'virtual' | 'transfer' } : m))}
-                          className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 bg-white"
-                        >
-                          <option value="credit">등록된 신용카드</option>
-                          <option value="general">일반결제</option>
-                          <option value="virtual">가상계좌</option>
-                          <option value="transfer">무통장입금</option>
-                        </select>
+                        <div className="px-3 py-2 border border-neutral-300 text-sm bg-neutral-100 flex items-center">
+                          등록된 신용카드
+                        </div>
                         
-                        {sm.type === 'credit' && (
-                          <select
-                            value={sm.cardId || ''}
-                            onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, cardId: e.target.value } : m))}
-                            className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 md:col-span-2 bg-white"
-                          >
-                            <option value="">카드를 선택해주세요</option>
-                            {userCards.map(c => <option key={c.id} value={c.id}>{c.alias || c.cardName} ({c.cardNumberMasked})</option>)}
-                          </select>
-                        )}
-                        {sm.type === 'general' && (
-                          <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">일반 신용카드 결제 (결제창 호출)</div>
-                        )}
-                        {sm.type === 'virtual' && (
-                          <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">가상계좌 (결제 시 발급)</div>
-                        )}
-                        {sm.type === 'transfer' && (
-                          <div className="px-3 py-2 bg-neutral-100 text-sm text-neutral-500 md:col-span-2 flex items-center border border-neutral-200">무통장입금 (우리은행 1005-803-786090)</div>
-                        )}
+                        <select
+                          value={sm.cardId || ''}
+                          onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, cardId: e.target.value } : m))}
+                          className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 md:col-span-2 bg-white"
+                        >
+                          <option value="">카드를 선택해주세요</option>
+                          {userCards.map(c => <option key={c.id} value={c.id}>{c.alias || c.cardName} ({c.cardNumberMasked})</option>)}
+                        </select>
 
                         <div className="flex gap-2">
                           <input 
@@ -1205,7 +1187,7 @@ export function CheckoutPage() {
                       onClick={() => setSplitMethods(prev => [...prev, { id: Date.now().toString(), type: 'credit', amount: 0 }])}
                       className="w-full py-4 border border-dashed border-neutral-300 text-sm text-neutral-600 font-bold hover:bg-neutral-50 hover:text-neutral-900 transition-colors flex justify-center items-center gap-2"
                     >
-                      <Plus className="w-4 h-4" /> 결제 수단 추가
+                      <Plus className="w-4 h-4" /> 신용카드 추가
                     </button>
                   )}
                 </div>
@@ -1274,7 +1256,7 @@ export function CheckoutPage() {
               disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `복합결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 간편 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : paymentMethod === 'transfer' ? '무통장입금 주문 완료' : '가상계좌 주문 완료'))}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 간편 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : paymentMethod === 'transfer' ? '무통장입금 주문 완료' : '가상계좌 주문 완료'))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">
