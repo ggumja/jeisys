@@ -1050,11 +1050,18 @@ export function OrdersPage() {
                             }
                           }
                         }
-                        
+                        const timeStr = order.paymentMethod === 'partial_card' && p.created_at 
+                          ? new Date(p.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : null;
+                          
                         return (
                           <div key={idx} className="text-xs text-neutral-500 flex items-center gap-2">
                             <span className="w-1 h-1 bg-neutral-300 rounded-full"></span>
-                            <span>{{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}{cardName ? ` (${cardName})` : ''}</span>
+                            <span>
+                              {{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}
+                              {cardName ? ` (${cardName})` : ''}
+                              {timeStr ? ` [${timeStr}]` : ''}
+                            </span>
                             <span className="font-medium">₩{p.amount.toLocaleString()}</span>
                           </div>
                         );
