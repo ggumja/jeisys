@@ -1256,7 +1256,7 @@ export function CheckoutPage() {
               disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 등록신용카드 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : paymentMethod === 'transfer' ? '무통장입금 주문 완료' : '가상계좌 주문 완료'))}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 등록신용카드 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : paymentMethod === 'transfer' ? '무통장입금 결제하기' : '가상계좌 결제하기'))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">
