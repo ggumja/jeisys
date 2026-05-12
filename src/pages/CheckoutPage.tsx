@@ -453,12 +453,17 @@ export function CheckoutPage() {
         pointsUsed: Number(pointsUsed) || 0,
         partialAmount: paymentMode === 'partial' ? partialPaymentAmount : undefined,
         partialMethod: paymentMode === 'partial' ? partialPaymentMethod : undefined,
-        splitPayments: (paymentMode === 'split' && !hasSubscriptionItems) ? splitMethods.map(sm => ({
-          method: sm.type,
-          amount: sm.amount,
-          billingKeyId: sm.type === 'credit' ? sm.cardId : undefined,
-          billingKey: sm.type === 'credit' ? userCards.find(c => c.id === sm.cardId)?.billingKey : undefined
-        })) : undefined
+        partialCardName: (paymentMode === 'partial' && partialPaymentMethod === 'credit' && selectedCard) ? (selectedCard.alias ? selectedCard.alias : `${selectedCard.cardName} (***${selectedCard.cardNumberMasked?.slice(-3) || ''})`) : undefined,
+        splitPayments: (paymentMode === 'split' && !hasSubscriptionItems) ? splitMethods.map(sm => {
+          const card = sm.type === 'credit' ? userCards.find(c => c.id === sm.cardId) : undefined;
+          return {
+            method: sm.type,
+            amount: sm.amount,
+            billingKeyId: sm.type === 'credit' ? sm.cardId : undefined,
+            billingKey: card?.billingKey,
+            cardName: card ? (card.alias ? card.alias : `${card.cardName} (***${card.cardNumberMasked?.slice(-3) || ''})`) : undefined
+          };
+        }) : undefined
       });
 
       // 크레딧 사용 처리 - 상품별 장비 타입으로 분리 차감
@@ -1175,7 +1180,7 @@ export function CheckoutPage() {
                           className="px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 md:col-span-2 bg-white"
                         >
                           <option value="">카드를 선택해주세요</option>
-                          {userCards.map(c => <option key={c.id} value={c.id}>{c.alias || c.cardName} ({c.cardNumberMasked})</option>)}
+                          {userCards.map(c => <option key={c.id} value={c.id}>{c.alias ? c.alias : `${c.cardName} (***${c.cardNumberMasked?.slice(-3) || ''})`}</option>)}
                         </select>
 
                         <div className="flex gap-2">

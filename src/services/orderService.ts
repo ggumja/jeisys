@@ -21,11 +21,13 @@ export interface OrderInput {
         billingKeyId?: string;
         billingKey?: string;
         tid?: string;
+        cardName?: string;
     }[];
     depositorName?: string; // 무통장입금 실 입금자명
     pointsUsed?: number;    // 사용한 포인트 금액
-    partialAmount?: number; // 카드일부결제 선결제 금액
-    partialMethod?: string; // 카드일부결제 선결제 수단 ('credit' | 'general')
+    partialAmount?: number; // 카드일부결제 금액
+    partialMethod?: 'credit' | 'general';
+    partialCardName?: string; // 일부결제 시 카드별명
 }
 
 export const orderService = {
@@ -455,7 +457,7 @@ export const orderService = {
                 pg_tid: sp.tid || sp.billingKeyId || paymentReference || null,
                 status: sp.method === 'transfer' ? 'PENDING' : 'SUCCESS',
                 method: sp.method,
-                reason: `카드분할결제 - ${sp.method}`
+                reason: sp.method === 'credit' && sp.cardName ? `카드분할결제 - ${sp.cardName}` : `카드분할결제 - ${sp.method}`
             }));
             await supabase.from('payment_history').insert(splitInserts);
         } else if (paymentMethod === 'partial_card' && orderInput.partialAmount) {
@@ -466,7 +468,9 @@ export const orderService = {
                 pg_tid: paymentReference || null,
                 status: 'SUCCESS',
                 method: orderInput.partialMethod || 'credit',
-                reason: '카드일부결제 (선결제)'
+                reason: (orderInput.partialMethod === 'credit' || !orderInput.partialMethod) && orderInput.partialCardName 
+                          ? `카드일부결제 (선결제) - ${orderInput.partialCardName}` 
+                          : '카드일부결제 (선결제)'
             });
         } else if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo) || paymentMethod === 'transfer' || paymentMethod === 'general') {
             await supabase.from('payment_history').insert({
@@ -712,7 +716,7 @@ export const orderService = {
     },
 
     // 잔여 금액 결제
-    async payRemainingBalance(orderId: string, amount: number, method: 'credit' | 'general'): Promise<void> {
+    async payRemainingBalance(orderId: string, amount: number, method: 'credit' | 'general', cardId?: string): Promise<void> {
         const user = await authService.getCurrentUser();
         if (!user) throw new Error('User not logged in');
 
@@ -720,11 +724,21 @@ export const orderService = {
         if (error || !order) throw new Error('Order not found');
 
         let paymentReference = '';
+        let cardAlias = '';
         if (method === 'credit') {
-            // 실제 환경에서는 선택된 카드의 billingKey를 가져와야 함. 현재는 시뮬레이션
+            let billingKey = 'simulated_billing_key_for_remaining';
+            if (cardId) {
+                const cards = await paymentService.getPaymentMethods(user.id);
+                const card = cards.find((c: any) => c.id === cardId);
+                if (card && card.billingKey) {
+                    billingKey = card.billingKey;
+                    cardAlias = card.alias ? card.alias : `${card.cardName} (***${card.cardNumberMasked?.slice(-3) || ''})`;
+                }
+            }
+
             const paymentResult: any = await paymentService.requestPayment({
                 userId: user.id,
-                billingKey: 'simulated_billing_key_for_remaining',
+                billingKey,
                 amount: amount,
                 orderName: `주문 잔여금액 결제 (${order.order_number})`,
                 orderNumber: `${order.order_number}-REMAIN`
@@ -747,7 +761,7 @@ export const orderService = {
             pg_tid: paymentReference,
             status: 'SUCCESS',
             method: method,
-            reason: '카드일부결제 (잔여금액 결제)'
+            reason: cardAlias ? `카드일부결제 (잔여금액 결제) - ${cardAlias}` : '카드일부결제 (잔여금액 결제)'
         });
 
         // 상태 업데이트 체크

@@ -10,6 +10,8 @@ import { Product, ClaimInfo, User } from '../types';
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
 import { creditService } from '../services/creditService';
+import { paymentService } from '../services/paymentService';
+import { PaymentMethod } from '../types';
 
 import { toast } from 'sonner';
 
@@ -149,11 +151,34 @@ interface RemainingPaymentModalProps {
 function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }: RemainingPaymentModalProps) {
   const [method, setMethod] = useState<'credit' | 'general'>('credit');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userCards, setUserCards] = useState<PaymentMethod[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState<string>('');
+
+  useEffect(() => {
+    const loadCards = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        if (user) {
+          const cards = await paymentService.getPaymentMethods(user.id);
+          setUserCards(cards);
+          if (cards.length > 0) setSelectedCardId(cards[0].id);
+        }
+      } catch (e) {
+        console.error('Failed to load cards:', e);
+      }
+    };
+    loadCards();
+  }, []);
 
   const handleSubmit = async () => {
+    if (method === 'credit' && !selectedCardId) {
+      toast.error('결제할 등록된 카드를 선택해주세요.');
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
-      await orderService.payRemainingBalance(orderId, remainingAmount, method);
+      await orderService.payRemainingBalance(orderId, remainingAmount, method, method === 'credit' ? selectedCardId : undefined);
       toast.success('잔여금액 결제가 완료되었습니다.');
       onSuccess();
     } catch (e: any) {
@@ -180,10 +205,37 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
              <button onClick={() => setMethod('credit')} className={`py-3 text-xs font-bold border-2 ${method === 'credit' ? 'border-neutral-900 text-neutral-900' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'}`}>등록된 신용카드</button>
              <button onClick={() => setMethod('general')} className={`py-3 text-xs font-bold border-2 ${method === 'general' ? 'border-neutral-900 text-neutral-900' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'}`}>일반결제</button>
           </div>
+
+          {method === 'credit' && (
+            <div className="mt-4">
+              <label className="block text-xs font-bold text-neutral-700 mb-2">결제할 카드 선택</label>
+              {userCards.length > 0 ? (
+                <select
+                  value={selectedCardId}
+                  onChange={(e) => setSelectedCardId(e.target.value)}
+                  className="w-full px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 bg-white outline-none"
+                >
+                  {userCards.map((card) => (
+                    <option key={card.id} value={card.id}>
+                      {card.alias || card.cardName} ({card.cardNumberMasked})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="text-xs text-red-500 p-2 bg-red-50 border border-red-100 mt-2">
+                  등록된 카드가 없습니다. 마이페이지 &gt; 결제수단 관리에서 카드를 먼저 등록해주세요.
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="px-5 py-3 border-t border-neutral-100 flex gap-2">
           <button onClick={onClose} className="flex-1 px-3 py-2.5 border border-neutral-300 text-neutral-900 text-sm font-bold hover:bg-neutral-50 transition-colors">취소</button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 px-3 py-2.5 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+          <button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || (method === 'credit' && userCards.length === 0)} 
+            className="flex-1 px-3 py-2.5 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50"
+          >
             {isSubmitting ? '처리 중...' : '결제하기'}
           </button>
         </div>
@@ -265,6 +317,7 @@ export function OrdersPage() {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [isPartialShipAllowed, setIsPartialShipAllowed] = useState(false);
   const [orderCreditMap, setOrderCreditMap] = useState<Record<string, number>>({});
+  const [userCards, setUserCards] = useState<PaymentMethod[]>([]);
 
   useEffect(() => {
     const checkPermission = async () => {
@@ -273,10 +326,12 @@ export function OrdersPage() {
         setUserProfile(user);
         if (user) {
           const types = await adminService.getMemberTypes();
-          // 사용자의 member_type (예: '병원, 우수고객') 문자열에 포함된 타입 중 하나라도 partial_shipment가 true인지 확인
           const userTypes = user.memberType?.split(',').map(t => t.trim()) || [];
           const allowed = user.role === 'admin' || (types as any[]).some(t => userTypes.includes(t.name) && t.partial_shipment);
           setIsPartialShipAllowed(allowed);
+          
+          const cards = await paymentService.getPaymentMethods(user.id);
+          setUserCards(cards);
         }
       } catch (e) {
         console.error('Error checking partial shipment permission:', e);
@@ -978,65 +1033,102 @@ export function OrdersPage() {
                     cash: '현금',
                     transfer: '무통장 입금',
                     split: '카드분할결제',
+                    partial_card: '카드일부결제',
                   }[order.paymentMethod] ?? order.paymentMethod}
-                  {order.paymentMethod === 'split' && order.paymentHistory && order.paymentHistory.length > 0 && (
+                  {(order.paymentMethod === 'split' || order.paymentMethod === 'partial_card') && order.paymentHistory && order.paymentHistory.length > 0 && (
                     <div className="mt-1 flex flex-col gap-0.5">
-                      {order.paymentHistory.filter((p: any) => p.transaction_type === 'PAYMENT').map((p: any, idx: number) => (
-                        <div key={idx} className="text-xs text-neutral-500 flex items-center gap-2">
-                          <span className="w-1 h-1 bg-neutral-300 rounded-full"></span>
-                          <span>{{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}</span>
-                          <span className="font-medium">₩{p.amount.toLocaleString()}</span>
-                        </div>
-                      ))}
+                      {order.paymentHistory.filter((p: any) => p.transaction_type === 'PAYMENT').map((p: any, idx: number) => {
+                        let cardName = null;
+                        if (p.method === 'credit') {
+                          if (p.reason && p.reason.includes(' - ') && !p.reason.endsWith(' - credit')) {
+                            const parts = p.reason.split(' - ');
+                            if (parts.length > 1) cardName = parts[1];
+                          } else if (p.pg_tid) {
+                            const card = userCards.find(c => c.id === p.pg_tid);
+                            if (card) {
+                              cardName = card.alias ? card.alias : `${card.cardName} (***${card.cardNumberMasked?.slice(-3) || ''})`;
+                            }
+                          }
+                        }
+                        
+                        return (
+                          <div key={idx} className="text-xs text-neutral-500 flex items-center gap-2">
+                            <span className="w-1 h-1 bg-neutral-300 rounded-full"></span>
+                            <span>{{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}{cardName ? ` (${cardName})` : ''}</span>
+                            <span className="font-medium">₩{p.amount.toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
                 <div className="text-right">
-                  {(orderCreditMap[order.id] ?? 0) > 0 && (
-                    <p className="text-xs text-emerald-600 font-bold mb-0.5">
-                      크레딧 차감 -₩{(orderCreditMap[order.id]).toLocaleString()}
-                    </p>
-                  )}
-                  {(order.pointsUsed ?? 0) > 0 && (
-                    <p className="text-xs text-amber-600 font-bold mb-0.5">
-                      포인트 차감 -{(order.pointsUsed!).toLocaleString()} P
-                    </p>
-                  )}
-                  <p className="text-xs text-neutral-500 mb-0.5">총 결제 금액</p>
-                  <p className="text-xl font-bold tracking-tight text-neutral-900">
-                    {(() => {
-                      let total = 0;
-                      order.items.forEach(it => {
-                        const isBundle = (it.selectedProductIds || []).length > 0;
-                        if (isBundle) {
-                          const buyQty = it.product?.buyQuantity ?? 0;
-                          let paidSub = 0;
-                          const grouped: Record<string, {count:number, isPaid:boolean}> = {};
-                          (it.selectedProductIds || []).forEach((id: string, idx: number) => {
-                            const isPaid = buyQty === 0 || idx < buyQty;
-                            if (!grouped[id]) grouped[id] = { count: 0, isPaid };
-                            grouped[id].count += 1;
-                          });
-                          Object.entries(grouped).forEach(([id, {count, isPaid}]) => {
-                            const subP = subProductsMap[id];
-                            if (isPaid && subP?.price) paidSub += subP.price * count;
-                          });
-                          
-                          const bundleOrig = (it as any).originalPrice;
-                          const dispOrig = paidSub > 0 ? paidSub : (bundleOrig ?? null);
-                          const rate = (it as any).discountRate || 0;
-                          const dRate = rate > 0 ? rate : (dispOrig && dispOrig > it.price ? Math.round((1 - it.price/dispOrig)*100) : 0);
-                          const effTotal = (dispOrig && dRate > 0) ? Math.round(dispOrig * (1 - dRate/100)) : (paidSub > 0 ? paidSub : it.price);
-                          
-                          total += effTotal;
-                        } else {
-                          const unitPrice = it.price ?? it.product?.price ?? 0;
-                          total += it.quantity * unitPrice;
-                        }
-                      });
-                      return `₩${Math.max(0, Math.round(total) - (orderCreditMap[order.id] ?? 0) - (order.pointsUsed ?? 0)).toLocaleString()}`;
-                    })()}
-                  </p>
+                  {(() => {
+                    let total = 0;
+                    order.items.forEach(it => {
+                      const isBundle = (it.selectedProductIds || []).length > 0;
+                      if (isBundle) {
+                        const buyQty = it.product?.buyQuantity ?? 0;
+                        let paidSub = 0;
+                        const grouped: Record<string, {count:number, isPaid:boolean}> = {};
+                        (it.selectedProductIds || []).forEach((id: string, idx: number) => {
+                          const isPaid = buyQty === 0 || idx < buyQty;
+                          if (!grouped[id]) grouped[id] = { count: 0, isPaid };
+                          grouped[id].count += 1;
+                        });
+                        Object.entries(grouped).forEach(([id, {count, isPaid}]) => {
+                          const subP = subProductsMap[id];
+                          if (isPaid && subP?.price) paidSub += subP.price * count;
+                        });
+                        
+                        const bundleOrig = (it as any).originalPrice;
+                        const dispOrig = paidSub > 0 ? paidSub : (bundleOrig ?? null);
+                        const rate = (it as any).discountRate || 0;
+                        const dRate = rate > 0 ? rate : (dispOrig && dispOrig > it.price ? Math.round((1 - it.price/dispOrig)*100) : 0);
+                        const effTotal = (dispOrig && dRate > 0) ? Math.round(dispOrig * (1 - dRate/100)) : (paidSub > 0 ? paidSub : it.price);
+                        
+                        total += effTotal;
+                      } else {
+                        const unitPrice = it.price ?? it.product?.price ?? 0;
+                        total += it.quantity * unitPrice;
+                      }
+                    });
+
+                    const finalTotal = Math.max(0, Math.round(total) - (orderCreditMap[order.id] ?? 0) - (order.pointsUsed ?? 0));
+                    const paidAmount = order.paymentHistory?.filter((p: any) => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+                    const remainingAmount = finalTotal - paidAmount;
+
+                    return (
+                      <>
+                        {(orderCreditMap[order.id] ?? 0) > 0 && (
+                          <p className="text-xs text-emerald-600 font-bold mb-0.5">
+                            크레딧 차감 -₩{(orderCreditMap[order.id]).toLocaleString()}
+                          </p>
+                        )}
+                        {(order.pointsUsed ?? 0) > 0 && (
+                          <p className="text-xs text-amber-600 font-bold mb-0.5">
+                            포인트 차감 -{(order.pointsUsed!).toLocaleString()} P
+                          </p>
+                        )}
+                        <p className="text-xs text-neutral-500 mb-0.5">{order.paymentMethod === 'partial_card' ? '총 주문 금액' : '총 결제 금액'}</p>
+                        <p className="text-xl font-bold tracking-tight text-neutral-900">
+                          ₩{finalTotal.toLocaleString()}
+                        </p>
+                        {order.paymentMethod === 'partial_card' && (
+                          <div className="mt-2 text-right border-t border-neutral-200 pt-2 border-dashed">
+                            <div className="flex justify-between items-center gap-4 text-xs mb-1">
+                              <span className="text-neutral-500">일부 결제 금액</span>
+                              <span className="font-bold text-neutral-700">₩{paidAmount.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center gap-4 text-sm">
+                              <span className="text-neutral-500 font-medium">남은 결제 금액</span>
+                              <span className="font-bold text-red-600">₩{remainingAmount.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
