@@ -54,7 +54,7 @@ export function CheckoutPage() {
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string | null>(null);
-  
+
   const [deliveryMemo, setDeliveryMemo] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -140,7 +140,7 @@ export function CheckoutPage() {
 
       if (user) {
         setUserProfile(user);
-        
+
         // 분할배송 권한 체크
         const types = await adminService.getMemberTypes();
         const userTypes = user.memberType?.split(',').map(t => t.trim()) || [];
@@ -440,10 +440,10 @@ export function CheckoutPage() {
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined,
         pointsUsed: Number(pointsUsed) || 0,
         splitPayments: (paymentMode === 'split' && !hasSubscriptionItems) ? splitMethods.map(sm => ({
-            method: sm.type,
-            amount: sm.amount,
-            billingKeyId: sm.type === 'credit' ? sm.cardId : undefined,
-            billingKey: sm.type === 'credit' ? userCards.find(c => c.id === sm.cardId)?.billingKey : undefined
+          method: sm.type,
+          amount: sm.amount,
+          billingKeyId: sm.type === 'credit' ? sm.cardId : undefined,
+          billingKey: sm.type === 'credit' ? userCards.find(c => c.id === sm.cardId)?.billingKey : undefined
         })) : undefined
       });
 
@@ -617,7 +617,7 @@ export function CheckoutPage() {
                           <span className="px-1.5 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded">번들 {idx + 1}</span>
                           <p className="text-sm font-bold text-neutral-900">{bundle.label}</p>
                         </div>
-                        <button 
+                        <button
                           onClick={() => setPendingBundles(prev => prev.filter((_, i) => i !== idx))}
                           className="text-neutral-400 hover:text-red-500 transition-colors"
                           title="번들 삭제"
@@ -726,167 +726,165 @@ export function CheckoutPage() {
           {/* Delivery Address - Hide if split bundles are being registered */}
           {pendingBundles.length === 0 && (
             <div className="bg-white border border-neutral-200 p-8 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl tracking-tight text-neutral-900 flex items-center gap-2 font-bold">
-                <MapPin className="w-5 h-5" />
-                배송지 정보
-              </h2>
-              <a
-                href="/mypage/addresses"
-                target="_blank"
-                className="text-xs text-neutral-500 hover:text-neutral-900 underline underline-offset-2 transition-colors"
-              >
-                배송지 관리 →
-              </a>
-            </div>
-
-            {/* 사업장주소 → 배송지 등록 배너 (저장된 배송지 없을 때만) */}
-            {savedAddresses.length === 0 && userProfile?.address && (
-              <div className="flex items-center justify-between bg-blue-50 border border-blue-100 px-4 py-3 mb-5">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-blue-900">📦 사업장주소를 배송지로 등록할까요?</p>
-                  <p className="text-xs text-blue-600 mt-0.5 truncate">
-                    {userProfile.address}{userProfile.addressDetail ? ` ${userProfile.addressDetail}` : ''}
-                  </p>
-                </div>
-                <button
-                  onClick={handleRegisterProfileAddress}
-                  disabled={syncing}
-                  className="ml-3 flex-shrink-0 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl tracking-tight text-neutral-900 flex items-center gap-2 font-bold">
+                  <MapPin className="w-5 h-5" />
+                  배송지 정보
+                </h2>
+                <a
+                  href="/mypage/addresses"
+                  target="_blank"
+                  className="text-xs text-neutral-500 hover:text-neutral-900 underline underline-offset-2 transition-colors"
                 >
-                  {syncing ? '등록 중...' : '배송지로 등록'}
-                </button>
+                  배송지 관리 →
+                </a>
               </div>
-            )}
 
-            {/* 저장된 배송지 선택 */}
-            {savedAddresses.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">저장된 배송지</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {savedAddresses.map(addr => (
-                    <div
-                      key={addr.id}
-                      onClick={() => {
-                        setSelectedAddressId(addr.id);
-                        setAddress({
-                          recipient: addr.recipient,
-                          phone: addr.phone,
-                          zipCode: addr.zipCode,
-                          address: addr.address,
-                          detail: addr.addressDetail,
-                        });
-                      }}
-                      className={`p-3 border-2 cursor-pointer transition-all ${
-                        selectedAddressId === addr.id
-                          ? 'border-neutral-900 bg-neutral-50'
-                          : 'border-neutral-100 hover:border-neutral-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-xs font-black text-neutral-900">{addr.label}</span>
-                        {addr.isDefault && (
-                          <span className="text-[9px] font-black px-1 py-0.5 bg-neutral-900 text-white">기본</span>
-                        )}
-                        {selectedAddressId === addr.id && (
-                          <Check className="w-3 h-3 text-neutral-900 ml-auto" />
-                        )}
-                      </div>
-                      <p className="text-xs text-neutral-700 font-medium">{addr.recipient} · {addr.phone}</p>
-                      <p className="text-xs text-neutral-500 truncate mt-0.5">{addr.address} {addr.addressDetail}</p>
-                    </div>
-                  ))}
-                  {/* 직접 입력 */}
-                  <div
-                    onClick={() => {
-                      setSelectedAddressId(null);
-                      setAddress({ recipient: '', phone: '', zipCode: '', address: '', detail: '' });
-                    }}
-                    className={`p-3 border-2 cursor-pointer transition-all flex items-center gap-2 ${
-                      selectedAddressId === null
-                        ? 'border-neutral-900 bg-neutral-50'
-                        : 'border-dashed border-neutral-200 hover:border-neutral-300'
-                    }`}
-                  >
-                    <Plus className="w-3.5 h-3.5 text-neutral-400" />
-                    <span className="text-xs font-bold text-neutral-500">새 배송지 직접 입력</span>
+              {/* 사업장주소 → 배송지 등록 배너 (저장된 배송지 없을 때만) */}
+              {savedAddresses.length === 0 && userProfile?.address && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-100 px-4 py-3 mb-5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-blue-900">📦 사업장주소를 배송지로 등록할까요?</p>
+                    <p className="text-xs text-blue-600 mt-0.5 truncate">
+                      {userProfile.address}{userProfile.addressDetail ? ` ${userProfile.addressDetail}` : ''}
+                    </p>
                   </div>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">수령인</label>
-                <input
-                  type="text"
-                  value={address.recipient}
-                  onChange={e => setAddress({ ...address, recipient: e.target.value })}
-                  className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm bg-neutral-50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">연락처</label>
-                <input
-                  type="text"
-                  value={address.phone}
-                  onChange={e => setAddress({ ...address, phone: e.target.value })}
-                  className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm bg-neutral-50"
-                />
-              </div>
-              <div className="md:col-span-2 space-y-3 pt-2">
-                <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">주소</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={address.zipCode}
-                    readOnly
-                    className="w-32 px-4 py-3 border border-neutral-200 bg-neutral-100 text-sm text-neutral-500"
-                    placeholder="우편번호"
-                  />
                   <button
-                    type="button"
-                    onClick={handleAddressSearch}
-                    className="bg-neutral-900 text-white px-6 py-3 font-medium hover:bg-neutral-800 transition-colors text-sm"
+                    onClick={handleRegisterProfileAddress}
+                    disabled={syncing}
+                    className="ml-3 flex-shrink-0 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
-                    주소검색
+                    {syncing ? '등록 중...' : '배송지로 등록'}
                   </button>
                 </div>
-                <input
-                  type="text"
-                  value={address.address}
-                  readOnly
-                  className="w-full px-4 py-3 border border-neutral-200 bg-neutral-100 text-sm text-neutral-500"
-                  placeholder="기본 주소"
-                />
-                <input
-                  type="text"
-                  value={address.detail}
-                  onChange={e => setAddress({ ...address, detail: e.target.value })}
-                  className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm"
-                  placeholder="상세 주소를 입력해주세요"
+              )}
+
+              {/* 저장된 배송지 선택 */}
+              {savedAddresses.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">저장된 배송지</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {savedAddresses.map(addr => (
+                      <div
+                        key={addr.id}
+                        onClick={() => {
+                          setSelectedAddressId(addr.id);
+                          setAddress({
+                            recipient: addr.recipient,
+                            phone: addr.phone,
+                            zipCode: addr.zipCode,
+                            address: addr.address,
+                            detail: addr.addressDetail,
+                          });
+                        }}
+                        className={`p-3 border-2 cursor-pointer transition-all ${selectedAddressId === addr.id
+                          ? 'border-neutral-900 bg-neutral-50'
+                          : 'border-neutral-100 hover:border-neutral-300'
+                          }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-xs font-black text-neutral-900">{addr.label}</span>
+                          {addr.isDefault && (
+                            <span className="text-[9px] font-black px-1 py-0.5 bg-neutral-900 text-white">기본</span>
+                          )}
+                          {selectedAddressId === addr.id && (
+                            <Check className="w-3 h-3 text-neutral-900 ml-auto" />
+                          )}
+                        </div>
+                        <p className="text-xs text-neutral-700 font-medium">{addr.recipient} · {addr.phone}</p>
+                        <p className="text-xs text-neutral-500 truncate mt-0.5">{addr.address} {addr.addressDetail}</p>
+                      </div>
+                    ))}
+                    {/* 직접 입력 */}
+                    <div
+                      onClick={() => {
+                        setSelectedAddressId(null);
+                        setAddress({ recipient: '', phone: '', zipCode: '', address: '', detail: '' });
+                      }}
+                      className={`p-3 border-2 cursor-pointer transition-all flex items-center gap-2 ${selectedAddressId === null
+                        ? 'border-neutral-900 bg-neutral-50'
+                        : 'border-dashed border-neutral-200 hover:border-neutral-300'
+                        }`}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-neutral-400" />
+                      <span className="text-xs font-bold text-neutral-500">새 배송지 직접 입력</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">수령인</label>
+                  <input
+                    type="text"
+                    value={address.recipient}
+                    onChange={e => setAddress({ ...address, recipient: e.target.value })}
+                    className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm bg-neutral-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">연락처</label>
+                  <input
+                    type="text"
+                    value={address.phone}
+                    onChange={e => setAddress({ ...address, phone: e.target.value })}
+                    className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm bg-neutral-50"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-3 pt-2">
+                  <label className="block text-xs font-bold text-neutral-500 uppercase mb-1">주소</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={address.zipCode}
+                      readOnly
+                      className="w-32 px-4 py-3 border border-neutral-200 bg-neutral-100 text-sm text-neutral-500"
+                      placeholder="우편번호"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddressSearch}
+                      className="bg-neutral-900 text-white px-6 py-3 font-medium hover:bg-neutral-800 transition-colors text-sm"
+                    >
+                      주소검색
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={address.address}
+                    readOnly
+                    className="w-full px-4 py-3 border border-neutral-200 bg-neutral-100 text-sm text-neutral-500"
+                    placeholder="기본 주소"
+                  />
+                  <input
+                    type="text"
+                    value={address.detail}
+                    onChange={e => setAddress({ ...address, detail: e.target.value })}
+                    className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm"
+                    placeholder="상세 주소를 입력해주세요"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-neutral-100">
+                <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">배송 메모</label>
+                <textarea
+                  value={deliveryMemo}
+                  onChange={(e) => setDeliveryMemo(e.target.value)}
+                  placeholder="배송 시 요청사항을 입력해주세요 (선택)"
+                  rows={2}
+                  className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 resize-none text-sm"
                 />
               </div>
             </div>
-
-            <div className="mt-6 pt-6 border-t border-neutral-100">
-              <label className="block text-xs font-bold text-neutral-500 uppercase mb-2">배송 메모</label>
-              <textarea
-                value={deliveryMemo}
-                onChange={(e) => setDeliveryMemo(e.target.value)}
-                placeholder="배송 시 요청사항을 입력해주세요 (선택)"
-                rows={2}
-                className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 resize-none text-sm"
-              />
-            </div>
-          </div>
-        )}
+          )}
 
           {/* Payment Methods */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
             <div className="mb-6">
               <h2 className="text-xl tracking-tight text-neutral-900 font-bold mb-4">결제 수단</h2>
-              
+
               {!hasSubscriptionItems && (
                 <div className="flex bg-neutral-100 p-1 rounded-sm w-full">
                   <button
@@ -906,10 +904,10 @@ export function CheckoutPage() {
             </div>
 
             {hasSubscriptionItems && (
-                <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-xs border border-blue-200 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <p>정기배송 상품이 포함되어 있어 <strong>복합 결제</strong>를 사용할 수 없습니다. (단일 결제수단 필수)</p>
-                </div>
+              <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-xs border border-blue-200 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <p>정기배송 상품이 포함되어 있어 <strong>복합 결제</strong>를 사용할 수 없습니다. (단일 결제수단 필수)</p>
+              </div>
             )}
 
             {(paymentMode === 'single' || hasSubscriptionItems) ? (
@@ -917,11 +915,10 @@ export function CheckoutPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div
                     onClick={() => setPaymentMethod('credit')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'credit'
-                        ? 'border-[#D9534F] bg-[#FFF8F5]'
-                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                    }`}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'credit'
+                      ? 'border-[#D9534F] bg-[#FFF8F5]'
+                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                      }`}
                   >
                     <CreditCard className={`w-5 h-5 mt-0.5 ${paymentMethod === 'credit' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
                     <div>
@@ -932,11 +929,10 @@ export function CheckoutPage() {
 
                   <div
                     onClick={() => setPaymentMethod('general')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'general'
-                        ? 'border-[#D9534F] bg-[#FFF8F5]'
-                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                    }`}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'general'
+                      ? 'border-[#D9534F] bg-[#FFF8F5]'
+                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                      }`}
                   >
                     <CreditCard className={`w-5 h-5 mt-0.5 ${paymentMethod === 'general' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
                     <div>
@@ -947,11 +943,10 @@ export function CheckoutPage() {
 
                   <div
                     onClick={() => setPaymentMethod('virtual')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'virtual'
-                        ? 'border-[#D9534F] bg-[#FFF8F5]'
-                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                    }`}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'virtual'
+                      ? 'border-[#D9534F] bg-[#FFF8F5]'
+                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                      }`}
                   >
                     <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'virtual' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
                     <div>
@@ -962,11 +957,10 @@ export function CheckoutPage() {
 
                   <div
                     onClick={() => setPaymentMethod('transfer')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'transfer'
-                        ? 'border-[#D9534F] bg-[#FFF8F5]'
-                        : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                    }`}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'transfer'
+                      ? 'border-[#D9534F] bg-[#FFF8F5]'
+                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                      }`}
                   >
                     <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'transfer' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
                     <div>
@@ -987,15 +981,14 @@ export function CheckoutPage() {
                               <div
                                 key={card.id}
                                 onClick={() => setSelectedCardId(card.id)}
-                                className={`p-4 border-2 cursor-pointer transition-all relative bg-white ${
-                                  selectedCardId === card.id 
-                                    ? 'border-neutral-900 shadow-sm' 
-                                    : 'border-neutral-200 hover:border-neutral-300'
-                                }`}
+                                className={`p-4 border-2 cursor-pointer transition-all relative bg-white ${selectedCardId === card.id
+                                  ? 'border-neutral-900 shadow-sm'
+                                  : 'border-neutral-200 hover:border-neutral-300'
+                                  }`}
                               >
                                 <div className="flex justify-between items-start mb-3 group/card">
                                   <div className="flex items-center gap-2">
-                                    <div 
+                                    <div
                                       className={`w-12 h-8 ${brandStyle.bg} rounded-sm border border-neutral-100 shadow-sm shrink-0`}
                                       style={brandStyle.pos ? {
                                         backgroundImage: `url(${cardLogos})`,
@@ -1044,7 +1037,7 @@ export function CheckoutPage() {
                         </div>
                       )}
 
-                      <button 
+                      <button
                         onClick={handleAddCard}
                         className="w-full flex items-center justify-center gap-2 py-4 border border-dashed border-neutral-300 hover:border-neutral-900 bg-white transition-colors text-sm font-bold text-neutral-500 hover:text-neutral-900 mt-2"
                       >
@@ -1078,7 +1071,7 @@ export function CheckoutPage() {
                         <p className="text-2xl font-black text-neutral-900 tracking-wider">우리은행 1005-803-786090</p>
                         <p className="text-base font-bold text-neutral-600 mt-2">예금주 : <span className="text-neutral-900">㈜제이시스메디칼</span></p>
                       </div>
-                      
+
                       <div className="mt-6 max-w-sm mx-auto text-left">
                         <label className="block text-sm font-bold text-neutral-900 mb-2">
                           실제 입금자명 <span className="text-red-500">*</span>
@@ -1093,7 +1086,7 @@ export function CheckoutPage() {
                       </div>
 
                       <p className="text-xs text-neutral-500 mt-4 px-4">
-                        * 주문자와 입금자명이 동일해야 빠른 입금 확인이 가능합니다.<br/>
+                        * 주문자와 입금자명이 동일해야 빠른 입금 확인이 가능합니다.<br />
                         * 입금 확인 후 상품 배송이 시작됩니다.
                       </p>
                     </div>
@@ -1112,17 +1105,16 @@ export function CheckoutPage() {
                       <div className="flex-1">
                         <h3 className="text-sm font-bold text-blue-900 mb-1">정기 배송 주기 선택</h3>
                         <p className="text-[11px] text-blue-700 mb-4 opacity-80">선택하신 주기에 따라 등록된 카드로 자동 결제 및 배송이 진행됩니다.</p>
-                        
+
                         <div className="flex flex-wrap gap-2">
                           {[30, 60, 90].map(days => (
                             <button
                               key={days}
                               onClick={() => setSubscriptionCycle(days)}
-                              className={`px-6 py-2.5 text-xs font-bold transition-all border ${
-                                subscriptionCycle === days 
-                                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                                  : 'bg-white border-blue-200 text-blue-700 hover:border-blue-400'
-                              }`}
+                              className={`px-6 py-2.5 text-xs font-bold transition-all border ${subscriptionCycle === days
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                : 'bg-white border-blue-200 text-blue-700 hover:border-blue-400'
+                                }`}
                             >
                               {days / 30}개월 마다 (매 {days}일)
                             </button>
@@ -1150,7 +1142,7 @@ export function CheckoutPage() {
                         <div className="px-3 py-2 border border-neutral-300 text-sm bg-neutral-100 flex items-center">
                           등록된 신용카드
                         </div>
-                        
+
                         <select
                           value={sm.cardId || ''}
                           onChange={(e) => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, cardId: e.target.value } : m))}
@@ -1161,7 +1153,7 @@ export function CheckoutPage() {
                         </select>
 
                         <div className="flex gap-2">
-                          <input 
+                          <input
                             type="text"
                             value={sm.amount ? sm.amount.toLocaleString() : ''}
                             onChange={(e) => {
@@ -1171,7 +1163,7 @@ export function CheckoutPage() {
                             placeholder="결제 금액"
                             className="w-full px-3 py-2 border border-neutral-300 text-sm focus:ring-1 focus:ring-neutral-900 text-right font-medium"
                           />
-                          <button 
+                          <button
                             onClick={() => setSplitMethods(prev => prev.map(m => m.id === sm.id ? { ...m, amount: Number(m.amount) + splitRemaining } : m))}
                             className="px-4 py-2 bg-black text-white text-xs whitespace-nowrap hover:bg-neutral-800 transition-colors font-bold"
                           >
@@ -1181,9 +1173,9 @@ export function CheckoutPage() {
                       </div>
                     </div>
                   ))}
-                  
+
                   {splitMethods.length < 5 && (
-                    <button 
+                    <button
                       onClick={() => setSplitMethods(prev => [...prev, { id: Date.now().toString(), type: 'credit', amount: 0 }])}
                       className="w-full py-4 border border-dashed border-neutral-300 text-sm text-neutral-600 font-bold hover:bg-neutral-50 hover:text-neutral-900 transition-colors flex justify-center items-center gap-2"
                     >
@@ -1256,7 +1248,7 @@ export function CheckoutPage() {
               disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 등록신용카드 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제` : paymentMethod === 'transfer' ? '무통장입금 결제하기' : '가상계좌 결제하기'))}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 등록신용카드 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제하기` : paymentMethod === 'transfer' ? '무통장입금 결제하기' : '가상계좌 결제하기'))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">
@@ -1285,7 +1277,7 @@ export function CheckoutPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>취소</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={confirmDeleteCard}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
