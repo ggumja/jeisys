@@ -332,10 +332,15 @@ export function OrderDetailPage() {
     }
   };
 
-  const getStatusBadge = (status: Order['status'] | any) => {
+  const getStatusBadge = (status: Order['status'] | any, paymentMethod?: string) => {
     switch (status) {
       case 'pending':
-        return (
+        return paymentMethod === 'partial_card' ? (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            <Clock className="w-3 h-3 mr-1" />
+            결제대기
+          </Badge>
+        ) : (
           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
             <Clock className="w-3 h-3 mr-1" />
             입금대기
@@ -432,7 +437,7 @@ export function OrderDetailPage() {
   };
   const getStatusText = (status: Order['status'] | any) => {
     switch (status) {
-      case 'pending': return '입금대기';
+      case 'pending': return '입금대기/결제대기';
       case 'paid': return '결제완료';
       case 'processing': return '상품준비중';
       case 'shipped': return '배송중';
@@ -502,7 +507,7 @@ export function OrderDetailPage() {
                   정기배송
                 </Badge>
               )}
-              {getStatusBadge(order.status)}
+              {getStatusBadge(order.status, order.paymentMethod)}
             </div>
           </div>
         </div>
@@ -591,7 +596,7 @@ export function OrderDetailPage() {
             </div>
           )}
 
-          {order.status === 'pending' && (
+          {order.status === 'pending' && order.paymentMethod !== 'partial_card' && (
             <Button
               variant="default"
               onClick={() => handleUpdateStatus('paid')}
@@ -746,7 +751,7 @@ export function OrderDetailPage() {
               <h4 className="text-lg font-bold text-red-900">클레임 상세 정보 ({getStatusText(order.status)})</h4>
             </div>
             <div className="flex items-center gap-2">
-              {getStatusBadge(order.status)}
+              {getStatusBadge(order.status, order.paymentMethod)}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1649,14 +1654,26 @@ export function OrderDetailPage() {
                   )}
                 </dd>
               </div>
-              <div>
-                <dt className="text-xs font-medium text-neutral-600 mb-1">
-                  {order.status === 'pending' && order.paymentMethod !== 'credit' ? '입금 예정 금액' : '최종 결제 금액'}
-                </dt>
-                <dd className="text-sm font-bold text-blue-700">
-                  {(order.totalAmount || 0).toLocaleString()}원
-                </dd>
-              </div>
+              {order.paymentMethod === 'partial_card' ? (
+                <div>
+                  <dt className="text-xs font-medium text-neutral-600 mb-1">잔여 결제 금액</dt>
+                  <dd className="text-sm font-bold text-red-600 flex items-center gap-2">
+                    {(order.totalAmount - (order.paymentHistory?.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0) || 0)).toLocaleString()}원
+                    <span className="text-[11px] text-neutral-500 font-normal bg-neutral-100 px-1.5 py-0.5 rounded-sm">
+                      기결제: {(order.paymentHistory?.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0) || 0).toLocaleString()}원
+                    </span>
+                  </dd>
+                </div>
+              ) : (
+                <div>
+                  <dt className="text-xs font-medium text-neutral-600 mb-1">
+                    {order.status === 'pending' && order.paymentMethod !== 'credit' ? '입금 예정 금액' : '최종 결제 금액'}
+                  </dt>
+                  <dd className="text-sm font-bold text-blue-700">
+                    {(order.totalAmount || 0).toLocaleString()}원
+                  </dd>
+                </div>
+              )}
               {order.creditsUsed ? (
                 <div>
                   <dt className="text-xs font-medium text-neutral-600 mb-1">장비 크레딧 결제</dt>

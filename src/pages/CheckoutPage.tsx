@@ -43,17 +43,20 @@ export function CheckoutPage() {
   const [placingOrder, setPlacingOrder] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'general' | 'virtual' | 'transfer'>('credit');
-  const [paymentMode, setPaymentMode] = useState<'single' | 'split'>('single');
+  const [paymentMode, setPaymentMode] = useState<'single' | 'split' | 'partial'>('single');
   const [splitMethods, setSplitMethods] = useState<SplitPaymentMethod[]>([
     { id: '1', type: 'credit', amount: 0 },
     { id: '2', type: 'credit', amount: 0 }
   ]);
+  const [partialPaymentAmount, setPartialPaymentAmount] = useState<number>(0);
+  const [partialPaymentMethod, setPartialPaymentMethod] = useState<'credit' | 'general'>('credit');
   const [userCards, setUserCards] = useState<PaymentMethod[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>('');
   const [subscriptionCycle, setSubscriptionCycle] = useState<number>(30);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [cardToDelete, setCardToDelete] = useState<string | null>(null);
+  const [paymentErrorModal, setPaymentErrorModal] = useState<{isOpen: boolean, message: string}>({ isOpen: false, message: '' });
 
   const [deliveryMemo, setDeliveryMemo] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([]);
@@ -400,20 +403,29 @@ export function CheckoutPage() {
         toast.error('결제할 카드를 선택하거나 새로 등록해주세요.');
         return;
       }
-    } else {
+    } else if (paymentMode === 'split') {
       if (splitRemaining !== 0) {
         toast.error(`남은 결제 금액(${splitRemaining.toLocaleString()}원)을 모두 분배해주세요.`);
         return;
       }
       for (const sm of splitMethods) {
         if (sm.type === 'credit' && !sm.cardId) {
-          toast.error('복합 결제에 사용될 법인카드를 모두 선택해주세요.');
+          toast.error('카드분할결제에 사용될 법인카드를 모두 선택해주세요.');
           return;
         }
         if (sm.amount <= 0) {
           toast.error('결제 금액은 0원보다 커야 합니다.');
           return;
         }
+      }
+    } else if (paymentMode === 'partial') {
+      if (!partialPaymentAmount || partialPaymentAmount <= 0 || partialPaymentAmount >= finalTotal) {
+        toast.error('올바른 선결제 금액을 입력해주세요.');
+        return;
+      }
+      if (partialPaymentMethod === 'credit' && !selectedCardId) {
+        toast.error('결제할 카드를 선택하거나 새로 등록해주세요.');
+        return;
       }
     }
 
@@ -432,13 +444,15 @@ export function CheckoutPage() {
         userId: user.id,
         items: cart,
         totalAmount: finalTotal,
-        paymentMethod: (paymentMode === 'single' || hasSubscriptionItems) ? paymentMethod : 'split',
+        paymentMethod: (paymentMode === 'single' || hasSubscriptionItems) ? paymentMethod : (paymentMode === 'partial' ? 'partial_card' : 'split'),
         deliveryAddress: fullAddress,
         depositorName: paymentMethod === 'transfer' ? depositorName : undefined,
-        billingKeyId: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.id : undefined,
-        billingKey: (paymentMode === 'single' || hasSubscriptionItems) ? selectedCard?.billingKey : undefined,
+        billingKeyId: (paymentMode === 'single' || hasSubscriptionItems || (paymentMode === 'partial' && partialPaymentMethod === 'credit')) ? selectedCard?.id : undefined,
+        billingKey: (paymentMode === 'single' || hasSubscriptionItems || (paymentMode === 'partial' && partialPaymentMethod === 'credit')) ? selectedCard?.billingKey : undefined,
         subscriptionCycle: hasSubscriptionItems ? subscriptionCycle : undefined,
         pointsUsed: Number(pointsUsed) || 0,
+        partialAmount: paymentMode === 'partial' ? partialPaymentAmount : undefined,
+        partialMethod: paymentMode === 'partial' ? partialPaymentMethod : undefined,
         splitPayments: (paymentMode === 'split' && !hasSubscriptionItems) ? splitMethods.map(sm => ({
           method: sm.type,
           amount: sm.amount,
@@ -508,7 +522,11 @@ export function CheckoutPage() {
       navigate(`/order-complete/${order.id}`);
     } catch (error: any) {
       console.error('Order failed', error);
-      toast.error('주문 처리에 실패했습니다: ' + (error.message || 'Error'));
+      if (error.message && error.message.includes('승인 거절')) {
+        setPaymentErrorModal({ isOpen: true, message: error.message });
+      } else {
+        toast.error('주문 처리에 실패했습니다: ' + (error.message || 'Error'));
+      }
     } finally {
       setPlacingOrder(false);
     }
@@ -899,6 +917,12 @@ export function CheckoutPage() {
                   >
                     카드분할결제
                   </button>
+                  <button
+                    onClick={() => setPaymentMode('partial')}
+                    className={`flex-1 px-4 py-2 text-xs font-bold transition-all ${paymentMode === 'partial' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}
+                  >
+                    카드일부결제
+                  </button>
                 </div>
               )}
             </div>
@@ -906,11 +930,11 @@ export function CheckoutPage() {
             {hasSubscriptionItems && (
               <div className="mb-4 p-3 bg-blue-50 text-blue-800 text-xs border border-blue-200 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <p>정기배송 상품이 포함되어 있어 <strong>복합 결제</strong>를 사용할 수 없습니다. (단일 결제수단 필수)</p>
+                <p>정기배송 상품이 포함되어 있어 <strong>카드분할결제</strong>를 사용할 수 없습니다. (단일 결제수단 필수)</p>
               </div>
             )}
 
-            {(paymentMode === 'single' || hasSubscriptionItems) ? (
+            {(paymentMode === 'single' || hasSubscriptionItems) && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div
@@ -1125,7 +1149,9 @@ export function CheckoutPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+
+            {paymentMode === 'split' && !hasSubscriptionItems && (
               <div className="space-y-4">
                 <div className="border border-neutral-200 rounded p-4 space-y-4">
                   {splitMethods.map((sm, index) => (
@@ -1195,8 +1221,131 @@ export function CheckoutPage() {
                 </div>
               </div>
             )}
-          </div>
 
+            {paymentMode === 'partial' && !hasSubscriptionItems && (
+              <div className="space-y-4">
+                <div className="bg-neutral-50 p-4 border border-neutral-200">
+                  <label className="block text-sm font-bold text-neutral-900 mb-2">
+                    선결제 금액 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={partialPaymentAmount ? partialPaymentAmount.toLocaleString() : ''}
+                      onChange={(e) => {
+                        const val = Number(e.target.value.replace(/[^0-9]/g, ''));
+                        setPartialPaymentAmount(val);
+                      }}
+                      placeholder="먼저 결제하실 금액을 입력하세요"
+                      className="w-full px-4 py-3 border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-neutral-900 text-right font-bold text-neutral-900"
+                    />
+                    <span className="flex items-center px-2 text-neutral-500 font-bold">원</span>
+                  </div>
+                  {partialPaymentAmount > 0 && partialPaymentAmount >= finalTotal && (
+                     <p className="text-red-500 text-xs mt-2 font-bold">선결제 금액은 총 결제 금액보다 작아야 합니다.</p>
+                  )}
+                  <p className="text-sm text-neutral-600 mt-3 pt-3 border-t border-neutral-200">
+                    남은 결제 금액: <span className="font-black text-red-600 tracking-tight">₩{Math.max(0, finalTotal - partialPaymentAmount).toLocaleString()}</span>원 <span className="text-xs text-neutral-400 font-normal">(마이페이지에서 추후 결제)</span>
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setPartialPaymentMethod('credit')}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${partialPaymentMethod === 'credit'
+                      ? 'border-[#D9534F] bg-[#FFF8F5]'
+                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                      }`}
+                  >
+                    <CreditCard className={`w-5 h-5 mt-0.5 ${partialPaymentMethod === 'credit' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <div>
+                      <h3 className={`font-bold text-sm ${partialPaymentMethod === 'credit' ? 'text-neutral-900' : 'text-neutral-700'}`}>등록된 신용카드</h3>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">등록된 카드로 간편 결제</p>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setPartialPaymentMethod('general')}
+                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${partialPaymentMethod === 'general'
+                      ? 'border-[#D9534F] bg-[#FFF8F5]'
+                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
+                      }`}
+                  >
+                    <CreditCard className={`w-5 h-5 mt-0.5 ${partialPaymentMethod === 'general' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <div>
+                      <h3 className={`font-bold text-sm ${partialPaymentMethod === 'general' ? 'text-neutral-900' : 'text-neutral-700'}`}>일반결제</h3>
+                      <p className="text-[11px] text-neutral-500 mt-0.5">신용카드 결제</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-neutral-200 rounded-sm p-6 bg-neutral-50 min-h-[200px] flex flex-col justify-center">
+                  {partialPaymentMethod === 'credit' && (
+                    <div className="space-y-4 w-full">
+                      {userCards.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {userCards.map(card => {
+                            const brandStyle = getCardBrandStyles(card.cardName);
+                            return (
+                              <div
+                                key={card.id}
+                                onClick={() => setSelectedCardId(card.id)}
+                                className={`p-4 border-2 cursor-pointer transition-all relative bg-white ${selectedCardId === card.id
+                                  ? 'border-neutral-900 shadow-sm'
+                                  : 'border-neutral-200 hover:border-neutral-300'
+                                  }`}
+                              >
+                                <div className="flex justify-between items-start mb-3 group/card">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-12 h-8 ${brandStyle.bg} rounded-sm border border-neutral-100 shadow-sm shrink-0`}
+                                      style={brandStyle.pos ? {
+                                        backgroundImage: `url(${cardLogos})`,
+                                        backgroundSize: '400% 300%',
+                                        backgroundPosition: brandStyle.pos,
+                                        backgroundRepeat: 'no-repeat'
+                                      } : {}}
+                                    >
+                                      {!brandStyle.pos && (
+                                        <span className={`${brandStyle.text} text-[10px] font-black flex items-center justify-center h-full`}>
+                                          {brandStyle.short}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs font-bold text-neutral-900 uppercase truncate max-w-[100px]">
+                                      {card.alias || card.cardName}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <p className="text-sm font-medium text-neutral-900 tracking-wider">
+                                    {card.cardNumberMasked}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center">
+                          <AlertCircle className="w-6 h-6 text-neutral-300 mx-auto mb-3" />
+                          <p className="text-sm text-neutral-500 mb-1 font-bold">등록된 카드가 없습니다.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {partialPaymentMethod === 'general' && (
+                    <div className="text-center py-8">
+                      <CreditCard className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                      <p className="text-sm font-bold text-neutral-700">일반 신용카드 결제</p>
+                      <p className="text-xs text-neutral-500 mt-1">결제하기 버튼을 누르면 신용카드 결제창이 나타납니다.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
         </div>{/* /lg:col-span-2 */}
 
@@ -1245,10 +1394,10 @@ export function CheckoutPage() {
 
             <button
               onClick={handleOrder}
-              disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0)}
+              disabled={placingOrder || (paymentMode === 'split' && !hasSubscriptionItems && splitRemaining !== 0) || (paymentMode === 'partial' && !hasSubscriptionItems && (!partialPaymentAmount || partialPaymentAmount <= 0 || partialPaymentAmount >= finalTotal))}
               className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-5 font-bold transition-all text-sm tracking-widest uppercase mb-4 disabled:opacity-50 shadow-lg"
             >
-              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 등록신용카드 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제하기` : paymentMethod === 'transfer' ? '무통장입금 결제하기' : '가상계좌 결제하기'))}
+              {placingOrder ? 'Processing...' : (paymentMode === 'split' && !hasSubscriptionItems ? `카드분할결제 진행하기 (₩${finalTotal.toLocaleString()})` : (paymentMode === 'partial' && !hasSubscriptionItems ? `선결제 ₩${(partialPaymentAmount || 0).toLocaleString()} ${partialPaymentMethod === 'credit' ? '등록신용카드' : '일반신용카드'} 결제하기` : (paymentMethod === 'credit' ? `₩${finalTotal.toLocaleString()} 등록신용카드 결제하기` : paymentMethod === 'general' ? `₩${finalTotal.toLocaleString()} 신용카드 결제하기` : paymentMethod === 'transfer' ? '무통장입금 결제하기' : '가상계좌 결제하기')))}
             </button>
 
             <div className="flex items-start gap-2 p-3 bg-neutral-50 border border-neutral-100">
@@ -1282,6 +1431,25 @@ export function CheckoutPage() {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               삭제하기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={paymentErrorModal.isOpen} onOpenChange={(open) => setPaymentErrorModal(prev => ({ ...prev, isOpen: open }))}>
+        <AlertDialogContent className="max-w-[400px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="w-5 h-5" />
+              결제 실패 안내
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-neutral-700 font-medium leading-relaxed whitespace-pre-wrap mt-2">
+              {paymentErrorModal.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setPaymentErrorModal({ isOpen: false, message: '' })} className="bg-neutral-900 hover:bg-neutral-800 text-white font-bold w-full">
+              확인
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

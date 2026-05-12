@@ -122,7 +122,8 @@ export const adminService = {
                 order.payment_method === 'transfer' ? '무통장입금' :
                 order.payment_method === 'credit' ? '신용카드(저장)' :
                 order.payment_method === 'general' ? '일반결제(신용카드)' :
-                order.payment_method === 'split' ? '복합결제' :
+                order.payment_method === 'split' ? '카드분할결제' :
+                order.payment_method === 'partial_card' ? '카드일부결제' :
                 order.payment_method,
             status: order.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: order.order_items?.length || 0,
@@ -148,7 +149,8 @@ export const adminService = {
                     order.payment_method === 'transfer' ? '무통장입금' :
                     order.payment_method === 'credit' ? '신용카드(저장)' :
                     order.payment_method === 'general' ? '일반결제(신용카드)' :
-                    order.payment_method === 'split' ? '복합결제' :
+                    order.payment_method === 'split' ? '카드분할결제' :
+                    order.payment_method === 'partial_card' ? '카드일부결제' :
                     order.payment_method
             },
             // Keep original dates for sorting if needed
@@ -304,7 +306,8 @@ export const adminService = {
                     orderData.payment_method === 'transfer' ? '무통장입금' :
                     orderData.payment_method === 'credit' ? '신용카드(저장)' :
                     orderData.payment_method === 'general' ? '일반결제(신용카드)' :
-                    orderData.payment_method === 'split' ? '복합결제' :
+                    orderData.payment_method === 'split' ? '카드분할결제' :
+                    orderData.payment_method === 'partial_card' ? '카드일부결제' :
                         orderData.payment_method
             },
             paymentMethod: orderData.payment_method,

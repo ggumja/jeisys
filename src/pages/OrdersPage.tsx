@@ -10,7 +10,7 @@ import { Product, ClaimInfo, User } from '../types';
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
 import { creditService } from '../services/creditService';
-import { SplitShipmentModal } from '../components/SplitShipmentModal';
+
 import { toast } from 'sonner';
 
 // ─── 클레임 신청 모달 ────────────────────────────────────────────────────────
@@ -138,10 +138,65 @@ function ClaimModal({ orderId, type, paymentMethod, status, onClose, onSuccess }
   );
 }
 
+// ─── 잔여금액 결제 모달 ────────────────────────────────────────────────────────
+interface RemainingPaymentModalProps {
+  orderId: string;
+  remainingAmount: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }: RemainingPaymentModalProps) {
+  const [method, setMethod] = useState<'credit' | 'general'>('credit');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      await orderService.payRemainingBalance(orderId, remainingAmount, method);
+      toast.success('잔여금액 결제가 완료되었습니다.');
+      onSuccess();
+    } catch (e: any) {
+      toast.error(e.message || '결제 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-sm mx-4 shadow-2xl">
+        <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
+          <h3 className="text-base font-bold text-neutral-900 tracking-tight">잔여금액 결제</h3>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900 transition-colors text-xl leading-none">×</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="bg-neutral-50 p-4 border border-neutral-200 text-center">
+             <p className="text-xs text-neutral-500 mb-1">결제할 금액</p>
+             <p className="text-2xl font-black text-neutral-900">₩{remainingAmount.toLocaleString()}</p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2 mt-4">
+             <button onClick={() => setMethod('credit')} className={`py-3 text-xs font-bold border-2 ${method === 'credit' ? 'border-neutral-900 text-neutral-900' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'}`}>등록된 신용카드</button>
+             <button onClick={() => setMethod('general')} className={`py-3 text-xs font-bold border-2 ${method === 'general' ? 'border-neutral-900 text-neutral-900' : 'border-neutral-200 text-neutral-500 hover:border-neutral-300'}`}>일반결제</button>
+          </div>
+        </div>
+        <div className="px-5 py-3 border-t border-neutral-100 flex gap-2">
+          <button onClick={onClose} className="flex-1 px-3 py-2.5 border border-neutral-300 text-neutral-900 text-sm font-bold hover:bg-neutral-50 transition-colors">취소</button>
+          <button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 px-3 py-2.5 bg-neutral-900 text-white text-sm font-bold hover:bg-neutral-800 transition-colors disabled:opacity-50">
+            {isSubmitting ? '처리 중...' : '결제하기'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── 상태 뱃지 ────────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string; icon?: React.ReactNode }> = {
-    pending:            { label: '입금대기',   className: 'bg-yellow-50 text-yellow-900 border-yellow-200',   icon: <Clock className="w-3 h-3" /> },
+    pending:            { label: '입금대기/결제대기', className: 'bg-yellow-50 text-yellow-900 border-yellow-200',   icon: <Clock className="w-3 h-3" /> },
     paid:               { label: '결제완료',   className: 'bg-blue-50 text-blue-900 border-blue-200',         icon: <CheckCircle className="w-3 h-3" /> },
     processing:         { label: '상품준비중', className: 'bg-blue-50 text-blue-900 border-blue-200',         icon: <Package className="w-3 h-3" /> },
     partially_shipped:  { label: '부분발송',   className: 'bg-orange-50 text-orange-900 border-orange-200',   icon: <Truck className="w-3 h-3" /> },
@@ -203,7 +258,8 @@ export function OrdersPage() {
   const { data: orders = [], isLoading, refetch } = useOrders();
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
   const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL'; paymentMethod: string; status: string } | null>(null);
-  const [splitShipModalOrder, setSplitShipModalOrder] = useState<any | null>(null);
+  const [partialPaymentModal, setPartialPaymentModal] = useState<{ orderId: string; remainingAmount: number } | null>(null);
+
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
   const [userProfile, setUserProfile] = useState<User | null>(null);
@@ -306,17 +362,19 @@ export function OrdersPage() {
         />
       )}
 
-      {splitShipModalOrder && (
-        <SplitShipmentModal
-          order={splitShipModalOrder}
-          onClose={() => setSplitShipModalOrder(null)}
+      {/* 잔여금액 결제 모달 */}
+      {partialPaymentModal && (
+        <RemainingPaymentModal
+          orderId={partialPaymentModal.orderId}
+          remainingAmount={partialPaymentModal.remainingAmount}
+          onClose={() => setPartialPaymentModal(null)}
           onSuccess={() => {
-            setSplitShipModalOrder(null);
+            setPartialPaymentModal(null);
             refetch();
-            toast.success('분할 배송 등록이 완료되었습니다.');
           }}
         />
       )}
+
 
       <div className="mb-8">
         <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">주문/배송 관리</h2>
@@ -370,6 +428,18 @@ export function OrdersPage() {
                   <p className="text-sm text-neutral-500">{order.date}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const isPartialCardPending = order.paymentMethod === 'partial_card' && order.status === 'pending';
+                    const partialRemaining = isPartialCardPending ? Math.max(0, order.totalAmount - (order.paymentHistory?.reduce((sum, ph) => sum + (ph.status === 'SUCCESS' ? ph.amount : 0), 0) || 0)) : 0;
+                    return isPartialCardPending && partialRemaining > 0 ? (
+                      <button
+                        onClick={() => setPartialPaymentModal({ orderId: order.id, remainingAmount: partialRemaining })}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold transition-colors"
+                      >
+                        잔여금액 결제
+                      </button>
+                    ) : null;
+                  })()}
                   {/* 재주문 */}
                   <button
                     onClick={() => alert(`재주문: ${order.id}`)}
@@ -407,16 +477,7 @@ export function OrdersPage() {
                       </button>
                     </>
                   )}
-                  {/* 분할배송등록 버튼 (허용된 경우 && 결제완료/부분발송 상태일 때) */}
-                  {isPartialShipAllowed && ['paid', 'partially_shipped'].includes(order.status) && (
-                    <button
-                      onClick={() => setSplitShipModalOrder(order)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shadow-sm"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      분할배송등록
-                    </button>
-                  )}
+
 
                   {/* 클레임 진행 중 안내 */}
                   {isClaimPending && (
@@ -916,7 +977,7 @@ export function OrdersPage() {
                     bank: '계좌이체',
                     cash: '현금',
                     transfer: '무통장 입금',
-                    split: '복합 결제',
+                    split: '카드분할결제',
                   }[order.paymentMethod] ?? order.paymentMethod}
                   {order.paymentMethod === 'split' && order.paymentHistory && order.paymentHistory.length > 0 && (
                     <div className="mt-1 flex flex-col gap-0.5">

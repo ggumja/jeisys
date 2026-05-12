@@ -123,10 +123,12 @@ export function OrderManagementPage() {
     claims: orders.filter(o => ['cancel_requested', 'return_requested', 'returning', 'returned', 'exchange_requested'].includes(o.status)).length,
   };
 
-  const getStatusBadge = (status: Order['status']) => {
+  const getStatusBadge = (status: Order['status'], paymentMethod?: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">입금대기</Badge>;
+        return paymentMethod === 'partial_card' ? 
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">결제대기</Badge> : 
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">입금대기</Badge>;
       case 'paid':
         return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">결제완료</Badge>;
       case 'processing':
@@ -385,7 +387,7 @@ export function OrderManagementPage() {
       <div className="flex border-b border-neutral-200 overflow-x-auto no-scrollbar">
         {[
           { id: 'all', label: '전체', count: stats.all },
-          { id: 'pending', label: '입금대기', count: stats.pending },
+          { id: 'pending', label: '입금대기/결제대기', count: stats.pending },
           { id: 'paid', label: '결제완료', count: stats.paid },
           { id: 'processing', label: '상품준비중', count: stats.processing },
           { id: 'partially_shipped', label: '부분발송', count: stats.partially_shipped },
@@ -466,7 +468,7 @@ export function OrderManagementPage() {
                       <div className="text-sm text-neutral-600">{order.orderDate}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(order.status)}
+                      {getStatusBadge(order.status, order.paymentMethod)}
                       {order.isSubscription && (
                         <div className="mt-1">
                           <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-100">정기배송</Badge>

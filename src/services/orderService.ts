@@ -20,9 +20,12 @@ export interface OrderInput {
         amount: number;
         billingKeyId?: string;
         billingKey?: string;
+        tid?: string;
     }[];
     depositorName?: string; // 무통장입금 실 입금자명
     pointsUsed?: number;    // 사용한 포인트 금액
+    partialAmount?: number; // 카드일부결제 선결제 금액
+    partialMethod?: string; // 카드일부결제 선결제 수단 ('credit' | 'general')
 }
 
 export const orderService = {
@@ -328,6 +331,7 @@ export const orderService = {
         let initialStatus = 'pending';
         let paymentReference = '';
         let vactInfo: any = null;
+        let successfulSplitPayments: any[] = []; // 분할결제 성공 건 (롤백용)
 
         if (paymentMethod === 'credit' && billingKey) {
             const paymentResult: any = await paymentService.requestPayment({
@@ -343,6 +347,65 @@ export const orderService = {
                 paymentReference = paymentResult.tid;
             } else {
                 throw new Error('Payment failed: ' + (paymentResult.message || 'Unknown error'));
+            }
+        } else if (paymentMethod === 'split' && orderInput.splitPayments) {
+            // 분할결제 순차 승인 처리 로직
+            for (let i = 0; i < orderInput.splitPayments.length; i++) {
+                const sp = orderInput.splitPayments[i];
+                if (sp.method === 'credit' && sp.billingKey) {
+                    try {
+                        const paymentResult: any = await paymentService.requestPayment({
+                            userId,
+                            billingKey: sp.billingKey,
+                            amount: sp.amount,
+                            orderName: items.length > 1 ? `${items[0].productId} 외 ${items.length - 1}건 (분할결제 ${i + 1})` : `Order ${Date.now()} (분할결제 ${i + 1})`,
+                            orderNumber: `ORD-${Date.now()}-SPLIT-${i + 1}`
+                        });
+
+                        if (paymentResult.success) {
+                            sp.tid = paymentResult.tid;
+                            successfulSplitPayments.push({ ...sp, tid: paymentResult.tid, index: i });
+                        } else {
+                            throw new Error(paymentResult.message || 'Unknown error');
+                        }
+                    } catch (e: any) {
+                        // 중간 실패 시, 기 승인된 카드들 롤백(취소)
+                        for (const successful of successfulSplitPayments) {
+                            try {
+                                await paymentService.requestRefund({
+                                    tid: successful.tid,
+                                    amount: successful.amount,
+                                    reason: '다른 분할결제 카드의 승인 거절로 인한 자동 전체 취소'
+                                });
+                            } catch (rollbackError) {
+                                console.error('Rollback failed for TID:', successful.tid, rollbackError);
+                            }
+                        }
+                        // 프론트엔드 모달에 띄울 명확한 에러 메시지 전달
+                        throw new Error(`${i + 1}번째 신용카드 승인 거절: ${e.message || '한도초과 또는 승인오류'}`);
+                    }
+                }
+            }
+            initialStatus = 'paid';
+        } else if (paymentMethod === 'partial_card' && orderInput.partialAmount) {
+            if (orderInput.partialMethod === 'credit' && billingKey) {
+                const paymentResult: any = await paymentService.requestPayment({
+                    userId,
+                    billingKey,
+                    amount: orderInput.partialAmount,
+                    orderName: items.length > 1 ? `${items[0].productId} 외 ${items.length - 1}건 (카드일부결제)` : `Order ${Date.now()} (카드일부결제)`,
+                    orderNumber: `ORD-${Date.now()}-PARTIAL`
+                });
+
+                if (paymentResult.success) {
+                    initialStatus = 'pending';
+                    paymentReference = paymentResult.tid;
+                } else {
+                    throw new Error('Partial Payment failed: ' + (paymentResult.message || 'Unknown error'));
+                }
+            } else if (orderInput.partialMethod === 'general') {
+                initialStatus = 'pending';
+                paymentReference = `TID-GEN-${Date.now()}`;
             }
         } else if (paymentMethod === 'virtual') {
             const vactResult: any = await paymentService.issueVirtualAccount({
@@ -389,13 +452,23 @@ export const orderService = {
                 order_id: order.id,
                 transaction_type: 'PAYMENT',
                 amount: sp.amount,
-                pg_tid: sp.billingKeyId || paymentReference || null,
+                pg_tid: sp.tid || sp.billingKeyId || paymentReference || null,
                 status: sp.method === 'transfer' ? 'PENDING' : 'SUCCESS',
                 method: sp.method,
-                reason: `복합결제 - ${sp.method}`
+                reason: `카드분할결제 - ${sp.method}`
             }));
             await supabase.from('payment_history').insert(splitInserts);
-        } else if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo) || paymentMethod === 'transfer') {
+        } else if (paymentMethod === 'partial_card' && orderInput.partialAmount) {
+            await supabase.from('payment_history').insert({
+                order_id: order.id,
+                transaction_type: 'PAYMENT',
+                amount: orderInput.partialAmount,
+                pg_tid: paymentReference || null,
+                status: 'SUCCESS',
+                method: orderInput.partialMethod || 'credit',
+                reason: '카드일부결제 (선결제)'
+            });
+        } else if (initialStatus === 'paid' || (paymentMethod === 'virtual' && vactInfo) || paymentMethod === 'transfer' || paymentMethod === 'general') {
             await supabase.from('payment_history').insert({
                 order_id: order.id,
                 transaction_type: 'PAYMENT',
@@ -636,6 +709,57 @@ export const orderService = {
         );
 
         return order;
+    },
+
+    // 잔여 금액 결제
+    async payRemainingBalance(orderId: string, amount: number, method: 'credit' | 'general'): Promise<void> {
+        const user = await authService.getCurrentUser();
+        if (!user) throw new Error('User not logged in');
+
+        const { data: order, error } = await supabase.from('orders').select('*').eq('id', orderId).single();
+        if (error || !order) throw new Error('Order not found');
+
+        let paymentReference = '';
+        if (method === 'credit') {
+            // 실제 환경에서는 선택된 카드의 billingKey를 가져와야 함. 현재는 시뮬레이션
+            const paymentResult: any = await paymentService.requestPayment({
+                userId: user.id,
+                billingKey: 'simulated_billing_key_for_remaining',
+                amount: amount,
+                orderName: `주문 잔여금액 결제 (${order.order_number})`,
+                orderNumber: `${order.order_number}-REMAIN`
+            });
+
+            if (paymentResult.success) {
+                paymentReference = paymentResult.tid;
+            } else {
+                throw new Error('Payment failed: ' + (paymentResult.message || 'Unknown error'));
+            }
+        } else {
+            paymentReference = `TID-REMAIN-GEN-${Date.now()}`;
+        }
+
+        // payment_history 기록
+        await supabase.from('payment_history').insert({
+            order_id: orderId,
+            transaction_type: 'PAYMENT',
+            amount: amount,
+            pg_tid: paymentReference,
+            status: 'SUCCESS',
+            method: method,
+            reason: '카드일부결제 (잔여금액 결제)'
+        });
+
+        // 상태 업데이트 체크
+        const { data: history } = await supabase.from('payment_history').select('amount, status').eq('order_id', orderId);
+        const totalPaid = (history || []).filter(h => h.status === 'SUCCESS').reduce((sum, h) => sum + h.amount, 0) + amount; // 방금 결제한 amount 포함
+
+        if (totalPaid >= order.total_amount) {
+            await supabase.from('orders').update({ status: 'paid' }).eq('id', orderId);
+            await this.logOrderHistory(orderId, 'paid', '잔여금액 결제 완료', '잔여금액 결제가 모두 완료되어 결제완료 상태로 변경되었습니다.');
+        } else {
+            await this.logOrderHistory(orderId, 'pending', '잔여금액 부분 결제', `${amount.toLocaleString()}원이 추가 결제되었습니다.`);
+        }
     },
 
     // 히스토리 기록 헬퍼
