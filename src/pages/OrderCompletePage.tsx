@@ -68,10 +68,12 @@ export function OrderCompletePage() {
           <CheckCircle className="w-12 h-12 text-green-600" />
         </div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          {order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' ? '입금 대기 중입니다' : '주문이 완료되었습니다'}
+          {order.paymentMethod === 'partial_card' ? '주문에 대한 카드일부결제가 완료되었습니다.' : 
+           order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' ? '입금 대기 중입니다' : '주문이 완료되었습니다'}
         </h1>
         <p className="text-gray-600">
-          {order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' 
+          {order.paymentMethod === 'partial_card' ? '나머지 금액을 결제하셔야 주문이 완료가 됩니다.' :
+           order.paymentMethod === 'virtual' || order.paymentMethod === 'transfer' 
             ? '아래 계좌로 입금해 주시면 결제가 완료됩니다.' 
             : '주문해주셔서 감사합니다. 빠르게 준비하여 배송해드리겠습니다.'}
         </p>
@@ -210,10 +212,12 @@ export function OrderCompletePage() {
             <label className="block text-sm text-gray-600 mb-1">주문번호</label>
             <p className="text-xl font-bold text-gray-900">{order.orderNumber}</p>
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">예상 배송일</label>
-            <p className="text-xl font-bold text-blue-600">{deliveryStr}</p>
-          </div>
+          {order.paymentMethod !== 'partial_card' && (
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">예상 배송일</label>
+              <p className="text-xl font-bold text-blue-600">{deliveryStr}</p>
+            </div>
+          )}
         </div>
       </div>
 
