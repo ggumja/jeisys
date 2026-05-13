@@ -106,9 +106,11 @@ const EMAIL_CUST_PAYMENT: NotificationSection = {
   title: '고객 알림 — 결제',
   items: [
     { key: 'email_cust_vact_waiting', label: '가상계좌 입금 대기 안내' },
+    { key: 'email_cust_bank_waiting', label: '무통장입금 대기 안내' },
     { key: 'email_cust_payment_partial', label: '일부 금액 결제 완료 (잔금 안내)' },
     { key: 'email_cust_order_complete_card', label: '주문완료 (신용카드 등)' },
-    { key: 'email_cust_order_complete_vact', label: '주문완료 (입금확인 후 상품준비중)' },
+    { key: 'email_cust_order_complete_vact', label: '주문완료 (가상계좌 입금확인)' },
+    { key: 'email_cust_order_complete_bank', label: '주문완료 (무통장 입금확인)' },
     { key: 'email_cust_payment_all_done', label: '최종 결제 완료 (잔금 결제 완료 등)' },
     { key: 'email_cust_exchange_received', label: '교환 요청 접수' },
     { key: 'email_cust_return_received', label: '반품 요청 접수' },
@@ -153,9 +155,11 @@ const SMS_CUST_PAYMENT: NotificationSection = {
   title: '고객 알림 — 결제',
   items: [
     { key: 'sms_cust_vact_waiting', label: '가상계좌 입금 대기 안내' },
+    { key: 'sms_cust_bank_waiting', label: '무통장입금 대기 안내' },
     { key: 'sms_cust_payment_partial', label: '일부 금액 결제 완료 (잔금 안내)' },
     { key: 'sms_cust_order_complete_card', label: '주문완료 (신용카드 등)' },
-    { key: 'sms_cust_order_complete_vact', label: '주문완료 (입금확인 후 상품준비중)' },
+    { key: 'sms_cust_order_complete_vact', label: '주문완료 (가상계좌 입금확인)' },
+    { key: 'sms_cust_order_complete_bank', label: '주문완료 (무통장 입금확인)' },
     { key: 'sms_cust_payment_all_done', label: '최종 결제 완료 (잔금 결제 완료 등)' },
     { key: 'sms_cust_exchange_received', label: '교환 요청 접수' },
     { key: 'sms_cust_return_received', label: '반품 요청 접수' },
@@ -632,6 +636,9 @@ function NotificationTab({
                   <VarBtn v="payment_method" label="결제 수단" />
                   <VarBtn v="vact_bank" label="가상계좌 은행명" />
                   <VarBtn v="vact_account" label="가상계좌 번호" />
+                  <VarBtn v="bank_name" label="무통장입금 은행명" />
+                  <VarBtn v="bank_account" label="무통장입금 계좌번호" />
+                  <VarBtn v="bank_depositor" label="예금주" />
                   <div className="w-full h-px bg-neutral-200 my-1 mx-1" />
                   <VarBtn v="partial_paid_amount" label="일부 결제된 금액" />
                   <VarBtn v="remaining_amount" label="남은 결제 잔금" />
@@ -642,6 +649,7 @@ function NotificationTab({
                   <div className="w-full h-px bg-neutral-200 my-1 mx-1" />
                   <VarBtn v="expiring_point" label="소멸 예정 포인트" />
                   <VarBtn v="expiring_credit" label="소멸 예정 크레딧" />
+                  <VarBtn v="credit_type" label="크레딧 종류" />
                   <VarBtn v="expire_date" label="소멸(만료) 일자" />
                   <VarBtn v="expire_days_left" label="소멸까지 남은 일수 (ex: 30, 7)" />
                 </div>
@@ -751,11 +759,13 @@ function NotificationSection({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => onEdit(item.key, type, item.label)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-xs font-medium text-neutral-600 hover:border-blue-500 hover:text-blue-600 transition-colors shadow-sm"
+                  className="flex items-center justify-center px-4 py-1 bg-black text-white rounded hover:bg-neutral-800 transition-colors"
                   title="템플릿 설정"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  설정
+                  <div className="flex items-center gap-1 transform scale-90 origin-center">
+                    <Edit2 className="w-3 h-3" />
+                    <span className="text-xs font-bold tracking-widest leading-none mt-[1px]">설정</span>
+                  </div>
                 </button>
                 <button
                   onClick={() => onToggle(item.key)}
