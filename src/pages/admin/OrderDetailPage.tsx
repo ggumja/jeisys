@@ -1823,7 +1823,7 @@ export function OrderDetailPage() {
                             <XCircle className="w-3 h-3 mr-1" />
                           )}
                           {item.transactionType === 'PAYMENT' ? (
-                            (item as any).method === 'credit' ? '결제완료' : '입금완료'
+                            (item as any).method === 'credit' ? (order.paymentMethod === 'partial_card' ? '일부결제완료' : '결제완료') : '입금완료'
                           ) : (
                             (item as any).method === 'credit' ? '결제취소' : '환불완료'
                           )}
