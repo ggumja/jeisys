@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight, Tag, Plus, Trash2, Edit2, ArrowLeft, Wallet } from 'lucide-react';
+import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight, Tag, Plus, Trash2, Edit2, ArrowLeft, Wallet, Shield, User } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
 import { useModal } from '../../context/ModalContext';
@@ -106,12 +106,22 @@ const EMAIL_CUST_PAYMENT: NotificationSection = {
   title: '고객 알림 — 결제',
   items: [
     { key: 'email_cust_vact_waiting', label: '가상계좌 입금 대기 안내' },
-    { key: 'email_cust_order_complete_card', label: '주문완료 (신용카드)' },
+    { key: 'email_cust_payment_partial', label: '일부 금액 결제 완료 (잔금 안내)' },
+    { key: 'email_cust_order_complete_card', label: '주문완료 (신용카드 등)' },
     { key: 'email_cust_order_complete_vact', label: '주문완료 (입금확인 후 상품준비중)' },
+    { key: 'email_cust_payment_all_done', label: '최종 결제 완료 (잔금 결제 완료 등)' },
     { key: 'email_cust_exchange_received', label: '교환 요청 접수' },
     { key: 'email_cust_return_received', label: '반품 요청 접수' },
     { key: 'email_cust_exchange_done', label: '교환 처리 완료' },
     { key: 'email_cust_return_done', label: '반품 접수 완료' },
+  ],
+};
+const EMAIL_CUST_SHIPPING: NotificationSection = {
+  title: '고객 알림 — 배송',
+  items: [
+    { key: 'email_cust_shipping_standard', label: '일반 배송 (전체 상품 발송)' },
+    { key: 'email_cust_shipping_split', label: '분할 배송 (일부 상품 발송)' },
+    { key: 'email_cust_shipping_remain', label: '잔여 상품 발송 완료' },
   ],
 };
 const EMAIL_CUST_MEMBER: NotificationSection = {
@@ -119,6 +129,13 @@ const EMAIL_CUST_MEMBER: NotificationSection = {
   items: [
     { key: 'email_cust_signup', label: '회원가입 완료' },
     { key: 'email_cust_password_reset', label: '비밀번호 초기화' },
+  ],
+};
+const EMAIL_CUST_EXPIRATION: NotificationSection = {
+  title: '고객 알림 — 혜택 소멸 안내',
+  items: [
+    { key: 'email_cust_point_expire', label: '포인트 소멸 예정 안내' },
+    { key: 'email_cust_credit_expire', label: '크레딧 소멸 예정 안내' },
   ],
 };
 
@@ -136,12 +153,22 @@ const SMS_CUST_PAYMENT: NotificationSection = {
   title: '고객 알림 — 결제',
   items: [
     { key: 'sms_cust_vact_waiting', label: '가상계좌 입금 대기 안내' },
-    { key: 'sms_cust_order_complete_card', label: '주문완료 (신용카드)' },
+    { key: 'sms_cust_payment_partial', label: '일부 금액 결제 완료 (잔금 안내)' },
+    { key: 'sms_cust_order_complete_card', label: '주문완료 (신용카드 등)' },
     { key: 'sms_cust_order_complete_vact', label: '주문완료 (입금확인 후 상품준비중)' },
+    { key: 'sms_cust_payment_all_done', label: '최종 결제 완료 (잔금 결제 완료 등)' },
     { key: 'sms_cust_exchange_received', label: '교환 요청 접수' },
     { key: 'sms_cust_return_received', label: '반품 요청 접수' },
     { key: 'sms_cust_exchange_done', label: '교환 처리 완료' },
     { key: 'sms_cust_return_done', label: '반품 접수 완료' },
+  ],
+};
+const SMS_CUST_SHIPPING: NotificationSection = {
+  title: '고객 알림 — 배송',
+  items: [
+    { key: 'sms_cust_shipping_standard', label: '일반 배송 (전체 상품 발송)' },
+    { key: 'sms_cust_shipping_split', label: '분할 배송 (일부 상품 발송)' },
+    { key: 'sms_cust_shipping_remain', label: '잔여 상품 발송 완료' },
   ],
 };
 const SMS_CUST_MEMBER: NotificationSection = {
@@ -149,6 +176,13 @@ const SMS_CUST_MEMBER: NotificationSection = {
   items: [
     { key: 'sms_cust_signup', label: '회원가입 완료' },
     { key: 'sms_cust_password_reset', label: '비밀번호 초기화' },
+  ],
+};
+const SMS_CUST_EXPIRATION: NotificationSection = {
+  title: '고객 알림 — 혜택 소멸 안내',
+  items: [
+    { key: 'sms_cust_point_expire', label: '포인트 소멸 예정 안내' },
+    { key: 'sms_cust_credit_expire', label: '크레딧 소멸 예정 안내' },
   ],
 };
 
@@ -542,7 +576,7 @@ function NotificationTab({
               </div>
             ))}
           </div>
-          {[EMAIL_ADMIN, EMAIL_CUST_PAYMENT, EMAIL_CUST_MEMBER].map((section) => (
+          {[EMAIL_ADMIN, EMAIL_CUST_PAYMENT, EMAIL_CUST_SHIPPING, EMAIL_CUST_MEMBER, EMAIL_CUST_EXPIRATION].map((section) => (
             <NotificationSection key={section.title} section={section} form={form} onToggle={onToggle} type="email" onEdit={openModal} />
           ))}
         </div>
@@ -571,7 +605,7 @@ function NotificationTab({
               </div>
             ))}
           </div>
-          {[SMS_ADMIN, SMS_CUST_PAYMENT, SMS_CUST_MEMBER].map((section) => (
+          {[SMS_ADMIN, SMS_CUST_PAYMENT, SMS_CUST_SHIPPING, SMS_CUST_MEMBER, SMS_CUST_EXPIRATION].map((section) => (
             <NotificationSection key={section.title} section={section} form={form} onToggle={onToggle} type="sms" onEdit={openModal} />
           ))}
         </div>
@@ -594,10 +628,22 @@ function NotificationTab({
                   <VarBtn v="shop_name" label="쇼핑몰 이름" />
                   <VarBtn v="order_number" label="주문 번호" />
                   <VarBtn v="customer_name" label="고객명" />
-                  <VarBtn v="payment_amount" label="결제 금액" />
+                  <VarBtn v="payment_amount" label="총 결제 금액" />
                   <VarBtn v="payment_method" label="결제 수단" />
                   <VarBtn v="vact_bank" label="가상계좌 은행명" />
                   <VarBtn v="vact_account" label="가상계좌 번호" />
+                  <div className="w-full h-px bg-neutral-200 my-1 mx-1" />
+                  <VarBtn v="partial_paid_amount" label="일부 결제된 금액" />
+                  <VarBtn v="remaining_amount" label="남은 결제 잔금" />
+                  <VarBtn v="shipped_items" label="발송된 상품명" />
+                  <VarBtn v="remaining_items" label="발송 대기(잔여) 상품명" />
+                  <VarBtn v="courier_name" label="택배사명" />
+                  <VarBtn v="tracking_number" label="송장번호" />
+                  <div className="w-full h-px bg-neutral-200 my-1 mx-1" />
+                  <VarBtn v="expiring_point" label="소멸 예정 포인트" />
+                  <VarBtn v="expiring_credit" label="소멸 예정 크레딧" />
+                  <VarBtn v="expire_date" label="소멸(만료) 일자" />
+                  <VarBtn v="expire_days_left" label="소멸까지 남은 일수 (ex: 30, 7)" />
                 </div>
               </div>
 
@@ -673,34 +719,51 @@ function NotificationSection({
   type: 'email' | 'sms';
   onEdit: (key: string, type: 'email' | 'sms', label: string) => void;
 }) {
+  let Icon = Bell;
+  let theme = { bg: 'bg-neutral-50', border: 'border-neutral-200', text: 'text-neutral-700', icon: 'text-neutral-500' };
+
+  if (section.title.includes('관리자')) {
+    Icon = Shield;
+    theme = { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-800', icon: 'text-slate-500' };
+  } else if (section.title.includes('결제')) {
+    Icon = CreditCard;
+    theme = { bg: 'bg-blue-50/50', border: 'border-blue-100', text: 'text-blue-800', icon: 'text-blue-500' };
+  } else if (section.title.includes('회원')) {
+    Icon = User;
+    theme = { bg: 'bg-orange-50/50', border: 'border-orange-100', text: 'text-orange-800', icon: 'text-orange-500' };
+  }
+
   return (
-    <div className="mb-5">
-      <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">{section.title}</p>
-      <div className="space-y-1">
+    <div className={`mb-6 rounded-lg border overflow-hidden shadow-sm ${theme.border}`}>
+      <div className={`px-4 py-3 border-b flex items-center gap-2 ${theme.bg} ${theme.border}`}>
+        <Icon className={`w-4 h-4 ${theme.icon}`} />
+        <h4 className={`text-sm font-bold ${theme.text}`}>{section.title}</h4>
+      </div>
+      <div className="p-2 space-y-1 bg-white">
         {section.items.map((item) => {
           const on = form[item.key] !== 'false';
           return (
             <div
               key={item.key}
-              className="flex items-center justify-between px-3 py-2 rounded hover:bg-neutral-50 transition-colors"
+              className="flex items-center justify-between px-3 py-2.5 rounded hover:bg-neutral-50 transition-colors"
             >
-              <span className="text-sm text-neutral-700">{item.label}</span>
+              <span className="text-sm font-medium text-neutral-700">{item.label}</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => onEdit(item.key, type, item.label)}
-                  className="flex items-center gap-1 px-2 py-1 bg-white border border-neutral-200 rounded text-[11px] font-medium text-neutral-600 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-xs font-medium text-neutral-600 hover:border-blue-500 hover:text-blue-600 transition-colors shadow-sm"
                   title="템플릿 설정"
                 >
-                  <Edit2 className="w-3 h-3" />
+                  <Edit2 className="w-3.5 h-3.5" />
                   설정
                 </button>
                 <button
                   onClick={() => onToggle(item.key)}
-                  className={`flex items-center gap-1 text-xs font-medium transition-colors w-[60px] justify-end ${
+                  className={`flex items-center gap-1 text-xs font-bold transition-colors w-[65px] justify-end ${
                     on ? 'text-green-600' : 'text-neutral-400'
                   }`}
                 >
-                  {on ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                  {on ? <ToggleRight className="w-6 h-6" /> : <ToggleLeft className="w-6 h-6" />}
                   {on ? 'ON' : 'OFF'}
                 </button>
               </div>
