@@ -29,16 +29,98 @@ export const adminService = {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-        // 1. Sales & Orders
+        // 1. Sales & Orders (This Month, excluding cancelled)
         const { data: monthOrders, error: monthError } = await supabase
             .from('orders')
             .select('total_amount, id')
-            .gte('ordered_at', startOfMonth);
+            .gte('ordered_at', startOfMonth)
+            .neq('status', 'cancelled');
 
         if (monthError) throw monthError;
 
         const monthSales = monthOrders.reduce((sum, order) => sum + Number(order.total_amount), 0);
         const monthOrderCount = monthOrders.length;
+
+        // 1-1. Monthly Sales Trend (Last 6 Months)
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        const { data: recentOrders } = await supabase
+            .from('orders')
+            .select('ordered_at, total_amount')
+            .gte('ordered_at', sixMonthsAgo.toISOString())
+            .neq('status', 'cancelled');
+        
+        const monthlySalesMap: Record<string, { sales: number, orders: number }> = {};
+        // Initialize the last 6 months in order
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            monthlySalesMap[`${d.getMonth() + 1}월`] = { sales: 0, orders: 0 };
+        }
+        
+        (recentOrders || []).forEach(order => {
+            const date = new Date(order.ordered_at);
+            const monthStr = `${date.getMonth() + 1}월`;
+            if (monthlySalesMap[monthStr]) {
+                monthlySalesMap[monthStr].sales += Number(order.total_amount);
+                monthlySalesMap[monthStr].orders += 1;
+            }
+        });
+        
+        const salesData = Object.entries(monthlySalesMap).map(([month, data]) => ({
+            month,
+            sales: data.sales,
+            orders: data.orders
+        }));
+
+        // 1-2. Category Data & Best Products (This Month)
+        let categoryData: { name: string; value: number; color: string }[] = [];
+        let bestProducts: { name: string; sales: number; revenue: number }[] = [];
+        
+        if (monthOrders.length > 0) {
+            const orderIds = monthOrders.map(o => o.id);
+            const chunkSize = 100;
+            let allItems: any[] = [];
+            
+            for (let i = 0; i < orderIds.length; i += chunkSize) {
+                const chunk = orderIds.slice(i, i + chunkSize);
+                const { data: itemsChunk } = await supabase
+                    .from('order_items')
+                    .select('quantity, unit_price, product:products(name, category)')
+                    .in('order_id', chunk);
+                if (itemsChunk) allItems = [...allItems, ...itemsChunk];
+            }
+            
+            const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f43f5e'];
+            const catMap: Record<string, number> = {};
+            const prodMap: Record<string, { sales: number, revenue: number }> = {};
+            
+            allItems.forEach(item => {
+                const category = item.product?.category || '기타소모품';
+                const name = item.product?.name || 'Unknown Product';
+                const qty = Number(item.quantity);
+                const revenue = qty * Number(item.unit_price);
+                
+                catMap[category] = (catMap[category] || 0) + revenue;
+                
+                if (!prodMap[name]) prodMap[name] = { sales: 0, revenue: 0 };
+                prodMap[name].sales += qty;
+                prodMap[name].revenue += revenue;
+            });
+            
+            // Calculate percentage for categories
+            const totalRevenue = Object.values(catMap).reduce((a, b) => a + b, 0);
+            categoryData = Object.entries(catMap)
+                .sort((a, b) => b[1] - a[1]) // sort by revenue desc
+                .map(([name, value], index) => ({
+                    name,
+                    value: totalRevenue > 0 ? Math.round((value / totalRevenue) * 100) : 0,
+                    color: colors[index % colors.length]
+                }));
+                
+            bestProducts = Object.entries(prodMap)
+                .map(([name, data]) => ({ name, ...data }))
+                .sort((a, b) => b.revenue - a.revenue)
+                .slice(0, 5);
+        }
 
         // 2. Counts
         const { count: userCount } = await supabase.from('users').select('*', { count: 'exact', head: true });
@@ -91,7 +173,10 @@ export const adminService = {
             pendingUsers: pendingUserCount || 0,
             lowStockProducts: lowStockCount || 0,
             totalProducts: totalProducts || 0,
-            gradeStats
+            gradeStats,
+            salesData,
+            categoryData,
+            bestProducts
         };
     },
 

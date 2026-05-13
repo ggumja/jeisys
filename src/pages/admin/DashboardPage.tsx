@@ -3,34 +3,6 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { adminService } from '../../services/adminService';
-import { orderService } from '../../services/orderService';
-import { authService } from '../../services/authService';
-
-// Mock chart data (to be replaced with real analytics later)
-const salesData = [
-  { month: '1월', sales: 45000000, orders: 89 },
-  { month: '2월', sales: 52000000, orders: 102 },
-  { month: '3월', sales: 48000000, orders: 95 },
-  { month: '4월', sales: 61000000, orders: 118 },
-  { month: '5월', sales: 55000000, orders: 107 },
-  { month: '6월', sales: 67000000, orders: 132 },
-];
-
-const categoryData = [
-  { name: 'Density', value: 28, color: '#3b82f6' },
-  { name: 'POTENZA', value: 22, color: '#8b5cf6' },
-  { name: 'ULTRAcel II', value: 18, color: '#ec4899' },
-  { name: 'LIPOcel II', value: 15, color: '#f59e0b' },
-  { name: '기타소모품', value: 17, color: '#10b981' },
-];
-
-const bestProducts = [
-  { name: 'Density 니들 (32G 9P)', sales: 145, revenue: 43500000 },
-  { name: 'POTENZA 니들팁 (25P)', sales: 128, revenue: 38400000 },
-  { name: 'ULTRAcel II 카트리지', sales: 98, revenue: 29400000 },
-  { name: 'LIPOcel II 카트리지', sales: 87, revenue: 26100000 },
-  { name: 'IntraGen 팁', sales: 76, revenue: 22800000 },
-];
 
 interface DashboardOrder {
   id: string;
@@ -58,7 +30,10 @@ export function DashboardPage() {
       Gold: { count: 0, percentage: 0 },
       Silver: { count: 0, percentage: 0 },
       Bronze: { count: 0, percentage: 0 }
-    }
+    },
+    salesData: [] as { month: string; sales: number; orders: number }[],
+    categoryData: [] as { name: string; value: number; color: string }[],
+    bestProducts: [] as { name: string; sales: number; revenue: number }[]
   });
   const [recentOrders, setRecentOrders] = useState<DashboardOrder[]>([]);
 
@@ -82,61 +57,7 @@ export function DashboardPage() {
     }
   };
 
-  const seedSampleOrders = async () => {
-    try {
-      const user = await authService.getCurrentUser();
-      if (!user) {
-        alert('Please log in first.');
-        return;
-      }
 
-      setLoading(true);
-      const productIds = [
-        'c95917c9-cc03-497c-bef3-1e2be6d57633',
-        'dbb78f79-1749-4d0f-a9e0-eafc2d3afd75',
-        'fcb06020-bb20-4d4c-b70f-361c18412b4f',
-        '59061b5e-a84d-4398-b768-5d0d388efb35',
-        '2bc3a720-99ea-481e-8026-949541505e02'
-      ];
-
-      for (let i = 1; i <= 10; i++) {
-        // Random 1-3 items
-        const count = Math.floor(Math.random() * 3) + 1;
-        const items = [];
-        let totalAmount = 0;
-
-        for (let j = 0; j < count; j++) {
-            const pId = productIds[Math.floor(Math.random() * productIds.length)];
-            const qty = Math.floor(Math.random() * 5) + 1;
-            const price = pId.includes('LinearZ') ? 3300000 : 400000;
-            
-            items.push({
-                productId: pId,
-                quantity: qty,
-                isSubscription: false
-            });
-            totalAmount += price * qty;
-        }
-
-        await orderService.createOrder({
-            userId: user.id,
-            items: items as any,
-            totalAmount,
-            paymentMethod: '카드 결제',
-            deliveryAddress: '서울시 강남구 테헤란로 123 제이시스 빌딩 5층'
-        });
-        console.log(`Seed: Created order ${i}`);
-      }
-
-      alert('Successfully generated 10 sample orders!');
-      loadDashboardData();
-    } catch (error) {
-      console.error('Failed to seed orders', error);
-      alert('Seeding failed. Check console.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGradeClick = (grade: string) => {
     navigate(`/admin/members?grade=${grade}`);
@@ -160,6 +81,24 @@ export function DashboardPage() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'delivered': return '배송완료';
+      case 'shipped': return '배송중';
+      case 'paid':
+      case 'confirmed': return '결제완료';
+      case 'pending': return '결제/입금대기';
+      case 'cancelled': return '취소완료';
+      case 'cancel_requested': return '취소요청';
+      case 'return_requested': return '반품요청';
+      case 'returning': return '반품수거중';
+      case 'returned': return '반품완료';
+      case 'exchange_requested': return '교환요청';
+      case 'partially_shipped': return '부분발송';
+      default: return status;
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
@@ -171,12 +110,6 @@ export function DashboardPage() {
           <h1 className="text-2xl font-medium mb-2">대시보드</h1>
           <p className="text-neutral-600">제이시스메디칼 운영 현황을 한눈에 확인하세요</p>
         </div>
-        <button 
-          onClick={seedSampleOrders}
-          className="px-4 py-2 bg-neutral-100 border border-neutral-300 rounded text-xs hover:bg-neutral-200 transition-colors"
-        >
-          샘플 데이터 생성 (10건)
-        </button>
       </div>
 
       {/* 주요 지표 카드 */}
@@ -264,7 +197,7 @@ export function DashboardPage() {
             </select>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesData}>
+            <LineChart data={stats.salesData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
               <XAxis dataKey="month" stroke="#737373" style={{ fontSize: '12px' }} />
               <YAxis stroke="#737373" style={{ fontSize: '12px' }} />
@@ -282,18 +215,18 @@ export function DashboardPage() {
         <div className="bg-white border border-neutral-200 p-6">
           <h2 className="font-medium mb-6">카테고리별 매출 비율</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
+            <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
               <Pie
-                data={categoryData}
+                data={stats.categoryData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
                 label={({ name, value }: { name: string; value: number }) => `${name} ${value}%`}
-                outerRadius={80}
+                outerRadius={60}
                 fill="#8884d8"
                 dataKey="value"
               >
-                {categoryData.map((entry, index) => (
+                {stats.categoryData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -309,7 +242,7 @@ export function DashboardPage() {
         <div className="bg-white border border-neutral-200 p-6">
           <h2 className="font-medium mb-4">베스트셀러 제품 (이번 달)</h2>
           <div className="space-y-3">
-            {bestProducts.map((product, index) => (
+            {stats.bestProducts.map((product, index) => (
               <div key={index} className="flex items-center justify-between py-3 border-b border-neutral-100 last:border-0">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium">
@@ -338,7 +271,7 @@ export function DashboardPage() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium">{order.customerName} ({order.hospitalName})</p>
                     <span className={`text-xs px-2 py-1 rounded ${getStatusColor(order.status)}`}>
-                      {order.status}
+                      {getStatusText(order.status)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-neutral-600">
