@@ -200,6 +200,8 @@ export const authService = {
             holidayDay: profile.holiday_day,
             isPublicHoliday: profile.is_public_holiday,
             role: profile.role,
+            adminRole: profile.admin_role,
+            permissions: profile.permissions,
             memberType: profile.member_type,
             approvalStatus: profile.approval_status
         };
