@@ -72,7 +72,7 @@ export function OrderManagementPage() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState<string>('paid');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -157,10 +157,15 @@ export function OrderManagementPage() {
   };
 
   const filteredOrders = orders.filter((order: Order) => {
+    const searchLow = searchTerm.toLowerCase();
+    const orderNum = order.orderNumber || '';
+    const custName = order.customerName || '';
+    const hospName = order.hospitalName || '';
+
     const matchesSearch =
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.hospitalName.toLowerCase().includes(searchTerm.toLowerCase());
+      orderNum.toLowerCase().includes(searchLow) ||
+      custName.toLowerCase().includes(searchLow) ||
+      hospName.toLowerCase().includes(searchLow);
 
     const matchesStatus = selectedStatus === 'all' 
       ? true 
