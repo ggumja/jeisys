@@ -153,6 +153,7 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userCards, setUserCards] = useState<PaymentMethod[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string>('');
+  const [payAmount, setPayAmount] = useState<number>(remainingAmount);
 
   useEffect(() => {
     const loadCards = async () => {
@@ -171,6 +172,10 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
   }, []);
 
   const handleSubmit = async () => {
+    if (payAmount <= 0 || payAmount > remainingAmount) {
+      toast.error(`결제 금액을 정확히 입력해주세요. (최대 ₩${remainingAmount.toLocaleString()})`);
+      return;
+    }
     if (method === 'credit' && !selectedCardId) {
       toast.error('결제할 등록된 카드를 선택해주세요.');
       return;
@@ -178,7 +183,7 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
     
     try {
       setIsSubmitting(true);
-      await orderService.payRemainingBalance(orderId, remainingAmount, method, method === 'credit' ? selectedCardId : undefined);
+      await orderService.payRemainingBalance(orderId, payAmount, method, method === 'credit' ? selectedCardId : undefined);
       toast.success('잔여금액 결제가 완료되었습니다.');
       onSuccess();
     } catch (e: any) {
@@ -196,9 +201,23 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-900 transition-colors text-xl leading-none">×</button>
         </div>
         <div className="p-5 space-y-4">
-          <div className="bg-neutral-50 p-4 border border-neutral-200 text-center">
-             <p className="text-xs text-neutral-500 mb-1">결제할 금액</p>
-             <p className="text-2xl font-black text-neutral-900">₩{remainingAmount.toLocaleString()}</p>
+          <div className="bg-neutral-50 p-4 border border-neutral-200">
+             <div className="flex justify-between items-center mb-2">
+               <label className="text-xs font-bold text-neutral-700">결제할 금액</label>
+               <span className="text-xs text-neutral-500">잔여: ₩{remainingAmount.toLocaleString()}</span>
+             </div>
+             <div className="flex gap-2">
+               <input
+                 type="text"
+                 value={payAmount ? payAmount.toLocaleString() : ''}
+                 onChange={(e) => {
+                   const val = Number(e.target.value.replace(/[^0-9]/g, ''));
+                   setPayAmount(val > remainingAmount ? remainingAmount : val);
+                 }}
+                 className="w-full px-3 py-2 border border-neutral-300 text-lg font-bold text-right focus:outline-none focus:border-neutral-900 bg-white"
+               />
+               <span className="flex items-center font-bold text-neutral-500">원</span>
+             </div>
           </div>
           
           <div className="grid grid-cols-2 gap-2 mt-4">
