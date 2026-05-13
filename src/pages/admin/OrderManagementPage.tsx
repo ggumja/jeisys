@@ -126,7 +126,7 @@ export function OrderManagementPage() {
   const getStatusBadge = (status: Order['status'], paymentMethod?: string) => {
     switch (status) {
       case 'pending':
-        return paymentMethod === 'partial_card' ? 
+        return (paymentMethod === 'partial_card' || paymentMethod === '카드일부결제') ? 
           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">결제대기</Badge> : 
           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">입금대기</Badge>;
       case 'paid':
