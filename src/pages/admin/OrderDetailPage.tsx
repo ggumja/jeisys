@@ -1642,14 +1642,32 @@ export function OrderDetailPage() {
                 <dt className="text-xs font-medium text-neutral-600 mb-1">결제 방법</dt>
                 <dd className="text-sm text-neutral-900">
                   {order.paymentInfo.method}
-                  {order.paymentMethod === 'split' && order.paymentHistory && order.paymentHistory.length > 0 && (
+                  {(order.paymentMethod === 'split' || order.paymentMethod === 'partial_card') && order.paymentHistory && order.paymentHistory.length > 0 && (
                     <div className="mt-2 flex flex-col gap-1 border-l-2 border-neutral-200 pl-2">
-                      {order.paymentHistory.filter((p: any) => p.transactionType === 'PAYMENT').map((p: any, idx: number) => (
-                        <div key={idx} className="text-xs text-neutral-500 flex items-center justify-between">
-                          <span>{{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}</span>
-                          <span className="font-medium text-neutral-700">₩{p.amount.toLocaleString()}</span>
-                        </div>
-                      ))}
+                      {order.paymentHistory.filter((p: any) => p.transactionType === 'PAYMENT').map((p: any, idx: number) => {
+                        let cardName = null;
+                        if (p.method === 'credit') {
+                          if (p.reason && p.reason.includes(' - ') && !p.reason.endsWith(' - credit')) {
+                            const parts = p.reason.split(' - ');
+                            if (parts.length > 1) cardName = parts[1];
+                          }
+                        }
+                        
+                        const timeStr = order.paymentMethod === 'partial_card' && p.createdAt 
+                          ? new Date(p.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : null;
+
+                        return (
+                          <div key={idx} className="text-xs text-neutral-500 flex items-center justify-between">
+                            <span>
+                              {{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}
+                              {cardName ? ` (${cardName})` : ''}
+                              {timeStr ? ` [${timeStr}]` : ''}
+                            </span>
+                            <span className="font-medium text-neutral-700">₩{p.amount.toLocaleString()}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </dd>
