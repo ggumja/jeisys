@@ -12,6 +12,11 @@ import {
   Link as LinkIcon, Image as ImageIcon, List, ListOrdered,
   Heading2, Heading3, Undo, Redo, Minus
 } from 'lucide-react';
+import { forwardRef, useImperativeHandle } from 'react';
+
+export interface RichTextEditorRef {
+  insertText: (text: string) => void;
+}
 
 interface RichTextEditorProps {
   value: string;
@@ -20,12 +25,12 @@ interface RichTextEditorProps {
   minHeight?: string;
 }
 
-export function RichTextEditor({
+export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(({
   value,
   onChange,
   placeholder = '내용을 입력하세요...',
   minHeight = '320px',
-}: RichTextEditorProps) {
+}, ref) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -42,6 +47,14 @@ export function RichTextEditor({
       onChange(editor.getHTML());
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    insertText: (text: string) => {
+      if (editor) {
+        editor.chain().focus().insertContent(text).run();
+      }
+    }
+  }), [editor]);
 
   const uploadImage = useCallback(async (file: File): Promise<string | null> => {
     const ext = file.name.split('.').pop();
@@ -140,4 +153,6 @@ export function RichTextEditor({
       `}</style>
     </div>
   );
-}
+});
+
+RichTextEditor.displayName = 'RichTextEditor';

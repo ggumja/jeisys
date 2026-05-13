@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Save, Loader2, CheckCircle, Truck, Clock, Building2, CreditCard, Star, Award, Bell, Mail, MessageCircle, ToggleLeft, ToggleRight, Tag, Plus, Trash2, Edit2, ArrowLeft, Wallet } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
 import { useModal } from '../../context/ModalContext';
 import { shopSettingsService } from '../../services/shopSettingsService';
-
+import { RichTextEditor, RichTextEditorRef } from '../../components/ui/RichTextEditor';
 type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'member_type' | 'notification' | 'payment';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
@@ -287,20 +287,22 @@ export function ShopSettingsPage() {
           <h2 className="text-xl font-bold text-neutral-900">쇼핑몰 기본 설정</h2>
           <p className="text-sm text-neutral-500 mt-1">쇼핑몰 전반에 적용되는 기본 설정을 관리합니다.</p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors disabled:opacity-50"
-        >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : saved ? (
-            <CheckCircle className="w-4 h-4 text-green-400" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {saved ? '저장 완료' : '저장'}
-        </button>
+        {activeTab !== 'member_type' && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors disabled:opacity-50"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : saved ? (
+              <CheckCircle className="w-4 h-4 text-green-400" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saved ? '저장 완료' : '전체 설정 저장'}
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -366,6 +368,25 @@ export function ShopSettingsPage() {
           </div>
         )}
       </div>
+
+      {activeTab !== 'member_type' && (
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-3 bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors disabled:opacity-50 shadow-md"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : saved ? (
+              <CheckCircle className="w-4 h-4 text-green-400" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saved ? '저장 완료' : '전체 설정 저장'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -434,66 +455,208 @@ function NotificationTab({
   onToggle: (key: string) => void;
   onChange: (key: string, val: string) => void;
 }) {
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    key: string;
+    type: 'email' | 'sms';
+    label: string;
+  }>({ isOpen: false, key: '', type: 'email', label: '' });
+
+  const [tempSubject, setTempSubject] = useState('');
+  const [tempContent, setTempContent] = useState('');
+
+  const editorRef = useRef<RichTextEditorRef>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const openModal = (key: string, type: 'email' | 'sms', label: string) => {
+    setTempSubject(form[`${key}_subject`] || '');
+    setTempContent(form[`${key}_template`] || '');
+    setModalState({ isOpen: true, key, type, label });
+  };
+
+  const closeModal = () => {
+    setModalState({ ...modalState, isOpen: false });
+  };
+
+  const saveTemplate = () => {
+    if (modalState.type === 'email') {
+      onChange(`${modalState.key}_subject`, tempSubject);
+    }
+    onChange(`${modalState.key}_template`, tempContent);
+    closeModal();
+  };
+
+  const insertVariable = (variable: string) => {
+    if (modalState.type === 'email') {
+      editorRef.current?.insertText(variable);
+    } else if (modalState.type === 'sms' && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const newText = text.substring(0, start) + variable + text.substring(end);
+      setTempContent(newText);
+      // Wait for React to update the DOM
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.length, start + variable.length);
+      }, 0);
+    }
+  };
+
+  const VarBtn = ({ v, label }: { v: string; label: string }) => (
+    <button
+      onClick={() => insertVariable(`{{${v}}}`)}
+      className="inline-flex items-center gap-1.5 px-2 py-1 mr-2 mb-2 bg-white border border-neutral-200 hover:border-blue-500 hover:text-blue-600 rounded text-xs transition-colors shadow-sm cursor-pointer"
+      title="클릭하여 커서 위치에 삽입"
+    >
+      <code className="font-mono text-blue-600 font-bold">{`{{${v}}}`}</code>
+      <span className="text-neutral-500">{label}</span>
+    </button>
+  );
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* 이메일 */}
-      <div>
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-neutral-200">
-          <Mail className="w-5 h-5 text-blue-600" />
-          <h3 className="text-base font-bold text-neutral-900">이메일 알림</h3>
-        </div>
-        {/* 발신자 정보 */}
-        <div className="space-y-2 mb-6">
-          <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">발신자 정보</p>
-          {[
-            { key: 'email_sender_name', label: '보내는 사람 이름' },
-            { key: 'email_sender_address', label: '보내는 사람 주소' },
-          ].map((f) => (
-            <div key={f.key} className="flex items-center gap-2">
-              <label className="w-36 shrink-0 text-sm text-neutral-600">{f.label}</label>
-              <input
-                type="text"
-                value={form[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                className="flex-1 border border-neutral-200 px-2.5 py-1.5 text-sm focus:outline-none focus:border-neutral-900"
-              />
-            </div>
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* 이메일 */}
+        <div>
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-neutral-200">
+            <Mail className="w-5 h-5 text-blue-600" />
+            <h3 className="text-base font-bold text-neutral-900">이메일 알림</h3>
+          </div>
+          {/* 발신자 정보 */}
+          <div className="space-y-2 mb-6">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">발신자 정보</p>
+            {[
+              { key: 'email_sender_name', label: '보내는 사람 이름' },
+              { key: 'email_sender_address', label: '보내는 사람 주소' },
+            ].map((f) => (
+              <div key={f.key} className="flex items-center gap-2">
+                <label className="w-36 shrink-0 text-sm text-neutral-600">{f.label}</label>
+                <input
+                  type="text"
+                  value={form[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="flex-1 border border-neutral-200 px-2.5 py-1.5 text-sm focus:outline-none focus:border-neutral-900"
+                />
+              </div>
+            ))}
+          </div>
+          {[EMAIL_ADMIN, EMAIL_CUST_PAYMENT, EMAIL_CUST_MEMBER].map((section) => (
+            <NotificationSection key={section.title} section={section} form={form} onToggle={onToggle} type="email" onEdit={openModal} />
           ))}
         </div>
-        {[EMAIL_ADMIN, EMAIL_CUST_PAYMENT, EMAIL_CUST_MEMBER].map((section) => (
-          <NotificationSection key={section.title} section={section} form={form} onToggle={onToggle} />
-        ))}
+
+        {/* SMS */}
+        <div>
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b border-neutral-200">
+            <MessageCircle className="w-5 h-5 text-green-600" />
+            <h3 className="text-base font-bold text-neutral-900">문자(SMS) 알림</h3>
+          </div>
+          {/* 발신자 정보 */}
+          <div className="space-y-2 mb-6">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">발신자 정보</p>
+            {[
+              { key: 'sms_sender_name', label: '발신자 이름' },
+              { key: 'sms_sender_phone', label: '발신자 전화번호' },
+            ].map((f) => (
+              <div key={f.key} className="flex items-center gap-2">
+                <label className="w-36 shrink-0 text-sm text-neutral-600">{f.label}</label>
+                <input
+                  type="text"
+                  value={form[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="flex-1 border border-neutral-200 px-2.5 py-1.5 text-sm focus:outline-none focus:border-neutral-900"
+                />
+              </div>
+            ))}
+          </div>
+          {[SMS_ADMIN, SMS_CUST_PAYMENT, SMS_CUST_MEMBER].map((section) => (
+            <NotificationSection key={section.title} section={section} form={form} onToggle={onToggle} type="sms" onEdit={openModal} />
+          ))}
+        </div>
       </div>
 
-      {/* SMS */}
-      <div>
-        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-neutral-200">
-          <MessageCircle className="w-5 h-5 text-green-600" />
-          <h3 className="text-base font-bold text-neutral-900">문자(SMS) 알림</h3>
-        </div>
-        {/* 발신자 정보 */}
-        <div className="space-y-2 mb-6">
-          <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">발신자 정보</p>
-          {[
-            { key: 'sms_sender_name', label: '발신자 이름' },
-            { key: 'sms_sender_phone', label: '발신자 전화번호' },
-          ].map((f) => (
-            <div key={f.key} className="flex items-center gap-2">
-              <label className="w-36 shrink-0 text-sm text-neutral-600">{f.label}</label>
-              <input
-                type="text"
-                value={form[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                className="flex-1 border border-neutral-200 px-2.5 py-1.5 text-sm focus:outline-none focus:border-neutral-900"
-              />
+      {/* 템플릿 수정 모달 */}
+      {modalState.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+              <h3 className="text-lg font-bold text-neutral-900">
+                템플릿 설정: <span className="text-blue-600 font-medium">{modalState.label}</span>
+              </h3>
             </div>
-          ))}
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-5">
+              <div className="bg-neutral-50 p-4 border border-neutral-200 rounded text-sm text-neutral-600">
+                <p className="font-bold text-neutral-800 mb-3">사용 가능한 치환 변수 <span className="text-xs font-normal text-neutral-500">(클릭하여 본문에 삽입)</span></p>
+                <div className="flex flex-wrap">
+                  <VarBtn v="shop_name" label="쇼핑몰 이름" />
+                  <VarBtn v="order_number" label="주문 번호" />
+                  <VarBtn v="customer_name" label="고객명" />
+                  <VarBtn v="payment_amount" label="결제 금액" />
+                  <VarBtn v="payment_method" label="결제 수단" />
+                  <VarBtn v="vact_bank" label="가상계좌 은행명" />
+                  <VarBtn v="vact_account" label="가상계좌 번호" />
+                </div>
+              </div>
+
+              {modalState.type === 'email' && (
+                <div>
+                  <label className="block text-sm font-bold text-neutral-800 mb-2">메일 제목</label>
+                  <input
+                    type="text"
+                    value={tempSubject}
+                    onChange={(e) => setTempSubject(e.target.value)}
+                    placeholder="예: [{{shop_name}}] {{customer_name}}님의 주문이 완료되었습니다."
+                    className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-bold text-neutral-800 mb-2">
+                  {modalState.type === 'email' ? '메일 본문 (위지윅 에디터)' : 'SMS 내용'}
+                </label>
+                {modalState.type === 'email' ? (
+                  <RichTextEditor
+                    ref={editorRef}
+                    value={tempContent}
+                    onChange={setTempContent}
+                    placeholder="템플릿 내용을 입력하세요."
+                    minHeight="200px"
+                  />
+                ) : (
+                  <textarea
+                    ref={textareaRef}
+                    value={tempContent}
+                    onChange={(e) => setTempContent(e.target.value)}
+                    rows={10}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+                    placeholder="템플릿 내용을 입력하세요."
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end gap-3">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 border border-neutral-300 rounded text-sm font-medium text-neutral-700 hover:bg-neutral-100 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={saveTemplate}
+                className="px-4 py-2 bg-neutral-900 text-white rounded text-sm font-medium hover:bg-neutral-800 transition-colors"
+              >
+                적용하기
+              </button>
+            </div>
+          </div>
         </div>
-        {[SMS_ADMIN, SMS_CUST_PAYMENT, SMS_CUST_MEMBER].map((section) => (
-          <NotificationSection key={section.title} section={section} form={form} onToggle={onToggle} />
-        ))}
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
@@ -501,10 +664,14 @@ function NotificationSection({
   section,
   form,
   onToggle,
+  type,
+  onEdit,
 }: {
   section: NotificationSection;
   form: Record<string, string>;
   onToggle: (key: string) => void;
+  type: 'email' | 'sms';
+  onEdit: (key: string, type: 'email' | 'sms', label: string) => void;
 }) {
   return (
     <div className="mb-5">
@@ -518,15 +685,25 @@ function NotificationSection({
               className="flex items-center justify-between px-3 py-2 rounded hover:bg-neutral-50 transition-colors"
             >
               <span className="text-sm text-neutral-700">{item.label}</span>
-              <button
-                onClick={() => onToggle(item.key)}
-                className={`flex items-center gap-1 text-xs font-medium transition-colors ${
-                  on ? 'text-green-600' : 'text-neutral-400'
-                }`}
-              >
-                {on ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                {on ? 'ON' : 'OFF'}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onEdit(item.key, type, item.label)}
+                  className="flex items-center gap-1 px-2 py-1 bg-white border border-neutral-200 rounded text-[11px] font-medium text-neutral-600 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+                  title="템플릿 설정"
+                >
+                  <Edit2 className="w-3 h-3" />
+                  설정
+                </button>
+                <button
+                  onClick={() => onToggle(item.key)}
+                  className={`flex items-center gap-1 text-xs font-medium transition-colors w-[60px] justify-end ${
+                    on ? 'text-green-600' : 'text-neutral-400'
+                  }`}
+                >
+                  {on ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                  {on ? 'ON' : 'OFF'}
+                </button>
+              </div>
             </div>
           );
         })}
