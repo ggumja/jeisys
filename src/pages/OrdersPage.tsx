@@ -1143,7 +1143,7 @@ export function OrdersPage() {
                         {order.paymentMethod === 'partial_card' && (
                           <div className="mt-2 text-right border-t border-neutral-200 pt-2 border-dashed">
                             <div className="flex justify-between items-center gap-4 text-xs mb-1">
-                              <span className="text-neutral-500">일부 결제 금액</span>
+                              <span className="text-neutral-500">결제 금액</span>
                               <span className="font-bold text-neutral-700">₩{paidAmount.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between items-center gap-4 text-sm">

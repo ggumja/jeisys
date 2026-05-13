@@ -1636,109 +1636,105 @@ export function OrderDetailPage() {
               )}
             </h4>
           </div>
-          <div className="p-6">
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <dt className="text-xs font-medium text-neutral-600 mb-1">결제 방법</dt>
-                <dd className="text-sm text-neutral-900">
-                  {order.paymentInfo.method}
-                  {(order.paymentMethod === 'split' || order.paymentMethod === 'partial_card') && order.paymentHistory && order.paymentHistory.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-1 border-l-2 border-neutral-200 pl-2">
-                      {order.paymentHistory.filter((p: any) => p.transactionType === 'PAYMENT').map((p: any, idx: number) => {
-                        let cardName = null;
-                        if (p.method === 'credit') {
-                          if (p.reason && p.reason.includes(' - ') && !p.reason.endsWith(' - credit')) {
-                            const parts = p.reason.split(' - ');
-                            if (parts.length > 1) cardName = parts[1];
-                          }
-                        }
-                        
-                        const timeStr = order.paymentMethod === 'partial_card' && p.createdAt 
-                          ? new Date(p.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                          : null;
-
-                        return (
-                          <div key={idx} className="text-xs text-neutral-500 flex items-center justify-between">
-                            <span>
-                              {{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}
-                              {cardName ? ` (${cardName})` : ''}
-                              {timeStr ? ` [${timeStr}]` : ''}
-                            </span>
-                            <span className="font-medium text-neutral-700">₩{p.amount.toLocaleString()}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </dd>
+          <div className="p-6 bg-neutral-50 flex flex-wrap items-start justify-between gap-6">
+            <div className="text-sm text-neutral-500 flex-1 min-w-[300px]">
+              <div className="mb-2">
+                <span className="font-medium text-neutral-700">결제수단:</span> {{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', split: '카드분할결제', partial_card: '카드일부결제' }[order.paymentMethod as string] || order.paymentMethod}
               </div>
-              {order.paymentMethod === 'partial_card' ? (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">잔여 결제 금액</dt>
-                  <dd className="text-sm font-bold text-red-600 flex items-center gap-2">
-                    {(order.totalAmount - (order.paymentHistory?.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0) || 0)).toLocaleString()}원
-                    <span className="text-[11px] text-neutral-500 font-normal bg-neutral-100 px-1.5 py-0.5 rounded-sm">
-                      기결제: {(order.paymentHistory?.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0) || 0).toLocaleString()}원
-                    </span>
-                  </dd>
-                </div>
-              ) : (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">
-                    {order.status === 'pending' && order.paymentMethod !== 'credit' ? '입금 예정 금액' : '최종 결제 금액'}
-                  </dt>
-                  <dd className="text-sm font-bold text-blue-700">
-                    {(order.totalAmount || 0).toLocaleString()}원
-                  </dd>
+              
+              {(order.paymentMethod === 'split' || order.paymentMethod === 'partial_card') && order.paymentHistory && order.paymentHistory.length > 0 && (
+                <div className="mt-2 flex flex-col gap-1 pl-1">
+                  {order.paymentHistory.filter((p: any) => p.transactionType === 'PAYMENT').map((p: any, idx: number) => {
+                    let cardName = null;
+                    if (p.method === 'credit') {
+                      if (p.reason && p.reason.includes(' - ') && !p.reason.endsWith(' - credit')) {
+                        const parts = p.reason.split(' - ');
+                        if (parts.length > 1) cardName = parts[1];
+                      }
+                    }
+                    
+                    const timeStr = order.paymentMethod === 'partial_card' && p.createdAt 
+                      ? new Date(p.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      : null;
+
+                    return (
+                      <div key={idx} className="text-xs text-neutral-500 flex items-center gap-2 max-w-sm">
+                        <span className="w-1 h-1 bg-neutral-300 rounded-full shrink-0"></span>
+                        <span className="truncate">
+                          {{ virtual: '가상계좌', credit: '신용카드', transfer: '무통장 입금', general: '일반결제' }[p.method as string] || p.method}
+                          {cardName ? ` (${cardName})` : ''}
+                          {timeStr ? ` [${timeStr}]` : ''}
+                        </span>
+                        <span className="font-medium text-neutral-700 ml-auto pl-2 shrink-0">₩{p.amount.toLocaleString()}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
+
+              {/* 추가 결제 정보들 */}
+              <div className="mt-4 space-y-1 text-xs">
+                {order.paymentInfo.bankName && (
+                  <div><span className="font-medium text-neutral-600">입금 은행:</span> <span className="text-neutral-900">{order.paymentInfo.bankName}</span></div>
+                )}
+                {order.paymentInfo.accountNumber && (
+                  <div><span className="font-medium text-neutral-600">계좌번호:</span> <span className="text-neutral-900">{order.paymentInfo.accountNumber}</span></div>
+                )}
+                {order.paymentInfo.depositor && (
+                  <div><span className="font-medium text-neutral-600">입금자명:</span> <span className="text-neutral-900">{order.paymentInfo.depositor}</span></div>
+                )}
+                {order.paymentInfo.paidAt && (
+                  <div>
+                    <span className="font-medium text-neutral-600">
+                      {order.isSubscription ? '자동결제 일정' : '입금 완료일시'}:
+                    </span> <span className="text-neutral-900">{order.paymentInfo.paidAt}</span>
+                  </div>
+                )}
+                {order.claimInfo?.refundBank && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-100">
+                    <div className="font-bold text-red-800 mb-1">환불 요청 계좌 (클레임 접수건)</div>
+                    <div className="text-red-900 font-medium">
+                      {order.claimInfo.refundBank} | {order.claimInfo.refundAccount} | 예금주: {order.claimInfo.refundHolder}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="text-right min-w-[200px]">
               {order.creditsUsed ? (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">장비 크레딧 결제</dt>
-                  <dd className="text-sm text-emerald-600 font-bold">- {order.creditsUsed.toLocaleString()}원</dd>
-                </div>
+                <p className="text-xs text-emerald-600 font-bold mb-0.5">
+                  크레딧 차감 -₩{order.creditsUsed.toLocaleString()}
+                </p>
               ) : null}
               {order.pointsUsed ? (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">포인트 결제</dt>
-                  <dd className="text-sm text-amber-600 font-bold">- {order.pointsUsed.toLocaleString()} P</dd>
-                </div>
+                <p className="text-xs text-amber-600 font-bold mb-0.5">
+                  포인트 결제 -{order.pointsUsed.toLocaleString()} P
+                </p>
               ) : null}
-              {order.paymentInfo.bankName && (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">입금 은행</dt>
-                  <dd className="text-sm text-neutral-900">{order.paymentInfo.bankName}</dd>
+              
+              <p className="text-xs text-neutral-500 mb-0.5">{order.paymentMethod === 'partial_card' ? '총 주문 금액' : '최종 결제 금액'}</p>
+              <p className="text-xl font-bold tracking-tight text-neutral-900">
+                ₩{(order.totalAmount || 0).toLocaleString()}
+              </p>
+              
+              {order.paymentMethod === 'partial_card' && (
+                <div className="mt-2 text-right border-t border-neutral-200 pt-2 border-dashed">
+                  <div className="flex justify-between items-center gap-4 text-xs mb-1">
+                    <span className="text-neutral-500">결제 금액</span>
+                    <span className="font-bold text-neutral-700">
+                      ₩{(order.paymentHistory?.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0) || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center gap-4 text-sm">
+                    <span className="text-neutral-500 font-medium">남은 결제 금액</span>
+                    <span className="font-bold text-red-600">
+                      ₩{(order.totalAmount - (order.paymentHistory?.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0) || 0)).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               )}
-              {order.paymentInfo.accountNumber && (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">계좌번호</dt>
-                  <dd className="text-sm text-neutral-900">{order.paymentInfo.accountNumber}</dd>
-                </div>
-              )}
-              {order.paymentInfo.depositor && (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">입금자명</dt>
-                  <dd className="text-sm text-neutral-900">{order.paymentInfo.depositor}</dd>
-                </div>
-              )}
-              {order.paymentInfo.paidAt && (
-                <div>
-                  <dt className="text-xs font-medium text-neutral-600 mb-1">
-                    {order.isSubscription ? '자동결제 일정' : '입금 완료일시'}
-                  </dt>
-                  <dd className="text-sm text-neutral-900">{order.paymentInfo.paidAt}</dd>
-                </div>
-              )}
-              {order.claimInfo?.refundBank && (
-                <div className="col-span-1 md:col-span-2 mt-2 p-3 bg-red-50 border border-red-100">
-                  <dt className="text-xs font-bold text-red-800 mb-1">환불 요청 계좌 (클레임 접수건)</dt>
-                  <dd className="text-sm text-red-900 font-medium">
-                    {order.claimInfo.refundBank} | {order.claimInfo.refundAccount} | 예금주: {order.claimInfo.refundHolder}
-                  </dd>
-                </div>
-              )}
-            </dl>
+            </div>
           </div>
         </div>
       )}
