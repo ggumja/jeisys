@@ -1808,7 +1808,7 @@ export function OrderDetailPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {item.afterStatus ? (
-                        getStatusBadge(item.afterStatus as any)
+                        getStatusBadge(item.afterStatus as any, order.paymentMethod)
                       ) : item.type === 'payment' ? (
                         <Badge 
                           variant="outline" 
