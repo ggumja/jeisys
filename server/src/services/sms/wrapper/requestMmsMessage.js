@@ -1,38 +1,42 @@
-const dbTran = require('../util/mysqldb');
-const smsCreditService = require('../smsCreditService');
-const sendService = require('../sendService');
-const smsSendByDbService = require('../smsSendByDbService');
+const smsSendByApiService = require('../smsSendByApiService');
+const { saveMtsSendHistory } = require('../sendHistoryService');
 
 module.exports = async function(params, context) {
   const {
-    storeId, reservedSendDate, purpose, toPhoneNumber, fromPhoneNumber,
-    message, subject, contents, smsCreditUseStoreId
+    reservedSendDate, purpose, toPhoneNumber, fromPhoneNumber,
+    message, subject
   } = params || {};
 
   let now = new Date().getTime();
   let sendNow = !reservedSendDate || reservedSendDate <= now;
 
-  let sendInfo = await dbTran(storeId, async function(conn) {
-    const useStoreId = smsCreditUseStoreId || storeId;
+  if (!sendNow) {
+     return { code: 400, message: 'Reserved sending not fully implemented in API wrapper yet' };
+  }
 
-    if (purpose !== 'auth') {
-      await smsCreditService.useMmsCredit(conn, useStoreId, 1);
-    }
-
-    let send = await sendService.registerSend(conn,
-      { storeId, fromPhoneNumber, purpose, smsType: 'mms', subject, message },
-      { phoneNumber: toPhoneNumber }
-    );
-
-    if (sendNow) {
-      await smsSendByDbService.requestMmsMessageByDb(conn, {
-        storeId, sendId: send.sendId, toPhoneNumber, fromPhoneNumber, subject, message
-      });
-    }
-
-    return send;
+  // 1. Send via API
+  const apiResponse = await smsSendByApiService.requestMmsMessageByApi({
+    toPhoneNumber,
+    fromPhoneNumber,
+    message,
+    subject
   });
 
-  if (sendInfo.code && sendInfo.message) return sendInfo;
+  // 2. Log History
+  const isSuccess = apiResponse.code === '0000';
+  await saveMtsSendHistory({
+    messageType: 'mms',
+    toPhoneNumber,
+    fromPhoneNumber,
+    message,
+    isSuccess: isSuccess,
+    responseCode: apiResponse.code,
+    errorMessage: apiResponse.message
+  });
+
+  if (!isSuccess) {
+    return { code: 500, message: `MTS API Error: ${apiResponse.message || apiResponse.code}` };
+  }
+
   return { code: 200, message: 'success' };
 };

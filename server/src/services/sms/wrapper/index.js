@@ -1,8 +1,7 @@
 const _ = require('lodash');
-const dbTran = require('../util/mysqldb');
 const vc = require('../util/valuecheck');
-
-const messageTemplate = require('../config/messageTemplate');
+const { getShopSettings } = require('../shopSettingsService');
+const { parseTemplate, buildTemplateVariables } = require('../util/templateParser');
 
 const requestAlimtalkMessage = require('./requestAlimtalkMessage');
 const requestLmsMessage = require('./requestLmsMessage');
@@ -11,67 +10,59 @@ const requestSmsMessage = require('./requestSmsMessage');
 
 module.exports = {
   sendSms: async function(msg, useAlimtalk = false) {
-    const { toPhoneNumber, fromPhoneNumber, messageType, purpose, storeId, param, pageUrl } = msg;
+    const { toPhoneNumber, fromPhoneNumber, messageType, purpose, storeId, pageUrl } = msg;
+
+    const settings = await getShopSettings();
     
-    // In Jeisys, we don't have storeService. Assume default properties or pass them in msg.
-    let { notUsingUserApp, kakaoAlimtalkSenderkey, smsCreditUseStoreId, storeName } = msg.storeConfig || {
-      notUsingUserApp: false,
-      kakaoAlimtalkSenderkey: process.env.KAKAO_SENDER_KEY || 'dummy_key_for_testing',
-      smsCreditUseStoreId: storeId,
-      storeName: 'Jeisys Mall'
-    };
+    // 설정값 조회 (기본값 true로 간주, 명시적으로 'false'일 경우만 발송 안함)
+    const isEnabled = messageType && settings[messageType] ? settings[messageType] !== 'false' : true;
+    if (!isEnabled) {
+      return { code: 200, message: 'Notification disabled in settings' };
+    }
+
+    const templateRaw = settings[`${messageType}_template`] || msg.message || '';
+    let subjectRaw = settings[`${messageType}_subject`] || msg.subject || '';
+    const templateCodeSetting = settings[`${messageType}_template_code`] || '';
     
+    const params = buildTemplateVariables(msg, settings);
+    const replaceMessage = parseTemplate(templateRaw, params);
+    const replaceSubject = parseTemplate(subjectRaw, params);
+
+    let kakaoAlimtalkSenderkey = process.env.MTS_SENDER_KEY || settings.kakao_alimtalk_senderkey;
     kakaoAlimtalkSenderkey = useAlimtalk ? kakaoAlimtalkSenderkey : null;
+    
+    const templateCode = templateCodeSetting || msg.templateCode;
 
-    const messageTemplateFn = messageTemplate[messageType] || function() {};
-    const { templateCode, replaceSubject, replaceMessage } = messageTemplateFn(storeName, pageUrl, param) || {};
-
-    const isInvalid = this.sendMessageValid(toPhoneNumber, fromPhoneNumber, notUsingUserApp, storeId, purpose);
+    const isInvalid = this.sendMessageValid(toPhoneNumber, fromPhoneNumber, false, storeId, purpose);
     if (isInvalid) {
       return Promise.resolve(isInvalid);
     }
 
-    const params = {
+    const requestParams = {
       storeId,
       purpose,
       reservedSendDate: msg.reservedSendDate,
       toPhoneNumber: toPhoneNumber.replace(/\-/g, ''),
       fromPhoneNumber: fromPhoneNumber.replace(/\-/g, ''),
-      smsCreditUseStoreId
+      message: replaceMessage,
+      subject: replaceSubject,
+      pageUrl,
+      param: msg.param, // Legacy
+      senderKey: kakaoAlimtalkSenderkey,
+      templateCode,
+      messageType
     };
 
-    const message = msg.message || replaceMessage;
-    const subject = msg.subject || replaceSubject;
-
     if (kakaoAlimtalkSenderkey && templateCode) {
-      return requestAlimtalkMessage({
-        ...params,
-        subject,
-        messageType,
-        pageUrl,
-        param: msg.param,
-        senderKey: kakaoAlimtalkSenderkey,
-        templateCode
-      });
+      return requestAlimtalkMessage(requestParams);
     } else if (_.get(msg, 'contents.length') > 0) {
-      return requestMmsMessage({
-        ...params,
-        message,
-        subject,
-        contents: msg.contents,
-      });
-    } else if (_.get(message, 'length') > 45) {
-      return requestLmsMessage({
-        ...params,
-        message,
-        subject,
-      });
-    } else if (_.get(message, 'length') > 0) {
-      return requestSmsMessage({
-        ...params,
-        message,
-        subject,
-      });
+      return requestMmsMessage({ ...requestParams, contents: msg.contents });
+    } else if (_.get(replaceMessage, 'length') > 45) {
+      return requestLmsMessage(requestParams);
+    } else if (_.get(replaceMessage, 'length') > 0) {
+      return requestSmsMessage(requestParams);
+    } else {
+      return { code: 400, message: 'No message content to send' };
     }
   },
   

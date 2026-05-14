@@ -502,6 +502,7 @@ function NotificationTab({
 
   const [tempSubject, setTempSubject] = useState('');
   const [tempContent, setTempContent] = useState('');
+  const [tempTemplateCode, setTempTemplateCode] = useState('');
 
   const editorRef = useRef<RichTextEditorRef>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -509,6 +510,7 @@ function NotificationTab({
   const openModal = (key: string, type: 'email' | 'sms', label: string) => {
     setTempSubject(form[`${key}_subject`] || '');
     setTempContent(form[`${key}_template`] || '');
+    setTempTemplateCode(form[`${key}_template_code`] || '');
     setModalState({ isOpen: true, key, type, label });
   };
 
@@ -519,6 +521,9 @@ function NotificationTab({
   const saveTemplate = () => {
     if (modalState.type === 'email') {
       onChange(`${modalState.key}_subject`, tempSubject);
+    }
+    if (modalState.type === 'sms') {
+      onChange(`${modalState.key}_template_code`, tempTemplateCode);
     }
     onChange(`${modalState.key}_template`, tempContent);
     closeModal();
@@ -665,6 +670,22 @@ function NotificationTab({
                     placeholder="예: [{{shop_name}}] {{customer_name}}님의 주문이 완료되었습니다."
                     className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
                   />
+                </div>
+              )}
+
+              {modalState.type === 'sms' && (
+                <div>
+                  <label className="block text-sm font-bold text-neutral-800 mb-2">
+                    카카오 알림톡 템플릿 코드 <span className="font-normal text-neutral-500 text-xs ml-1">(선택 사항. 입력 시 카카오 알림톡으로 우선 발송 시도)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={tempTemplateCode}
+                    onChange={(e) => setTempTemplateCode(e.target.value)}
+                    placeholder="예: T_0001 (카카오에 등록 및 승인된 템플릿 코드)"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded text-sm focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900"
+                  />
+                  <p className="text-xs text-red-500 mt-1.5 font-medium">※ 알림톡 템플릿 코드를 입력한 경우, 아래 텍스트가 카카오에 등록된 문구와 1글자라도 다르면 발송이 실패합니다.</p>
                 </div>
               )}
 

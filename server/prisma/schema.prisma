@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -222,4 +222,19 @@ model Inquiry {
 enum InquiryStatus {
   waiting
   answered
+}
+
+model MtsSendHistory {
+  id              String   @id @default(uuid()) @db.Char(36)
+  messageType     String   @map("message_type") @db.VarChar(50) // alimtalk, sms, lms, mms
+  toPhoneNumber   String   @map("to_phone_number") @db.VarChar(20)
+  fromPhoneNumber String?  @map("from_phone_number") @db.VarChar(20)
+  templateCode    String?  @map("template_code") @db.VarChar(50)
+  message         String?  @db.Text
+  isSuccess       Boolean  @default(false) @map("is_success")
+  responseCode    String?  @map("response_code") @db.VarChar(10)
+  errorMessage    String?  @map("error_message") @db.Text
+  sentAt          DateTime @default(now()) @map("sent_at")
+
+  @@map("mts_send_histories")
 }
