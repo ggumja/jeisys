@@ -1,0 +1,3249 @@
+ 
+  
+ 
+ 
+ 
+ 
+ 
+카카오  알림톡  RESTful  Interface Guide  
+ 
+작성일자  : 2025.01.15 
+문서버전  : 2.1 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+  
+ 
+ 문 서 개 정 이 력 
+ 
+버전 일자 내용 작성자  
+1.0 2020.01.14 최초작성  장이호  
+1.1 2021.07.29 subject 파라미터  추가 장이호  
+1.2 2021.12.21 오타 및 문서정리  장이호  
+1.3 2022.11.01  34. MMS 이미지  업로드  추가 김민성  
+1.4 2023.01.0 5 이미지  알림톡  파라미터  추가 박병현  
+1.5 2023.07.28  알림톡  아이템리스트  기능 추가 박병현  
+1.5.1 2023.07.31  문서 현행화  박병현  
+1.5.2 2023.11.06  결과코드표  현행화  박병현  
+1.5.3 2023.12.07  발신번호  변작금지  관련 
+결과코드  추가 박병현  
+1.5.4 2024.01.17  MMS 이미지  발송 관련 
+결과코드  추가, 문서 현행화  박병현  
+1.5.5 2024.05.02  문서 현행화  
+CALLBACK_URL 부분 설명 추가 박병현  
+2.0 2024.07.03  친구톡  전송요청, 응답요청  V2 
+추가 박병현  
+2.1 2025.01.15 결과코드표 현행화 박병현                     카카오  알림톡  Restful Interface Guide  v2.1 
+1 
+  
+목 차 
+1. 개요 ................................ ................................ ................................ ................................ ................................ .................  3 
+2. HOST ................................ ................................ ................................ ................................ ................................ ...............  3 
+3. 선결 조건 ................................ ................................ ................................ ................................ ................................ ...... 3 
+4. 알림톡  메시지  특징 ................................ ................................ ................................ ................................ .................  3 
+5. 용어의  정의 ................................ ................................ ................................ ................................ ................................ . 3 
+6. 알림톡  메시지  전송요청 (단건) ................................ ................................ ................................ ............................  4 
+7. 필드 상세정보  ................................ ................................ ................................ ................................ .............................  8 
+8. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ............ 12 
+9. 알림톡  메시지  전송요청 (복수) ................................ ................................ ................................ .........................  12 
+10. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  16 
+11. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 20 
+12. 친구톡  메시지  전송요청  V2 (단건) ................................ ................................ ................................ ........... 21 
+13. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  23 
+14. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 27 
+15. 친구톡  메시지  전송요청  V2 (복수) ................................ ................................ ................................ ........... 29 
+16. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  32 
+17. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 36 
+18. 친구톡  발송 타입별  제한사항 ................................ ................................ ................................ .....................  37 
+19. 친구톡  메시지  전송요청 (단건) ................................ ................................ ................................ ....................  37 
+20. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  41 
+21. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 43 
+22. 친구톡  메시지  전송요청 (복수) ................................ ................................ ................................ ....................  43 
+23. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  47                     카카오  알림톡  Restful Interface Guide  v2.1 
+2 
+ 24. 샘플(Sample) 데이터 ................................ ................................ ................................ ................................ ....... 49 
+25. SMS 메시지  전송요청 (단건) ................................ ................................ ................................ .........................  50 
+26. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 52 
+27. SMS 메시지  전송요청 (복수) ................................ ................................ ................................ .........................  52 
+28. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 54 
+29. MMS 메시지  전송요청 (단건) ................................ ................................ ................................ .......................  54 
+30. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  56 
+31. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 56 
+32. MMS 메시지 전송요청 (복수) ................................ ................................ ................................ .......................  57 
+33. 필드 상세정보  ................................ ................................ ................................ ................................ .....................  59 
+34. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 59 
+35. 알림톡  응답요청  ................................ ................................ ................................ ................................ ................  60 
+36. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 64 
+37. 친구톡  응답요청  V2................................ ................................ ................................ ................................ ......... 64 
+38. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 67 
+39. 친구톡  응답요청  ................................ ................................ ................................ ................................ ................  67 
+40. 샘플(Sample) 데이터 ................................ ................................ ................................ ................................ ....... 71 
+41. SMS 응답요청  ................................ ................................ ................................ ................................ .....................  71 
+42. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 74 
+43. MMS 이미지  업로드  ................................ ................................ ................................ ................................ ........ 74 
+44. MMS 응답요청  ................................ ................................ ................................ ................................ ...................  75 
+45. 샘플(Sample) 데이터  ................................ ................................ ................................ ................................ ....... 77 
+46. CALLBACK_URL 사용 시 전송결과  응답 ................................ ................................ ................................  78 
+[붙임] 알림톡 , 친구톡  결과코드표  ................................ ................................ ................................ ..........................  78 
+[붙임] SMS  결과코드표  ................................ ................................ ................................ ................................ ................  83 
+[붙임] LMS, MMS 결과코드표  ................................ ................................ ................................ ................................ ... 83                     카카오  알림톡  Restful Interface Guide  v2.1 
+3 
+  
+1. 개요 
+ 본 가이드는  카카오  알림톡  메시지  발송 DB 테이블  구조 및 고객의  카카오  알림톡  발송을  위한 
+DB 테이블  입력데이터를  정의 하는데  목적이  있습니다 . 
+ 본 매뉴얼은  오라클 (Oracle) DB 기반으로  작성 되었습니다 . 
+ 
+2. HOST 
+   - [운영서버 ] https://api.mtsco.co.kr/  
+3. 선결 조건 
+   - MTS에 고객사로  등록되어야  합니다 . 
+   - MTS는 고객사에게  auth_code 를 발급하고 고객사에  전달합니다 . 
+   - 고객사의  전송할  서버의  아이피에서  auth_code 를 포함하여  아래의  파라미터로  필수항목을  
+전송하여야  합니다 .  
+4. 알림톡  메시지  특징 
+   - 알림톡  전송에는  반드시 , 승인된  템플릿이  준비되야  합니다 . 
+   - 알림톡  수신 실패 시, 전환전송 (SMS,LMS) 이 가능합니다 . 
+   - 전송문구 는 띄어쓰기  포함 한글/영문 1,000자까지  발송 가능 합니다 .  
+   - 알림톡으로는  멀티미디어 (이미지  등) 파일을  전송할  수 없습니다 . 
+5. 용어의  정의 
+   1) 템플릿   
+카카오  알림톡  템플릿은  일종의  카카오  알림톡을  발송하기  위한 사전승인  된 문구의  서식
+입니다 . 영업담당자를  통해 “발신프로필키 ”를 발급받고 , 관리자  사이트를  통해 템플릿  등록 
+신청 및 카카오  검수를  통한 승인을  받을 수 있습니다  
+ 
+2) 템플릿코드  
+알림톡  메시지  승인 신청시  작성한  템플릿의  고유 코드 입니다 .                     카카오  알림톡  Restful Interface Guide  v2.1 
+4 
+  
+3) 발신프로필키  
+고객이  알림톡  메시지를  전송할  수 있도록  카카오  공식딜러사를  통하여  발급받은  고유키  
+값 입니다 . 
+ 
+4) 전환전송  
+카카오  알림톡  메시지는  실시간으로  메시지  전송에  대한 결과를  확인 할 수 있으며 , 알림톡  
+전송 실패 건에 대하여  타 메시지  채널(SMS/LMS) 로 전환하여  전송함으로 써 고객에게  메시
+지 전달율을  높일 수 있습니다 . 
+전환전송을  하도록  요청을  주실 시, 발신 전화번호는  반드시  사전등록  된 발신번호 를 넣어 
+주셔야  합니다 .  
+6. 알림톡  메시지  전송요청 (단건) 
+[Request]  
+ path : / sndng /atk/sendMessage  
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a1
+f21abb3955278e9955f5a9a9
+9b62"  
+send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"2020010112010
+1" 
+callback_number  text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+nation_phone_numbe
+r text(16)  N 국가번호  
+기본값은  82 “nation_phone_number”:”82”                      카카오  알림톡  Restful Interface Guide  v2.1 
+5 
+ phone_number  text(16)  N 사용자  전화번호  
+(국가코드 (82)를 포함한  
+전화번호 ) 
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. "phone_number":" 01012345
+678" 
+app_user_id  text(20)  N 앱유저아이디  
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. 
+phone_number 와 
+app_user_id 의 정보가  
+동시에  요청된  경우 
+phone_number 로만 
+발송합니다 . "app_user_id":"12345"  
+template_code  text(30)  Y 템플릿코드  
+(실제 발송할  메시지  
+유형으로  등록된  
+템플릿의  코드) "template_code":"A001_01"  
+message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  택배가  
+금일 (18~20) 시에 배달 
+예정입니다 ." 
+title text(50)  N 템플릿  내용 중 강조 
+표기할  핵심 정보 (CBT, 
+템플릿  검수 가이드  
+참고) "title":"20 분 내 도착 예정" 
+header text(16)  N 메시지  상단에  표기할  
+제목 "header ":"공지사항 " 
+attachment  json N 메시지에  첨부할  내용 
+(링크 버튼 / 
+"target":"out" 속성 "attachment":{"button":[{"na
+me":"버튼명 ","type":"WL","url
+_pc":"http://naver.com",                     카카오  알림톡  Restful Interface Guide  v2.1 
+6 
+ 추가시  아웃링크 ), 
+아이템리스트  정보 "url_mobile":"http://daum.ne
+t","target":"out"}]}  
+supplement  json N 메시지에  첨부할  
+바로연결  정보 "supplement ":{"quick_reply":[
+{"name":" 버튼명 ","type":"WL"
+,"url_pc":"http://naver.com", 
+"url_mobile":"http://daum.ne
+t","target":"out"}]}  
+price number  N 모먼트  광고 전환 전용 
+메시지  내 포함된  
+가격/금액/결제 금액 "price":39900  
+currency_type  text(3)  N 모먼트  광고 전환 전용 
+메시지  내 포함된  
+가격/금액/결제 금액의  
+통화 단위, KRW, USD, 
+EUR 등의 국제 통화 
+코드만  사용 "currency_type ":"KRW" 
+tran_type  text(1) Y 전환전송  유형 
+알림톡으로  전송이  
+불가할  경우 
+SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+tran_message  text(1000) N 전환전송  메시지  
+전환전송  여부가  
+“N”아닌 경우 
+전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+callback_url  text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.m
+tsco.co.kr/message_callback.
+do?seq=123”  
+add_etc1  text(160) N 고객사에서  보내는  추가 
+정보 1 “add_etc1 ”:”add_etc1 ”                     카카오  알림톡  Restful Interface Guide  v2.1 
+7 
+ MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  
+add_etc2  text(160) N 고객사에서  보내는  추가 
+정보 2 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  추가 
+정보 3 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  추가 
+정보 4 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc4”:” add_etc4”  
+subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+imageFlag  text(1) N 이미지  알림톡  구분 
+Y 일시 이미지  알림톡  
+타입으로  전송 / 일반, 
+아이템  리스트 형 발송인 
+경우 N “imageFlag”:”Y”  
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 "received_at":"2015 -08-06 
+10:51:00"                      카카오  알림톡  Restful Interface Guide  v2.1 
+8 
+ (* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) 
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+7. 필드 상세정보  
+1. sender_key  
+- 알림톡을  발송하기  위한 고객사  고유의  “발송프로필키 ” 
+- 발송프로필키는  영업담당자로  부터 발급 받음 
+※ 알림톡  발송 딜러사  변경시  “발송프로필키 ” 변경 필요 
+2. tran_type  
+- 전환 전송 유형 
+키 코드 내용 비고 
+tran_type  S SMS 90Byte 메시지  
+L LMS 1,000자 
+M MMS 사용하지  않음 
+N 전환전송  하지 않음  
+ 
+3. tran_message  
+- 알림톡  실패 메시지에  대하여  대체하여  전송하고자  하는 메시지  
+- 알림톡  메시지와  같을시  동일 메시지  Insert 
+- tran_type  이 S 또는 L (전환전송  사용) 이더라도  tran_message 가 공백이거나  null 값이
+면 전환전송  하지 않음 상태 (N) 로 받음 
+※ tran_type  이 “S” 로 tran_message 가 90Byte 초과시  해당 메시지의  90Byte에 해당하는  
+메시지만  전송 됩니다 . 
+4. attachment                      카카오  알림톡  Restful Interface Guide  v2.1 
+9 
+ - attachment 값에 링크 버튼, 아이템  리스트  정보를  첨부하여  발송할  수 있다. 
+- 버튼은  목록으로 (Array) 최대 5개까지  템플릿에  등록하여  발송할  수 있다. 
+키   타입 필수 설명 
+button    array - 버튼 목록 
+ name  text(14 ) Y 버튼 제목 
+ type  text(2) Y 버튼 타입 
+ scheme_android   text - mobile android 환경에서  버튼 
+클릭 시 실행할  
+application custom scheme  
+ scheme_ios   text - mobile ios 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+ url_mobile   text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc   text - pc 환경에서  버튼 클릭 시 이동할  
+url 
+ chat_extra   text(50) - 상담톡 /봇 전환 시 전달할  
+메타정보  
+ chat_event   text(50) - 봇 전환 시 연결할  봇 이벤트명  
+item_highlight    json N 아이템  하이라이트  
+ title  text(30)  Y 타이틀  (이미지가  있는 경우 최대 
+21자) 
+ description   text(19)  Y 부가 정보 (이미지가  있는 경우 
+최대 13자) 
+item   json N 아이템리스트와  아이템  요약정보  
+ list  array N 아이템리스트  
+  title text(6)  Y 타이틀  
+  description  text(23)  Y 부가정보  
+ summary   json N 아이템  요약 정보 
+  title text(6)  Y 타이틀  
+  description  text(14)  Y 가격정보  
+허용되는  문자 : 
+통화기호 (유니코드  통화기호 , 元, 
+円, 원), 통화코드 (ISO 4217), 숫자, 
+콤마, 소수점 , 공백 
+소수점  2자리까지  허용 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+10 
+ 5. supplement  
+- 해당 값에 링크 바로연결을  첨부하여  발송할  수 있다. 
+- 바로연결은  목록으로 (Array) 최대 10개까지  템플릿에  등록하여  발송할  수 있다. 
+- 단, 바로연결을  포함하여  발송 시, 버튼은  2개만 등록하여  발송할  수 있다. 
+키  타입 필수 설명 
+quick_reply   array - 바로연결  목록 
+ name text(14)  Y 바로연결  제목 
+ type text(2)  Y 바로연결  타입 (버튼 타입과  동일) 
+ scheme_android  text - mobile android 환경에서  바로연결  클릭 시 
+실행할  application custom scheme  
+ scheme_ios  text - mobile ios 환경에서  바로연결  클릭 시 실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  바로연결  클릭 시 이동할  url 
+ url_pc  text - pc 환경에서  바로연결  클릭 시 이동할  url 
+ chat_extra  text(50) - 상담톡 /봇 전환 시 전달할  메타정보  
+ chat_event  text(50) - 봇 전환 시 연결할  봇 이벤트명  
+ 
+- 버튼 타입별  속성 
+- 필수 파라미터를  모두 입력하셔야  정상적인  발송이  가능합니다 . 
+버튼타입  속성 타입 필수 설명 
+WL url_mobile  array Y 버튼 클릭 시 이동할  pc/mobile 환경
+별 web url  
+ url_pc  text(28)  N  
+AL scheme_android  text(28)  Y scheme_ios, scheme_android, 
+url_mobile 중 2가지 필수 입력 
+mobile android 환경에서  버튼 클릭 
+시 실행할  application custom 
+scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url                     카카오  알림톡  Restful Interface Guide  v2.1 
+11 
+  url_pc  text N pc 환경에서  버튼 클릭 시 이동할  
+url 
+DS - - - 버튼 클릭 시 배송조회  페이지로  
+이동 
+BK - - - 해당 버튼 텍스트  전송 
+MD - - - 해당 버튼 텍스트  + 메시지  본문 
+전송 
+BC - - - 상담톡을  이용하는  카카오톡  채널만  
+이용가능  
+ chat_extra  text N 상담톡  전환 시 전달할  메타정보  
+BT - - - 카카오  I 오픈빌더의  챗봇을  
+사용하는  카카오톡  채널만  이용가능  
+ chat_extra  text N 봇 전환 시 전달할  메타정보  
+ chat_event  text N 봇 전환 시 연결할  봇 이벤트명  
+AC - - - 채널추가  
+BF biz_form_id  number  Y 카카오  비즈니스에서  생성한  
+비즈니스폼  ID 
+6. callback_url  
+- 카카오로부터  응답받은  결과를  전달받을  URL 
+- 전송등록후  매 5분마다  카카오로부터  응답받은  결과를  입력한  URL로 보냄 
+- 응답 값은 아래의  응답요청시  응답 값과 같음 
+- 응답 완료 후 재전송하지  않음 
+※ http:// 나 https:// 로 시작하여야  하며, 매건마다  응답을  보내기  때문에  응답 값이 많을 
+경우 보안 장비에서  DDOS 공격으로  인식할  수도 있으니  아래의  응답요청  API를 Polling 방식으로  
+호출할  것을 추천드립니다 . 
+ 
+7. message  
+- 본문 최대 글자수는  본문 + 변수 + 부가정보가  모두 포함된  기준으로 , 기본 및 이미지  
+알림톡은  1000자, 아이템  리스트는  700자 까지 가능합니다 . 
+- 채널 추가 버튼을  사용하시는  경우 채널 추가 관련한  안내 메시지  (약 40자) 가 기본으
+로 들어갑니다 . 따라서  안내 글자수인  약 40자를 제외하고  본문 + 변수 + 부가정보  의 메
+시지 최대 글자수를  고려해  주셔야  합니다 .                     카카오  알림톡  Restful Interface Guide  v2.1 
+12 
+  
+8. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number":" 01012341234 ",
+"template_code":"test20190430_1","message":"ffffff \ntest20190430_1 \n내용이다
+","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", "url_mobile":"http://daum.net","targ et":"out"}]}}  
+ 
+2). 아이템리스트  발송 예제 
+{"auth_code":" 인증코드
+","sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","nation_phone_number":"82","ph
+one_number":" 01012341234 ","template_code":"TEST_ITEMLIST_001","message":"TEST 
+TEMPLATE \n\n아이템  리스트  기능을  확인하기  위한 테스트  템플릿 입니다 .\n\n테스
+트!","callback_number":"02 -501-
+1980","callback_url":"http://localhost/","header":"HEADER","attachment":{"button":[{"name":" 웹링
+크","type":"WL","url_pc":"http://mtsco.co.kr", "url_mobile":"http://mtsco.co.kr"},{"name":" 메시지전
+달","type":"MD"}],"item_highl ight": {"title": "HIGHLIGHT_TITLE", "description": 
+"DESCRIPTION"},"item": { "list": [{"title": "ITEM1", "description": "ITEM1_CONTENT"}, {"title": 
+"ITEM2", "description": "ITEM2_CONTENT"}],"summary": {"title": "ITEMSU", "description": "1,000 원
+"}}},"suppleme nt":{"quick_reply" : [{"name":" 웹링크바로연결
+","type":"WL","url_pc":"http://mtsco.co.kr", "url_mobile":"http://mtsco.co.kr"},{"name":" 메시지전달
+바로연결 ","type":"MD"}]}}  
+ 
+ 
+9. 알림톡  메시지  전송요청 (복수) 
+- 요청 당 최대 1000 건 이하로  부탁드립니다 . 
+[Request]  
+ path : / sndng /atk/sendMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 상세키  타입 필수 설명 예제                     카카오  알림톡  Restful Interface Guide  v2.1 
+13 
+ auth_
+code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+data  Json 
+Array Y 전송요청  파라미터를  
+포함한  json 배열  
+ sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"  
+ send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+ callback_nu
+mber Text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+ nation_phon
+e_number  text(16)  N 국가번호  
+기본값은  82 “nation_phone_number”:”8
+2” 
+ phone_num
+ber text(16)  N 사용자  전화번호  
+(국가코드 (82)를 포함한  
+전화번호 ) 
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. "phone_number":"0101234
+5678" 
+ app_user_id  text(20)  N 앱유저아이디  
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. 
+phone_number 와 
+app_user_id 의 정보가  
+동시에  요청된  경우 
+phone_number 로만 
+발송합니다 . "app_user_id":"12345"  
+ template_co
+de text(30)  Y 템플릿코드  "template_code":"A001_01"                      카카오  알림톡  Restful Interface Guide  v2.1 
+14 
+ (실제 발송할  메시지  
+유형으로  등록된  
+템플릿의  코드) 
+ message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ title text(50)  N 템플릿  내용 중 강조 
+표기할  핵심 정보 (CBT, 
+템플릿  검수 가이드  
+참고) "title":"20 분 내 도착 예정" 
+ header  text(16)  N 메시지  상단에  표기할  
+제목 "header" :"공지사항 " 
+ attachment  json N 메시지에  첨부할  내용 
+(링크 버튼 / 
+"target":"out" 속성 
+추가시  아웃링크 ), 
+아이템리스트  정보 "attachment":{"button":[{"n
+ame":" 버튼명 ","type":"WL","
+url_pc":"http://naver.com", 
+"url_mobile":"http://daum.n
+et","target":"out"}]}  
+ supplement  json N 메시지에  첨부할  
+바로연결  정보 "supplement":{"quick_reply"
+:[{"name":" 버튼명 ","type":"
+WL","url_pc":"http://naver.c
+om", 
+"url_mobile":"http://daum.n
+et","target":"out"}]}  
+ price number  N 모먼트  광고 전환 전용 
+메시지  내 포함된  
+가격/금액/결제 금액 "price":39900  
+ currency_typ
+e text(3)  N 모먼트  광고 전환 전용 
+메시지  내 포함된  
+가격/금액/결제 금액의  
+통화 단위, KRW, USD, 
+EUR 등의 국제 통화 
+코드만  사용 "currency_type":"KRW"  
+ tran_type  text(1) Y 전환전송  유형 "tran_type ":"S"                     카카오  알림톡  Restful Interface Guide  v2.1 
+15 
+ 알림톡으로  전송이  
+불가할  경우 
+SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’  
+ tran_messag
+e text(1000) N 전환전송  메시지  
+전환전송  여부가  
+“N”아닌 경우 
+전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ callback_url  text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”                      카카오  알림톡  Restful Interface Guide  v2.1 
+16 
+  subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ imageFlag  text(1) N 이미지  알림톡  구분 
+Y 일시 이미지  알림톡  
+타입으로  전송 / 일반, 
+아이템  리스트형  발송인  
+경우 N “imageFlag”:”Y”  
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 
+(* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+10. 필드 상세정보  
+1. sender_key  
+- 알림톡을  발송하기  위한 고객사  고유의  “발송프로필키 ” 
+- 발송프로필키는  영업담당자로  부터 발급 받음 
+※ 알림톡  발송 딜러사  변경시  “발송프로필키 ” 변경 필요 
+2. tran_type  
+- 전환 전송 유형 
+키 코드 내용 비고                     카카오  알림톡  Restful Interface Guide  v2.1 
+17 
+ tran_type  S SMS 90Byte 메시지  
+L LMS 1,000자 
+M MMS 사용하지  않음 
+N 전환전송  하지 않음  
+ 
+3. tran_message  
+- 알림톡  실패 메시지에  대하여  대체하여  전송하고자  하는 메시지  
+- 알림톡  메시지와  같을시  동일 메시지  Insert 
+- tran_type  이 S 또는 L (전환전송  사용) 이더라도  tran_message 가 공백이거나  null 값이
+면 전환전송  하지 않음 상태 (N) 로 받음 
+※ tran_type  이 “S” 로 tran_message 가 90Byte 초과시  해당 메시지의  90Byte에 해당하는  
+메시지만  전송 됩니다 . 
+4. attachment  
+- attachment 값에 링크 버튼, 아이템  리스트  정보를  첨부하여  발송할  수 있다. 
+- 버튼은  목록으로 (Array) 최대 5개까지  템플릿에  등록하여  발송할  수 있다. 
+키   타입 필수 설명 
+button    array - 버튼 목록 
+ name  text(14 ) Y 버튼 제목 
+ type  text(2) Y 버튼 타입 
+ scheme_android   text - mobile android 환경에서  버튼 
+클릭 시 실행할  
+application custom scheme  
+ scheme_ios   text - mobile ios 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+ url_mobile   text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc   text - pc 환경에서  버튼 클릭 시 이동할  
+url 
+ chat_extra   text(50) - 상담톡 /봇 전환 시 전달할  
+메타정보  
+ chat_event   text(50) - 봇 전환 시 연결할  봇 이벤트명  
+item_highlight    json N 아이템  하이라이트                      카카오  알림톡  Restful Interface Guide  v2.1 
+18 
+  title  text(30)  Y 타이틀  (이미지가  있는 경우 최대 
+21자) 
+ description   text(19)  Y 부가 정보 (이미지가  있는 경우 
+최대 13자) 
+item   json N 아이템리스트와  아이템  요약정보  
+ list  array N 아이템리스트  
+  title text(6)  Y 타이틀  
+  description  text(23)  Y 부가정보  
+ summary   json N 아이템  요약 정보 
+  title text(6)  Y 타이틀  
+  description  text(14)  Y 가격정보  
+허용되는  문자 : 
+통화기호 (유니코드  통화기호 , 元, 
+円, 원), 통화코드 (ISO 4217), 숫자, 
+콤마, 소수점 , 공백 
+소수점  2자리까지  허용 
+ 
+5. supplement  
+- 해당 값에 링크 바로연결을  첨부하여  발송할  수 있다. 
+- 바로연결은  목록으로 (Array) 최대 10개까지  템플릿에  등록하여  발송할  수 있
+다. 
+- 단, 바로연결을  포함하여  발송 시, 버튼은  2개만 등록하여  발송할  수 있다. 
+키  타입 필수 설명 
+quick_reply   array - 바로연결  목록 
+ name text(14)  Y 바로연결  제목 
+ type text(2)  Y 바로연결  타입 (버튼 타입과  동일) 
+ scheme_android  text - mobile android 환경에서  바로연결  클릭 시 
+실행할  application custom scheme  
+ scheme_ios  text - mobile ios 환경에서  바로연결  클릭 시 실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  바로연결  클릭 시 이동할  url 
+ url_pc  text - pc 환경에서  바로연결  클릭 시 이동할  url 
+ chat_extra  text(50) - 상담톡 /봇 전환 시 전달할  메타정보  
+ chat_event  text(50) - 봇 전환 시 연결할  봇 이벤트명  
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+19 
+ - 버튼 타입별  속성 
+- 필수 파라미터를  모두 입력하셔야  정상적인  발송이  가능합니다 . 
+버튼타입  속성 타입 필수 설명 
+WL url_mobile  array Y 버튼 클릭 시 이동할  pc/mobile 환경
+별 web url  
+ url_pc  text(28)  N  
+AL scheme_android  text(28)  Y scheme_ios, scheme_android, 
+url_mobile 중 2가지 필수 입력 
+mobile android 환경에서  버튼 클릭 
+시 실행할  application custom 
+scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text N pc 환경에서  버튼 클릭 시 이동할  
+url 
+DS - - - 버튼 클릭 시 배송조회  페이지로  
+이동 
+BK - - - 해당 버튼 텍스트  전송 
+MD - - - 해당 버튼 텍스트  + 메시지  본문 
+전송 
+BC    상담톡을  이용하는  카카오톡  채널만  
+이용가능  
+ chat_extra  text N 상담톡  전환 시 전달할  메타정보  
+BT - - - 카카오  I 오픈빌더의  챗봇을  
+사용하는  카카오톡  채널만  이용가능  
+ chat_extra  text N 봇 전환 시 전달할  메타정보  
+ chat_event  text N 봇 전환 시 연결할  봇 이벤트명  
+AC - - - 채널추가  
+BF biz_form_id  number  Y 카카오  비즈니스에서  생성한  
+비즈니스폼  ID 
+ 
+6. callback_url  
+- 카카오로부터  응답받은  결과를  전달받을  URL                     카카오  알림톡  Restful Interface Guide  v2.1 
+20 
+ - 전송등록후  매 5분마다  카카오로부터  응답받은  결과를  입력한  URL로 보냄 
+- 응답 값은 아래의  응답요청시  응답 값과 같음 
+- 응답 완료 후 재전송하지  않음 
+※ http:// 나 https:// 로 시작하여야  하며, 매건마다  응답을  보내기  때문에  응답 값이 많을 
+경우 보안 장비에서  DDOS 공격으로  인식할  수도 있으니  아래의  응답요청  API를 Polling 방식으로  
+호출할  것을 추천드립니다 . 
+ 
+7. message  
+- 본문 최대 글자수는  본문 + 변수 + 부가정보가  모두 포함된  기준으로 , 기본 및 이미지  
+알림톡은  1000자, 아이템  리스트는  700자 까지 가능합니다 . 
+- 채널 추가 버튼을  사용하시는  경우 채널 추가 관련한  안내 메시지  (약 40자) 가 기본으
+로 들어갑니다 . 따라서  안내 글자수인  약 40자를 제외하고  본문 + 변수 + 부가정보  의 메
+시지 최대 글자수를  고려해  주셔야  합니다 . 
+ 
+11. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","data":[{"sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number":" 01012
+341234 ","template_code":"test20190430_1","message":"ffffff \ntest20190430_1 \n내용이다
+","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", 
+"url_mobile":"http://daum.net","target":"out"}]}},{"sender_key":"df8b597658c2702fbbaddb0 d828ce
+e19a51f18ca","phone_number":" 01012341234 ","template_code":"test20190430_1","message":"fffff
+f\ntest20190430_1 \n내용이다 ","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://na ver.com", 
+"url_mobile":"http://daum.net","target":"out"}]}},{"sender_key":"df8b597658c2702fbbaddb0d828ce
+e19a51f18ca","phone_number":" 01012341234 ","template_code":"test20190430_1","message":"fffff
+f\ntest20190430_1 \n내용이다 ","callback_number":"1521 -
+1024","callb ack_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", "url_mobile":"http://daum.net","target":"out"}]}}]}  
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+21 
+ 12. 친구톡  메시지  전송요청  V2 (단건) 
+[Request]  
+ path : /v2/sndng /ftk/sendMessage  
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  인증코드 )  
+sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a1f21
+abb3955278e9955f5a9a99b62"  
+send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"20200101120101 " 
+nation_phone_number  text(3) N 국가번호  
+기본값은  82 “nation_phone_number”:”82”  
+callback_number  text(15)  Y 발신전화번호  “callback_number”:”1522 -1825” 
+phone_number  text(16)  N 사용자  전화번호  
+(국가코드 (82)를 포함한  
+전화번호 ) 
+phone_number 혹은 
+app_user_id 둘 중 하나는  
+반드시  있어야  한다. "phone_number":"01012345678"  
+app_user_id  text(20)  N 앱유저아이디  
+phone_number 혹은 
+app_user_id 둘 중 하나는  
+반드시  있어야  한다. 
+phone_number 와 
+app_user_id 의 정보가  
+동시에  요청된  경우 
+phone_number 로만 
+발송합니다 . "app_user_id":"12345"  
+messageType  text(2)  Y 발송할  친구톡  메시지  타입 
+FT : 텍스트형  
+FI : 이미지형  
+FW : 와이드이미지형  "messageType ":"FT"                     카카오  알림톡  Restful Interface Guide  v2.1 
+22 
+ FL : 와이드아이템리스트형  
+FC : 캐러셀형  
+message  text(1000)  Y 사용자에게  전달될  메시지  
+(공백 포함 1000자로 제한) 
+와이드아이템리스트 , 캐러셀  
+발송은  필수  X "message":" 고객님의  택배가  
+금일 (18~20) 시에 배달 
+예정입니다 ." 
+ad_flag  text(1) N 광고성  메시지  필수 표기 
+사항을  노출 
+(노출 여부 Y/N, 기본값  Y) "ad_flag":"Y"  
+attachment  json 
+(4000byte) N 메시지에  첨부할  내용 
+(링크 버튼, 이미지 , 
+와이드아이템리스트  정보) 
+4000byte 이하 "attachment":  
+필드 상세정보의  attachment 
+부분, 샘플 데이터  참조 
+carousel  json 
+(8000byte) N 캐러셀  부분 내용 
+(캐러셀형  발송시  필수) 
+8000byte 이하 "carousel" : 
+필드 상세정보의  carousel 부분, 
+샘플 데이터  참조 
+adult text(1)  N 성인용  메시지  확인 여부 
+(확인 여부 Y/N, 기본값  N) "adult" :"N" 
+header  text(25) N 와이드아이템리스트형  
+발송시의  헤더 (해당 발송시  
+필수) "header ":"헤더" 
+tran_type  text(1) Y 전환전송  유형 
+알림톡으로  전송이  불가할  
+경우 SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+tran_message  text(1000) N 전환전송  메시지  
+전환전송  여부가  “N”아닌 
+경우 전환전송할  메시지  
+아래의  메시지  종류별  제한 
+확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 배달 
+예정입니다 ." 
+callback_url  text(512) N MTS에서 메시지  
+전송결과를  보내줄  고객사  
+서버의  Full URL  “callback_ur”:” https://www.mtsco
+.co.kr/message_callback.do?seq
+=123”  
+add_etc1  text(160) N 고객사에서  보내는  추가 
+정보 1 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc1”:” add_etc1”                      카카오  알림톡  Restful Interface Guide  v2.1 
+23 
+ add_etc2  text(160) N 고객사에서  보내는  추가 
+정보 2 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  추가 
+정보 3 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  추가 
+정보 4 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc4”:” add_etc4”  
+subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 
+(* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message  
+":"AckTimeoutException(1)"  
+ 
+13. 필드 상세정보  
+1. sender_key  
+- 알림톡을  발송하기  위한 고객사  고유의  “발신프로필키 ”                     카카오  알림톡  Restful Interface Guide  v2.1 
+24 
+ - 발신프로필키는  영업담당자로  부터 발급 받음 
+※ 알림톡  발송 딜러사  변경시  “발신프로필키 ” 변경 필요 
+2. tran_type  
+- 전환 전송 유형 
+키 코드 내용 비고 
+tran_type  S SMS 90Byte 메시지  
+L LMS 1,000자 
+M MMS 사용하지  않음 
+N 전환전송  하지 않음  
+3. tran_message  
+- 친구톡  실패 메시지에  대하여  대체하여  전송하고자  하는 메시지  
+- 친구톡  본문과 같을 시 동일 메시지  Insert 
+- app_user_id 만으로  발송 시, 전환전송을  사용하실  수 없습니다 . 
+※ tran_type  이 “S” 로 메시지가  90Byte 초과시  해당 메시지의  90Byte에 해당하는  메시지
+만 전송 됩니다 . 
+4. attachment  
+- attachment 값에 링크 버튼과 이미지  또는 와이드아이템리스트형  정보를  첨부하여  발송
+할 수 있다. 
+- 이미지  발송 시 친구톡  이미지  관리 API 로 가져온  url 을 사용해야  한다. 
+- 버튼은  목록으로 (Array) 최대 5개까지  추가하여 발송할  수 있다. 
+- 와이드아이템리스트형  발송 시 최소 3개, 최대 4개의 list 아이템 이 필요하며 , 광고 발송
+만 가능하다 . 와이드아이템리스트의  버튼은  최대 2개까지  가능하며 , 버튼 제목은  최대 8자
+로 제한된다 . 
+키   타입 필수 설명 
+button    array - 버튼 목록 
+ name  text(14 ) Y 버튼 제목 
+ type  text(2)  Y 버튼 타입 
+ scheme_android   text - mobile android 환경에서  버튼 
+클릭 시 실행할  
+application custom scheme                      카카오  알림톡  Restful Interface Guide  v2.1 
+25 
+  scheme_ios   text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile   text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc   text - pc 환경에서  버튼 클릭 시 이동할  
+url 
+image    json N 이미지  
+ img_url   text Y 노출할  이미지  
+ img_link   text N 이미지  클릭시  이동할  url 
+미설정시  카카오톡  내 이미지  뷰어 
+사용 
+item   json N 와이드  아이템  리스트  전용 
+ list  array Y 와이드  아이템  리스트  
+(최소 : 3개, 최대 : 4개) 
+  title text(25)  Y 아이템  제목 
+  img_url  text Y 아이템  이미지  URL 
+  scheme_android  text N mobile android 환경에서  이미지  
+클릭 시 실행할  
+application custom scheme  
+  scheme_ios  text N mobile ios 환경에서  이미지  클릭 
+시 실행할  
+application custom scheme  
+  url_mobile  text Y mobile 환경에서  이미지  클릭 시 
+이동할  url 
+  url_pc  text N pc 환경에서  이미지  클릭 시 
+이동할  url 
+ 
+5. carousel  
+- 캐러셀  list 는 목록으로  최소 2개부터  최대 6개까지 추가할  수 있으며 , 광고 발송만  가
+능하다 . 
+- 이미지  url 은 친구톡  이미지  관리 API 로 가져온  url 을 사용해야  한다. 
+키    타입 필수 설명 
+list    array Y 캐러셀  아이템  리스트  
+ header    text(20) Y 캐러셀  아이템  제목 
+ message    text(180 ) Y 캐러셀  아이템  메시지                      카카오  알림톡  Restful Interface Guide  v2.1 
+26 
+  attachment    json N 캐러셀  아이템  이미지 , 버튼 정보 
+  button   array N 버튼 목록 
+   name text(8) - 버튼 제목 
+   type text(2) - 버튼 타입 
+   scheme_
+android  text - mobile android 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+   scheme_
+ios text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+   url_mob
+ile text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+   url_pc  text - pc 환경에서  버튼 클릭 시 이동할  url 
+  image   json Y 캐러셀  썸네일  이미지  
+   img_url  text Y 캐러셀  썸네일  이미지  주소 
+   img_link  text N 캐러셀 썸네일  링크 주소 
+tail    json N 더보기  버튼 정보 
+ url_pc    text N pc 환경에서  버튼 클릭 시 이동할  url 
+ url_mobile    text Y mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ scheme_ios    text N mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ scheme_andro
+id   text N mobile android 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+ 
+- 버튼 타입별  속성 
+- 필수 파라미터를  모두 입력하셔야  정상적인  발송이  가능합니다 . 
+버튼타입  속성 타입 필수 설명 
+WL url_mobile  text Y 버튼 클릭 시 이동할  pc/mobile 환경
+별 web url  
+ url_pc  text N  
+AL scheme_android  text - scheme_ios, scheme_android, 
+url_mobile 중 2가지 필수 입력                     카카오  알림톡  Restful Interface Guide  v2.1 
+27 
+ mobile android 환경에서  버튼 클릭 
+시 실행할  application custom 
+scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text N pc 환경에서  버튼 클릭 시 이동할  
+url 
+BK - - - 해당 버튼 텍스트  전송 
+MD - - - 해당 버튼 텍스트  + 메시지  본문 
+전송 
+BC - - - 상담톡을  이용하는  카카오톡  채널만  
+이용가능  
+ chat_extra  text N 상담톡  전환 시 전달할  메타정보  
+BT - - - 카카오  | 오픈빌더의  챗봇을  
+사용하는  카카오톡  채널만  이용가능  
+ chat_extra  text N 봇 전환 시 전달할  메타정보  
+ chat_event  text N 봇 전환 시 연결할  봇 이벤트  명 
+ 
+14. 샘플(Sample) 데이터  
+1). 일반 발송 예제 
+{"auth_code": " 인증코드 ","sender_key": 
+"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number": 
+"01012341234 ","messageType": "FT","ad_flag": "Y"," subject ":"testsub ","message": " 테스트메세지입
+니다.\ntestMessage \n일반텍스트발송 ","callback_number": "02 -501-1980","callback_url": 
+"http://localhost/","attachment": {"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url_mobile": "http://www.mtsco.co.kr"}]}}  
+ 
+2). 이미지  발송 예제                     카카오  알림톡  Restful Interface Guide  v2.1 
+28 
+ {"auth_ code": " 인증코드 ","sender_key": 
+"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number": 
+"01012341234 ","messageType": "FI","ad_flag": "Y", "subject ":"testsub ","message": " 테스트메세지입
+니다.\ntestMessage \n이미지발송 ","callback_number": "02-501-1980","callback_url": 
+"http://localhost/","attachment": {"image": {"img_url": "https://mud -
+kage.kakao.com/dn/wBSFO/btsnseClyUM/DDUygM5wzHRr4uxS5Bcskk/img_l.jpg","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobil e": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url_mobile": "http://www.mtsco.co.kr"}]}}  
+ 
+3). 와이드이미지  발송 예제 
+{"auth_code": " 인증코드 ","sender_key": 
+"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number": 
+"01012341234 ","messageType": "FW","ad_flag ": "Y","subject":"testsub","message": " 테스트메세지
+입니다 .","callback_number": "02 -501-1980","callback_url": "http://localhost/","attachment": 
+{"image": {"img_url": "https://mud -
+kage.kakao.com/dn/tjjW8/btsoba7KdEE/KqN2tgKa5d2JyKLSrTwyxK/img_l.jpg","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}}  
+ 
+4). 와이드아이템리스트  발송 예제 
+{"auth_code": " 인증코드 ","sender_key": 
+"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number": 
+"01012341234 ","messageType": "FL","ad_flag": "Y", "subject ":"testsub ","message": " 테스트메세지입
+니다.\n와이드아이템리스트발송 ","header":" 리스트 TITLE","callback_number": "02 -501-
+1980","callback_url": "http://localhost/","attachment": {"item": {"list": [{"title": " 아이템제목
+1","img_url": "https://mud -
+kage.kakao.com /dn/b2GqdN/btsnsfuD4PG/c1t9NukBLhFXcNeS7eS0Xk/img_l.jpg","url_mobile": 
+"http://www.mtsco.co.kr"},{"title": " 아이템제목 2","img_url": "https://mud -
+kage.kakao.com/dn/pgVdD/btsnwQtjFHb/rlXvDFQ0MW1I2uVJ50bcPK/img_l.jpg","url_mobile": 
+"http://www.mtsco.co.kr"},{"titl e": "아이템제목 3","img_url": "https://mud -
+kage.kakao.com/dn/bjpPkw/btsnqwcjBPK/P9OLqBO7BG5Me544K2Tbu1/img_l.jpg","url_mobile": 
+"http://www.mtsco.co.kr"},{"title": " 아이템제목 4","img_url": "https://mud -
+kage.kakao.com/dn/b2qTGu/btsnvXzHzN4/LFYlxKEo8JeQgBlZVQz4GK/img_l .jpg","url_mobile": 
+"http://www.mtsco.co.kr"}]},"button": [{"name": " 버튼제목 1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼제목 2","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}}  
+ 
+5). 캐러셀  발송 예제                     카카오  알림톡  Restful Interface Guide  v2.1 
+29 
+ {"auth_code": " 인증코드 ","sender_key": 
+"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number": 
+"01012341234 ","messageType": "FC","ad_flag": "Y", "subject ":"testsub ","message": " 테스트메세지입
+니다. 캐러셀발송 ","callback_number": "02 -501-1980","callback_url": "http://localhost/","carousel": 
+{"list": [{"header":  "캐러셀아이템제목 1","message": " 캐러셀아이템메시지 1 180자제한
+","attachment": {"image": {"img_url": " https://mud -
+kage.kakao.com/dn/0nkvt/btsmJPu4XKp/9qLdAvZs4q0nRbICqPEFgK/img_l.jpg ","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}},{"header": " 캐러셀아이템제목 2","message": " 캐러셀아이템메시지 2 
+180자제한 ","attachment": {"image": {"img_url": " https://mud -
+kage.kakao.com/dn/FKBaV/btsmIs8ckWy/1KnG0f9iIV3m0ezdevgUw0 /img_l.jpg ","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}},{"header": " 캐러셀아 이템제목 3","message": " 캐러셀아이템메시지 3 
+180자제한 ","attachment": {"image": {"img_url": "https://mud -
+kage.kakao.com/dn/jh19j/btsmHFtb9lu/yPWalVslTppRWAOpKQf791/img_l.jpg ","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type":  "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}},{"header": " 캐러셀아이템제목 4","message": " 캐러셀아이템메시지 4 
+180자제한 ","attachment": {"image": {"img_url": "https://mud -
+kage.kakao.com/dn/gjJWg/btsmFfvRcoE/66ucE5ngz9t4Rzxinqfzqk/img_l.jpg ","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}},{"header": " 캐러셀아이템제목 5","message": " 캐러셀아이템메시지 5 
+180자제한 ","attachment":  {"image": {"img_url": "https://mud -
+kage.kakao.com/dn/bAJMlS/btsmHjKHjIA/pboel0tGvrbwkDbjuE66Ik/img_l.jpg ","img_link": 
+"http://www.mtsco.co.kr"},"button": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url _mobile": 
+"http://www.mtsco.co.kr"}]}},{"header": " 캐러셀아이템제목 6","message": " 캐러셀아이템메시지 6 
+180자제한 ","attachment": {"image": {"img_url": "https://mud -
+kage.kakao.com/dn/D1FGN/btsmGloZBq1/eRoCUxyQMt0KyP0kFUSZv0/img_l.jpg ","img_link": 
+"http://www.mtsco.co.kr"},"butto n": [{"name": " 버튼1","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"},{"name": " 버튼2","type": "WL","url_mobile": 
+"http://www.mtsco.co.kr"}]}}],"tail": {"url_pc": "http://www.mtsco.co.kr","url_mobile": 
+"http://www.mtsco.co.kr"}}}  
+ 
+ 
+15. 친구톡  메시지  전송요청  V2 (복수) 
+- 요청 당 최대 1000건 이하로  부탁드립니다 . 
+[Request]  
+ path : /v2/sndng /ftk/sendMessage s 
+ method : POST  
+ header                      카카오  알림톡  Restful Interface Guide  v2.1 
+30 
+ o Content -type: application/json  
+ parameter (json)  
+키 상세키  타입 필수 설명 예제 
+auth_code   text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+data  Json Array  Y 전송요청  파라미터를  
+포함한  json 배열  
+ sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a1f21
+abb3955278e9955f5a9a99b62"  
+ send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"20200101120101 " 
+ nation_ph
+one_numb
+er text(3) N 국가번호  
+기본값은  82 “nation_phone_number”:”82”  
+ callback_n
+umber  text(15)  Y 발신전화번호  “callback_number”:”1522 -1825” 
+ phone_nu
+mber text(16)  N 사용자  전화번호  
+(국가코드 (82)를 포함한  
+전화번호 ) 
+phone_number 혹은 
+app_user_id 둘 중 하나는  
+반드시  있어야  한다. "phone_number":"01012345678"  
+ app_user_i
+d text(20)  N 앱유저아이디  
+phone_number 혹은 
+app_user_id 둘 중 하나는  
+반드시  있어야  한다. 
+phone_number 와 
+app_user_id 의 정보가  
+동시에  요청된  경우 
+phone_number 로만 
+발송합니다 . "app_user_id":"12345"  
+ messageTy
+pe text(2)  Y 발송할  친구톡  메시지  
+타입 
+FT : 텍스트형  
+FI : 이미지형  
+FW : 와이드이미지형  "messageType ":"FT"                     카카오  알림톡  Restful Interface Guide  v2.1 
+31 
+ FL : 와이드아이템리스트형  
+FC : 캐러셀형  
+ message  text(1000)  Y 사용자에게  전달될  메시지  
+(공백 포함 1000자로 
+제한) 와이드아이템리스트 , 
+캐러셀  발송은  필수  X "message":" 고객님의  택배가  
+금일 (18~20) 시에 배달 
+예정입니다 ." 
+ ad_flag  text(1) N 광고성  메시지  필수 표기 
+사항을  노출 
+(노출 여부 Y/N, 기본값  Y) "ad_flag":"Y"  
+ attachmen
+t json 
+(4000 byte) N 메시지에  첨부할  내용 
+(링크 버튼, 이미지 , 
+와이드아이템리스트  정보) 
+4000 Byte 이하 "attachment":  
+필드 상세정보의  attachment 
+부분, 샘플 데이터  참조 
+ carousel  json 
+(8000 byte) N 캐러셀  부분 내용 
+(캐러셀형  발송시  필수) 
+8000 Byte 이하 "carousel ":"" 
+필드 상세정보의  carousel 부분, 
+샘플 데이터  참조 
+ adult text(1)  N 성인용  메시지  확인 여부 
+(확인 여부 Y/N, 기본값  N) "adult" :"N" 
+ header  text(25)  N 와이드아이템리스트형  
+발송시의  헤더 (해당 
+발송시  필수) "header" :"헤더" 
+ tran_type  text(1) Y 전환전송  유형 
+알림톡으로  전송이  불가할  
+경우 SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+ tran_messa
+ge text(1000) N 전환전송  메시지  
+전환전송  여부가  “N”아닌 
+경우 전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 배달 
+예정입니다 ." 
+ callback_ur
+l text(512) N MTS에서 메시지  
+전송결과를  보내줄  고객사  
+서버의  Full URL  “callback_ur”:” https://www.mtsco
+.co.kr/message_callback.do?seq
+=123”  
+ add_etc1  text(160) N 고객사에서  보내는  추가 
+정보 1 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc1”:” add_etc1”                      카카오  알림톡  Restful Interface Guide  v2.1 
+32 
+  add_etc2  text(160) N 고객사에서  보내는  추가 
+정보 2 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) N 고객사에서  보내는  추가 
+정보 3 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) N 고객사에서  보내는  추가 
+정보 4 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 
+(* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+16. 필드 상세정보  
+1. sender_key  
+- 알림톡을  발송하기  위한 고객사  고유의  “발신프로필키 ”                     카카오  알림톡  Restful Interface Guide  v2.1 
+33 
+ - 발신프로필키는  영업담당자로  부터 발급 받음 
+※ 알림톡  발송 딜러사  변경시  “발신프로필키 ” 변경 필요 
+2. tran_type  
+- 전환 전송 유형 
+키 코드 내용 비고 
+tran_type  S SMS 90Byte 메시지  
+L LMS 1,000자 
+M MMS 사용하지  않음 
+N 전환전송  하지 않음  
+3. tran_message  
+- 친구톡  실패 메시지에  대하여  대체하여  전송하고자  하는 메시지  
+- 친구톡  본문과 같을 시 동일 메시지  Insert 
+- app_user_id 만으로  발송 시, 전환전송을  사용하실  수 없습니다 . 
+※ tran_type  이 “S” 로 메시지가  90Byte 초과시  해당 메시지의  90Byte에 해당하는  메시지
+만 전송 됩니다 . 
+4. attachment  
+- attachment 값에 링크 버튼과 이미지  또는 와이드아이템리스트형  정보를  첨부하여  발송
+할 수 있다. 
+- 이미지  발송 시 친구톡  이미지  관리 API 로 가져온  url 을 사용해야  한다. 
+- 버튼은  목록으로 (Array) 최대 5개까지  추가하여 발송할  수 있다. 
+- 와이드아이템리스트형  발송 시 최소 3개, 최대 4개의 list 아이템 이 필요하며 , 광고 발송
+만 가능하다 . 
+키   타입 필수 설명 
+button    array - 버튼 목록 
+ name  text(14 ) Y 버튼 제목 
+ type  text(2)  Y 버튼 타입 
+ scheme_android   text - mobile android 환경에서  버튼 
+클릭 시 실행할  
+application custom scheme                      카카오  알림톡  Restful Interface Guide  v2.1 
+34 
+  scheme_ios   text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile   text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc   text - pc 환경에서  버튼 클릭 시 이동할  
+url 
+image    json N 이미지  
+ img_url   text Y 노출할  이미지  
+ img_link   text N 이미지  클릭시  이동할  url 
+미설정시  카카오톡  내 이미지  뷰어 
+사용 
+item   json N 와이드  아이템  리스트  전용 
+ list  array Y 와이드  아이템  리스트  
+(최소 : 3개, 최대 : 4개) 
+  title text(25)  Y 아이템  제목 
+  img_url  text Y 아이템  이미지  URL 
+  scheme_android  text N mobile android 환경에서  이미지  
+클릭 시 실행할  
+application custom scheme  
+  scheme_ios  text N mobile ios 환경에서  이미지  클릭 
+시 실행할  
+application custom scheme  
+  url_mobile  text Y mobile 환경에서  이미지  클릭 시 
+이동할  url 
+  url_pc  text N pc 환경에서  이미지  클릭 시 
+이동할  url 
+ 
+4. carousel  
+- 캐러셀  list 는 목록으로  최소 2개부터  최대 6개까지 추가할  수 있으며 , 광고 발송만  가
+능하다 . 
+- 이미지  url 은 친구톡  이미지  관리 API 로 가져온  url 을 사용해야  한다. 
+키    타입 필수 설명 
+list    array Y 캐러셀  아이템  리스트  
+ header    text(20) Y 캐러셀  아이템  제목 
+ message    text(180 ) Y 캐러셀  아이템  메시지                      카카오  알림톡  Restful Interface Guide  v2.1 
+35 
+  attachment    json N 캐러셀  아이템  이미지 , 버튼 정보 
+  button   array N 버튼 목록 
+   name text(8) - 버튼 제목 
+   type text(2) - 버튼 타입 
+   scheme_
+android  text - mobile android 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+   scheme_
+ios text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+   url_mob
+ile text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+   url_pc  text - pc 환경에서  버튼 클릭 시 이동할  url 
+  image   json Y 캐러셀  썸네일  이미지  
+   img_url  text Y 캐러셀  썸네일  이미지  주소 
+   img_link  text N 캐러셀 썸네일  링크 주소 
+tail    json N 더보기  버튼 정보 
+ url_pc    text N pc 환경에서  버튼 클릭 시 이동할  url 
+ url_mobile    text Y mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ scheme_ios    text N mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ scheme_andro
+id   text N mobile android 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+ 
+- 버튼 타입별  속성 
+- 필수 파라미터를  모두 입력하셔야  정상적인  발송이  가능합니다 . 
+버튼타입  속성 타입 필수 설명 
+WL url_mobile  text Y 버튼 클릭 시 이동할  pc/mobile 환경
+별 web url  
+ url_pc  text N  
+AL scheme_android  text - scheme_ios, scheme_android, 
+url_mobile 중 2가지 필수 입력                     카카오  알림톡  Restful Interface Guide  v2.1 
+36 
+ mobile android 환경에서  버튼 클릭 
+시 실행할  application custom 
+scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text N pc 환경에서  버튼 클릭 시 이동할  
+url 
+BK - - - 해당 버튼 텍스트  전송 
+MD - - - 해당 버튼 텍스트  + 메시지  본문 
+전송 
+BC - - - 상담톡을  이용하는  카카오톡  채널만  
+이용가능  
+ chat_extra  text N 상담톡  전환 시 전달할  메타정보  
+BT - - - 카카오  | 오픈빌더의  챗봇을  
+사용하는  카카오톡  채널만  이용가능  
+ chat_extra  text N 봇 전환 시 전달할  메타정보  
+ chat_event  text N 봇 전환 시 연결할  봇 이벤트  명 
+ 
+17. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","data":[{"sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca"," messageType ":"FT","pho
+ne_number":" 01012341234 ","template_code":"test20190430_1","message":"ffffff \ntest20190430_1
+\n내용이다 ","callback_number":" 02-501-
+1980","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", 
+"url_mobile":"http://daum.net","target":"out"}]}},{"sender_key":"df8b597658 c2702fbbaddb0d828ce
+e19a51f18ca", "messageType ":"FT","phone_number" :"01012341234 ","template_code":"test2019043
+0_1","message":"ffffff \ntest20190430_1 \n내용이다 ","callback_number":" 02-501-
+1980","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", 
+"url_mobile":"http:// daum.net","target":"out"}]}},{"sender_key":"df8b597658c2702fbbaddb0d828ce
+e19a51f18ca"," messageType ":"FT","phone_number":" 01012341234 ","template_code":"test2019043
+0_1","message":"ffffff \ntest20190430_1 \n내용이다 ","callback_number":" 02-501-
+1980","callback_url":" http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", "url_mobile":"http://daum.net","target":"out"}]}}]}                      카카오  알림톡  Restful Interface Guide  v2.1 
+37 
+  
+18. 친구톡  발송 타입별  제한사항  
+항목 텍스트  제한 설명 
+텍스트 (FT) 1000자 이하 텍스트  메시지  + 링크 버튼 발송 가능 
+본문 1000자 제한 
+텍스트 +이미지 (FI) 400자 이하 메시지  + 링크 버튼 + 이미지  발송 
+본문 400자 제한 
+이미지  사이즈  : 가로 500px 이상, 가로:세로 비
+율 2:1 이상 3:4이하 / 확장자  jpg, png 최대 
+2MB 
+텍스트 +와이드 이미지
+(FW) 76자 이하 텍스트  메시지  + 링크 버튼(최대 2개) + 이미지  
+발송, 본문 76자 제한 
+이미지  사이즈  : 가로 800px, 세로 600px / 확장
+자 jpg, png 최대 2MB 
+와이드아이템리스트
+(FL) 광고 발송만  가능 (ad_flag  값 Y 필요) 
+최소 3개, 최대 4개의 아이템  리스트  필요 
+아이템  1개 당 아이템  제목 (item > list > title)  25자 제한 
+버튼 최대 2개, 버튼 제목은  최대 8자 
+이미지  사이즈  : 가로 400px, 세로 400px ~ 가로 800px, 세로 400px / 
+확장자  jpg, png 최대 2MB 
+캐러셀 (FC) 광고 발송만  가능 (ad_flag  값 Y 필요) 
+캐러셀  개수 최소 2개, 최대 6개 
+캐러셀  하나 당 제목 최대 20자, 텍스트문구  최대 180자, 버튼 최대 
+2개, 버튼 제목은  최대 8자 
+이미지  사이즈  : 가로 500px 이상, 가로:세로 비율 2:1이상 3:4 이하 / 
+확장자  jpg, png 최대 2MB 
+ 
+19. 친구톡  메시지  전송요청 (단건) 
+- 해당 API 는 앞으로  지원되지  않을 예정입니다 . V2 를 이용해주세요 . 
+[Request]  
+ path : / sndng /ftk/sendMessage  
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)                      카카오  알림톡  Restful Interface Guide  v2.1 
+38 
+ 키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"  
+send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+nation_phone_numb
+er text(16)  N 국가번호  
+기본값은  82 “nation_phone_number”:”8
+2” 
+callback_number  text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+phone_number  text(16)  N 사용자  전화번호  
+(국가코드 (82)를 포함한  
+전화번호 ) 
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. "phone_number":"0101234
+5678" 
+app_user_id  text(20)  N 앱유저아이디  
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. 
+phone_number 와 
+app_user_id 의 정보가  
+동시에  요청된  경우 
+phone_number 로만 
+발송합니다 . "app_user_id":"12345"  
+user_key  text(30)  N 사용자  식별키  "user_key":"MZjEVK4x18_V"                      카카오  알림톡  Restful Interface Guide  v2.1 
+39 
+ 카카오톡  채널 봇을 
+이용해  받은 카카오톡  
+채널 사용자  식별키  
+message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ad_flag  text(1) N 광고성  메시지  필수 
+표기 사항을  노출 
+(노출 여부 Y/N, 기본값  
+Y) "ad_flag":"Y"  
+wide text(1) N 와이드  버블 사용 여부 
+(사용여부  여부 Y/N, 
+기본값  N) "wide":"N"  
+attachment  json N 메시지에  첨부할  내용 
+(링크 버튼) "attachment":{"button":[{"n
+ame":" 비즈메시지  
+소개","type":"WL","url_pc":"
+http://bizmessage.kakao.co
+m/", 
+"url_mobile":"http://bizmes
+sage.kakao.com/"}]}  
+tran_type  text(1) Y 전환전송  유형 
+알림톡으로  전송이  
+불가할  경우 
+SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+ 
+tran_message  text(1000) N 전환전송  메시지  
+전환전송  여부가  
+“N”아닌 경우 
+전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ."                     카카오  알림톡  Restful Interface Guide  v2.1 
+40 
+ callback_url  text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 "received_at":"2015 -08-06 
+10:51:00"                      카카오  알림톡  Restful Interface Guide  v2.1 
+41 
+ (* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) 
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+20. 필드 상세정보  
+4. sender_key  
+- 알림톡을  발송하기  위한 고객사  고유의  “발송프로필키 ” 
+- 발송프로필키는  영업담당자로  부터 발급 받음 
+※ 알림톡  발송 딜러사  변경시  “발송프로필키 ” 변경 필요 
+5. tran_type  
+- 전환 전송 유형 
+키 코드 내용 비고 
+tran_type  S SMS 90Byte 메시지  
+L LMS 1,000자 
+M MMS 사용하지  않음 
+N 전환전송  하지 않음  
+ 
+6. tran_message  
+- 친구톡  실패 메시지에  대하여  대체하여  전송하고자  하는 메시지  
+- 친구톡  메시지와  같을시  동일 메시지  Insert 
+- tran_type  이 S 또는 L (전환전송  사용) 이더라도  tran_message 가 공백이거나  null 값이
+면 전환전송  하지 않음 상태 (N) 로 받음 
+※ tran_type  이 “S” 로 tran_message 가 90Byte 초과시  해당 메시지의  90Byte에 해당하는  
+메시지만  전송 됩니다 . 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+42 
+ 6. attachment  
+- attachment 값에 링크 버튼과 이미지를  첨부하여  발송할  수 있다. 
+- 버튼은  목록으로 (Array) 최대 5개까지  추가하여 발송할  수 있다. 
+키  타입 필수 설명 
+button   array - 버튼 목록 
+ name text(14) Y 버튼 제목 (일반/이미지의  경우 죄대 
+14자, 와이드  버블을  사용할  경우 최
+대 8자) 
+ type text(2) Y 버튼 타입 
+ scheme_android  text - mobile android 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text - pc 환경에서  버튼 클릭 시 이동할  
+url 
+image   json - 이미지  
+ img_url  text Y 노출할  이미지  
+ img_link  text N 이미지  클릭시  이동할  url 
+미설정시  카카오톡  내 이미지  뷰어 
+사용 
+ 
+- 버튼 타입별  속성 
+- 필수 파라미터를  모두 입력하셔야  정상적인  발송이  가능합니다 . 
+버튼타입  속성 타입 필수 설명 
+WL url_mobile  text Y 버튼 클릭 시 이동할  pc/mobile 환경
+별 web url  
+ url_pc  text N  
+AL scheme_android  text Y scheme_ios, scheme_android, 
+url_mobile 중 2가지 필수 입력                     카카오  알림톡  Restful Interface Guide  v2.1 
+43 
+ mobile android 환경에서  버튼 클릭 
+시 실행할  application custom 
+scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text N pc 환경에서  버튼 클릭 시 이동할  
+url 
+BK - - - 해당 버튼 텍스트  전송 
+MD - - - 해당 버튼 텍스트  + 메시지  본문 
+전송 
+BC - - - 상담톡을  이용하는  카카오톡  채널만  
+이용가능  
+ chat_extra  text N 상담톡  전환 시 전달할  메타정보  
+BT - - - 카카오  | 오픈빌더의  챗봇을  
+사용하는  카카오톡  채널만  이용가능  
+ chat_extra  text N 봇 전환 시 전달할  메타정보  
+ chat_event  text N 봇 전환 시 연결할  봇 이벤트  명 
+ 
+21. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number":" 01012341234 ",
+"app_user_id":"test20190430_1","user_key":"test","ad_flag":"Y","wide":"Y","message":"ffffff \ntest20
+190430_1 \n내용이다 ","callback_number":"1521 -
+1024", "callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", 
+"url_mobile":"http://daum.net"}],"image":{"img_url":"http://mud -
+kage.kakao.com/dn/N47xj/btqBBVcbLfR/5N045eVkxooMkQTBFnd4F0/img_l.jpg","img_lin k":"http:/
+/daum.net"}}}  
+ 
+ 
+22. 친구톡  메시지  전송요청 (복수) 
+- 해당 API 는 앞으로  지원되지  않을 예정입니다 . V2 를 이용해주세요 . 
+ [Request]                      카카오  알림톡  Restful Interface Guide  v2.1 
+44 
+  path : / sndng /ftk/sendMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 상세키  타입 필수 설명 예제 
+auth_cod
+e  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+data  Json 
+Array Y 전송요청  파라미터를  
+포함한  json 배열  
+ sender_k
+ey text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"  
+ send_dat
+e text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+ nation_p
+hone_nu
+mber text(16)  N 국가번호  
+기본값은  82 “nation_phone_number”:”8
+2” 
+ callback_
+number  text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+ phone_n
+umber  text(16)  N 사용자  전화번호  
+(국가코드 (82)를 포함한  
+전화번호 ) 
+phone_number 혹은 
+app_user_id 둘 중 
+하나는  반드시  있어야  
+한다. "phone_number":"0101234
+5678" 
+ app_user
+_id text(20)  N 앱유저아이디  
+phone_number 혹은 
+app_user_id 둘 중 "app_user_id":"12345"                      카카오  알림톡  Restful Interface Guide  v2.1 
+45 
+ 하나는  반드시  있어야  
+한다. 
+phone_number 와 
+app_user_id 의 정보가  
+동시에  요청된  경우 
+phone_number 로만 
+발송합니다 . 
+ user_key  text(30)  N 사용자  식별키  
+카카오톡  채널 봇을 
+이용해  받은 카카오톡  
+채널 사용자  식별키  "user_key":"MZjEVK4x18_V"  
+ message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ ad_flag  text(1) N 광고성  메시지  필수 
+표기 사항을  노출 
+(노출 여부 Y/N, 기본값  
+Y) "ad_flag":"Y"  
+ wide text(1) N 와이드  버블 사용 여부 
+(사용여부  여부 Y/N, 
+기본값  N) "wide":"N"  
+ attachme
+nt json N 메시지에  첨부할  내용 
+(링크 버튼) "attachment":{"button":[{"n
+ame":" 비즈메시지  
+소개","type":"WL","url_pc":"
+http://bizmessage.kakao.co
+m/", 
+"url_mobile":"http://bizmes
+sage.kakao.com/"}]}  
+ tran_type  text(1) Y 전환전송  유형 
+알림톡으로  전송이  
+불가할  경우 
+SMS/LMS/MMS 로의 
+전환전송  여부. "tran_type ":"S" 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+46 
+ 기본값은  ‘N’ 
+ tran_mes
+sage text(1000) N 전환전송  메시지  
+전환전송  여부가  
+“N”아닌 경우 
+전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ callback_
+url text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ]                     카카오  알림톡  Restful Interface Guide  v2.1 
+47 
+  
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 
+(* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+23. 필드 상세정보  
+4. sender_key  
+- 알림톡을  발송하기  위한 고객사  고유의  “발송프로필키 ” 
+- 발송프로필키는  영업담당자로  부터 발급 받음 
+※ 알림톡  발송 딜러사  변경시  “발송프로필키 ” 변경 필요 
+5. tran_type  
+- 전환 전송 유형 
+키 코드 내용 비고 
+tran_type  S SMS 90Byte 메시지  
+L LMS 1,000자 
+M MMS 사용하지  않음 
+N 전환전송  하지 않음  
+ 
+6. tran_message  
+- 친구톡  실패 메시지에  대하여  대체하여  전송하고자  하는 메시지  
+- 친구톡  메시지와  같을시  동일 메시지  Insert                     카카오  알림톡  Restful Interface Guide  v2.1 
+48 
+ - tran_type  이 S 또는 L (전환전송  사용) 이더라도  tran_message 가 공백이거나  null 값이
+면 전환전송  하지 않음 상태 (N) 로 받음 
+※ tran_type  이 “S” 로 tran_message 가 90Byte 초과시  해당 메시지의  90Byte에 해당하는  
+메시지만  전송 됩니다 . 
+5. attachment  
+- attachment 값에 링크 버튼과 이미지를  첨부하여  발송할  수 있다. 
+- 버튼은  목록으로 (Array) 최대 5개까지  추가하여 발송할  수 있다. 
+키  타입 필수 설명 
+button   array - 버튼 목록 
+ name text(14)  Y 버튼 제목 (일반/이미지의  경우 죄대 
+14자, 와이드  버블을  사용할  경우 최
+대 8자) 
+ type text(2) Y 버튼 타입 
+ scheme_android  text - mobile android 환경에서  버튼 클릭 
+시 실행할  
+application custom scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text - pc 환경에서  버튼 클릭 시 이동할  
+url 
+image   json - 이미지  
+ img_url  text Y 노출할  이미지  
+ img_link  text N 이미지  클릭시  이동할  url 
+미설정시  카카오톡  내 이미지  뷰어 
+사용 
+ 
+- 버튼 타입별  속성 
+- 필수 파라미터를  모두 입력하셔야  정상적인  발송이  가능합니다 . 
+버튼타입  속성 타입 필수 설명 
+WL url_mobile  text Y 버튼 클릭 시 이동할  pc/mobile 환경
+별 web url                      카카오  알림톡  Restful Interface Guide  v2.1 
+49 
+  url_pc  text N  
+AL scheme_android  text Y scheme_ios, scheme_android, 
+url_mobile 중 2가지 필수 입력 
+mobile android 환경에서  버튼 클릭 
+시 실행할  application custom 
+scheme  
+ scheme_ios  text - mobile ios 환경에서  버튼 클릭 시 
+실행할  
+application custom scheme  
+ url_mobile  text - mobile 환경에서  버튼 클릭 시 
+이동할  url 
+ url_pc  text N pc 환경에서  버튼 클릭 시 이동할  
+url 
+BK - - - 해당 버튼 텍스트  전송 
+MD - - - 해당 버튼 텍스트  + 메시지  본문 
+전송 
+BC - - - 상담톡을  이용하는  카카오톡  채널만  
+이용가능  
+ chat_extra  text N 상담톡  전환 시 전달할  메타정보  
+BT - - - 카카오  | 오픈빌더의  챗봇을  
+사용하는  카카오톡  채널만  이용가능  
+ chat_extra  text N 봇 전환 시 전달할  메타정보  
+ chat_event  text N 봇 전환 시 연결할  봇 이벤트  명 
+ 
+24. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","data":[{ “sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","phone_number":" 01012
+341234 ","template_code":"test20190430_1","message":"ffffff \ntest20190430_1 \n내용이다
+","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", 
+"url_mobile":"http://daum.net","target":"out"}]}},{"sender_key":"df8b597658c2702fbbaddb0d828ce
+e19a51f18ca","phone_number":" 01012341234 ","template_code":"test20190430_1","message":"fffff
+f\ntest20190430_1 \n내용이다 ","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", 
+"url_mobile":"http://daum.net","target":"out"}]}},{"sender_key":"df8b597658c2702fbbaddb0d828ce
+e19a51f18ca","phon e_number":" 01012341234 ","template_code":"test20190430_1","message":"fffff                    카카오  알림톡  Restful Interface Guide  v2.1 
+50 
+ f\ntest20190430_1 \n내용이다 ","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"button":[{"name":" 버튼명
+","type":"WL","url_pc":"http://naver.com", "url_mobile":" http://daum.net","target":"out"}]}}]}  
+ 
+25. SMS 메시지  전송요청 (단건) 
+[Request]  
+ path : / sndng /sms/sendMessage  
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+callback_number  text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+phone_number  text(16)  Y 사용자  전화번호  
+ "phone_number":"0101234
+5678" 
+message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+callback_url  text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 “add_etc1”:” add_etc1”                      카카오  알림톡  Restful Interface Guide  v2.1 
+51 
+ MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+52 
+ 26. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드 ","phone_number":" 01012341234 ","message":"ffffff \ntest20190430_1 \n내
+용이다 ","callback_number":"1521 -
+1024","send_date":"20200101150101","callback_url":"http://localhost/"}  
+ 
+ 
+27. SMS 메시지  전송요청 (복수) 
+- 요청 당 최대 1000 건 이하로  부탁드립니다 . 
+[Request]  
+ path : / sndng /sms/sendMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 상세키  타입 필수 설명 예제 
+auth_cod
+e  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+data  Json 
+Array Y 전송요청  파라미터를  
+포함한  json 배열  
+ send_dat
+e text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+ callback_
+number  Text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+ phone_n
+umber  text(16)  N 사용자  전화번호  
+ "phone_number":"0101234
+5678"                     카카오  알림톡  Restful Interface Guide  v2.1 
+53 
+  message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ callback_
+url text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 "code ":"0000"                      카카오  알림톡  Restful Interface Guide  v2.1 
+54 
+ (0000 은 정상 / 
+나머지는  오류) 
+received_at  text(19)  N 메시지를  수신한  
+시간 "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+ 
+28. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","data":[{"phone_number":" 01012341234 ","message":"ffffff \ntest20190430_1 \n내용이다
+","callback_number":"1521 -
+1024","send_date":"20200101150101","callback_url":"http://localhost/"},{"phone_number":" 010123
+41234 ","message":"ffffff \ntest20190430_1 \n내용이다 ","callback_number":"1521 -
+1024","callback_url":"h ttp://localhost/"},{"phone_number":" 01012341234 ","message":"ffffff \ntest2
+0190430_1 \n내용이다 ","callback_number":"1521 -1024","callback_url":"http://localhost/"}]}  
+ 
+29. MMS 메시지  전송요청 (단건) 
+[Request]  
+ path : / sndng /mms/sendMessage  
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+send_date  text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01"                     카카오  알림톡  Restful Interface Guide  v2.1 
+55 
+ callback_number  text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+phone_number  text(16)  N 사용자  전화번호  
+ "phone_number":"0101234
+5678" 
+message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+attachment  json N 메시지에  첨부할  내용 
+(이미지 :이미지를  
+첨부하면  MMS, 
+첨부하지  않으면  
+LMS으로 전송한다 ) 
+이미지  URL 은 34. 
+이미지  업로드  에서 
+가져온  URL 만 가능 "attachment":{" image":[{"im
+g_url":"/2020/02/03/20200
+203051526447.jpg "}]} 
+callback_url  text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”                      카카오  알림톡  Restful Interface Guide  v2.1 
+56 
+ add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+[Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+30. 필드 상세정보  
+1. attachment  
+- attachment 값에 이미지를  첨부하여  발송할  수 있다. 
+- 이미지는  목록으로 (Array) 최대 3개까지  추가하여 발송할  수 있다. 
+키  타입 필수 설명 
+image   array - 이미지  목록 
+ img_url  text Y 노출할  이미지  
+ 
+31. 샘플(Sample) 데이터  
+1). 전문 예제                     카카오  알림톡  Restful Interface Guide  v2.1 
+57 
+ {"auth_code":" 인증코드 ","phone_number":" 01012341234 ","message":"ffffff \ntest20190430_1 \n내
+용이다 ","callback_number":"1521 -
+1024","send_date":"20200101150101","callback_url":"http://localhost/","attachment":{"image":[{"im
+g_url":"/2020/02/03/20200203051740334.jpg"}, 
+{"img_url":"/2020/02/03/20200203053926627.jpg"} ]}} 
+ 
+ 
+32. MMS 메시지  전송요청 (복수) 
+- 요청 당 최대 1000 건 이하로  부탁드립니다 . 
+[Request]  
+ path : / sndng /mms/sendMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)  
+키 상세키  타입 필수 설명 예제 
+auth_cod
+e  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+data  Json 
+Array Y 전송요청  파라미터를  
+포함한  json 배열  
+ send_dat
+e text(14) N 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+ callback_
+number  text(15)  Y 발신전화번호  “callback_number”:”1522 -
+1825” 
+ phone_n
+umber  text(16)  N 사용자  전화번호  
+ "phone_number":"0101234
+5678" 
+ message  text(1000)  Y 사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ."                     카카오  알림톡  Restful Interface Guide  v2.1 
+58 
+  attachme
+nt json N 메시지에  첨부할  내용 
+(이미지 :이미지를  
+첨부하면  MMS, 
+첨부하지  않으면  
+LMS으로 전송한다 ) 
+이미지  URL 은 34. 
+이미지  업로드  에서 
+가져온  URL 만 가능 "attachment":{"i mage":[{"im
+g_url":"/2020/02/03/20200
+203051526447.jpg "}]} 
+ callback_
+url text(512) N MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  N 제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+59 
+ [Response ] 
+ 
+키 타입 필수 설명 예제 
+code text(4) Y 처리 결과 코드 
+(0000 은 정상 / 
+나머지는  오류) "code ":"0000"  
+received_at  text(19)  N 메시지를  수신한  
+시간 
+(* realtime 발송 
+성공시에만  존재. 
+단, 읽은 시간은  
+아님) "received_at":"2015 -08-06 
+10:51:00"  
+message  text N 오류 메시지  
+(오류시  존재하는  
+값) "message 
+":"AckTimeoutException(1)"  
+ 
+33. 필드 상세정보  
+1. attachment  
+- attachment 값에 이미지를  첨부하여  발송할  수 있다. 
+- 이미지는  목록으로 (Array) 최대 3개까지  추가하여 발송할  수 있다. 
+키  타입 필수 설명 
+image   array - 이미지  목록 
+ img_url  text Y 노출할  이미지  
+ 
+34. 샘플(Sample) 데이터  
+1). 전문 예제 
+{"auth_code":" 인증코드
+","data":[{"phone_number":"821050258373","message":"ffffff \ntest20190430_1 \n내용이다
+","callback_number":"1521 -
+1024","send_date":"20200101150101","callback_url":"http://localhost/","attachment":{"image":[{ "im
+g_url":"/2020/02/03/20200203051740334.jpg"}, 
+{"img_url":"/2020/02/03/20200203053926627.jpg"}]}},{"phone_number":"821050258373","messag
+e":"ffffff \ntest20190430_1 \n내용이다 ","callback_number":"1521 -                    카카오  알림톡  Restful Interface Guide  v2.1 
+60 
+ 1024","callback_url":"http://localhost/","attachment":{"image ":[{"img_url":"/2020/02/03/202002030
+51740334.jpg"}, 
+{"img_url":"/2020/02/03/20200203053926627.jpg"}]}},{"phone_number":"821050258373","messag
+e":"ffffff \ntest20190430_1 \n내용이다 ","callback_number":"1521 -
+1024","callback_url":"http://localhost/","attachment":{"i mage":[{"img_url":"/2020/02/03/202002030
+51740334.jpg"}, {"img_url":"/2020/02/03/20200203053926627.jpg"}]}}]}  
+ 
+35. 알림톡  응답요청  
+- 발송 후 결과를  받기까지  최대 5분이 걸릴 수 있습니다 . 
+[Request]  
+ path : / rspns/atk/rspnsMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)   
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"  
+send_date  text(14) Y 발송예정일  
+최소:연월일 (8자) 
+* 연월일 (8자), 
+연월일시 (10자), 
+연월일시분 (12자), 
+연월일시분초 (14자) 
+모두 가능 "send_date ":"202001011201
+01" 
+template_code  text(30)  N 템플릿코드  
+(실제 발송할  메시지  
+유형으로  등록된  
+템플릿의  코드) "template_code":"A001_01"                      카카오  알림톡  Restful Interface Guide  v2.1 
+61 
+ add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4  “add_etc4”:” add_etc4”  
+page number  N 페이지 (기본값 :1) “page”:1 
+count number  N 한 페이지에  조회할  
+건수(default: 1000)  “count”:1000  
+ 
+[Response ] 
+ 응답 바디는  JSON 객체로  아래를  참고 하세요 .  
+키 상세키  타입 설명 예제 
+code  text(4) 결과코드 “code”:”0000”  
+received_
+at  text(19)  메시지를  수신한  시간 "received_at":"2015 -08-06 
+10:51:00"  
+message   text 오류 메시지  
+(오류시  존재하는  값) "message 
+":"AckTimeoutException(1)"  
+hasNext   boolean  다음페이지  존재여부  “hasNext”:true  
+data  Json 
+Array 전송요청  파라미터를  
+포함한  json 배열  
+ result_co
+de text(4)  발송결과코드  "result_code":"3008"  
+ result_da
+te text(14)  발송결과  수신일시  "result_date":"20200130151
+757" 
+ real_send
+_date text(14)  실제발송일시  "real_send_date":"20200130
+151753"  
+ sender_k
+ey text(40)  발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"                      카카오  알림톡  Restful Interface Guide  v2.1 
+62 
+  send_dat
+e text(14) 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+ callback_
+number  Text(15)  발신전화번호  “callback_number”:”1522 -
+1825” 
+ nation_p
+hone_nu
+mber text(16)  국가번호  
+기본값은  82 “nation_phone_number”:”8
+2” 
+ phone_n
+umber  text(16)  사용자  전화번호  
+ "phone_number":"0101234
+5678" 
+ app_user
+_id text(20)  앱유저아이디  
+ "app_user_id":"12345"  
+ template
+_code text(30)  템플릿코드  
+(실제 발송할  메시지  
+유형으로  등록된  
+템플릿의  코드) "template_code":"A001_01"  
+ message  text(1000)  사용자에게  전달될  
+메시지  "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ title text(50)  템플릿  내용 중 강조 
+표기할  핵심 정보 (CBT, 
+템플릿  검수 가이드  
+참고) "title":"20 분 내 도착 예정" 
+ header  text(16)  메시지  상단에  표기할  
+제목 "header" :"공지사항 " 
+ attachme
+nt json 메시지에  첨부할  내용 
+(링크 버튼 / 
+"target":"out" 속성 
+추가시  아웃링크 ), 
+아이템리스트  정보 "attachment":{"button":[{"n
+ame":" 버튼명 ","type":"WL","
+url_pc":"http://naver.com", 
+"url_mobile":"http://daum.n
+et","target":"out"}]}  
+ supplem
+ent json 메시지에  첨부할  
+바로연결  정보 "supplement":{ "quick_reply"
+:[{"name":" 버튼명 ","type":"
+WL","url_pc":"http://naver.c
+om",                     카카오  알림톡  Restful Interface Guide  v2.1 
+63 
+ "url_mobile":"http://daum.n
+et","target":"out"}]}  
+ price number  모먼트  광고 전환 전용 
+메시지  내 포함된  
+가격/금액/결제 금액 "price":39900  
+ currency_
+type text(3)  모먼트  광고 전환 전용 
+메시지  내 포함된  
+가격/금액/결제 금액의  
+통화 단위, KRW, USD, 
+EUR 등의 국제 통화 
+코드만  사용 "currency_type":"KRW"  
+ tran_type  text(1) 전환전송  유형 
+알림톡으로  전송이  
+불가할  경우 
+SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+ tran_mes
+sage text(1000) 전환전송  메시지  
+전환전송  여부가  
+“N”아닌 경우 
+전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ callback_
+url text(512) MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) 고객사에서  보내는  
+추가 정보 2 “add_etc2”:” add_etc2”                      카카오  알림톡  Restful Interface Guide  v2.1 
+64 
+ MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  
+ add_etc3  text(160) 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+36. 샘플(Sample) 데이터  
+1). 전문 예제(응답요청 ) 
+{"auth_code":" 인증코드
+","sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","template_code":"test20190430_1
+","send_date":"20200130","page":1,"count":1}  
+ 
+37. 친구톡  응답요청  V2 
+- 이전 API로 발송하신  건은 구 친구톡  응답요청으로  받으셔야  합니다 . 
+- 발송 후 결과를  받기까지  최대 5분이 걸릴 수 있습니다 . 
+ [Request]  
+ path : /v2/rspns/ftk/rspnsMessage s 
+ method : POST  
+ header                      카카오  알림톡  Restful Interface Guide  v2.1 
+65 
+ o Content -type: application/json  
+ parameter (json)   
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a1f21
+abb3955278e9955f5a9a99b62"  
+send_date  text(14) Y 발송예정일  
+최소:연월일 (8자) 
+* 연월일 (8자), 
+연월일시 (10자), 
+연월일시분 (12자), 
+연월일시분초 (14자) 모두 
+가능 "send_date ":"20200101120101 " 
+add_etc1  text(160) N 고객사에서  보내는  추가 
+정보 1  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  추가 
+정보 2  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  추가 
+정보 3  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  추가 
+정보 4  “add_etc4”:” add_etc4”  
+page number  N 페이지 (기본값 :1) “page”:1  
+count number  N 한 페이지에  조회할  
+건수(default: 1000)  “count”:1000  
+ 
+[Response ] 
+ 응답 바디는  JSON 객체로  아래를  참고 하세요 .  
+키 상세키  타입 설명 예제 
+code  text(4) 결과코드  “code”:”0000”  
+received_a
+t  text(19)  메시지를  수신한  시간 "received_at":"2015 -08-06 
+10:51:00"  
+message   text 오류 메시지  
+(오류시  존재하는  값) "message 
+":"AckTimeoutException(1)"  
+hasNext   boolean  다음페이지  존재여부  “hasNext”:true                      카카오  알림톡  Restful Interface Guide  v2.1 
+66 
+ data  Json Array  전송요청  파라미터를  
+포함한  json 배열  
+ result_cod
+e text(4)  발송결과코드  "result_code":"3008"  
+ result_date  text(14)  발송결과  수신일시  "result_date":"20200130151757
+" 
+ real_send_
+date text(14)  실제발송일시  "real_send_date":"20200130151
+753" 
+ sender_key  text(40)  발신 프로필  키 "sender_key":"2662e99eb7a1f21
+abb3955278e9955f5a9a99b62"  
+ send_date  text(14) 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"20200101120101 " 
+ callback_n
+umber  text(15)  발신전화번호  “callback_number”:”1522 -1825” 
+ nation_ph
+one_numb
+er text(3) 국가번호  
+기본값은  82 “nation_phone_number”:”82”  
+ phone_nu
+mber text(16)  사용자  전화번호  "phone_number":"01012345678
+" 
+ app_user_i
+d text(20)  앱유저아이디  "app_user_id":"12345"  
+ messageTy
+pe text(2)  발송한  친구톡  메시지  
+타입 "messageType" :"FT" 
+ tran_type  text(1) 전환전송  유형 
+알림톡으로  전송이  불가할  
+경우 SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+ callback_ur
+l text(512) MTS에서 메시지  
+전송결과를  보내줄  고객사  
+서버의  Full URL  “callback_ur”:” https://www.mtsc
+o.co.kr/message_callback.do?se
+q=123”  
+ add_etc1  text(160) 고객사에서  보내는  추가 
+정보 1 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) 고객사에서  보내는  추가 
+정보 2 “add_etc2”:” add_etc2”                      카카오  알림톡  Restful Interface Guide  v2.1 
+67 
+ MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  
+ add_etc3  text(160) 고객사에서  보내는  추가 
+정보 3 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) 고객사에서  보내는  추가 
+정보 4 
+MTS에서는  추가정보를  
+callback_url 에 리턴하여  
+준다.  “add_etc4”:” add_etc4”  
+ 
+38. 샘플(Sample) 데이터  
+1). 전문 예제(응답요청 ) 
+{"auth_code":"iWy1fM7s85jftvM1Y4aN0Q==","sender_key":"df8b597658c2702fbbaddb0d828cee1
+9a51f18ca","send_date":"20200130","page":1,"count":1}  
+ 
+ 
+39. 친구톡  응답요청  
+- 해당 API 는 앞으로  지원되지  않을 예정입니다 . V2 를 이용해주세요 . 
+ [Request]  
+ path : / rspns/ftk/rspnsMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)   
+키 타입 필수 설명 예제                     카카오  알림톡  Restful Interface Guide  v2.1 
+68 
+ auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+sender_key  text(40)  Y 발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"  
+send_date  text(14) Y 발송예정일  
+최소:연월일 (8자) 
+* 연월일 (8자), 
+연월일시 (10자), 
+연월일시분 (12자), 
+연월일시분초 (14자) 
+모두 가능 "send_date ":"202001011201
+01" 
+add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4  “add_etc4”:” add_etc4”  
+page number  N 페이지 (기본값 :1) “page”:1  
+count number  N 한 페이지에  조회할  
+건수(default: 1000)  “count”:1000  
+ 
+[Response ] 
+ 응답 바디는  JSON 객체로  아래를  참고 하세요 .  
+키 상세키  타입 설명 예제 
+code  text(4) 결과코드 “code”:”0000”  
+received_
+at  text(19)  메시지를  수신한  시간 "received_at":"2015 -08-06 
+10:51:00"  
+message   text 오류 메시지  
+(오류시  존재하는  값) "message 
+":"AckTimeoutException(1)"  
+hasNext   boolean  다음페이지  존재여부  “hasNext”:true                      카카오  알림톡  Restful Interface Guide  v2.1 
+69 
+ data  Json 
+Array 전송요청  파라미터를  
+포함한  json 배열  
+ result_co
+de text(4)  발송결과코드  "result_code":"3008"  
+ result_da
+te text(14)  발송결과  수신일시  "result_date":"20200130151
+757" 
+ real_send
+_date text(14)  실제발송일시  "real_send_date":"20200130
+151753"  
+ sender_k
+ey text(40)  발신 프로필  키 "sender_key":"2662e99eb7a
+1f21abb3955278e9955f5a9
+a99b62"  
+ send_dat
+e text(14) 발송예정일  
+기본값  MTS서버에  
+등록일시  "send_date ":"202001011201
+01" 
+ callback_
+number  Text(15)  발신전화번호  “callback_number”:”1522 -
+1825” 
+ nation_p
+hone_nu
+mber text(16)  국가번호  
+기본값은  82 “nation_phone_number”:”8
+2” 
+ phone_n
+umber  text(16)  사용자  전화번호  
+ "phone_number":"0101234
+5678" 
+ app_user
+_id text(20)  앱유저아이디  
+ "app_user_id":"12345"  
+ user_key  text(30)  사용자  식별키  
+카카오톡  채널 봇을 
+이용해  받은 카카오톡  
+채널 사용자  식별키  "user_key":"MZjEVK4x18_V"  
+ message  text(1000)  사용자에게  전달될  
+메시지  "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ ad_flag  text(1) 광고성  메시지  필수 
+표기 사항을  노출 
+(노출 여부 Y/N, 기본값  
+Y) "ad_flag":"Y"                      카카오  알림톡  Restful Interface Guide  v2.1 
+70 
+  wide text(1) 와이드  버블 사용 여부 
+(사용여부  여부 Y/N, 
+기본값  N) "wide":"N"  
+ attachme
+nt json 메시지에  첨부할  내용 
+(링크 버튼) "attachment":{"button":[{"n
+ame":" 비즈메시지  
+소개","type":"WL","url_pc":"
+http://bizmessage.kakao.co
+m/", 
+"url_mobile":"http://bizmes
+sage.kakao.com/"}]}  
+ tran_type  text(1) 전환전송  유형 
+알림톡으로  전송이  
+불가할  경우 
+SMS/LMS/MMS 로의 
+전환전송  여부. 
+기본값은  ‘N’ "tran_type ":"S" 
+ 
+ tran_mes
+sage text(1000) 전환전송  메시지  
+전환전송  여부가  
+“N”아닌 경우 
+전환전송할  메시지  
+아래의  메시지  종류별  
+제한 확인 "tran_message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ callback_
+url text(512) MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) 고객사에서  보내는  
+추가 정보 2 “add_etc2”:” add_etc2”                      카카오  알림톡  Restful Interface Guide  v2.1 
+71 
+ MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  
+ add_etc3  text(160) 고객사에서  보내는  
+추가 정보 3 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+40. 샘플(Sample) 데이터  
+1). 전문 예제(응답요청 ) 
+{"auth_code":" 인증코드
+","sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","send_date":"20200130","page":1,
+"count":1}  
+ 
+ 
+41. SMS 응답요청  
+- 발송 후 결과를  받기까지  최대 48시간 까지 걸릴 수 있습니다 . 
+[Request]  
+ path : / rspns/sms/rspnsMessage s 
+ method : POST  
+ header  
+o Content -type: application/json                      카카오  알림톡  Restful Interface Guide  v2.1 
+72 
+  parameter (json)   
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+send_date  text(14) Y 발송예정일  
+최소:연월일 (8자) 
+* 연월일 (8자), 
+연월일시 (10자), 
+연월일시분 (12자), 
+연월일시분초 (14자) 
+모두 가능 "send_date ":"202001011201
+01" 
+add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2  “add_etc2”:” add_etc2”  
+add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4  “add_etc4”:” add_etc4”  
+page number  N 페이지 (기본값 :1) “page”:1  
+count number  N 한 페이지에  조회할  
+건수(default: 1000)  “count”:1000  
+ 
+[Response ] 
+ 응답 바디는  JSON 객체로  아래를  참고 하세요 .  
+키 상세키  타입 설명 예제 
+code  text(4) 결과코드 “code”:”0000”  
+received_
+at  text(19)  메시지를  수신한  시간 "received_at":"2015 -08-06 
+10:51:00"  
+message   text 오류 메시지  
+(오류시  존재하는  값) "message 
+":"AckTimeoutException(1)"  
+hasNext   boolean  다음페이지  존재여부  “hasNext”:true                      카카오  알림톡  Restful Interface Guide  v2.1 
+73 
+ data  Json 
+Array 전송요청  파라미터를  
+포함한  json 배열  
+ result_co
+de text(4)  발송결과코드  "result_code":" 00" 
+ result_da
+te text(14)  발송결과  수신일시  "result_date":"20200130151
+757" 
+ real_send
+_date text(14)  실제발송일시  "real_send_date":"20200130
+151753"  
+ send_dat
+e text(14) 발송예정일  "send_date ":"202001011201
+01" 
+ callback_
+number  Text(15)  발신전화번호  “callback_number”:”1522 -
+1825” 
+ phone_n
+umber  text(16)  사용자  전화번호  
+ "phone_number":"0101234
+5678" 
+ message  text(1000)  사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ callback_
+url text(512) MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) 고객사에서  보내는  
+추가 정보 1 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) 고객사에서  보내는  
+추가 정보 2 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) 고객사에서  보내는  
+추가 정보 3 “add_etc3”:” add_etc3”                      카카오  알림톡  Restful Interface Guide  v2.1 
+74 
+ MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  
+ add_etc4  text(160) 고객사에서  보내는  
+추가 정보 4 
+MTS에서는  추가정보를  
+callback_url 에 
+리턴하여  준다.  “add_etc4”:” add_etc4”  
+ subject  text(20)  제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+42. 샘플(Sample) 데이터  
+1). 전문 예제(응답요청 ) 
+{"auth_code":" 인증코드 ","send_date":"20200203","page":1,"count":1}  
+ 
+ 
+43. MMS 이미지  업로드  
+- 권장 파일크기  300KB 이하, 권장 해상도  640x480 px 이하, JPG 포맷의  이미지가  
+추천됩니다 . 
+- 규격 외 이미지의  경우 발송 실패할  확률이  높습니다 . 
+[Request]  
+ path : / img/upload_image  
+ method : POST  
+ header  
+o Content -type: multipart/form -data  
+ parameter  (body)   
+키 타입 필수 설명 예제 
+images  File Y 이미지  이미지  파일 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+75 
+ [Response ] 
+ 응답 바디는  JSON 객체로  아래를  참고 하세요 .  
+키 상세키  타입 설명 예제 
+code  text(4) 결과코드 “code”:”0000”  
+images   text 이미지  URL  "images ":"/2022/11/01/202
+21101051721791.jpg  " 
+message   text 오류 메시지  
+(오류시  존재하는  값) "message 
+":"StoredFileSuccess " 
+ 
+44. MMS 응답요청  
+- 발송 후 결과를  받기까지  최대 72시간 까지 걸릴 수 있습니다 .  
+[Request]  
+ path : / rspns/mms/rspnsMessage s 
+ method : POST  
+ header  
+o Content -type: application/json  
+ parameter (json)   
+키 타입 필수 설명 예제 
+auth_code  text(40) Y 인증코드  
+(MTS에서 발급한  
+인증코드 )  
+send_date  text(14) Y 발송예정일  
+최소:연월일 (8자) 
+* 연월일 (8자), 
+연월일시 (10자), 
+연월일시분 (12자), 
+연월일시분초 (14자) 
+모두 가능 "send_date ":"202001011201
+01" 
+add_etc1  text(160) N 고객사에서  보내는  
+추가 정보 1  “add_etc1”:” add_etc1”  
+add_etc2  text(160) N 고객사에서  보내는  
+추가 정보 2  “add_etc2”:” add_etc2”                      카카오  알림톡  Restful Interface Guide  v2.1 
+76 
+ add_etc3  text(160) N 고객사에서  보내는  
+추가 정보 3  “add_etc3”:” add_etc3”  
+add_etc4  text(160) N 고객사에서  보내는  
+추가 정보 4  “add_etc4”:” add_etc4”  
+page number  N 페이지 (기본값 :1) “page”:1  
+count number  N 한 페이지에  조회할  
+건수(default: 1000)  “count”:1000  
+ 
+[Response ] 
+ 응답 바디는  JSON 객체로  아래를  참고 하세요 .  
+키 상세키  타입 설명 예제 
+code  text(4) 결과코드 “code”:”0000”  
+received_
+at  text(19)  메시지를  수신한  시간 "received_at":"2015 -08-06 
+10:51:00"  
+message   text 오류 메시지  
+(오류시  존재하는  값) "message 
+":"AckTimeoutException(1)"  
+hasNext   boolean  다음페이지  존재여부  “hasNext”:true  
+data  Json 
+Array 전송요청  파라미터를  
+포함한  json 배열  
+ result_co
+de text(4)  발송결과코드  "result_code":" 00" 
+ result_da
+te text(14)  발송결과  수신일시  "result_date":"20200130151
+757" 
+ real_send
+_date text(14)  실제발송일시  "real_send_date":"20200130
+151753"  
+ send_dat
+e text(14) 발송예정일  "send_date ":"202001011201
+01" 
+ callback_
+number  text(15)  발신전화번호  “callback_number”:”1522 -
+1825” 
+ phone_n
+umber  text(16)  사용자  전화번호  
+ "phone_number":"0101234
+5678"                     카카오  알림톡  Restful Interface Guide  v2.1 
+77 
+  message  text(1000)  사용자에게  전달될  
+메시지  
+(공백 포함 1000자로 
+제한) "message":" 고객님의  
+택배가  금일 (18~20) 시에 
+배달 예정입니다 ." 
+ attachme
+nt json 메시지에  첨부할  내용 
+(이미지 :이미지를  
+첨부하면  MMS, 
+첨부하지  않으면  
+LMS으로 전송한다 ) 
+ "attachment":{"i mage":[{"im
+g_url":"/2020/02/03/20200
+203051526447.jpg "}]} 
+ callback_
+url text(512) MTS에서 메시지  
+전송결과를  보내줄  
+고객사  서버의  Full URL  “callback_ur”:” https://www.
+mtsco.co.kr/message_callba
+ck.do?seq=123”  
+ add_etc1  text(160) 고객사에서  보내는  
+추가 정보 1  “add_etc1”:” add_etc1”  
+ add_etc2  text(160) 고객사에서  보내는  
+추가 정보 2  “add_etc2”:” add_etc2”  
+ add_etc3  text(160) 고객사에서  보내는  
+추가 정보 3  “add_etc3”:” add_etc3”  
+ add_etc4  text(160) 고객사에서  보내는  
+추가 정보 4  “add_etc4”:” add_etc4”  
+ subject  text(20)  제목 
+LMS/MMS 전송시  제목 “subject”:” 제목” 
+ 
+45. 샘플(Sample) 데이터  
+1). 전문 예제(응답요청 ) 
+{"auth_code":" 인증코드 ","send_date":"20200203","page":1,"count":1}  
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+78 
+ 46. CALLBACK_URL 사용 시 전송결과  응답 
+- 보내는  데이터는  JSON 으로 각 서비스의  전송결과  요청 data 배열 내의 JSON 과 같다. 
+- 알림톡 /친구톡  발송 후 MMS, SMS 로 전환전송이  일어날  시 받게 되는 응답은  알림톡  결
+과/전환전송  결과 총 2건을 응답받게  된다. 
+- JSON 데이터  내에 아래 파라메터가  추가된다 . 
+send_type  text(5) 메시지  서비스  타입 
+알림톡  : ATK 
+친구톡  : FTK 
+친구톡 V2 : FTKV2  
+SMS : SMS  
+MMS : MMS  “send_type”:”ATK”  
+ 
+1). 응답 예제 
+{"result_code":"2003","result_date":"20240424171326","real_send_date":"20240424171326","tran_pr
+":"10000018","sender_key":"df8b597658c2702fbbaddb0d828cee19a51f18ca","send_date":"202404
+24171326","callback_number":"02 -501-
+1980","nation_phone_number":"82","pho ne_number":" 01012341234 ","app_user_id":"2142224097",
+"template_code":"TEST_ITEMLIST_001","message":"TEST TEMPLATE \n\n아이템  리스트  기능을  확
+인하기  위한 테스트  템플릿입니다 .","attachment":{"button":[{"name":" 웹링크
+","type":"WL","url_pc":"http://mtsco.co.kr","url_mobile":"http://mtsco. co.kr"},{"name":" 메시지전달
+","type":"MD"}]},"tran_type":"N","tran_message":"","callback_url":"http://localhost:8080/test","send_
+type":"ATK"}  
+ 
+[붙임] 알림톡 , 친구톡  결과코드표  
+결과코드  message  설명 
+1000  성공 
+1001 NoJsonBody  Request Body 가 Json형식이  아님 
+1002 InvalidHubPartnerKey  허브 파트너  키가 유효하지  않음 
+1003 InvalidSenderKey  발신 프로필  키가 유효하지  않음 
+1004 NoValueJsonElement  Request Body(Json) 에서 name을 찾을 
+수 없음 
+1006 DeletedSender  삭제된  발신프로필 . (메시지  사업 
+담당자에게  문의) 
+1007 StoppedSender  차단 상태의  발신프로필 . (메시지  사업 
+담당자에게  문의)                     카카오  알림톡  Restful Interface Guide  v2.1 
+79 
+ 결과코드  message  설명 
+1011 ContractNotFound  계약정보를  찾을 수 없음. (메시지  사업 
+담당자에게  문의) 
+1012 InvalidUserKeyException  잘못된  형식의  유저키  요청 
+1013 InvaildAppLink  유효하지  않은 app 연결 
+1014 InvalidBizNum  유효하지  않은 사업자번호  
+1015 TalkUserIdNotFonud  유효하지  않은 app user id 요청 
+1016 BizNumNotEqual  사업자등록번호  불일치  
+1020 InvalidUserKeyException  잘못된  형식의  유저키  요청 
+1021 BlockedProfile  차단 상태의  카카오톡  채널 (카카오톡  
+채널 운영툴에서  확인) 
+1022 DeactivatedProfile  닫힘 상태의  카카오톡  채널 (카카오톡  
+채널 운영툴에서  확인) 
+1023 DeletedProfile  삭제된  카카오톡  채널 (카카오톡  채널 
+운영툴에서  확인) 
+1024 DeletingProfile  삭제대기  상태의  카카오톡  채널 
+(카카오톡  채널 운영툴에서  확인) 
+1025 SpammedProfile  채널 제재 상태로  인한 메시지  전송 
+실패 (카카오톡  채널 운영툴에서  확인) 
+1030 InvalidParameterException  잘못된  파라메터  요청 
+2006 FailedToMatchSerialNumberPrefixPattern  시리얼넘버  형식 불일치  
+3000 UnexpectedException  예기치  않은 오류 발생 
+3005 AckTimeoutException  메시지를  발송했으나  수신확인  안됨 
+(성공불확실 ) 
+- 서버에는  암호화  되어 보관되며  3일 
+이내 수신 가능 
+3006 FailedToSendMessageException  내부 시스템  오류로  메시지  전송 실패 
+3008 InvalidPhoneNumberException  전화번호  오류 
+3010 JsonParseException  Json 파싱 오류 
+3011 MessageNotFoundException  메시지가  존재하지  않음 
+3012 SerialNumberDuplicatedException  메시지  일련번호가  중복됨  
+- 메시지  일련번호는  CS처리를  위해 
+고유한  값이 부여되어야  함. 
+3013 MessageEmptyException  메시지가  비어 있음 
+3014 MessageLengthOverLimitException  메시지  길이 제한 오류 
+(템플릿별  제한 길이 또는 1000자 
+초과) 
+3015 TemplateNotFoundException  템플릿을  찾을 수 없음                     카카오  알림톡  Restful Interface Guide  v2.1 
+80 
+ 결과코드  message  설명 
+3016 NoMatchedTemplateException  메시지  내용이  템플릿과  일치하지  않음 
+3018 NoSendAvailableException  메시지를  전송할  수 없음 
+3019 MessageNoUserException  톡 유저가 아님 
+3020 MessageUserBlockedAlimtalkException  알림톡 수신 차단 
+3021 MessageNot SupportedKakaotalkException  카카오톡 최소 버전 미지원 
+3022 NoSendAvailableTimeException  메시지  발송 가능한  시간이  아님 
+(친구톡  / 마케팅  메시지는  08시부터  
+20시까지  발송 가능) 
+3024 MessageInvalidImageException  메시지에  포함된  이미지를  전송할  수 
+없음 
+3025 ExceedMaxVariableLengthException  변수 글자수  제한 초과 
+3026 Button  chat_extra(event) -
+InvalidExtra(EventName)Exception '([A -Za-
+z0-9_]{1,50})'  상담/봇 전환 버튼 extra, event 글자수  
+제한 초과 
+3027 NoMatchedTemplateButtonException  메시지  버튼/바로연결 이 템플릿과  
+일치하지  않음 
+3028 NoMatchedTemplateTitleException  메시지  강조 표기 타이틀이  템플릿과  
+일치하지  않음 
+3029 ExceedMaxTitleLengthException  메시지  강조 표기 타이틀  길이 제한 
+초과 (50자) 
+3030 NoMatchedTemplateWithMessageTypeExce
+ption 메시지  타입과  템플릿  강조유형이  
+일치하지  않음 
+3031 NoMatchedTemplateHeaderException  헤더가  템플릿과  일치하지  않음 
+3032 ExceedMaxHeaderLengthException  헤더 길이 제한 초과(16자) 
+3033 NoMatchedTemplateItemHighlightExceptio
+n 아이템  하이라이트가  템플릿과  
+일치하지  않음 
+3034 ExceedMaxItemHighlightTitleLengthExcepti
+on 아이템  하이라이트  타이틀  길이 제한 
+초과(이미지  없는 경우 30자, 이미지  
+있는 경우 21자) 
+3035 ExceedMaxItemHighlightDescriptionLength
+Exception  아이템  하이라이트  디스크립션  길이 
+제한 초과(이미지  없는 경우 19자, 
+이미지  있는 경우 13자) 
+3036 NoMatchedTemplateItemListException  아이템  리스트가  템플릿과  일치하지  
+않음 
+3037 ExceedMaxItemDescriptionLengthExceptio
+n 아이템  리스트의  아이템의  디스크립션  
+길이 제한 초과(23자) 
+3038 NoMatchedTemplateItemSummaryExceptio 아이템  요약정보가  템플릿과  일치하지                      카카오  알림톡  Restful Interface Guide  v2.1 
+81 
+ 결과코드  message  설명 
+n 않음 
+3039 ExceedMaxItemSummaryDescriptionLength
+Exception  아이템  요약정보의  디스크립션  길이 
+제한 초과(14자) 
+3040 InvalidItemSummaryDescriptionException  아이템  요약정보의  디스크립션에  
+허용되지  않은 문자 
+포함(통화기호 /코드, 숫자, 콤마, 소수점 , 
+공백을  제외한  문자 포함) 
+3041 MessageInvalidWideItemListLengthExcepti
+on 와이드  아이템  리스트  개수 최대 최소 
+개수 불일치  
+3051 InvalidateCarouselItemMinException or 
+InvalidateCarouselItemMaxException  캐러셀  아이템  리스트  개수 최소, 최대 
+개수 불일치  
+3052 CarouselMessageLengthOverLimitExceptio
+n 캐러셀  아이템  메시지  길이 OVER 
+3056 WideIt emListTitleLengthOverLimitException  와이드  아이템  리스트  타이틀  길이 
+제한 오류 
+3058 CarouselHeaderLengthOverLimitException  캐러셀  헤더 길이 제한 오류 
+4000 ResponseHistoryNotFoundException  메시지  전송 결과를  찾을 수 없음 
+4001 UnknownMessageStatusError  알 수 없는 메시지  상태 
+8001  카카오  서버로  전송 중 오류 발생 
+8004  카카오  서버로  전송했으나  응답 없음 
+9001  G/W와의 네트워크  오류로  인하여  전송 
+실패 
+9998 현재 서비스를  제공하고  있지 않습니다 . 시스템에  문제가  발생하여  담당자가  
+확인하고  있는 경우 
+9999 시스템에서  알 수 없는 문제가  
+발생하였습니다 . 
+담당자가  확인 중입니다 . 시스템에  문제가  발생하여  담당자가  
+확인하고  있는 경우 
+ER00 JSONParsingException  MTS 메시지  : JSON 파싱 중 에러가  
+발생했습니다 . 
+ER01 InvalidAuthCodeException  MTS 메시지  : 인증코드  내용이  없거나  
+유효하지  않습니다 . 
+ER02 InvalidSenderKeyException  MTS 메시지  : 발신프로필키  내용이  
+없습니다 . 
+ER03 InvalidPhoneNumberAndAppUserIdExcepti
+on MTS 메시지  : 수신자번호와  
+앱유저아이디  내용이  없습니다 . 
+ER04 InvalidTemplateCodeException  MTS 메시지  : 템플릿코드  내용이  
+없습니다 .                     카카오  알림톡  Restful Interface Guide  v2.1 
+82 
+ 결과코드  message  설명 
+ER05 InvalidMessageException  MTS 메시지  : 메시지  내용이  없습니다 . 
+ER06 InvalidCallbackUrlException  MTS 메시지  : 콜백URL이 유효하지  
+않습니다 . 
+ER07 InvalidCallbackNumberException  MTS 메시지  : 
+발신번호 (콜백NUMBER) 이 유효하지  
+않습니다 . 
+ER08 InvalidDataException  MTS 메시지  : DATA 항목이  유효하지  
+않습니다 . 
+ER09 NotFoundImageException  MTS 메시지  : 첨부 이미지  파일을  
+찾을 수 없습니다 . 
+ER10 NotAllowedFileException  MTS 메시지  : 허용되지  않는 
+파일입니다 . 
+ER13 InvalidPriceException  MTS 메시지  : price 값이 유효하지  
+않습니다 . 
+ER14 InvalidCurrencyTypeException  MTS 메시지  : currency_type 값이 
+유효하지  않습니다 . 
+ER15 Message SizeOver Exception  MTS 메시지  : 메시지  내용이  너무 
+길거나  너무 큽니다 . 
+ER16 TranMessageSizeOverException  MTS 메시지  : 전환전송  시 사용할  
+메시지  크기가  너무 큽니다 . 
+ER17 NotAllowedCallbackNumber  MTS 메시지  : 전환전송  사용 시, 사전 
+승인받은  발신번호가  아닙니다 . 
+ER31 InvalidmessageTypeException  MTS 메시지  : 잘못된  메시지  타입 
+입니다 . 
+ER32 HeaderSizeOverException  MTS 메시지  : header 내용이  너무 
+길거나  너무 큽니다 . 
+ER33 AttachmentSizeOverException  MTS 메시지  : attachment 내용이  너무 
+길거나  너무 큽니다 . 
+ER34 CarouselSizeOverException  MTS 메시지  : carousel 내용이  너무 
+길거나  너무 큽니다 . 
+ER98 NoMessageFoundException  MTS 메시지  : 조건에  일치하는  
+메시지가  없습니다 . 
+ER99 MessageRegistException  MTS 메시지  : 전송메시지  등록(DB)에 
+실패하였습니다 . 
+                     카카오  알림톡  Restful Interface Guide  v2.1 
+83 
+ [붙임] SMS  결과코드표  
+결과코드  설명 
+00 성공 
+03 스팸 
+10 한도초과  발신제한  
+11 수신번호  정합성  오류 
+55 레포트  수신시간  만료 
+31 Timeout, 음영지역 , 파워오프  
+33 기타오류 (이통사  문의 필요) 
+34 결번 
+35 단말기  파워오프  
+36 음영지역  
+37 기타오류 (이통사  문의 필요) 
+40 발신번호  세칙오류  
+41 발신번호  변작으로  등록된  발신번호  사용 
+50 사전 미등록  발신번호사용  
+ER00 MTS 메시지  : JSON 파싱 중 에러가  발생했습니다 . 
+ER01 MTS 메시지  : 인증코드  내용이  없거나  유효하지  않습니다 . 
+ER03 MTS 메시지  : 수신자번호  내용이  없습니다 . 
+ER05 MTS 메시지  : 메시지  내용이  없습니다 . 
+ER07 MTS 메시지  : 발신번호 (콜백NUMBER) 이 유효하지  않습니다 . 
+ER08 MTS 메시지  : DATA 항목이  유효하지  않습니다 . 
+ER15 MTS 메시지  : 메시지  내용이  너무 길거나  너무 큽니다 . 
+ER17 MTS 메시지  : 사전 승인받은  발신번호가  아닙니다 . 
+ER98 MTS 메시지  : 조건에  일치하는  메시지가  없습니다 . 
+ER99 MTS 메시지  : 전송메시지  등록(DB)에 실패하였습니다 . 
+ 
+[붙임] LMS, MMS 결과코드표  
+결과코드  설명 
+1000 성공 
+03 스팸 
+10 한도초과  발신제한  
+11 수신번호  정합성  오류 
+26 평생번호  전송실패  
+40 발신번호세칙  오류                     카카오  알림톡  Restful Interface Guide  v2.1 
+84 
+ 결과코드  설명 
+50 사전 미등록  발신번호사용  
+101 메시지  내용 스팸 
+103 착신자  스팸 
+104 회신번호  스팸 
+112 레포트  수신시간  만료 
+114 문자 피싱 미등록으로  인한 차단 
+116 발신번호  세칙 오류 
+117 수신번호  세칙 오류 
+202 착신가입자  없음 
+203 비가입자 , 결번, 서비스정지  
+211 기간 만료 
+213 NPDB 오류 
+1013 결번 
+1026 음영지역  
+2003 메시지에  있는 주소를  MMS Relay/Server 가 찾을 수 없음 
+2007 메시지가  규격에  맞지 않거나  부적당함  / 메시지  ELEMENT 포맷 에러 / 번호 
+이동된  가입자  
+2101 올바른  컨텐츠가  아님 
+2103 미지원  단말 
+2107 착신번호  오류 
+4000 요구된  서비스가  실행될  수 없음 
+4005 일반적인  서비스  에러 / MMS G/W 내부 처리 중 처리 실패 
+4007 서비스를  요청한  클라이언트가  permission 이 없는 경우 
+미지원  단말 / 전송 실패 / 패스워드  인증 실패로  인한 전송제한  - LGT 
+4008 이통사  일시적인  트래픽  초과로  인한 실패 
+4301 미 가입자  에러 오류 
+4305 비 가용폰  오류 
+4307 일시정지  가입자  오류 
+5101 착신전환  조회 실패 
+5102 착신전환  횟수 초과 오류코드  
+6014 수신자가  착신거절  신청자  
+6072 MMS 비가용  단말 
+8011 SKT 단말기  응답없음  
+8012 SKT 이통사  오류 (이통사  문의 필요) 
+8200 MMSC  전송 시 알 수 없는 오류 
+8880 MMS 이미지  발송 시 : 발송할  수 없는 이미지  파일 또는 요청된  이미지  url 이 34. 
+MMS 이미지  업로드  방식을  통해 서버에  업로드  되어있지  않음                     카카오  알림톡  Restful Interface Guide  v2.1 
+85 
+ 결과코드  설명 
+9999 패킷오류  
+ER00 MTS 메시지  : JSON 파싱 중 에러가  발생했습니다 . 
+ER01 MTS 메시지  : 인증코드  내용이  없거나  유효하지  않습니다 . 
+ER03 MTS 메시지  : 수신자번호  내용이  없습니다 . 
+ER05 MTS 메시지  : 메시지  내용이  없습니다 . 
+ER07 MTS 메시지  : 발신번호 (콜백NUMBER) 이 유효하지  않습니다 . 
+ER08 MTS 메시지  : DATA 항목이  유효하지  않습니다 . 
+ER15 MTS 메시지  : 메시지  내용이  너무 길거나  너무 큽니다 . 
+ER17 MTS 메시지  : 사전 승인받은  발신번호가  아닙니다 . 
+ER98 MTS 메시지  : 조건에  일치하는  메시지가  없습니다 . 
+ER99 MTS 메시지  : 전송메시지  등록(DB)에 실패하였습니다 . 
+ 
