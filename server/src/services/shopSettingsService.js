@@ -1,7 +1,7 @@
 const dotenv = require('dotenv');
 const path = require('path');
 // root 폴더의 .env 도 읽어오기 위해 시도
-dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config(); // 현재 폴더(server/.env)
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
