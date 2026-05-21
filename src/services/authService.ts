@@ -228,14 +228,5 @@ export const authService = {
         });
 
         if (error) throw error;
-    },
-
-    async withdrawAccount(userId: string) {
-        const { error } = await supabase
-            .from('users')
-            .update({ approval_status: 'WITHDRAWN' })
-            .eq('id', userId);
-
-        if (error) throw error;
     }
 };
