@@ -30,6 +30,7 @@ export function ProfileEditPage() {
   });
 
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -46,6 +47,19 @@ export function ProfileEditPage() {
 
   const handleAddressSearch = () => {
     setShowAddressModal(true);
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      if (currentUser?.id) {
+        await authService.withdrawAccount(currentUser.id);
+        storage.clearAll();
+        window.location.href = '/login';
+      }
+    } catch (error) {
+      console.error("Failed to withdraw:", error);
+      alert("회원탈퇴 처리 중 오류가 발생했습니다.");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -312,7 +326,49 @@ export function ProfileEditPage() {
           </div>
         </div>
       )}
+
+      {/* Withdraw Link */}
+      <div className="mt-12 pt-6 border-t border-neutral-200">
+        <p className="text-sm text-neutral-500 mb-2">더 이상 제이시스 서비스를 이용하지 않으시나요?</p>
+        <button
+          type="button"
+          onClick={() => setShowWithdrawModal(true)}
+          className="text-sm text-neutral-500 hover:text-neutral-700 underline underline-offset-2"
+        >
+          회원탈퇴
+        </button>
+      </div>
     </div>
+
+    {/* Withdraw Confirmation Modal */}
+    {showWithdrawModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white p-8 rounded-sm shadow-xl max-w-sm w-full mx-4">
+          <h3 className="text-xl tracking-tight text-neutral-900 mb-4">
+            회원탈퇴
+          </h3>
+          <p className="text-sm text-neutral-600 mb-6">
+            탈퇴 시 복구할 수 없습니다. 정말 탈퇴하시겠습니까?
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setShowWithdrawModal(false)}
+              className="flex-1 px-4 py-3 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleWithdraw}
+              className="flex-1 px-4 py-3 bg-red-600 text-white hover:bg-red-700 transition-colors"
+            >
+              탈퇴하기
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {showAddressModal && (
       <AddressSearchModal

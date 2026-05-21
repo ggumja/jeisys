@@ -22,7 +22,7 @@ export interface User {
   adminRole?: 'super' | 'manager' | 'staff' | string;
   permissions?: string[];
   memberType?: string;
-  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
   createdAt?: string;
 }
 
