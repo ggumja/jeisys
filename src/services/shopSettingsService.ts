@@ -192,6 +192,22 @@ const DEFAULTS: Record<string, string> = {
   <p style="font-size: 16px; margin-bottom: 25px;">잔금 결제까지 모두 성공적으로 완료되었습니다! 이제 상품 준비를 시작합니다.</p>
   <p style="font-size: 15px; color: #444; margin-bottom: 30px;">상품이 꼼꼼하게 포장되어 발송될 예정입니다. 배송이 시작되면 다시 한번 안내해 드리겠습니다.</p>
 </div>`,
+  email_cust_cancel_order: 'true',
+  email_cust_cancel_order_subject: '[{{shop_name}}] 주문 취소가 정상적으로 완료되었습니다.',
+  email_cust_cancel_order_template: `<div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eee; border-radius: 12px;">
+  <h2 style="color: #111; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; font-size: 22px;">주문 취소 완료 ❌</h2>
+  <p style="font-size: 16px;">안녕하세요 <b>{{customer_name}}</b>님,</p>
+  <p style="font-size: 16px; margin-bottom: 25px;">고객님의 요청에 따라 주문 취소가 정상적으로 완료되었습니다.</p>
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 25px; margin-bottom: 25px;">
+    <ul style="list-style: none; padding: 0; margin: 0; font-size: 15px;">
+      <li style="margin-bottom: 10px;"><strong>주문 번호 :</strong> <span style="color: #0056b3;">{{order_number}}</span></li>
+    </ul>
+  </div>
+  <p style="font-size: 15px; color: #444; margin-bottom: 30px;">결제 수단에 따라 실제 환불 금액이 입금 또는 승인 취소 반영되기까지 영업일 기준 3~7일이 소요될 수 있습니다.</p>
+  <div style="border-top: 1px solid #eee; padding-top: 20px; font-size: 13px; color: #888;">
+    <p style="margin: 0;">저희 쇼핑몰을 이용해 주셔서 진심으로 감사드리며, 다음에 더 좋은 상품으로 찾아뵙겠습니다.</p>
+  </div>
+</div>`,
   email_cust_shipping_standard: 'true',
   email_cust_shipping_standard_subject: '[{{shop_name}}] 주문하신 상품이 발송되었습니다. 🚚',
   email_cust_shipping_standard_template: `<div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eee; border-radius: 12px;">
@@ -475,6 +491,14 @@ const DEFAULTS: Record<string, string> = {
 잔금 결제까지 모두 성공적으로 완료되었습니다! 🎉
 
 이제 주문하신 상품의 준비를 시작하며, 배송이 시작되면 다시 한번 안내해 드리겠습니다. 감사합니다.`,
+  sms_cust_cancel_order: 'true',
+  sms_cust_cancel_order_template: `[ {{shop_name}} ]
+안녕하세요 {{customer_name}}님, 
+고객님의 요청에 따라 주문 취소가 정상적으로 완료되었습니다. ❌
+
+▶ 주문번호 : {{order_number}}
+
+결제 수단에 따라 실제 환불까지 영업일 기준 3~7일이 소요될 수 있습니다. 이용해주셔서 감사합니다!`,
   sms_cust_shipping_standard: 'true',
   sms_cust_shipping_standard_template: `[ {{shop_name}} ]
 안녕하세요 {{customer_name}}님, 
