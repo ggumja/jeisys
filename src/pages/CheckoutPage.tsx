@@ -1422,7 +1422,7 @@ export function CheckoutPage() {
       />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="max-w-[400px]">
+        <AlertDialogContent className="max-w-[400px]" aria-describedby={undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle>등록 카드를 삭제하시겠습니까?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1442,7 +1442,7 @@ export function CheckoutPage() {
       </AlertDialog>
 
       <AlertDialog open={paymentErrorModal.isOpen} onOpenChange={(open) => setPaymentErrorModal(prev => ({ ...prev, isOpen: open }))}>
-        <AlertDialogContent className="max-w-[400px]">
+        <AlertDialogContent className="max-w-[400px]" aria-describedby={undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
               <AlertCircle className="w-5 h-5" />

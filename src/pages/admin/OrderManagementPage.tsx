@@ -586,7 +586,7 @@ export function OrderManagementPage() {
 
       {/* Shipping Confirmation Dialog */}
       <AlertDialog open={shippingDialog.open} onOpenChange={(open: boolean) => setShippingDialog(prev => ({ ...prev, open }))}>
-        <AlertDialogContent>
+        <AlertDialogContent aria-describedby={undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {shippingDialog.type === 'confirm' && '발송 처리하시겠습니까?'}
@@ -626,7 +626,7 @@ export function OrderManagementPage() {
 
       {/* Excel Matching Preview Dialog */}
       <AlertDialog open={isMatchingModalOpen} onOpenChange={setIsMatchingModalOpen}>
-        <AlertDialogContent className="max-w-3xl">
+        <AlertDialogContent className="max-w-3xl" aria-describedby={undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle>엑셀 무통장입금 매칭 결과</AlertDialogTitle>
             <AlertDialogDescription asChild>
