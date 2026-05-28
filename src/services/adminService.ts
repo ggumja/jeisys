@@ -1155,9 +1155,9 @@ export const adminService = {
 
     async updateUser(userId: string, data: any) {
         console.log(`Updating member ${userId} with data:`, data);
-        const { error } = await supabase
-            .from('users')
-            .update({
+        const { error } = await supabase.rpc('admin_update_user_fields', {
+            p_user_id: userId,
+            p_update_data: {
                 name: data.name,
                 hospital_name: data.hospitalName,
                 business_number: data.businessNumber,
@@ -1171,8 +1171,8 @@ export const adminService = {
                 tax_email: data.taxEmail,
                 role: data.role,
                 member_type: data.memberType,
-            })
-            .eq('id', userId);
+            }
+        });
 
         if (error) {
             console.error('Update user error:', error);
@@ -1309,10 +1309,10 @@ export const adminService = {
     },
 
     async updateUserStatus(userId: string, status: 'APPROVED' | 'REJECTED') {
-        const { error } = await supabase
-            .from('users')
-            .update({ approval_status: status })
-            .eq('id', userId);
+        const { error } = await supabase.rpc('admin_update_user_fields', {
+            p_user_id: userId,
+            p_update_data: { approval_status: status }
+        });
 
         if (error) throw error;
     },
@@ -1398,14 +1398,14 @@ export const adminService = {
 
     // 관리자 수정 (DB 정보만 업데이트, 비밀번호 수정은 미포함)
     async updateAdmin(id: string, updates: { name: string; role: string; permissions: string[] }) {
-      const { error } = await supabase
-        .from('users')
-        .update({
+      const { error } = await supabase.rpc('admin_update_user_fields', {
+        p_user_id: id,
+        p_update_data: {
           name: updates.name,
           admin_role: updates.role,
           permissions: updates.role === 'super' ? ['all'] : updates.permissions,
-        })
-        .eq('id', id);
+        }
+      });
 
       if (error) {
         console.error('Error updating admin:', error);
@@ -1417,10 +1417,10 @@ export const adminService = {
     async deleteAdmin(id: string) {
       // 실제 운영 환경에서는 soft delete를 하거나 Auth 테이블에서도 삭제해야 할 수 있습니다.
       // 여기서는 Edge Function 없이 간단히 DB에서만 삭제(또는 권한 박탈)하는 로직입니다.
-      const { error } = await supabase
-        .from('users')
-        .update({ role: 'user', admin_role: null, permissions: [] })
-        .eq('id', id);
+      const { error } = await supabase.rpc('admin_update_user_fields', {
+        p_user_id: id,
+        p_update_data: { role: 'user', admin_role: null, permissions: [] }
+      });
 
       if (error) {
         console.error('Error deleting admin:', error);
