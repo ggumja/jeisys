@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
-import { Download, Calendar, BarChart3, TrendingUp, PieChart, Users, DollarSign, Clock, Building2 } from 'lucide-react';
+import { Download, Calendar, Coins, TrendingUp, Award, ShieldAlert } from 'lucide-react';
 
-export function SalesAnalyticsLayout() {
+export function CreditAnalyticsLayout() {
   const [selectRange, setSelectRange] = useState('6months');
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date();
@@ -33,22 +33,19 @@ export function SalesAnalyticsLayout() {
   ];
 
   const tabs = [
-    { path: '/admin/statistics/sales/overview', label: '매출 개요', icon: TrendingUp },
-    { path: '/admin/statistics/sales/category', label: '카테고리별', icon: PieChart },
-    { path: '/admin/statistics/sales/payment', label: '결제수단별', icon: DollarSign },
-    { path: '/admin/statistics/sales/customer', label: '고객별 순위', icon: Users },
-    { path: '/admin/statistics/sales/product-payment', label: '상품별 결제수단', icon: BarChart3 },
-    { path: '/admin/statistics/sales/office', label: '영업처별 기여도', icon: Building2 },
-    { path: '/admin/statistics/sales/trend', label: '요일/시간별', icon: Clock },
+    { path: '/admin/statistics/credits/overview', label: '크레딧 개요', icon: TrendingUp },
+    { path: '/admin/statistics/credits/equipment', label: '장비별 통계', icon: Award },
+    { path: '/admin/statistics/credits/expiry', label: '만료 임박 분석', icon: ShieldAlert },
+    { path: '/admin/statistics/credits/transactions', label: '거래 통계', icon: Coins },
   ];
 
   const handleDownloadReport = () => {
-    alert('리포트 다운로드 기능은 현재 준비 중입니다.');
+    alert('크레딧 분석 리포트 다운로드 기능은 현재 준비 중입니다.');
   };
 
   // Base path 리다이렉션
-  if (location.pathname === '/admin/statistics/sales' || location.pathname === '/admin/statistics/sales/') {
-    return <Navigate to="/admin/statistics/sales/overview" replace />;
+  if (location.pathname === '/admin/statistics/credits' || location.pathname === '/admin/statistics/credits/') {
+    return <Navigate to="/admin/statistics/credits/overview" replace />;
   }
 
   return (
@@ -56,8 +53,8 @@ export function SalesAnalyticsLayout() {
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">매출 분석</h1>
-          <p className="text-sm text-neutral-600">쇼핑몰 매출 성과와 구매 행동 통계를 다각도로 분석합니다.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">크레딧 통계 분석</h1>
+          <p className="text-sm text-neutral-600">장비별 크레딧 발급 및 사용 실적, 만료 예정 잔액을 통합 모니터링합니다.</p>
         </div>
         <button
           onClick={handleDownloadReport}
@@ -87,7 +84,7 @@ export function SalesAnalyticsLayout() {
                   className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
                     isActive
                       ? 'text-white shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/50'
+                      : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-200/50'
                   }`}
                   style={isActive ? { backgroundColor: '#21358D' } : undefined}
                 >

@@ -61,7 +61,17 @@ import { SalesCustomerPage } from "./pages/admin/statistics/SalesCustomerPage";
 import { SalesProductPaymentPage } from "./pages/admin/statistics/SalesProductPaymentPage";
 import { SalesOfficePage } from "./pages/admin/statistics/SalesOfficePage";
 import { SalesTrendPage } from "./pages/admin/statistics/SalesTrendPage";
-import { ProductAnalyticsPage } from "./pages/admin/ProductAnalyticsPage";
+import { ProductAnalyticsLayout } from "./pages/admin/statistics/ProductAnalyticsLayout";
+import { ProductOverviewPage } from "./pages/admin/statistics/ProductOverviewPage";
+import { ProductBestsellerPage } from "./pages/admin/statistics/ProductBestsellerPage";
+import { ProductStockPage } from "./pages/admin/statistics/ProductStockPage";
+import { ProductConversionPage } from "./pages/admin/statistics/ProductConversionPage";
+import { ProductLowPerformingPage } from "./pages/admin/statistics/ProductLowPerformingPage";
+import { CreditAnalyticsLayout } from "./pages/admin/statistics/CreditAnalyticsLayout";
+import { CreditOverviewPage } from "./pages/admin/statistics/CreditOverviewPage";
+import { CreditEquipmentPage } from "./pages/admin/statistics/CreditEquipmentPage";
+import { CreditExpiryPage } from "./pages/admin/statistics/CreditExpiryPage";
+import { CreditTransactionPage } from "./pages/admin/statistics/CreditTransactionPage";
 import { PeriodSalesPage } from "./pages/admin/PeriodSalesPage";
 import { ShopSettingsPage } from "./pages/admin/ShopSettingsPage";
 import { AdminProxyCartPage } from "./pages/admin/AdminProxyCartPage";
@@ -139,7 +149,29 @@ export const router = createBrowserRouter([
                     { path: "trend", Component: SalesTrendPage },
                 ]
             },
-            { path: "statistics/products", Component: ProductAnalyticsPage },
+            {
+                path: "statistics/products",
+                Component: ProductAnalyticsLayout,
+                children: [
+                    { index: true, element: <Navigate to="overview" replace /> },
+                    { path: "overview", Component: ProductOverviewPage },
+                    { path: "bestseller", Component: ProductBestsellerPage },
+                    { path: "stock", Component: ProductStockPage },
+                    { path: "conversion", Component: ProductConversionPage },
+                    { path: "low-performing", Component: ProductLowPerformingPage },
+                ]
+            },
+            {
+                path: "statistics/credits",
+                Component: CreditAnalyticsLayout,
+                children: [
+                    { index: true, element: <Navigate to="overview" replace /> },
+                    { path: "overview", Component: CreditOverviewPage },
+                    { path: "equipment", Component: CreditEquipmentPage },
+                    { path: "expiry", Component: CreditExpiryPage },
+                    { path: "transactions", Component: CreditTransactionPage },
+                ]
+            },
             { path: "statistics/period-sales", Component: PeriodSalesPage },
             { path: "communication/inquiry", Component: InquiryManagementPage },
             { path: "communication/faq", Component: FaqManagementPage },

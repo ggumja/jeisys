@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
-import { Download, Calendar, BarChart3, TrendingUp, PieChart, Users, DollarSign, Clock, Building2 } from 'lucide-react';
+import { Download, Calendar, BarChart3, TrendingUp, Archive, AlertTriangle, RefreshCw } from 'lucide-react';
 
-export function SalesAnalyticsLayout() {
+export function ProductAnalyticsLayout() {
   const [selectRange, setSelectRange] = useState('6months');
   const [customStart, setCustomStart] = useState(() => {
     const d = new Date();
@@ -33,22 +33,20 @@ export function SalesAnalyticsLayout() {
   ];
 
   const tabs = [
-    { path: '/admin/statistics/sales/overview', label: '매출 개요', icon: TrendingUp },
-    { path: '/admin/statistics/sales/category', label: '카테고리별', icon: PieChart },
-    { path: '/admin/statistics/sales/payment', label: '결제수단별', icon: DollarSign },
-    { path: '/admin/statistics/sales/customer', label: '고객별 순위', icon: Users },
-    { path: '/admin/statistics/sales/product-payment', label: '상품별 결제수단', icon: BarChart3 },
-    { path: '/admin/statistics/sales/office', label: '영업처별 기여도', icon: Building2 },
-    { path: '/admin/statistics/sales/trend', label: '요일/시간별', icon: Clock },
+    { path: '/admin/statistics/products/overview', label: '상품 개요', icon: TrendingUp },
+    { path: '/admin/statistics/products/bestseller', label: '베스트셀러', icon: AwardIcon },
+    { path: '/admin/statistics/products/stock', label: '재고 분석', icon: AlertTriangle },
+    { path: '/admin/statistics/products/conversion', label: '전환율 분석', icon: RefreshCw },
+    { path: '/admin/statistics/products/low-performing', label: '비인기 상품', icon: Archive },
   ];
 
   const handleDownloadReport = () => {
-    alert('리포트 다운로드 기능은 현재 준비 중입니다.');
+    alert('상품 분석 리포트 다운로드 기능은 현재 준비 중입니다.');
   };
 
   // Base path 리다이렉션
-  if (location.pathname === '/admin/statistics/sales' || location.pathname === '/admin/statistics/sales/') {
-    return <Navigate to="/admin/statistics/sales/overview" replace />;
+  if (location.pathname === '/admin/statistics/products' || location.pathname === '/admin/statistics/products/') {
+    return <Navigate to="/admin/statistics/products/overview" replace />;
   }
 
   return (
@@ -56,8 +54,8 @@ export function SalesAnalyticsLayout() {
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">매출 분석</h1>
-          <p className="text-sm text-neutral-600">쇼핑몰 매출 성과와 구매 행동 통계를 다각도로 분석합니다.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">상품 분석</h1>
+          <p className="text-sm text-neutral-600">상품별 매출, 판매 성과 및 재고 모니터링 분석을 다각도로 제공합니다.</p>
         </div>
         <button
           onClick={handleDownloadReport}
@@ -144,5 +142,26 @@ export function SalesAnalyticsLayout() {
         <Outlet context={{ dateRange }} />
       </div>
     </div>
+  );
+}
+
+// AwardIcon 헬퍼 컴포넌트
+function AwardIcon(props: any) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="12" cy="8" r="7" />
+      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+    </svg>
   );
 }
