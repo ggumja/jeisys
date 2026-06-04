@@ -1,13 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { RefreshCw, Filter } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
 
 export function ProductConversionPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [conversionData, setConversionData] = useState<any>(null);
+
+  // Resize Ref
+  const [chartRef, chartWidth] = useChartDimensions(500);
 
   // 페이징 상태
   const [page, setPage] = useState(1);
@@ -56,21 +91,19 @@ export function ProductConversionPage() {
           <span>핵심 상품 3단계 전환 퍼널 (Top 5)</span>
         </h3>
         <p className="text-xs text-neutral-500 mb-6">구매 전환율 상위 5개 상품의 [조회 ➜ 장바구니 추가 ➜ 최종 주문] 단계별 유입 현황입니다.</p>
-        <div className="h-[320px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-              <Bar dataKey="1. 조회" fill="#93c5fd" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="2. 장바구니" fill="#fde047" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="3. 구매" fill="#86efac" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div ref={chartRef} className="h-[320px] w-full min-w-0 relative">
+          <BarChart width={chartWidth} height={320} data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="name" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+            <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
+            />
+            <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+            <Bar dataKey="1. 조회" fill="#93c5fd" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="2. 장바구니" fill="#fde047" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="3. 구매" fill="#86efac" radius={[4, 4, 0, 0]} />
+          </BarChart>
         </div>
       </div>
 

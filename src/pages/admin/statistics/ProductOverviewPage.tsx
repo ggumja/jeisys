@@ -1,8 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
 import { Package, TrendingUp, AlertTriangle } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { adminService } from '../../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
 
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
@@ -10,6 +42,9 @@ export function ProductOverviewPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+
+  // Resize Ref
+  const [chartRef, chartWidth] = useChartDimensions(500);
 
   useEffect(() => {
     async function fetchStats() {
@@ -105,30 +140,28 @@ export function ProductOverviewPage() {
           <span>카테고리별 누적 판매량 추이 (최근 6개월)</span>
         </h3>
         <p className="text-xs text-neutral-500 mb-6">주요 브랜드 카테고리별 월간 판매량 변동 트렌드를 보여줍니다.</p>
-        <div className="h-[350px]">
+        <div ref={chartRef} className="h-[350px] w-full min-w-0 relative">
           {categoryTrendData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={categoryTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-                <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `${v.toLocaleString()}개`} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
+            <LineChart width={chartWidth} height={350} data={categoryTrendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `${v.toLocaleString()}개`} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
+              />
+              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+              {uniqueCategories.map((cat, index) => (
+                <Line
+                  key={cat}
+                  type="monotone"
+                  dataKey={cat}
+                  name={cat}
+                  stroke={COLORS[index % COLORS.length]}
+                  strokeWidth={2.5}
+                  activeDot={{ r: 6 }}
                 />
-                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-                {uniqueCategories.map((cat, index) => (
-                  <Line
-                    key={cat}
-                    type="monotone"
-                    dataKey={cat}
-                    name={cat}
-                    stroke={COLORS[index % COLORS.length]}
-                    strokeWidth={2.5}
-                    activeDot={{ r: 6 }}
-                  />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
+              ))}
+            </LineChart>
           ) : (
             <div className="h-full flex items-center justify-center text-neutral-400 text-sm">
               분석 가능한 판매 추이 데이터가 충분하지 않습니다.
