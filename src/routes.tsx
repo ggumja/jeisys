@@ -53,7 +53,14 @@ import { PublicLayout } from "./components/PublicLayout";
 import { PublicCommunicationLayout } from "./components/PublicCommunicationLayout";
 import { SalesOfficeManagementPage } from "./pages/admin/SalesOfficeManagementPage";
 import { DashboardPage } from "./pages/admin/DashboardPage";
-import { SalesAnalyticsPage } from "./pages/admin/SalesAnalyticsPage";
+import { SalesAnalyticsLayout } from "./pages/admin/statistics/SalesAnalyticsLayout";
+import { SalesOverviewPage } from "./pages/admin/statistics/SalesOverviewPage";
+import { SalesCategoryPage } from "./pages/admin/statistics/SalesCategoryPage";
+import { SalesPaymentPage } from "./pages/admin/statistics/SalesPaymentPage";
+import { SalesCustomerPage } from "./pages/admin/statistics/SalesCustomerPage";
+import { SalesProductPaymentPage } from "./pages/admin/statistics/SalesProductPaymentPage";
+import { SalesOfficePage } from "./pages/admin/statistics/SalesOfficePage";
+import { SalesTrendPage } from "./pages/admin/statistics/SalesTrendPage";
 import { ProductAnalyticsPage } from "./pages/admin/ProductAnalyticsPage";
 import { PeriodSalesPage } from "./pages/admin/PeriodSalesPage";
 import { ShopSettingsPage } from "./pages/admin/ShopSettingsPage";
@@ -118,7 +125,20 @@ export const router = createBrowserRouter([
             { path: "products/package-edit/:id", Component: PackageRegisterPage },
             { path: "products/promotion-edit/:id", Component: PromotionRegisterPage },
             { path: "sales-offices", Component: SalesOfficeManagementPage },
-            { path: "statistics/sales", Component: SalesAnalyticsPage },
+            {
+                path: "statistics/sales",
+                Component: SalesAnalyticsLayout,
+                children: [
+                    { index: true, element: <Navigate to="overview" replace /> },
+                    { path: "overview", Component: SalesOverviewPage },
+                    { path: "category", Component: SalesCategoryPage },
+                    { path: "payment", Component: SalesPaymentPage },
+                    { path: "customer", Component: SalesCustomerPage },
+                    { path: "product-payment", Component: SalesProductPaymentPage },
+                    { path: "office", Component: SalesOfficePage },
+                    { path: "trend", Component: SalesTrendPage },
+                ]
+            },
             { path: "statistics/products", Component: ProductAnalyticsPage },
             { path: "statistics/period-sales", Component: PeriodSalesPage },
             { path: "communication/inquiry", Component: InquiryManagementPage },

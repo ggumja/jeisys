@@ -1,0 +1,21 @@
+# 매출 분석 세분화 및 실시간 데이터 연동 작업 목록 (Task)
+
+- `[x]` 1. Backend Service (`adminService.ts`) 통계 조회 API 구현
+  - `[x]` 1-1. `getSalesOverviewStats` (매출 요약 및 전체 추이)
+  - `[x]` 1-2. `getSalesCategoryStats` (카테고리별 매출 및 드릴다운 상품 데이터)
+  - `[x]` 1-3. `getSalesPaymentStats` (결제수단별 매출 추이)
+  - `[x]` 1-4. `getSalesCustomerStats` (고객별 매출 순위 - 페이징/검색용)
+  - `[x]` 1-5. `getSalesProductPaymentStats` (상품별 결제수단 분석)
+  - `[x]` 1-6. `getSalesOfficeStats` (영업처별 매출 기여도)
+  - `[x]` 1-7. `getSalesTrendStats` (요일/시간대별 주문 분포)
+- `[x]` 2. Routing (`routes.tsx`) 매출 분석 하위 경로 정의
+- `[x]` 3. 공통 레이아웃 (`SalesAnalyticsLayout.tsx`) 구현 및 기간 필터 제공
+- `[x]` 4. 매출 세부 분석 하위 페이지 컴포넌트 구현
+  - `[x]` 4-1. `SalesOverviewPage.tsx` (개요)
+  - `[x]` 4-2. `SalesCategoryPage.tsx` (카테고리별)
+  - `[x]` 4-3. `SalesPaymentPage.tsx` (결제수단별)
+  - `[x]` 4-4. `SalesCustomerPage.tsx` (고객별 매출순위 - 페이징/넘버링/Rows per Page 가이드라인 준수)
+  - `[x]` 4-5. `SalesProductPaymentPage.tsx` (상품별 결제수단)
+  - `[x]` 4-6. `SalesOfficePage.tsx` (영업소별 기여도)
+  - `[x]` 4-7. `SalesTrendPage.tsx` (요일/시간별 추이)
+- `[x]` 5. 전체 UI 연동 상태 확인 및 가이드라인 정합성 최종 검증 (Verification)
