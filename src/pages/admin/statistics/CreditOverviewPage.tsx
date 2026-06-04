@@ -1,8 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
 import { Coins, TrendingUp, Sparkles, AlertCircle } from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { adminService } from '../../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
 
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
@@ -10,6 +42,10 @@ export function CreditOverviewPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+
+  // Resize Refs
+  const [trendRef, trendWidth] = useChartDimensions(500);
+  const [pieRef, pieWidth] = useChartDimensions(250);
 
   useEffect(() => {
     async function fetchStats() {
@@ -95,53 +131,50 @@ export function CreditOverviewPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 월별 발행 vs 사용 추이 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2">
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2 min-w-0">
           <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#21358D]" />
             <span>월별 발행 vs 사용 추이</span>
           </h3>
           <p className="text-xs text-neutral-500 mb-6">최근 6개월간 신규 발급액과 실제 차감액 추이를 분석합니다.</p>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={monthlyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
-                <XAxis dataKey="month" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-                <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: any) => `₩${(v/10000).toLocaleString()}만`} />
-                <Tooltip formatter={(value: any) => [`₩${value.toLocaleString()}`, '']} />
-                <Bar dataKey="발행액" fill="#21358D" barSize={20} radius={[4, 4, 0, 0]} />
-                <Line type="monotone" dataKey="사용액" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
+          <div ref={trendRef} className="h-[300px] w-full min-w-0 relative">
+            <ComposedChart width={trendWidth} height={300} data={monthlyTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+              <XAxis dataKey="month" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: any) => `₩${(v/10000).toLocaleString()}만`} />
+              <Tooltip formatter={(value: any) => [`₩${value.toLocaleString()}`, '']} />
+              <Bar dataKey="발행액" fill="#21358D" barSize={20} radius={[4, 4, 0, 0]} />
+              <Line type="monotone" dataKey="사용액" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
+            </ComposedChart>
           </div>
         </div>
 
         {/* 장비별 잔액 분포 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm min-w-0">
           <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#21358D]" />
             <span>장비별 잔액 비중</span>
           </h3>
           <p className="text-xs text-neutral-500 mb-6">현재 유효한 크레딧 잔액의 장비별 구성 비율입니다.</p>
-          <div className="h-[220px]">
+          <div ref={pieRef} className="h-[220px] w-full min-w-0 relative">
             {equipmentDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={equipmentDistribution}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {equipmentDistribution.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: any) => `₩${value.toLocaleString()}`} />
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChart width={pieWidth} height={220}>
+                <Pie
+                  data={equipmentDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {equipmentDistribution.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: any) => `₩${value.toLocaleString()}`} />
+              </PieChart>
             ) : (
               <div className="h-full flex items-center justify-center text-neutral-400 text-sm">
                 활성 크레딧 잔액이 없습니다.

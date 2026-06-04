@@ -1,8 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Package, Award } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
 
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
@@ -10,6 +42,9 @@ export function SalesProductPaymentPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
+
+  // Resize Ref
+  const [chartRef, chartWidth] = useChartDimensions();
 
   // 페이징 상태
   const [page, setPage] = useState(1);
@@ -47,8 +82,8 @@ export function SalesProductPaymentPage() {
   }
 
   // Stacked Bar Chart용 데이터 변환
-  // 차트에 노출할 상위 5개 또는 10개 상품만 필터링 (너무 많으면 뭉개짐)
-  const chartData = products.slice(0, 5).map((p) => {
+  // 차트에 노출할 상위 10개 상품 필터링
+  const chartData = products.slice(0, 10).map((p) => {
     return {
       name: p.productName.length > 10 ? p.productName.substring(0, 10) + '...' : p.productName,
       ...p.payments,
@@ -69,36 +104,34 @@ export function SalesProductPaymentPage() {
 
   return (
     <div className="space-y-6">
-      {/* 누적 바 차트 (상위 5개 상품) */}
+      {/* 인기 상품별 결제수단 비중 (Top 10) */}
       <div className="bg-white border border-neutral-200 p-6 shadow-sm">
         <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
           <Package className="w-4 h-4 text-[#21358D]" />
-          <span>인기 상품별 결제수단 비중 (Top 5)</span>
+          <span>인기 상품별 결제수단 비중 (Top 10)</span>
         </h3>
-        <p className="text-xs text-neutral-500 mb-6">매출 상위 5개 상품의 누적 매출액과 사용된 결제 수단별 세부 금액을 시각화합니다.</p>
-        <div className="h-[320px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `₩${(v / 10000).toLocaleString()}만`} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
-                formatter={(value: number) => [`₩${value.toLocaleString()}`, '']}
+        <p className="text-xs text-neutral-500 mb-6">매출 상위 10개 상품의 누적 매출액과 사용된 결제 수단별 세부 금액을 시각화합니다.</p>
+        <div ref={chartRef} className="h-[320px] w-full min-w-0 relative">
+          <BarChart width={chartWidth} height={320} data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="name" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+            <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `₩${(v / 10000).toLocaleString()}만`} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
+              formatter={(value: number) => [`₩${value.toLocaleString()}`, '']}
+            />
+            <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+            {uniqueMethods.map((method, index) => (
+              <Bar
+                key={method}
+                dataKey={method}
+                name={method}
+                stackId="a"
+                fill={COLORS[index % COLORS.length]}
+                radius={index === uniqueMethods.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
               />
-              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-              {uniqueMethods.map((method, index) => (
-                <Bar
-                  key={method}
-                  dataKey={method}
-                  name={method}
-                  stackId="a"
-                  fill={COLORS[index % COLORS.length]}
-                  radius={index === uniqueMethods.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+            ))}
+          </BarChart>
         </div>
       </div>
 

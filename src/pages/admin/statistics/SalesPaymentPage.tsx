@@ -1,8 +1,56 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Wallet, TrendingUp } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
+
+const MOCK_PAYMENT_STATS = {
+  paymentStats: [
+    { method: '신용카드(저장)', amount: 48500000, count: 98, percentage: 38.5 },
+    { method: '일반결제(신용카드)', amount: 32000000, count: 65, percentage: 25.4 },
+    { method: '무통장입금', amount: 24500000, count: 35, percentage: 19.4 },
+    { method: '가상계좌', amount: 15000000, count: 20, percentage: 11.9 },
+    { method: '카드분할결제', amount: 6000000, count: 8, percentage: 4.8 }
+  ],
+  trendData: [
+    { label: '2026-01', '신용카드(저장)': 8000000, '일반결제(신용카드)': 5000000, '무통장입금': 4000000, '가상계좌': 2000000, '카드분할결제': 1000000 },
+    { label: '2026-02', '신용카드(저장)': 9500000, '일반결제(신용카드)': 6000000, '무통장입금': 4500000, '가상계좌': 2500000, '카드분할결제': 1200000 },
+    { label: '2026-03', '신용카드(저장)': 11000000, '일반결제(신용카드)': 7500000, '무통장입금': 5000000, '가상계좌': 3000000, '카드분할결제': 1500000 },
+    { label: '2026-04', '신용카드(저장)': 13000000, '일반결제(신용카드)': 8500000, '무통장입금': 6000000, '가상계좌': 4500000, '카드분할결제': 1800000 }
+  ]
+};
 
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
@@ -10,15 +58,27 @@ export function SalesPaymentPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [isDemo, setIsDemo] = useState(false);
+
+  // Resize Ref
+  const [chartRef, chartWidth] = useChartDimensions();
 
   useEffect(() => {
     async function fetchStats() {
       setIsLoading(true);
       try {
         const stats = await adminService.getSalesPaymentStats(dateRange);
-        setData(stats);
+        if (stats && stats.paymentStats && stats.paymentStats.length > 0) {
+          setData(stats);
+          setIsDemo(false);
+        } else {
+          setData(MOCK_PAYMENT_STATS);
+          setIsDemo(true);
+        }
       } catch (err) {
         console.error(err);
+        setData(MOCK_PAYMENT_STATS);
+        setIsDemo(true);
       } finally {
         setIsLoading(false);
       }
@@ -45,9 +105,23 @@ export function SalesPaymentPage() {
 
   return (
     <div className="space-y-6">
+      {isDemo && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="p-1 bg-amber-100 text-amber-800 rounded">
+              <span className="text-xs font-bold">INFO</span>
+            </div>
+            <div>
+              <p className="text-xs text-amber-800 font-semibold">
+                현재 분석 기간 내 매출 데이터가 부족하여 시각화 테스트용 데모 통계 데이터를 표시 중입니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 결제 수단별 금액 비중 리스트 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
           <div>
             <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
               <Wallet className="w-4 h-4 text-[#21358D]" />
@@ -90,36 +164,34 @@ export function SalesPaymentPage() {
         </div>
 
         {/* 월별 결제수단 비중 변화 트렌드 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2">
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2 min-w-0">
           <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#21358D]" />
             <span>결제 수단별 트렌드 추이</span>
           </h3>
           <p className="text-xs text-neutral-500 mb-6">시간 흐름에 따른 각 결제 수단의 누적 매출 추세입니다.</p>
-          <div className="h-[320px]">
+          <div ref={chartRef} className="h-[320px] w-full min-w-0 relative">
             {trendData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="label" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-                  <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `₩${(v / 10000).toLocaleString()}만`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
-                    formatter={(value: number) => [`₩${value.toLocaleString()}`, '']}
+              <BarChart width={chartWidth} height={320} data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="label" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+                <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `₩${(v / 10000).toLocaleString()}만`} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
+                  formatter={(value: number) => [`₩${value.toLocaleString()}`, '']}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+                {uniqueMethods.map((method, index) => (
+                  <Bar
+                    key={method}
+                    dataKey={method}
+                    name={method}
+                    stackId="a"
+                    fill={COLORS[index % COLORS.length]}
+                    radius={index === uniqueMethods.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                   />
-                  <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-                  {uniqueMethods.map((method, index) => (
-                    <Bar
-                      key={method}
-                      dataKey={method}
-                      name={method}
-                      stackId="a"
-                      fill={COLORS[index % COLORS.length]}
-                      radius={index === uniqueMethods.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                    />
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
+                ))}
+              </BarChart>
             ) : (
               <div className="h-full flex items-center justify-center text-neutral-400 text-sm">
                 비교 분석할 트렌드 데이터가 충분하지 않습니다.

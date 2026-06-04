@@ -6,6 +6,7 @@ import { adminService } from '../../../services/adminService';
 export function CreditExpiryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [selectedRange, setSelectedRange] = useState<30 | 60 | 90>(30);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,12 +34,19 @@ export function CreditExpiryPage() {
 
   const { summary, detailedList } = stats;
 
+  const filteredList = detailedList.filter((row: any) => row.daysRemaining <= selectedRange);
+
   const handleSendGroupSms = () => {
-    const receivers = detailedList.map((d: any) => ({
+    const receivers = filteredList.map((d: any) => ({
       name: d.hospitalName,
       phone: d.phone
     }));
-    navigate('/admin/marketing/sms/send', { state: { receivers, defaultMessage: '[제이시스 메디컬] 보유하신 크레딧 만료 안내' } });
+    navigate('/admin/marketing/sms/send', { 
+      state: { 
+        receivers, 
+        defaultMessage: `[제이시스 메디컬] 보유하신 크레딧 만료 안내 (${selectedRange}일 이내)` 
+      } 
+    });
   };
 
   const handleSendSingleSms = (row: any) => {
@@ -55,7 +63,13 @@ export function CreditExpiryPage() {
       {/* 만료 임박 구간별 요약 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 30일 이내 */}
-        <div className="bg-white border-2 border-red-100 p-6 shadow-sm relative group">
+        <div 
+          onClick={() => setSelectedRange(30)}
+          style={selectedRange === 30 ? { borderColor: '#21358D' } : {}}
+          className={`bg-white p-6 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 ${
+            selectedRange === 30 ? 'bg-blue-50/5' : 'border-red-100 hover:border-red-200'
+          }`}
+        >
           <span className="absolute top-4 right-4 text-xs font-bold px-2 py-0.5 bg-red-100 text-red-700 rounded-full">D-30 임박</span>
           <span className="text-sm text-neutral-500 font-semibold block mb-2">30일 이내 만료 예정</span>
           <p className="text-2xl font-bold text-red-600">₩{summary.exp30.amount.toLocaleString()}</p>
@@ -66,7 +80,13 @@ export function CreditExpiryPage() {
         </div>
 
         {/* 60일 이내 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative group">
+        <div 
+          onClick={() => setSelectedRange(60)}
+          style={selectedRange === 60 ? { borderColor: '#21358D' } : {}}
+          className={`bg-white p-6 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 ${
+            selectedRange === 60 ? 'bg-blue-50/5' : 'border-neutral-200 hover:border-neutral-300'
+          }`}
+        >
           <span className="absolute top-4 right-4 text-xs font-bold px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">D-60 여유</span>
           <span className="text-sm text-neutral-500 font-semibold block mb-2">60일 이내 만료 예정</span>
           <p className="text-2xl font-bold text-neutral-800">₩{summary.exp60.amount.toLocaleString()}</p>
@@ -77,7 +97,13 @@ export function CreditExpiryPage() {
         </div>
 
         {/* 90일 이내 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative group">
+        <div 
+          onClick={() => setSelectedRange(90)}
+          style={selectedRange === 90 ? { borderColor: '#21358D' } : {}}
+          className={`bg-white p-6 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 ${
+            selectedRange === 90 ? 'bg-blue-50/5' : 'border-neutral-200 hover:border-neutral-300'
+          }`}
+        >
           <span className="absolute top-4 right-4 text-xs font-bold px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded-full">D-90 여유</span>
           <span className="text-sm text-neutral-500 font-semibold block mb-2">90일 이내 만료 예정</span>
           <p className="text-2xl font-bold text-neutral-800">₩{summary.exp90.amount.toLocaleString()}</p>
@@ -94,11 +120,11 @@ export function CreditExpiryPage() {
           <div>
             <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-red-500" />
-              <span>30일 이내 만료 예정 상세 리스트</span>
+              <span>{selectedRange}일 이내 만료 예정 상세 리스트</span>
             </h3>
             <p className="text-xs text-neutral-500 mt-1">곧 소멸 예정인 미사용 크레딧 보유 현황이며, 즉각적인 소진 프로모션 안내가 필요합니다.</p>
           </div>
-          {detailedList.length > 0 && (
+          {filteredList.length > 0 && (
             <button
               onClick={handleSendGroupSms}
               className="inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold text-xs rounded transition-colors shadow-sm self-start sm:self-center"
@@ -124,14 +150,14 @@ export function CreditExpiryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 font-sans">
-              {detailedList.length === 0 ? (
+              {filteredList.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-neutral-400">
-                    30일 이내에 만료 예정인 활성 크레딧이 없습니다.
+                    {selectedRange}일 이내에 만료 예정인 활성 크레딧이 없습니다.
                   </td>
                 </tr>
               ) : (
-                detailedList.map((row: any, idx: number) => (
+                filteredList.map((row: any, idx: number) => (
                   <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
                     <td className="py-3 px-6 text-center text-neutral-500 font-semibold">{idx + 1}</td>
                     <td className="py-3 px-6 font-semibold text-neutral-900">{row.hospitalName}</td>

@@ -1,16 +1,103 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { Tag, TrendingUp, ChevronRight } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 250) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
+
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
+
+const MOCK_CATEGORY_DATA = [
+  {
+    category: '의료기기 장비',
+    sales: 125000000,
+    orders: 45,
+    avgOrder: 2777777,
+    percentage: 54.3,
+    products: [
+      { id: 'p1', name: 'Density 장비 세트', sales: 75000000, quantity: 15, percentage: 60.0 },
+      { id: 'p2', name: 'POTENZA 메인 바디', sales: 30000000, quantity: 10, percentage: 24.0 },
+      { id: 'p3', name: 'LinearZ 장비 패키지', sales: 2000000, quantity: 20, percentage: 16.0 },
+    ]
+  },
+  {
+    category: '시술 전용 팁',
+    sales: 65000000,
+    orders: 120,
+    avgOrder: 541666,
+    percentage: 28.3,
+    products: [
+      { id: 'p4', name: 'POTENZA 전용 DDR Tip', sales: 35000000, quantity: 175, percentage: 53.8 },
+      { id: 'p5', name: 'Density 단독 팁 결제', sales: 20000000, quantity: 80, percentage: 30.8 },
+      { id: 'p6', name: 'LinearZ Contouring Tip', sales: 10000000, quantity: 50, percentage: 15.4 },
+    ]
+  },
+  {
+    category: '의료 소모품',
+    sales: 28000000,
+    orders: 95,
+    avgOrder: 294736,
+    percentage: 12.2,
+    products: [
+      { id: 'p7', name: '일회용 환자 음극판 (밴드형)', sales: 15000000, quantity: 500, percentage: 53.6 },
+      { id: 'p8', name: '포텐자 전용 커플링 플로이드', sales: 8000000, quantity: 160, percentage: 28.6 },
+      { id: 'p9', name: 'ND-YAG 소프트필링 카본 크림', sales: 5000000, quantity: 100, percentage: 17.8 },
+    ]
+  },
+  {
+    category: '액세서리 및 가드',
+    sales: 12000000,
+    orders: 60,
+    avgOrder: 200000,
+    percentage: 5.2,
+    products: [
+      { id: 'p10', name: '시술자 보호 고글 (셀렉V 전용)', sales: 6000000, quantity: 30, percentage: 50.0 },
+      { id: 'p11', name: '환자 보호용 아이쉴드 고글', sales: 4000000, quantity: 40, percentage: 33.3 },
+      { id: 'p12', name: 'Clarius 전용 스캐너 가드', sales: 2000000, quantity: 10, percentage: 16.7 },
+    ]
+  }
+];
 
 export function SalesCategoryPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [isDemo, setIsDemo] = useState(false);
+
+  // Resize Ref
+  const [pieRef, pieWidth] = useChartDimensions();
 
   // 상품 기여도 테이블 페이징 상태
   const [prodPage, setProdPage] = useState(1);
@@ -21,14 +108,20 @@ export function SalesCategoryPage() {
       setIsLoading(true);
       try {
         const data = await adminService.getSalesCategoryStats(dateRange);
-        setCategories(data);
         if (data && data.length > 0) {
-          setSelectedCategory(data[0]); // 첫 번째 카테고리 기본 선택
+          setCategories(data);
+          setSelectedCategory(data[0]);
+          setIsDemo(false);
         } else {
-          setSelectedCategory(null);
+          setCategories(MOCK_CATEGORY_DATA);
+          setSelectedCategory(MOCK_CATEGORY_DATA[0]);
+          setIsDemo(true);
         }
       } catch (err) {
         console.error(err);
+        setCategories(MOCK_CATEGORY_DATA);
+        setSelectedCategory(MOCK_CATEGORY_DATA[0]);
+        setIsDemo(true);
       } finally {
         setIsLoading(false);
       }
@@ -48,14 +141,6 @@ export function SalesCategoryPage() {
     );
   }
 
-  if (categories.length === 0) {
-    return (
-      <div className="bg-white border border-neutral-200 p-16 text-center shadow-sm">
-        <p className="text-neutral-500 font-medium">선택한 기간 동안의 매출 데이터가 없습니다.</p>
-      </div>
-    );
-  }
-
   // 파이 차트용 데이터 포맷
   const chartData = categories.map((c) => ({
     name: c.category,
@@ -70,6 +155,21 @@ export function SalesCategoryPage() {
 
   return (
     <div className="space-y-6">
+      {isDemo && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <div className="p-1 bg-amber-100 text-amber-800 rounded">
+              <span className="text-xs font-bold">INFO</span>
+            </div>
+            <div>
+              <p className="text-xs text-amber-800 font-semibold">
+                현재 분석 기간 내 매출 데이터가 부족하여 시각화 테스트용 데모 통계 데이터를 표시 중입니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 점유율 도넛 차트 */}
         <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between">
@@ -80,25 +180,23 @@ export function SalesCategoryPage() {
             </h3>
             <p className="text-xs text-neutral-500 mb-6">전체 매출 대비 카테고리별 기여도를 시각화합니다.</p>
           </div>
-          <div className="h-[250px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => `₩${value.toLocaleString()}`} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div ref={pieRef} className="h-[250px] w-full min-w-0 relative">
+            <PieChart width={pieWidth} height={250}>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: number) => `₩${value.toLocaleString()}`} />
+            </PieChart>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-neutral-600">
             {categories.map((c, index) => (

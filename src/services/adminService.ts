@@ -2689,21 +2689,14 @@ export const adminService = {
                 const expiry = c.expiry_date;
                 const hospitalId = c.user?.hospital_name || '일반';
 
+                const expDateObj = new Date(expiry);
+                const diffTime = expDateObj.getTime() - now.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
                 if (expiry <= date30) {
                     exp30Amt += remaining;
                     exp30Count += 1;
                     exp30Hospitals.add(hospitalId);
-
-                    // 30일 이내 만료 상세 정보 저장
-                    detailedList.push({
-                        id: c.id,
-                        hospitalName: c.user?.hospital_name || '일반고객',
-                        userName: c.user?.name || '비회원',
-                        equipmentType: c.equipment_type,
-                        remaining,
-                        expiryDate: expiry.split('T')[0],
-                        phone: c.user?.phone || '-'
-                    });
                 }
                 if (expiry <= date60) {
                     exp60Amt += remaining;
@@ -2714,6 +2707,18 @@ export const adminService = {
                     exp90Amt += remaining;
                     exp90Count += 1;
                     exp90Hospitals.add(hospitalId);
+
+                    // 90일 이내의 모든 만료 데이터를 상세 리스트에 저장
+                    detailedList.push({
+                        id: c.id,
+                        hospitalName: c.user?.hospital_name || '일반고객',
+                        userName: c.user?.name || '비회원',
+                        equipmentType: c.equipment_type,
+                        remaining,
+                        expiryDate: expiry.split('T')[0],
+                        phone: c.user?.phone || '-',
+                        daysRemaining: diffDays
+                    });
                 }
             }
         });

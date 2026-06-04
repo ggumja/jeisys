@@ -1,13 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
 import { TrendingUp, RefreshCw } from 'lucide-react';
-import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { adminService } from '../../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
 
 export function CreditTransactionPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+
+  // Resize Ref
+  const [chartRef, chartWidth] = useChartDimensions(500);
 
   useEffect(() => {
     async function fetchStats() {
@@ -97,18 +132,16 @@ export function CreditTransactionPage() {
             <span>최근 15일 일별 거래 추이</span>
           </h3>
           <p className="text-xs text-neutral-500 mb-6">최근 15일간 매일 발생하는 발행액과 사용액 트렌드를 비교 분석합니다.</p>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
-                <XAxis dataKey="day" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-                <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: any) => `₩${(v/10000).toLocaleString()}만`} />
-                <Tooltip formatter={(value: any) => [`₩${value.toLocaleString()}`, '']} />
-                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-                <Bar dataKey="발행액" fill="#21358D" barSize={14} radius={[2, 2, 0, 0]} />
-                <Line type="monotone" dataKey="사용액" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
+          <div ref={chartRef} className="h-[300px] w-full min-w-0 relative">
+            <ComposedChart width={chartWidth} height={300} data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+              <XAxis dataKey="day" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: any) => `₩${(v/10000).toLocaleString()}만`} />
+              <Tooltip formatter={(value: any) => [`₩${value.toLocaleString()}`, '']} />
+              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+              <Bar dataKey="발행액" fill="#21358D" barSize={14} radius={[2, 2, 0, 0]} />
+              <Line type="monotone" dataKey="사용액" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
+            </ComposedChart>
           </div>
         </div>
 
