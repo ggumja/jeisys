@@ -2818,5 +2818,205 @@ export const adminService = {
                 avgExhaustDays: 45.2
             }
         };
-    }
+    },
+
+    // =========================================================
+    // 교육 일정 관리 (education_schedules 테이블)
+    // =========================================================
+
+    /** 교육 일정 목록 조회 */
+    async getEducationSchedules() {
+        const { data, error } = await supabase
+            .from('education_schedules')
+            .select('*')
+            .order('date', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((row: any) => ({
+            id: row.id as string,
+            date: row.date as string,
+            equipment: row.equipment as string,
+            time: row.time as string,
+            location: row.location as string,
+            capacity: Number(row.capacity),
+            enrolled: Number(row.enrolled),
+            instructor: row.instructor as string,
+            status: row.status as 'scheduled' | 'completed' | 'cancelled',
+            type: row.type as 'education' | 'seminar',
+            description: (row.description || '') as string,
+        }));
+    },
+
+    /** 교육 일정 등록 */
+    async createEducationSchedule(data: {
+        date: string;
+        equipment: string;
+        time: string;
+        location: string;
+        capacity: number;
+        enrolled: number;
+        instructor: string;
+        status: 'scheduled' | 'completed' | 'cancelled';
+        type: 'education' | 'seminar';
+        description?: string;
+    }) {
+        const { data: inserted, error } = await supabase
+            .from('education_schedules')
+            .insert(data)
+            .select('*')
+            .single();
+
+        if (error) throw error;
+        return inserted;
+    },
+
+    /** 교육 일정 수정 */
+    async updateEducationSchedule(
+        id: string,
+        data: Partial<{
+            date: string;
+            equipment: string;
+            time: string;
+            location: string;
+            capacity: number;
+            enrolled: number;
+            instructor: string;
+            status: 'scheduled' | 'completed' | 'cancelled';
+            type: 'education' | 'seminar';
+            description: string;
+        }>
+    ) {
+        const { error } = await supabase
+            .from('education_schedules')
+            .update(data)
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    /** 교육 일정 삭제 */
+    async deleteEducationSchedule(id: string) {
+        const { error } = await supabase
+            .from('education_schedules')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+    },
+
+    // =========================================================
+    // 교육 신청 내역 관리 (education_requests 테이블)
+    // =========================================================
+
+    /** 내 교육 신청 내역 조회 (로그인 유저 기준) */
+    async getMyEducationRequests() {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        const { data, error } = await supabase
+            .from('education_requests')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((row: any) => ({
+            id: row.id as string,
+            equipment: row.equipment as string,
+            requestDate: (row.created_at as string).split('T')[0],
+            preferredDate: row.preferred_date as string | null,
+            scheduledDate: row.scheduled_date as string | undefined,
+            content: row.content as string,
+            status: row.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
+        }));
+    },
+
+    /** 교육 신청 등록 */
+    async createEducationRequest(data: {
+        schedule_id: string;
+        equipment: string;
+        preferred_date?: string;
+        content: string;
+    }) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('로그인이 필요합니다.');
+
+        // 동일 일정 중복 신청 방지
+        const { data: existing } = await supabase
+            .from('education_requests')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('schedule_id', data.schedule_id)
+            .neq('status', 'cancelled')
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            throw new Error('이미 신청한 일정입니다.');
+        }
+
+        const { error } = await supabase
+            .from('education_requests')
+            .insert({
+                user_id: user.id,
+                schedule_id: data.schedule_id,
+                equipment: data.equipment,
+                preferred_date: data.preferred_date || null,
+                content: data.content,
+                status: 'pending',
+            });
+
+        if (error) throw error;
+    },
+
+    /** [관리자] 전체 교육 신청 내역 조회 */
+    async getAllEducationRequests() {
+        const { data, error } = await supabase
+            .from('education_requests')
+            .select(`
+                *,
+                user:users (
+                    name,
+                    hospital_name,
+                    phone
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        return (data || []).map((row: any) => ({
+            id: row.id as string,
+            equipment: row.equipment as string,
+            requestDate: (row.created_at as string).split('T')[0],
+            preferredDate: row.preferred_date as string | null,
+            scheduledDate: row.scheduled_date as string | undefined,
+            content: row.content as string,
+            status: row.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
+            user: row.user ? {
+                name: row.user.name as string,
+                hospitalName: row.user.hospital_name as string,
+                phone: row.user.phone as string,
+            } : null,
+        }));
+    },
+
+    /** [관리자] 교육 신청 상태 업데이트 */
+    async updateEducationRequestStatus(
+        id: string,
+        status: 'pending' | 'scheduled' | 'completed' | 'cancelled',
+        scheduledDate?: string
+    ) {
+        const { error } = await supabase
+            .from('education_requests')
+            .update({
+                status,
+                scheduled_date: scheduledDate || null,
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+    },
 };
+
