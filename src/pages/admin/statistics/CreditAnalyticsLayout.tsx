@@ -13,6 +13,7 @@ export function CreditAnalyticsLayout() {
     return new Date().toISOString().split('T')[0];
   });
   const location = useLocation();
+  const isTransactionsTab = location.pathname === '/admin/statistics/credits/transactions';
 
   const getEffectiveRange = () => {
     if (selectRange === 'custom') {
@@ -65,56 +66,7 @@ export function CreditAnalyticsLayout() {
         </button>
       </div>
 
-      {/* 공통 필터 영역 */}
-      <div className="bg-white border border-neutral-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-neutral-500" />
-          <span className="text-sm text-neutral-600 font-medium">분석 기간 설정</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* 세련된 세그먼트 버튼 그룹 */}
-          <div className="flex flex-wrap items-center gap-1 bg-neutral-100 p-1 border border-neutral-200/60 rounded">
-            {ranges.map((r) => {
-              const isActive = selectRange === r.value;
-              return (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setSelectRange(r.value)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
-                    isActive
-                      ? 'text-white shadow-sm'
-                      : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-200/50'
-                  }`}
-                  style={isActive ? { backgroundColor: '#21358D' } : undefined}
-                >
-                  {r.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {selectRange === 'custom' && (
-            <div className="flex items-center gap-1.5 animate-fadeIn">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="border border-neutral-300 rounded px-2.5 py-1.5 text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-semibold"
-              />
-              <span className="text-neutral-400 text-xs">~</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="border border-neutral-300 rounded px-2.5 py-1.5 text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-semibold"
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 상단 탭 바 (Brand Color #21358D 적용) */}
+      {/* 탭 바 */}
       <div className="border-b border-neutral-200 bg-white px-2 pt-2 flex flex-wrap gap-1 shadow-sm">
         {tabs.map((tab) => {
           const isActive = location.pathname === tab.path;
@@ -135,6 +87,56 @@ export function CreditAnalyticsLayout() {
           );
         })}
       </div>
+
+      {/* 기간 필터 - 거래통계 탭에서만 표시 */}
+      {isTransactionsTab && (
+        <div className="bg-white border border-neutral-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-neutral-500" />
+            <span className="text-sm text-neutral-600 font-medium">분석 기간 설정</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-1 bg-neutral-100 p-1 border border-neutral-200/60 rounded">
+              {ranges.map((r) => {
+                const isActive = selectRange === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setSelectRange(r.value)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-all ${
+                      isActive
+                        ? 'text-white shadow-sm'
+                        : 'text-neutral-600 hover:text-neutral-950 hover:bg-neutral-200/50'
+                    }`}
+                    style={isActive ? { backgroundColor: '#21358D' } : undefined}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectRange === 'custom' && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="border border-neutral-300 rounded px-2.5 py-1.5 text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-semibold"
+                />
+                <span className="text-neutral-400 text-xs">~</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="border border-neutral-300 rounded px-2.5 py-1.5 text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-semibold"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 하위 컴포넌트 렌더링 */}
       <div className="min-h-[400px]">

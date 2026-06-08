@@ -48,34 +48,34 @@ export function SalesCustomerPage() {
   return (
     <div className="space-y-6">
       {/* 검색 및 필터 패널 */}
-      <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-4 items-end sm:items-center">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+      <div className="bg-white border border-neutral-200 p-5 shadow-sm">
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-3">
+          {/* 검색 입력 박스 */}
+          <div className="flex items-center flex-1 border border-neutral-300 rounded bg-white px-3 gap-2 focus-within:ring-2 focus-within:ring-neutral-900 focus-within:border-neutral-900 transition-all">
+            <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
               type="text"
               placeholder="고객명 또는 병원명 검색"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-neutral-300 rounded text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="flex-1 py-2 text-sm text-neutral-900 bg-transparent outline-none placeholder:text-neutral-400"
             />
           </div>
-          <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-end">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-4 py-2 border border-neutral-300 rounded text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-semibold text-xs transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>초기화</span>
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-neutral-900 text-white hover:bg-neutral-800 rounded font-semibold text-xs transition-colors"
-            >
-              검색
-            </button>
-          </div>
+          {/* 버튼 */}
+          <button
+            type="button"
+            onClick={handleReset}
+            className="inline-flex items-center gap-1.5 px-4 py-2 border border-neutral-300 rounded text-neutral-700 bg-white hover:bg-neutral-50 font-semibold text-xs transition-colors shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>초기화</span>
+          </button>
+          <button
+            type="submit"
+            className="px-5 py-2 bg-neutral-900 text-white hover:bg-neutral-800 rounded font-semibold text-xs transition-colors shrink-0"
+          >
+            검색
+          </button>
         </form>
       </div>
 
@@ -140,9 +140,9 @@ export function SalesCustomerPage() {
                   const rowNo = (page - 1) * limit + (index + 1);
                   return (
                     <tr key={c.userId} className="hover:bg-neutral-50/50 transition-colors">
-                      <td className="py-3.5 px-6 text-center text-neutral-500 font-medium">{rowNo}</td>
-                      <td className="py-3.5 px-6 text-center">
-                        <span className={`inline-flex items-center justify-center w-5.5 h-5.5 text-xs font-bold rounded-full ${
+                      <td className="py-3 px-6 text-center text-neutral-500 font-medium">{rowNo}</td>
+                      <td className="py-3 px-6 text-center">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
                           c.rank <= 3
                             ? 'bg-[#21358D]/10 text-[#21358D] border border-[#21358D]/20'
                             : 'bg-neutral-100 text-neutral-600'
@@ -150,11 +150,11 @@ export function SalesCustomerPage() {
                           {c.rank}
                         </span>
                       </td>
-                      <td className="py-3.5 px-6 font-semibold text-neutral-900">{c.name}</td>
-                      <td className="py-3.5 px-6 text-neutral-600 font-medium">{c.hospitalName}</td>
-                      <td className="py-3.5 px-6 text-right text-neutral-600 font-medium">{c.orders}건</td>
-                      <td className="py-3.5 px-6 text-right text-neutral-600 font-medium">₩{c.avgOrder.toLocaleString()}</td>
-                      <td className="py-3.5 px-6 text-right font-bold text-neutral-950">₩{c.totalSales.toLocaleString()}</td>
+                      <td className="py-3 px-6 font-semibold text-neutral-900">{c.name}</td>
+                      <td className="py-3 px-6 text-neutral-600 font-medium">{c.hospitalName}</td>
+                      <td className="py-3 px-6 text-right text-neutral-600 font-medium">{c.orders}건</td>
+                      <td className="py-3 px-6 text-right text-neutral-600 font-medium">₩{c.avgOrder.toLocaleString()}</td>
+                      <td className="py-3 px-6 text-right font-bold text-neutral-950">₩{c.totalSales.toLocaleString()}</td>
                     </tr>
                   );
                 })
@@ -163,65 +163,55 @@ export function SalesCustomerPage() {
           </table>
         </div>
 
-        {/* 페이징 컴포넌트 - 가이드라인 1-2 */}
-        {!isLoading && totalPages > 1 && (
+        {/* 페이징 컴포넌트 */}
+        {!isLoading && totalCount > 0 && (
           <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-                className="relative inline-flex items-center rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-              >
-                이전
-              </button>
-              <button
-                onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-                className="relative ml-3 inline-flex items-center rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-              >
-                다음
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs text-neutral-600">
-                  전체 <span className="font-semibold text-neutral-900">{totalCount}</span>명 중{' '}
-                  <span className="font-semibold text-neutral-900">{(page - 1) * limit + 1}</span>~
-                  <span className="font-semibold text-neutral-900">{Math.min(page * limit, totalCount)}</span>위 표시
-                </p>
-              </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded shadow-sm gap-1" aria-label="Pagination">
-                  <button
-                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                    disabled={page === 1}
-                    className="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-50 transition-colors"
-                  >
-                    이전
-                  </button>
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
-                        page === i + 1
-                          ? 'bg-[#21358D] text-white border-[#21358D] z-10'
-                          : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={page === totalPages}
-                    className="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-50 transition-colors"
-                  >
-                    다음
-                  </button>
-                </nav>
-              </div>
-            </div>
+            <p className="text-xs text-neutral-600">
+              전체 <span className="font-semibold text-neutral-900">{totalCount}</span>명 중{' '}
+              <span className="font-semibold text-neutral-900">{(page - 1) * limit + 1}</span>~
+              <span className="font-semibold text-neutral-900">{Math.min(page * limit, totalCount)}</span>위 표시
+            </p>
+            {totalPages > 1 && (
+              <nav className="inline-flex items-center gap-1" aria-label="Pagination">
+                <button
+                  onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-40 transition-colors"
+                >
+                  이전
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .reduce<(number | string)[]>((acc, p, i, arr) => {
+                    if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('…');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === '…' ? (
+                      <span key={`el-${i}`} className="px-1.5 text-neutral-400 text-xs">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p as number)}
+                        style={page === p ? { backgroundColor: '#21358D', color: '#fff', borderColor: '#21358D' } : {}}
+                        className={`min-w-[32px] px-2.5 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                          page === p ? '' : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                <button
+                  onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-40 transition-colors"
+                >
+                  다음
+                </button>
+              </nav>
+            )}
           </div>
         )}
       </div>

@@ -1574,7 +1574,89 @@ export const adminService = {
         };
     },
 
-    // 1-2. getSalesCategoryStats
+    // 1-1-extra. getPeriodSalesStats (기간별 매출현황 - daily/weekly/monthly/yearly)
+    async getPeriodSalesStats(viewMode: 'daily' | 'weekly' | 'monthly' | 'yearly', year?: number, month?: number) {
+        const statuses = ['paid', 'processing', 'shipped', 'delivered'];
+        let startDateIso: string;
+        let endDateIso: string;
+
+        const now = new Date();
+
+        if (viewMode === 'daily') {
+            const y = year || now.getFullYear();
+            const m = month || (now.getMonth() + 1);
+            const start = new Date(y, m - 1, 1);
+            const end = new Date(y, m, 0, 23, 59, 59, 999);
+            startDateIso = start.toISOString();
+            endDateIso = end.toISOString();
+        } else if (viewMode === 'weekly') {
+            const y = year || now.getFullYear();
+            const m = month || (now.getMonth() + 1);
+            const start = new Date(y, m - 1, 1);
+            const end = new Date(y, m, 0, 23, 59, 59, 999);
+            startDateIso = start.toISOString();
+            endDateIso = end.toISOString();
+        } else if (viewMode === 'monthly') {
+            const y = year || now.getFullYear();
+            const start = new Date(y, 0, 1);
+            const end = new Date(y, 11, 31, 23, 59, 59, 999);
+            startDateIso = start.toISOString();
+            endDateIso = end.toISOString();
+        } else {
+            // yearly: 최근 5년
+            const start = new Date(now.getFullYear() - 4, 0, 1);
+            startDateIso = start.toISOString();
+            endDateIso = now.toISOString();
+        }
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('ordered_at, total_amount')
+            .in('status', statuses)
+            .gte('ordered_at', startDateIso)
+            .lte('ordered_at', endDateIso)
+            .order('ordered_at', { ascending: true });
+
+        if (error) throw error;
+
+        const groupMap: Record<string, { sales: number; orders: number }> = {};
+
+        (orders || []).forEach(order => {
+            const date = new Date(order.ordered_at);
+            let key = '';
+
+            if (viewMode === 'daily') {
+                key = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+            } else if (viewMode === 'weekly') {
+                const oneJan = new Date(date.getFullYear(), 0, 1);
+                const days = Math.floor((date.getTime() - oneJan.getTime()) / 86400000);
+                const week = Math.ceil((days + oneJan.getDay() + 1) / 7);
+                key = `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
+            } else if (viewMode === 'monthly') {
+                key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            } else {
+                key = `${date.getFullYear()}`;
+            }
+
+            if (!groupMap[key]) groupMap[key] = { sales: 0, orders: 0 };
+            groupMap[key].sales += Number(order.total_amount);
+            groupMap[key].orders += 1;
+        });
+
+        const rows = Object.entries(groupMap).map(([label, d]) => ({
+            label,
+            sales: d.sales,
+            orders: d.orders,
+            avgOrder: d.orders > 0 ? Math.round(d.sales / d.orders) : 0,
+        }));
+
+        const totalSales = rows.reduce((s, r) => s + r.sales, 0);
+        const totalOrders = rows.reduce((s, r) => s + r.orders, 0);
+
+        return { rows, totalSales, totalOrders };
+    },
+
+
     async getSalesCategoryStats(dateRange: string) {
         const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
 
@@ -2623,8 +2705,7 @@ export const adminService = {
                 hospitalName: h.hospitalName,
                 userName: h.userName,
                 remaining: h.remaining
-            })).sort((a, b) => b.remaining - a.remaining)
-               .slice(0, 5); // 각 장비별 top 5 병원
+            })).sort((a, b) => b.remaining - a.remaining); // 전체 리스트 (프론트에서 페이징)
 
             topHospitals[eq] = sortedList;
         });
