@@ -59,7 +59,7 @@ export function CreditEquipmentPage() {
           </h3>
           <p className="text-xs text-neutral-500 mt-1">
             각 장비별 크레딧 발행과 사용 소진율, 현재 활성 잔액 규모를 나타냅니다.
-            <span className="text-[#21358D] font-semibold ml-1 block sm:inline">💡 장비 모델 행을 클릭하면 하단에서 병원별 보유 목록이 변경됩니다.</span>
+            <span className="text-[#21358D] font-semibold ml-1 block sm:inline">💡 장비 모델 행을 클릭하면 하단에서 고객별 보유 목록이 변경됩니다.</span>
           </p>
         </div>
 
@@ -132,9 +132,9 @@ export function CreditEquipmentPage() {
             <div>
               <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
                 <Landmark className="w-4 h-4 text-[#21358D]" />
-                <span>[{selectedEq}] 크레딧 보유 병원 목록</span>
+                <span>[{selectedEq}] 크레딧 보유 고객 목록</span>
               </h3>
-              <p className="text-xs text-neutral-500 mt-1">현재 활성 상태인 {selectedEq} 크레딧을 보유한 전체 고객사 목록입니다.</p>
+              <p className="text-xs text-neutral-500 mt-1">현재 활성 상태인 {selectedEq} 크레딧을 보유한 전체 고객 목록입니다.</p>
             </div>
             <span className="text-xs font-bold px-2.5 py-1 bg-neutral-100 text-neutral-700 rounded-full">{selectedEq}</span>
           </div>
@@ -144,7 +144,7 @@ export function CreditEquipmentPage() {
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
                   <th className="py-3 px-6 font-semibold text-neutral-700 w-20 text-center">번호</th>
-                  <th className="py-3 px-6 font-semibold text-neutral-700">병원명</th>
+                  <th className="py-3 px-6 font-semibold text-neutral-700">고객명</th>
                   <th className="py-3 px-6 font-semibold text-neutral-700">대표자명</th>
                   <th className="py-3 px-6 font-semibold text-neutral-700 text-right">보유 잔액</th>
                 </tr>
@@ -153,7 +153,7 @@ export function CreditEquipmentPage() {
                 {paginatedHospitals.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center py-12 text-neutral-400">
-                      해당 장비의 크레딧 잔액을 보유한 병원이 없습니다.
+                      해당 장비의 크레딧 잔액을 보유한 고객이 없습니다.
                     </td>
                   </tr>
                 ) : (
@@ -177,7 +177,7 @@ export function CreditEquipmentPage() {
             <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-between">
               <span className="text-xs text-neutral-500">
                 {allHospitals.length > 0
-                  ? `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, allHospitals.length)} / 총 ${allHospitals.length}개 병원`
+                  ? `${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, allHospitals.length)} / 총 ${allHospitals.length}명 고객`
                   : '데이터 없음'}
               </span>
               {totalPages > 1 && (

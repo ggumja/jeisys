@@ -145,7 +145,7 @@ export function ProductBestsellerPage() {
                   const rankNo = (page - 1) * limit + (index + 1);
                   return (
                     <tr key={product.id} className="hover:bg-neutral-50/50 transition-colors">
-                      <td className="py-3.5 px-6 text-center">
+                      <td className="py-4 px-6 text-center">
                         <span className={`inline-flex items-center justify-center w-5.5 h-5.5 text-xs font-bold rounded-full ${
                           rankNo <= 3
                             ? 'bg-[#21358D]/10 text-[#21358D] border border-[#21358D]/20'
@@ -154,16 +154,16 @@ export function ProductBestsellerPage() {
                           {rankNo}
                         </span>
                       </td>
-                      <td className="py-3.5 px-6 font-semibold text-neutral-900">{product.name}</td>
-                      <td className="py-3.5 px-6 text-neutral-600 font-semibold">{product.category}</td>
-                      <td className="py-3.5 px-6 text-right font-medium text-neutral-800">{product.sales.toLocaleString()}개</td>
-                      <td className="py-3.5 px-6 text-right font-bold text-neutral-900">₩{product.revenue.toLocaleString()}</td>
-                      <td className="py-3.5 px-6 text-right">
+                      <td className="py-4 px-6 font-semibold text-neutral-900">{product.name}</td>
+                      <td className="py-4 px-6 text-neutral-600 font-semibold">{product.category}</td>
+                      <td className="py-4 px-6 text-right font-medium text-neutral-800">{product.sales.toLocaleString()}개</td>
+                      <td className="py-4 px-6 text-right font-bold text-neutral-900">₩{product.revenue.toLocaleString()}</td>
+                      <td className="py-4 px-6 text-right">
                         <span className={`font-semibold ${product.stock < 10 ? 'text-red-600' : 'text-neutral-700'}`}>
                           {product.stock.toLocaleString()}개
                         </span>
                       </td>
-                      <td className={`py-3.5 px-6 text-right font-bold ${
+                      <td className={`py-4 px-6 text-right font-bold ${
                         product.growth >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {product.growth >= 0 ? '+' : ''}{product.growth}%

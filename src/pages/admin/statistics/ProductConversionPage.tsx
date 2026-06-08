@@ -153,13 +153,13 @@ export function ProductConversionPage() {
                 const rowNo = (page - 1) * limit + (idx + 1);
                 return (
                   <tr key={prod.id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="py-3.5 px-6 text-center text-neutral-500 font-medium">{rowNo}</td>
-                    <td className="py-3.5 px-6 font-semibold text-neutral-900">{prod.name}</td>
-                    <td className="py-3.5 px-6 text-neutral-600 font-semibold">{prod.category}</td>
-                    <td className="py-3.5 px-6 text-right text-neutral-700">{prod.views.toLocaleString()}회</td>
-                    <td className="py-3.5 px-6 text-right text-neutral-700">{prod.carts.toLocaleString()}회</td>
-                    <td className="py-3.5 px-6 text-right font-medium text-neutral-800">{prod.purchases.toLocaleString()}개</td>
-                    <td className="py-3.5 px-6 text-right font-bold text-[#21358D]">
+                    <td className="py-3 px-6 text-center text-neutral-500 font-medium">{rowNo}</td>
+                    <td className="py-3 px-6 font-semibold text-neutral-900">{prod.name}</td>
+                    <td className="py-3 px-6 text-neutral-600 font-semibold">{prod.category}</td>
+                    <td className="py-3 px-6 text-right text-neutral-700">{prod.views.toLocaleString()}회</td>
+                    <td className="py-3 px-6 text-right text-neutral-700">{prod.carts.toLocaleString()}회</td>
+                    <td className="py-3 px-6 text-right font-medium text-neutral-800">{prod.purchases.toLocaleString()}개</td>
+                    <td className="py-3 px-6 text-right font-bold text-[#21358D]">
                       <div className="flex items-center justify-end gap-2">
                         <span className="w-12 text-right">{prod.conversionRate}%</span>
                         <div className="w-16 bg-neutral-100 rounded-full h-1.5 hidden sm:block">
@@ -175,7 +175,7 @@ export function ProductConversionPage() {
         </div>
 
         {/* 페이징 컴포넌트 */}
-        {totalPages > 1 && (
+        {totalCount > 0 && (
           <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4">
             <div className="flex flex-1 justify-between sm:hidden">
               <button

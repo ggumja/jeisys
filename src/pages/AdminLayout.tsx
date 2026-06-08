@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Wallet, CreditCard, Inbox, Wrench, Lock, Coins } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -86,8 +86,6 @@ export function AdminLayout() {
     { to: '/admin/marketing/sms/send', icon: Send, label: '메시지 전송' },
     { to: '/admin/marketing/sms/history', icon: History, label: '마케팅 전송 내역' },
     { to: '/admin/marketing/sms/system-history', icon: Inbox, label: '시스템 전송 내역' },
-    { to: '/admin/marketing/sms/charge', icon: Wallet, label: '메시지 충전' },
-    { to: '/admin/marketing/sms/charge-history', icon: CreditCard, label: '충전 내역' },
   ];
 
   const emailSubMenus = [
@@ -487,10 +485,10 @@ export function AdminLayout() {
                         {isSmsMktOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
                       {isSmsMktOpen && (
-                        <div className="border-l-2 border-neutral-100 ml-12">
+                        <div className="bg-neutral-50 border-t border-neutral-100">
                           {smsSubMenus.map((item) => (
-                            <Link key={item.to} to={item.to} className={`flex items-center gap-2 pl-4 pr-4 py-2 transition-colors text-xs ${location.pathname === item.to ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}>
-                              <item.icon className="w-3.5 h-3.5 shrink-0" />
+                            <Link key={item.to} to={item.to} className={`flex items-center gap-2 pl-12 pr-4 py-2.5 transition-colors text-xs font-medium ${location.pathname === item.to ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800'}`}>
+                              <item.icon className="w-3 h-3 shrink-0" />
                               <span>{item.label}</span>
                             </Link>
                           ))}
@@ -507,10 +505,10 @@ export function AdminLayout() {
                         {isEmailMktOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
                       {isEmailMktOpen && (
-                        <div className="border-l-2 border-neutral-100 ml-12">
+                        <div className="bg-neutral-50 border-t border-neutral-100">
                           {emailSubMenus.map((item) => (
-                            <Link key={item.to} to={item.to} className={`flex items-center gap-2 pl-4 pr-4 py-2 transition-colors text-xs ${location.pathname === item.to ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}>
-                              <item.icon className="w-3.5 h-3.5 shrink-0" />
+                            <Link key={item.to} to={item.to} className={`flex items-center gap-2 pl-12 pr-4 py-2.5 transition-colors text-xs font-medium ${location.pathname === item.to ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800'}`}>
+                              <item.icon className="w-3 h-3 shrink-0" />
                               <span>{item.label}</span>
                             </Link>
                           ))}

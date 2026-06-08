@@ -78,8 +78,6 @@ import { AdminProxyCartPage } from "./pages/admin/AdminProxyCartPage";
 import { SmsMessageSendPage } from "./pages/admin/marketing/SmsMessageSendPage";
 import { SmsMarketingHistoryPage } from "./pages/admin/marketing/SmsMarketingHistoryPage";
 import { SmsSystemHistoryPage } from "./pages/admin/marketing/SmsSystemHistoryPage";
-import { SmsChargePage } from "./pages/admin/marketing/SmsChargePage";
-import { SmsChargeHistoryPage } from "./pages/admin/marketing/SmsChargeHistoryPage";
 import { EmailSendPage } from "./pages/admin/marketing/EmailSendPage";
 import { EmailHistoryPage } from "./pages/admin/marketing/EmailHistoryPage";
 import { EmailSystemHistoryPage } from "./pages/admin/marketing/EmailSystemHistoryPage";
@@ -190,8 +188,6 @@ export const router = createBrowserRouter([
             { path: "marketing/sms/send", Component: SmsMessageSendPage },
             { path: "marketing/sms/history", Component: SmsMarketingHistoryPage },
             { path: "marketing/sms/system-history", Component: SmsSystemHistoryPage },
-            { path: "marketing/sms/charge", Component: SmsChargePage },
-            { path: "marketing/sms/charge-history", Component: SmsChargeHistoryPage },
             { path: "marketing/email/send", Component: EmailSendPage },
             { path: "marketing/email/history", Component: EmailHistoryPage },
             { path: "marketing/email/system-history", Component: EmailSystemHistoryPage },

@@ -1309,9 +1309,9 @@ export const adminService = {
     },
 
     async updateUserStatus(userId: string, status: 'APPROVED' | 'REJECTED') {
-        const { error } = await supabase.rpc('admin_update_user_fields', {
+        const { error } = await supabase.rpc('admin_set_user_approval', {
             p_user_id: userId,
-            p_update_data: { approval_status: status }
+            p_status: status   // DB ENUM은 대문자: APPROVED, PENDING, REJECTED
         });
 
         if (error) throw error;
