@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { Trash2, Minus, Plus } from 'lucide-react';
 import { CartItem, Product } from '../types';
 import { ProductImage } from './ui/ProductImage';
+import { parseCartOption } from '../utils/cartUtils';
 
 interface CartItemCardProps {
   item: CartItem;
@@ -57,6 +58,9 @@ export function CartItemCard({
   const freeGrouped = groupIds(freeIds);
 
   // ── 단가/할인 계산 ────────────────────────────────────────
+  const parsedOption = parseCartOption(item.optionName);
+  const variantAdditionalPrice = parsedOption.variants.reduce((sum, v) => sum + (v.additionalPrice || 0), 0);
+
   let baseUnitPrice = product.price;
   let mainDiscountRate = 0;
   if (item.optionId) {
@@ -75,6 +79,9 @@ export function CartItemCard({
   } else {
     mainDiscountRate = product.discountRate || 0;
   }
+  
+  // 옵션 추가금액 합산
+  baseUnitPrice += variantAdditionalPrice;
   const tfNormalTotal = baseUnitPrice * item.quantity;
   const tfDiscountAmt = tfNormalTotal - itemTotal;
 
@@ -100,8 +107,19 @@ export function CartItemCard({
             className="text-base font-bold tracking-tight text-neutral-900 hover:text-neutral-700 block mb-2"
           >
             {product.name}
-            {item.optionName ? ` (${item.optionName})` : ''}
+            {parsedOption.label && parsedOption.variants.length === 0 ? ` (${parsedOption.label})` : ''}
           </Link>
+
+          {parsedOption.variants && parsedOption.variants.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {parsedOption.variants.map((v, i) => (
+                <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-sm bg-neutral-50 text-neutral-500 font-medium border border-neutral-200/80" style={{ fontSize: '12px', lineHeight: '1.2' }}>
+                  {v.groupName}: {v.valueName}
+                  {v.additionalPrice > 0 && ` (+₩${v.additionalPrice.toLocaleString()})`}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1 mb-3">
             <div className="flex items-center gap-2">
@@ -236,7 +254,7 @@ export function CartItemCard({
                 <div className="flex items-center gap-1.5 text-neutral-900 font-semibold">
                   <span>
                     {product.name}
-                    {item.optionName ? ` (${item.optionName})` : ''}
+                    {parsedOption.label && parsedOption.variants.length === 0 ? ` (${parsedOption.label})` : ''}
                   </span>
                   {creditAvailable && (
                     <span className="px-1 py-0.5 bg-emerald-600 text-white text-[9px] font-bold rounded">

@@ -389,13 +389,44 @@ export function ProductDetailPage() {
         finalSelections = [...selectedPromotionPaid, ...selectedPromotionFree];
       }
 
+      // JSON 객체로 옵션 구성
+      let finalOptionName: string | undefined = undefined;
+      const selectedVariantList = variantGroups.map(group => {
+        const valueId = selectedVariants[group.id];
+        if (!valueId) return null;
+        const val = group.values.find(v => v.id === valueId);
+        if (!val) return null;
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          valueId: val.id,
+          valueName: val.name,
+          additionalPrice: val.additionalPrice
+        };
+      }).filter(Boolean);
+
+      const labels = [];
+      if (currentOption) {
+        labels.push(currentOption.name);
+      }
+      selectedVariantList.forEach(v => {
+        if (v) labels.push(v.valueName);
+      });
+
+      if (labels.length > 0 || selectedVariantList.length > 0) {
+        finalOptionName = JSON.stringify({
+          label: labels.join(' / '),
+          variants: selectedVariantList
+        });
+      }
+
       await cartService.addToCart(
         product.id, 
         quantity, 
         isSubscription, 
         finalSelections,
         selectedOptionId || undefined,
-        currentOption ? currentOption.name : undefined
+        finalOptionName
       );
 
       // 추가 구성 상품 담기

@@ -111,6 +111,12 @@ export const cartService = {
       query = query.is('option_id', null);
     }
 
+    if (optionName) {
+      query = query.eq('option_name', optionName);
+    } else {
+      query = query.is('option_name', null);
+    }
+
     const { data: existing } = await query.maybeSingle();
 
     if (existing) {

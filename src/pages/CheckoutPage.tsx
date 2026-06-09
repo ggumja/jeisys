@@ -10,6 +10,7 @@ import { CartItem, Product, PaymentMethod, ShippingAddress, User, SplitPaymentMe
 import { addressService } from '../services/addressService';
 import { ProductImage } from '../components/ui/ProductImage';
 import { CartItemCard } from '../components/CartItemCard';
+import { parseCartOption } from '../utils/cartUtils';
 import { CardRegistrationModal } from '../components/CardRegistrationModal';
 import { AddressSearchModal } from '../components/AddressSearchModal';
 import { toast } from 'sonner';
@@ -311,35 +312,41 @@ export function CheckoutPage() {
     // 어드민 협의 단가 우선 적용
     if (item.customPrice != null) return item.customPrice;
 
+    const parsedOption = parseCartOption(item.optionName);
+    const variantAdditionalPrice = parsedOption.variants.reduce((sum, v) => sum + (v.additionalPrice || 0), 0);
+
     const product = productsMap[item.productId];
     if (!product) return 0;
+
+    let basePriceCalculated = 0;
 
     if (product.isPromotion && item.selectedProductIds) {
       const buyQty = product.buyQuantity || 0;
       const paidItemIds = item.selectedProductIds.slice(0, buyQty);
-      const paidTotal = paidItemIds.reduce((sum, id) => {
+      basePriceCalculated = paidItemIds.reduce((sum, id) => {
         const subProduct = productsMap[id];
         return sum + (subProduct?.price || 0);
       }, 0);
-      return paidTotal;
-    }
-
-    if (item.optionId) {
+    } else if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
-        const discountRate = (option.discountRate || 0) / 100;
+        const discountRate = ((option.discountRate || 0) > 0
+          ? option.discountRate
+          : (product.discountRate || 0)) / 100;
         const basePrice = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
-        return (basePrice * (1 - discountRate)) / (option.quantity || 1);
+        basePriceCalculated = (basePrice * (1 - discountRate)) / (option.quantity || 1);
       }
+    } else {
+      const tier = [...product.tierPricing]
+        .sort((a, b) => b.quantity - a.quantity)
+        .find(t => item.quantity >= t.quantity);
+
+      const basePrice = tier?.unitPrice || product.price;
+      const productDiscountRate = (product.discountRate || 0) / 100;
+      basePriceCalculated = basePrice * (1 - productDiscountRate);
     }
 
-    const tier = [...product.tierPricing]
-      .sort((a, b) => b.quantity - a.quantity)
-      .find(t => item.quantity >= t.quantity);
-
-    const basePrice = tier?.unitPrice || product.price;
-    const productDiscountRate = (product.discountRate || 0) / 100;
-    return basePrice * (1 - productDiscountRate);
+    return basePriceCalculated + variantAdditionalPrice;
   };
 
   const calculateTotal = () => {

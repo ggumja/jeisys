@@ -4,6 +4,7 @@ import { Printer, ShoppingBag, Loader2, Package, Check } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { CartItem, Product } from '../types';
+import { parseCartOption } from '../utils/cartUtils';
 import { ProductImage } from '../components/ui/ProductImage';
 import { CartItemCard } from '../components/CartItemCard';
 import { useModal } from '../context/ModalContext';
@@ -100,23 +101,25 @@ export function CartPage() {
     // 어드민 협의 단가가 설정된 경우 우선 적용
     if (item.customPrice != null) return item.customPrice;
 
+    const parsedOption = parseCartOption(item.optionName);
+    const variantAdditionalPrice = parsedOption.variants.reduce((sum, v) => sum + (v.additionalPrice || 0), 0);
+
     const product = productsMap[item.productId];
     if (!product) return 0;
     const salesUnit = product.salesUnit || 1;
+
+    let basePriceCalculated = 0;
 
     // Promotion Product: Price is sum of selected paid items
     if (product.isPromotion && item.selectedProductIds) {
       const buyQty = product.buyQuantity || 0;
       // The first buyQty items in selectedProductIds are the paid ones
       const paidItemIds = item.selectedProductIds.slice(0, buyQty);
-      const paidTotal = paidItemIds.reduce((sum, id) => {
+      basePriceCalculated = paidItemIds.reduce((sum, id) => {
         const subProduct = productsMap[id];
         return sum + (subProduct?.price || 0);
       }, 0);
-      return paidTotal;
-    }
-
-    if (item.optionId) {
+    } else if (item.optionId) {
       const option = product.options?.find(opt => opt.id === item.optionId);
       if (option) {
         // option에 discountRate가 없으면 product 레벨 discountRate로 폴백
@@ -124,18 +127,20 @@ export function CartPage() {
           ? option.discountRate
           : (product.discountRate || 0)) / 100;
         const basePrice = (option.price && option.price > 0) ? option.price : (product.price * (option.quantity || 1));
-        return (basePrice * (1 - discountRate)) / (option.quantity || 1);
+        basePriceCalculated = (basePrice * (1 - discountRate)) / (option.quantity || 1);
       }
+    } else {
+      const tier = [...product.tierPricing]
+        .sort((a, b) => b.quantity - a.quantity)
+        .find(t => item.quantity >= t.quantity);
+
+      const basePrice = tier?.unitPrice || product.price;
+      // product-level discountRate 적용 (패키지 또는 일반 상품)
+      const productDiscountRate = (product.discountRate || 0) / 100;
+      basePriceCalculated = basePrice * (1 - productDiscountRate);
     }
 
-    const tier = [...product.tierPricing]
-      .sort((a, b) => b.quantity - a.quantity)
-      .find(t => item.quantity >= t.quantity);
-
-    const basePrice = tier?.unitPrice || product.price;
-    // product-level discountRate 적용 (패키지 또는 일반 상품)
-    const productDiscountRate = (product.discountRate || 0) / 100;
-    return basePrice * (1 - productDiscountRate);
+    return basePriceCalculated + variantAdditionalPrice;
   };
 
   const calculateTotal = () => {
@@ -165,6 +170,9 @@ export function CartPage() {
       const itemTotal = Math.round(unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1));
 
       // option discount rate
+      const parsedOption = parseCartOption(item.optionName);
+      const variantAdditionalPrice = parsedOption.variants.reduce((sum, v) => sum + (v.additionalPrice || 0), 0);
+
       let mainDiscountRate = 0;
       let baseUnitPrice = product.price;
       if (item.optionId) {
@@ -177,6 +185,7 @@ export function CartPage() {
       } else {
         mainDiscountRate = product.discountRate || 0;
       }
+      baseUnitPrice += variantAdditionalPrice;
 
       // sub-rows for bundle
       const hasBundle = item.selectedProductIds && item.selectedProductIds.length > 0;
@@ -239,6 +248,7 @@ export function CartPage() {
       } else {
         tfDiscountRate = product.discountRate || 0;
       }
+      tfBaseUnitPrice += variantAdditionalPrice;
       const tfNormalTotal = tfBaseUnitPrice * item.quantity;
       const tfDiscountAmt = tfNormalTotal - itemTotal;
 
@@ -257,10 +267,18 @@ export function CartPage() {
           ? `<span class="line-through gray">\u20a9${baseUnitPrice.toLocaleString()}</span><br>\u20a9${unitPrice.toLocaleString()} <span class="red small">(-${mainDiscountRate}%)</span>`
           : `\u20a9${unitPrice.toLocaleString()}`;
 
+      const variantTextHtml = parsedOption.variants.length > 0
+        ? `<div class="gray" style="font-size: 10px; margin-top: 2px;">${parsedOption.variants.map(v => `${v.groupName}: ${v.valueName}${v.additionalPrice > 0 ? ` (+₩${v.additionalPrice.toLocaleString()})` : ''}`).join(', ')}</div>`
+        : '';
+
       return `
         <tr class="main-row">
           <td class="center">${idx + 1}</td>
-          <td>${product.name}${item.optionName ? ` (${item.optionName})` : ''} <span class="badge badge-buy">구매</span></td>
+          <td>
+            ${product.name}${parsedOption.label && parsedOption.variants.length === 0 ? ` (${parsedOption.label})` : ''}
+            <span class="badge badge-buy">구매</span>
+            ${variantTextHtml}
+          </td>
           <td class="center bold">${item.quantity}</td>
           <td class="right">${hasBundle ? '' : unitPriceDisplay}</td>
           <td class="right bold">${hasBundle ? '' : '\u20a9'+itemTotal.toLocaleString()}</td>

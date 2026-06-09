@@ -1412,7 +1412,7 @@ export function ProductRegisterPage() {
 
         {/* 추가 구성 상품 섹터 */}
         <div className={ADMIN_STYLES.CARD}>
-          <h3 className={ADMIN_STYLES.SECTION_TITLE}>추가 구성 상품</h3>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>추가 선택 상품</h3>
           
           <div className="mb-6">
             <label className={ADMIN_STYLES.SECTION_LABEL}>
