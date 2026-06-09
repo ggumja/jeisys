@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ShoppingCart, Check, Minus, Plus, Package, Loader2, CreditCard } from 'lucide-react';
+import { ShoppingCart, Check, Minus, Plus, Package, Loader2, CreditCard, X } from 'lucide-react';
 import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { equipmentService, EquipmentModel } from '../services/equipmentService';
-import { Product, PackageItem } from '../types';
+import { Product, PackageItem, ProductOptionGroup } from '../types';
 import { storage } from '../lib/storage';
 import {
   Dialog,
@@ -41,6 +41,15 @@ export function ProductDetailPage() {
   const [compatibleModels, setCompatibleModels] = useState<EquipmentModel[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
 
+  // 상품 옵션 그룹 (색상/사이즈 등)
+  const [variantGroups, setVariantGroups] = useState<ProductOptionGroup[]>([]);
+  // 선택된 옵션 그룹별 값 ID: { [groupId]: valueId }
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  
+  // 추가 구성 상품 목록 및 선택 수량
+  const [addOnProducts, setAddOnProducts] = useState<Product[]>([]);
+  const [selectedAddOnQtys, setSelectedAddOnQtys] = useState<Record<string, number>>({});
+
   useEffect(() => {
     if (id) {
       loadProduct(id);
@@ -68,6 +77,11 @@ export function ProductDetailPage() {
           .filter(p => p.category === fetchedProduct.category && p.id !== fetchedProduct.id && p.isVisible !== false)
           .slice(0, 4);
         setRelatedProducts(related);
+
+        // Filter add-on products (actual configured add-on products)
+        const addOns = (fetchedProduct.addOnItems?.map(item => item.product).filter(Boolean) as Product[]) || [];
+        setAddOnProducts(addOns);
+        setSelectedAddOnQtys({});
 
         // Filter compatible equipment
         // Note: fetchedProduct.compatibleEquipment stores codes. equipmentService returns models with codes.
@@ -103,6 +117,15 @@ export function ProductDetailPage() {
           setPromotionPool(items);
           setSelectedPromotionPaid([]);
           setSelectedPromotionFree([]);
+        }
+
+        // 상품 옵션 그룹 (색상/사이즈) 로드
+        try {
+          const groups = await productService.getProductOptionGroups(productId);
+          setVariantGroups(groups);
+          setSelectedVariants({});
+        } catch {
+          setVariantGroups([]);
         }
       }
     } catch (error) {
@@ -221,8 +244,28 @@ export function ProductDetailPage() {
   };
 
   const currentOption = product?.options?.find(opt => opt.id === selectedOptionId);
-  // 상품 레벨(global) 증정품만 필터링 (옵션 전용 증정은 더 이상 관리자에서 등록하지 않음)
+  // 상품 레벨(global) 증정품만 필터링
   const currentBonusItems = product?.bonusItems?.filter(item => !item.optionId) || [];
+
+  // 선택된 옵션의 추가 금액 합산
+  const variantAdditionalPrice = variantGroups.reduce((sum, group) => {
+    const selectedValueId = selectedVariants[group.id];
+    if (!selectedValueId) return sum;
+    const val = group.values.find(v => v.id === selectedValueId);
+    return sum + (val?.additionalPrice || 0);
+  }, 0);
+
+  // 선택된 추가 구성 상품 총액
+  const addOnProductsTotalPrice = addOnProducts.reduce((sum, item) => {
+    const qty = selectedAddOnQtys[item.id] || 0;
+    return sum + (item.price * qty);
+  }, 0);
+
+  // 필수 옵션 그룹 중 단 하나도 선택된 값이 없는 그룹
+  const unselectedRequiredGroups = variantGroups.filter(g => {
+    if (!g.isRequired) return false;
+    return !selectedVariants[g.id];
+  });
 
   const currentUnitPrice = (() => {
     if (!product) return 0;
@@ -237,31 +280,38 @@ export function ProductDetailPage() {
       }, 0);
     }
 
-    // 2. If an option is selected, use that option's price (if any) or apply discount to base price
+    // 2. If an option is selected, use that option's price
     if (currentOption) {
       const baseOptionPrice = (currentOption.price && currentOption.price > 0) 
         ? currentOption.price 
         : (product.price * (currentOption.quantity || 1));
-      
-      // Apply option-specific discount rate
-      return baseOptionPrice * (1 - (currentOption.discountRate || 0) / 100);
+      return baseOptionPrice * (1 - (currentOption.discountRate || 0) / 100) + variantAdditionalPrice;
     }
     
-    // 2. Otherwise, check for tier pricing based on quantity
+    // 3. Otherwise, check for tier pricing based on quantity
     const tier = [...product.tierPricing]
       .reverse()
       .find((t) => quantity >= t.quantity);
     
     if (tier) {
-      return tier.unitPrice;
+      return tier.unitPrice + variantAdditionalPrice;
     }
     
-    return product.price;
+    return product.price + variantAdditionalPrice;
   })();
 
 
   const handleAddToCart = async () => {
     if (!product) return;
+
+    // 필수 옵션 미선택 검증
+    if (unselectedRequiredGroups.length > 0) {
+      await globalAlert({
+        title: '옵션 선택 필요',
+        description: `'${unselectedRequiredGroups.map(g => g.name).join(', ')}' 옵션을 선택해주세요.`
+      });
+      return;
+    }
 
     // Validation for package products
     if (product.isPackage) {
@@ -347,6 +397,15 @@ export function ProductDetailPage() {
         selectedOptionId || undefined,
         currentOption ? currentOption.name : undefined
       );
+
+      // 추가 구성 상품 담기
+      for (const item of addOnProducts) {
+        const qty = selectedAddOnQtys[item.id] || 0;
+        if (qty > 0) {
+          await cartService.addToCart(item.id, qty, false);
+        }
+      }
+
       setAddedToCart(true);
       setTimeout(() => setAddedToCart(false), 2000);
       
@@ -705,10 +764,94 @@ export function ProductDetailPage() {
             </div>
           )}
 
+          {/* ── 상품 옵션 선택 (색상/사이즈 등) ── */}
+          {variantGroups.length > 0 && (
+            <div className="mb-8 space-y-6">
+              {variantGroups.map(group => {
+                return (
+                  <div key={group.id}>
+                    {/* 그룹 라벨 */}
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <label className="text-sm tracking-wide text-neutral-700 uppercase font-medium">
+                        {group.name}
+                        {group.isRequired && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                    </div>
+
+                    {/* 옵션 값 목록 */}
+                    <div className="space-y-2">
+                      {group.values.filter(v => v.isActive).map(val => {
+                        const isSelected = selectedVariants[group.id] === val.id;
+                        const hasColor = !!val.colorHex;
+
+                        return (
+                          <div
+                            key={val.id}
+                            className={`flex items-center justify-between border-2 transition-all ${
+                              isSelected
+                                ? 'border-neutral-900 bg-neutral-50'
+                                : 'border-neutral-200 bg-white hover:border-neutral-300'
+                            }`}
+                          >
+                            {/* 옵션명 + 색상 + 추가금액 */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedVariants(prev => {
+                                  const next = { ...prev };
+                                  if (isSelected) {
+                                    delete next[group.id];
+                                  } else {
+                                    next[group.id] = val.id;
+                                  }
+                                  return next;
+                                });
+                              }}
+                              className="flex-1 flex items-center gap-3 px-4 py-3 text-left font-medium"
+                            >
+                              {hasColor && (
+                                <span
+                                  className={`w-5 h-5 rounded-full flex-shrink-0 border-2 ${isSelected ? 'border-neutral-900' : 'border-neutral-200'}`}
+                                  style={{ backgroundColor: val.colorHex }}
+                                />
+                              )}
+                              <span className={`text-sm ${isSelected ? 'text-neutral-900 font-bold' : 'text-neutral-600'}`}>
+                                {val.name}
+                              </span>
+                              {val.additionalPrice > 0 && (
+                                <span className={`text-xs font-semibold ${isSelected ? 'text-red-500' : 'text-neutral-400'}`}>
+                                  +{val.additionalPrice.toLocaleString()}원
+                                </span>
+                              )}
+                              {isSelected && (
+                                <span className="ml-auto text-xs text-neutral-900 font-bold flex items-center gap-1">
+                                  <Check className="w-4 h-4" /> 선택됨
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* 옵션 추가금액 합계 표시 */}
+              {variantAdditionalPrice > 0 && (
+                <div className="flex items-center justify-between py-2 border-t border-neutral-100">
+                  <span className="text-xs text-neutral-500">옵션 추가금액</span>
+                  <span className="text-sm font-bold text-red-500">+{variantAdditionalPrice.toLocaleString()}원</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Regular Option/Quantity Selectors - Hidden for Promotions */}
           {!product.isPromotion && (
             <>
               {product.options && product.options.length > 0 ? (
+
                 <div className="mb-8">
                   <label className="block text-sm tracking-wide text-neutral-700 mb-4 uppercase font-medium">
                     구매 세트 선택 <span className="text-red-500">*</span>
@@ -873,6 +1016,66 @@ export function ProductDetailPage() {
             </div>
           )}
 
+          {/* 추가 구성 상품 (Add-on items selection) */}
+          {addOnProducts.length > 0 && (
+            <div className="mb-8 p-6 bg-neutral-50 border border-neutral-200 rounded-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="w-5 h-5 text-neutral-600" />
+                <h3 className="text-base font-bold text-neutral-900 tracking-tight">
+                  추가 구성 상품
+                </h3>
+              </div>
+              <ul className="space-y-3">
+                {addOnProducts.map((item) => {
+                  const qty = selectedAddOnQtys[item.id] || 0;
+                  
+                  return (
+                    <li key={item.id} className="text-sm text-neutral-800 flex items-center justify-between bg-white p-3 rounded-sm border border-neutral-200">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <span className="font-bold text-neutral-900 truncate block">{item.name}</span>
+                        <span className="text-xs text-neutral-500 font-semibold block mt-0.5">
+                          ₩{item.price.toLocaleString()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center border border-neutral-300 bg-white">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedAddOnQtys(prev => ({
+                                ...prev,
+                                [item.id]: Math.max(0, (prev[item.id] || 0) - 1),
+                              }))
+                            }
+                            className="w-8 h-8 flex items-center justify-center text-neutral-600 hover:bg-neutral-100 transition-colors border-r border-neutral-300 text-lg font-bold"
+                          >
+                            −
+                          </button>
+                          <span className="w-9 text-center text-xs font-bold tabular-nums text-neutral-900">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedAddOnQtys(prev => ({
+                                ...prev,
+                                [item.id]: (prev[item.id] || 0) + 1,
+                              }))
+                            }
+                            className="w-8 h-8 flex items-center justify-center text-neutral-600 hover:bg-neutral-100 transition-colors border-l border-neutral-300 text-lg font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
           {/* Bonus Items Display */}
           {(product.itemInputType === 'input' || selectedOptionId) && currentBonusItems && currentBonusItems.length > 0 && (
             <div className="mb-8 p-6 bg-blue-50 border border-blue-100 rounded-sm">
@@ -937,9 +1140,9 @@ export function ProductDetailPage() {
                     let total = 0;
                     if (currentOption) {
                       const base = (currentOption.price && currentOption.price > 0) ? currentOption.price : (product.price * (currentOption.quantity || 1));
-                      total = Math.round(base * (1 - (currentOption.discountRate || 0) / 100));
+                      total = Math.round(base * (1 - (currentOption.discountRate || 0) / 100)) + variantAdditionalPrice + addOnProductsTotalPrice;
                     } else {
-                      total = currentUnitPrice * quantity;
+                      total = currentUnitPrice * quantity + addOnProductsTotalPrice;
                     }
                     
                     // Apply subscription discount if active

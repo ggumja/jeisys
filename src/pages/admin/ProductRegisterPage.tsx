@@ -36,6 +36,20 @@ interface BulkDiscount {
   discountRate: string;
 }
 
+interface OptionValueDraft {
+  id: string;
+  name: string;
+  additionalPrice: string; // 콤마 포맷 문자열
+  colorHex: string;
+}
+
+interface OptionGroupDraft {
+  id: string;
+  name: string;
+  isRequired: boolean;
+  values: OptionValueDraft[];
+}
+
 interface BonusProductData {
   id: string;
   productId: string;
@@ -46,6 +60,15 @@ interface BonusProductData {
   imageUrl: string;
   calculationMethod: 'fixed' | 'ratio';
   percentage: string;
+}
+
+interface AddOnProductData {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  price: string;
+  imageUrl: string;
 }
 
 interface FormData {
@@ -70,6 +93,7 @@ interface FormData {
   quantityInputType: 'button' | 'list';
   bulkDiscounts: BulkDiscount[];
   bonusProducts: BonusProductData[];
+  addOnProducts: AddOnProductData[];
 }
 
 
@@ -113,8 +137,12 @@ export function ProductRegisterPage() {
     isShareStock: false,
     bulkDiscounts: [],
     bonusProducts: [],
-
+    addOnProducts: [],
   });
+
+  // 상품 옵션 그룹 (최대 5개)
+  const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+  const MAX_OPTION_GROUPS = 5;
 
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [additionalImages, setAdditionalImages] = useState<string[]>([]);
@@ -133,6 +161,10 @@ export function ProductRegisterPage() {
   // Existing search state
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+
+  // Add-on products search state
+  const [addOnSearchTerm, setAddOnSearchTerm] = useState('');
+  const [isAddOnSearchDropdownOpen, setIsAddOnSearchDropdownOpen] = useState(false);
 
   // Result Modal state
   const [resultModal, setResultModal] = useState<{
@@ -157,6 +189,27 @@ export function ProductRegisterPage() {
     if (isEditMode && id) {
       productService.getProductCompatibilityIds(id)
         .then(setSelectedEquipmentIds)
+        .catch(console.error);
+    }
+  }, [isEditMode, id]);
+
+  // 수정 모드: 기존 옵션 그룹 로드
+  useEffect(() => {
+    if (isEditMode && id) {
+      productService.getProductOptionGroups(id)
+        .then((groups) => {
+          setOptionGroups(groups.map((g) => ({
+            id: g.id,
+            name: g.name,
+            isRequired: g.isRequired,
+            values: g.values.map((v) => ({
+              id: v.id,
+              name: v.name,
+              additionalPrice: formatWithCommas(v.additionalPrice),
+              colorHex: v.colorHex || '',
+            })),
+          })));
+        })
         .catch(console.error);
     }
   }, [isEditMode, id]);
@@ -204,7 +257,14 @@ export function ProductRegisterPage() {
           calculationMethod: item.calculationMethod || 'fixed',
           percentage: formatWithCommas(item.percentage || 0),
         })) || [],
-
+        addOnProducts: existingProduct.addOnItems?.map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          name: item.product?.name || '',
+          sku: item.product?.sku || '',
+          price: formatWithCommas(item.product?.price || 0),
+          imageUrl: item.product?.imageUrl || '',
+        })) || [],
       });
       if (existingProduct.imageUrl) {
         setThumbnailPreview(existingProduct.imageUrl);
@@ -258,6 +318,48 @@ export function ProductRegisterPage() {
     setFormData(prev => ({
       ...prev,
       bonusProducts: prev.bonusProducts.filter(p => p.id !== id),
+    }));
+  };
+
+  // Add-on Products Handlers
+  const filteredAddOnSearchProducts = (allProducts || []).filter(p => {
+    const searchLower = addOnSearchTerm.toLowerCase().trim();
+    if (!searchLower) return false;
+    
+    return (
+      p.id !== id && 
+      (
+        (p.name || '').toLowerCase().includes(searchLower) || 
+        (p.sku || '').toLowerCase().includes(searchLower) ||
+        (p.category || '').toLowerCase().includes(searchLower)
+      ) &&
+      !formData.addOnProducts.some(ap => ap.productId === p.id) &&
+      !p.isPackage &&
+      !p.isPromotion
+    );
+  }).slice(0, 20);
+
+  const addAddOnProduct = (product: Product) => {
+    const newAddOn: AddOnProductData = {
+      id: Date.now().toString(),
+      productId: product.id,
+      name: product.name,
+      sku: product.sku,
+      price: formatWithCommas(product.price || 0),
+      imageUrl: product.imageUrl,
+    };
+    setFormData(prev => ({
+      ...prev,
+      addOnProducts: [...prev.addOnProducts, newAddOn],
+    }));
+    setAddOnSearchTerm('');
+    setIsAddOnSearchDropdownOpen(false);
+  };
+
+  const removeAddOnProduct = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      addOnProducts: prev.addOnProducts.filter(p => p.id !== id),
     }));
   };
 
@@ -529,8 +631,30 @@ export function ProductRegisterPage() {
       // 6. 장비 호환성 저장
       await productService.saveProductCompatibility(productId, selectedEquipmentIds);
 
+      // 7. 상품 옵션 그룹/값 저장
+      await productService.saveProductOptionGroups(
+        productId,
+        optionGroups
+          .filter(g => g.name.trim())
+          .map(g => ({
+            name: g.name.trim(),
+            isRequired: g.isRequired,
+            values: g.values
+              .filter(v => v.name.trim())
+              .map(v => ({
+                name: v.name.trim(),
+                additionalPrice: parseInt(unformatNumber(v.additionalPrice)) || 0,
+                colorHex: v.colorHex || undefined,
+              })),
+          }))
+      );
+
+      // 8. 추가 구성 상품 저장
+      await productService.saveAddOnItems(productId, formData.addOnProducts.map(ap => ap.productId));
+
       // Invalidate products query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['products'] });
+
 
       if (isEditMode) {
         // 수정 완료 시 목록으로 이동
@@ -1286,6 +1410,340 @@ export function ProductRegisterPage() {
           </div>
         </div>
 
+        {/* 추가 구성 상품 섹터 */}
+        <div className={ADMIN_STYLES.CARD}>
+          <h3 className={ADMIN_STYLES.SECTION_TITLE}>추가 구성 상품</h3>
+          
+          <div className="mb-6">
+            <label className={ADMIN_STYLES.SECTION_LABEL}>
+              상품 검색 및 추가
+            </label>
+            <div className="relative">
+              <div className="relative flex items-center">
+                <Search className="w-5 h-5 text-neutral-400 absolute left-3" />
+                <input
+                  type="text"
+                  value={addOnSearchTerm}
+                  onChange={(e) => {
+                    setAddOnSearchTerm(e.target.value);
+                    setIsAddOnSearchDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsAddOnSearchDropdownOpen(true)}
+                  placeholder="추가 구성상품에 포함할 상품을 검색하여 추가해 주세요"
+                  className={`${ADMIN_STYLES.INPUT} pl-10`}
+                />
+              </div>
+
+              {isAddOnSearchDropdownOpen && addOnSearchTerm.trim() && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 shadow-2xl max-h-[500px] overflow-y-auto rounded-sm">
+                  {isLoadingProducts ? (
+                    <div className="px-4 py-8 text-center text-neutral-500">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">상품 정보를 불러오고 있습니다...</p>
+                    </div>
+                  ) : filteredAddOnSearchProducts.length > 0 ? (
+                    filteredAddOnSearchProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => addAddOnProduct(product)}
+                        className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-0 text-left group"
+                      >
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <span className="text-sm font-medium text-neutral-900 truncate">{product.name}</span>
+                          <span className="text-xs text-neutral-500 flex-shrink-0">({product.sku})</span>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-4 text-sm text-neutral-500 text-center">
+                      검색 결과가 없습니다.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h4 className={ADMIN_STYLES.SECTION_LABEL}>추가된 상품 목록</h4>
+            <div className="border border-neutral-200">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr className="bg-neutral-50/50">
+                    <th className={ADMIN_STYLES.TABLE_HEADER}>상품 정보</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-32 text-right"}>금액</th>
+                    <th className={ADMIN_STYLES.TABLE_HEADER + " w-20 text-center"}>관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {formData.addOnProducts.length > 0 ? (
+                    formData.addOnProducts.map((item) => (
+                      <tr key={item.id} className={ADMIN_STYLES.TABLE_ROW_HOVER}>
+                        <td className={ADMIN_STYLES.TABLE_CELL}>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-neutral-900">{item.name}</span>
+                            <span className="text-[10px] text-neutral-400 font-medium">{item.sku}</span>
+                          </div>
+                        </td>
+                        <td className={ADMIN_STYLES.TABLE_CELL + " text-right font-bold pr-4"}>
+                          ₩{item.price}
+                        </td>
+                        <td className={ADMIN_STYLES.TABLE_CELL + " text-center"}>
+                          <button
+                            type="button"
+                            onClick={() => removeAddOnProduct(item.id)}
+                            className={ADMIN_STYLES.BTN_GHOST}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-8 text-center text-neutral-500">
+                        추가된 구성 상품이 없습니다.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 상품 옵션 설정 ── */}
+        <div className={ADMIN_STYLES.CARD}>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className={ADMIN_STYLES.SECTION_TITLE} style={{ marginBottom: 0 }}>상품 옵션 설정</h3>
+              <p className="text-xs text-neutral-400 mt-1">색상·사이즈 등 옵션 그룹을 추가하세요. 최대 5개</p>
+            </div>
+            {optionGroups.length < MAX_OPTION_GROUPS && (
+              <button
+                type="button"
+                onClick={() =>
+                  setOptionGroups(prev => [
+                    ...prev,
+                    {
+                      id: `draft-${Date.now()}`,
+                      name: '',
+                      isRequired: true,
+                      values: [],
+                    },
+                  ])
+                }
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                옵션 그룹 추가
+              </button>
+            )}
+          </div>
+
+          {optionGroups.length === 0 && (
+            <p className="text-sm text-neutral-400 text-center py-8 border border-dashed border-neutral-200">
+              옵션이 없습니다. 위 버튼으로 옵션 그룹을 추가하세요.
+            </p>
+          )}
+
+          <div className="space-y-6">
+            {optionGroups.map((group, gi) => (
+              <div key={group.id} className="border border-neutral-200 rounded">
+                {/* 그룹 헤더 */}
+                <div className="flex items-center gap-3 px-4 py-3 bg-neutral-50 border-b border-neutral-200">
+                  <input
+                    type="text"
+                    placeholder="옵션 그룹명 (예: 색상, 사이즈)"
+                    value={group.name}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setOptionGroups(prev =>
+                        prev.map((g, i) => i === gi ? { ...g, name: v } : g)
+                      );
+                    }}
+                    className="flex-1 text-sm font-bold border border-neutral-200 px-3 py-1.5 focus:outline-none focus:border-neutral-900"
+                  />
+                  <label className="flex items-center gap-1.5 text-xs text-neutral-500 whitespace-nowrap cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={group.isRequired}
+                      onChange={e => {
+                        const v = e.target.checked;
+                        setOptionGroups(prev =>
+                          prev.map((g, i) => i === gi ? { ...g, isRequired: v } : g)
+                        );
+                      }}
+                      className="w-3.5 h-3.5"
+                    />
+                    필수 선택
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => setOptionGroups(prev => prev.filter((_, i) => i !== gi))}
+                    className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors"
+                    title="그룹 삭제"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 옵션 값 목록 */}
+                <div className="p-4 space-y-2">
+                  {group.values.length === 0 && (
+                    <p className="text-xs text-neutral-400 text-center py-2">값을 추가해 주세요.</p>
+                  )}
+                  {group.values.map((val, vi) => (
+                    <div key={val.id} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="옵션명 (예: 빨강, S)"
+                        value={val.name}
+                        onChange={e => {
+                          const v = e.target.value;
+                          setOptionGroups(prev =>
+                            prev.map((g, i) =>
+                              i === gi
+                                ? {
+                                    ...g,
+                                    values: g.values.map((vv, j) =>
+                                      j === vi ? { ...vv, name: v } : vv
+                                    ),
+                                  }
+                                : g
+                            )
+                          );
+                        }}
+                        className="flex-1 text-sm border border-neutral-200 px-3 py-1.5 focus:outline-none focus:border-neutral-900"
+                      />
+                      {/* 색상 HEX 입력 (선택) */}
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="color"
+                          value={val.colorHex || '#ffffff'}
+                          onChange={e => {
+                            const v = e.target.value;
+                            setOptionGroups(prev =>
+                              prev.map((g, i) =>
+                                i === gi
+                                  ? {
+                                      ...g,
+                                      values: g.values.map((vv, j) =>
+                                        j === vi ? { ...vv, colorHex: v } : vv
+                                      ),
+                                    }
+                                  : g
+                              )
+                            );
+                          }}
+                          className="w-8 h-8 border border-neutral-200 cursor-pointer p-0.5"
+                          title="색상 (선택)"
+                        />
+                        {val.colorHex && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOptionGroups(prev =>
+                                prev.map((g, i) =>
+                                  i === gi
+                                    ? {
+                                        ...g,
+                                        values: g.values.map((vv, j) =>
+                                          j === vi ? { ...vv, colorHex: '' } : vv
+                                        ),
+                                      }
+                                    : g
+                                )
+                              )
+                            }
+                            className="text-xs text-neutral-400 hover:text-red-500"
+                            title="색상 제거"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      {/* 추가금액 */}
+                      <div className="relative w-36">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">+</span>
+                        <input
+                          type="text"
+                          placeholder="추가금액"
+                          value={val.additionalPrice}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            const formatted = formatWithCommas(raw);
+                            setOptionGroups(prev =>
+                              prev.map((g, i) =>
+                                i === gi
+                                  ? {
+                                      ...g,
+                                      values: g.values.map((vv, j) =>
+                                        j === vi ? { ...vv, additionalPrice: formatted } : vv
+                                      ),
+                                    }
+                                  : g
+                              )
+                            );
+                          }}
+                          className="w-full text-sm text-right border border-neutral-200 pl-6 pr-8 py-1.5 focus:outline-none focus:border-neutral-900"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400">원</span>
+                      </div>
+                      {/* 값 삭제 */}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOptionGroups(prev =>
+                            prev.map((g, i) =>
+                              i === gi
+                                ? { ...g, values: g.values.filter((_, j) => j !== vi) }
+                                : g
+                            )
+                          )
+                        }
+                        className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* 값 추가 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOptionGroups(prev =>
+                        prev.map((g, i) =>
+                          i === gi
+                            ? {
+                                ...g,
+                                values: [
+                                  ...g.values,
+                                  { id: `val-${Date.now()}`, name: '', additionalPrice: '0', colorHex: '' },
+                                ],
+                              }
+                            : g
+                        )
+                      )
+                    }
+                    className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    값 추가
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {optionGroups.length >= MAX_OPTION_GROUPS && (
+            <p className="text-xs text-amber-600 mt-3">최대 {MAX_OPTION_GROUPS}개까지 추가할 수 있습니다.</p>
+          )}
+        </div>
+
         {/* Description */}
         <div className={ADMIN_STYLES.CARD}>
           <h3 className={ADMIN_STYLES.SECTION_TITLE}>상품 설명</h3>
@@ -1295,6 +1753,7 @@ export function ProductRegisterPage() {
             onImageUpload={(file) => productService.uploadProductImage(file)}
           />
         </div>
+
 
         {/* Action Buttons - Sticky Layer at the bottom */}
         <div className="sticky bottom-0 z-50 bg-white/90 backdrop-blur-md border-t border-neutral-200 py-8 px-8 -mx-8 mt-12 flex items-center justify-end gap-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">

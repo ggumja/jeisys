@@ -60,7 +60,11 @@ export const productService = {
           *,
           product:products!bonus_product_id (*)
         ),
-        product_quantity_options (*)
+        product_quantity_options (*),
+        product_add_on_items:product_add_on_items!parent_product_id (
+          *,
+          product:products!add_on_product_id (*)
+        )
       `)
       .order('display_no', { ascending: false });
 
@@ -94,7 +98,11 @@ export const productService = {
           *,
           product:products!bonus_product_id (*)
         ),
-        product_quantity_options (*)
+        product_quantity_options (*),
+        product_add_on_items:product_add_on_items!parent_product_id (
+          *,
+          product:products!add_on_product_id (*)
+        )
       `)
       .eq('id', id)
       .single();
@@ -371,6 +379,12 @@ export const productService = {
         price: opt.price,
         displayOrder: opt.display_order
       })).sort((a: any, b: any) => a.displayOrder - b.displayOrder) || [],
+      addOnItems: item.product_add_on_items?.map((ai: any) => ({
+        id: ai.id,
+        productId: ai.add_on_product_id,
+        displayOrder: ai.display_order,
+        product: ai.product ? this.mapProduct(ai.product) : undefined
+      })).sort((a: any, b: any) => a.displayOrder - b.displayOrder) || [],
     };
   },
 
@@ -567,6 +581,124 @@ export const productService = {
         .from('product_compatibility')
         .insert(equipmentIds.map(id => ({ product_id: productId, equipment_id: id })));
       if (error) throw error;
+    }
+  },
+
+  // ────────────────────────────────────────────────
+  // 상품 옵션 그룹 / 값 CRUD
+  // ────────────────────────────────────────────────
+
+  /** 상품의 옵션 그룹 + 값 목록 조회 */
+  async getProductOptionGroups(productId: string) {
+    const { data, error } = await supabase
+      .from('product_option_groups')
+      .select(`
+        id, product_id, name, display_order, is_required, created_at,
+        product_option_values (
+          id, group_id, name, additional_price, color_hex, display_order, is_active, created_at
+        )
+      `)
+      .eq('product_id', productId)
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map((g: any) => ({
+      id: g.id,
+      productId: g.product_id,
+      name: g.name,
+      displayOrder: g.display_order,
+      isRequired: g.is_required,
+      values: (g.product_option_values || [])
+        .sort((a: any, b: any) => a.display_order - b.display_order)
+        .map((v: any) => ({
+          id: v.id,
+          groupId: v.group_id,
+          name: v.name,
+          additionalPrice: v.additional_price,
+          colorHex: v.color_hex,
+          displayOrder: v.display_order,
+          isActive: v.is_active,
+        })),
+    }));
+  },
+
+  /** 상품 옵션 그룹+값 일괄 저장 (기존 전체 삭제 후 재등록) */
+  async saveProductOptionGroups(
+    productId: string,
+    groups: { name: string; isRequired: boolean; values: { name: string; additionalPrice: number; colorHex?: string }[] }[]
+  ): Promise<void> {
+    // 1. 기존 그룹 전체 삭제 (CASCADE로 values도 삭제)
+    const { error: delError } = await supabase
+      .from('product_option_groups')
+      .delete()
+      .eq('product_id', productId);
+    if (delError) throw delError;
+
+    if (groups.length === 0) return;
+
+    // 2. 그룹 순서대로 삽입
+    for (let gi = 0; gi < groups.length; gi++) {
+      const group = groups[gi];
+      const { data: insertedGroup, error: groupErr } = await supabase
+        .from('product_option_groups')
+        .insert({
+          product_id: productId,
+          name: group.name,
+          display_order: gi,
+          is_required: group.isRequired,
+        })
+        .select('id')
+        .single();
+      if (groupErr) throw groupErr;
+
+      const groupId = insertedGroup.id;
+
+      // 3. 값 삽입
+      if (group.values.length > 0) {
+        const valuesToInsert = group.values.map((v, vi) => ({
+          group_id: groupId,
+          name: v.name,
+          additional_price: v.additionalPrice,
+          color_hex: v.colorHex || null,
+          display_order: vi,
+          is_active: true,
+        }));
+        const { error: valErr } = await supabase
+          .from('product_option_values')
+          .insert(valuesToInsert);
+        if (valErr) throw valErr;
+      }
+    }
+  },
+
+  async saveAddOnItems(productId: string, addOnProductIds: string[]): Promise<void> {
+    // 1. 기존 추가 구성 상품 삭제
+    const { error: delError } = await supabase
+      .from('product_add_on_items')
+      .delete()
+      .eq('parent_product_id', productId);
+    if (delError) {
+      console.error('Error deleting existing add-on items:', delError);
+      throw delError;
+    }
+
+    if (addOnProductIds.length === 0) return;
+
+    // 2. 새 추가 구성 상품 등록
+    const { error } = await supabase
+      .from('product_add_on_items')
+      .insert(
+        addOnProductIds.map((addOnId, index) => ({
+          parent_product_id: productId,
+          add_on_product_id: addOnId,
+          display_order: index,
+        }))
+      );
+
+    if (error) {
+      console.error('Error adding product add-on items:', error);
+      throw error;
     }
   },
 };

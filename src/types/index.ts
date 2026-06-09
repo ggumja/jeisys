@@ -91,7 +91,30 @@ export interface Product {
   discountRate?: number;
   bonusItems?: BonusItem[];
   options?: ProductQuantityOption[];
+  variantGroups?: ProductOptionGroup[];
+  addOnItems?: AddOnItem[];
 }
+
+export interface ProductOptionGroup {
+  id: string;
+  productId: string;
+  name: string;          // "색상", "사이즈" — 직접 입력
+  displayOrder: number;
+  isRequired: boolean;
+  values: ProductOptionValue[];
+}
+
+export interface ProductOptionValue {
+  id: string;
+  groupId: string;
+  name: string;          // "빨강", "S", "M"
+  additionalPrice: number;
+  colorHex?: string;     // 색상 계열일 때 "#FF0000"
+  displayOrder: number;
+  isActive: boolean;
+}
+
+
 
 export interface ProductQuantityOption {
   id: string;
@@ -112,6 +135,13 @@ export interface BonusItem {
   optionId?: string;
   calculationMethod?: 'fixed' | 'ratio';
   percentage?: number;
+}
+
+export interface AddOnItem {
+  id: string;
+  productId: string;
+  displayOrder: number;
+  product?: Product;
 }
 
 export interface PackageItem {
