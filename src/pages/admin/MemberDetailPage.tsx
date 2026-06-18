@@ -439,12 +439,16 @@ export function MemberDetailPage() {
 
   const handleApprove = async () => {
     if (!member) return;
-    if (await globalConfirm('회원을 승인하시겠습니까?')) {
+    const isReapprove = member.status === 'suspended';
+    const confirmMessage = isReapprove ? '회원을 재승인하시겠습니까?' : '회원을 승인하시겠습니까?';
+    const successMessage = isReapprove ? '회원 재승인이 완료되었습니다.' : '회원 승인이 완료되었습니다.';
+
+    if (await globalConfirm(confirmMessage)) {
       try {
         await updateStatusMutation.mutateAsync({ userId: member.id, status: 'APPROVED' });
-        await globalAlert('회원 승인이 완료되었습니다.');
+        await globalAlert(successMessage);
         await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      } catch { await globalAlert('승인에 실패했습니다.'); }
+      } catch { await globalAlert(isReapprove ? '재승인에 실패했습니다.' : '승인에 실패했습니다.'); }
     }
   };
 
@@ -550,6 +554,11 @@ export function MemberDetailPage() {
                   <ShoppingCart className="w-4 h-4 mr-2" />대리주문
                 </Button>
               )}
+              {member.status === 'suspended' && (
+                <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApprove}>
+                  <UserCheck className="w-4 h-4 mr-2" />재승인
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -560,6 +569,14 @@ export function MemberDetailPage() {
         <div className="bg-yellow-50 border border-yellow-200 px-5 py-4 flex items-center gap-3">
           <Clock className="w-5 h-5 text-yellow-600 flex-shrink-0" />
           <p className="text-sm text-yellow-800 font-medium">승인 대기 중인 회원입니다. 위의 버튼으로 승인 또는 거절하세요.</p>
+        </div>
+      )}
+
+      {/* 가입 반려 알림 */}
+      {member.status === 'suspended' && (
+        <div className="bg-red-50 border border-red-200 px-5 py-4 flex items-center gap-3">
+          <UserX className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <p className="text-sm text-red-800 font-medium">가입이 반려된 회원입니다. 재승인 버튼을 통해 가입을 승인할 수 있습니다.</p>
         </div>
       )}
 

@@ -302,6 +302,15 @@ export function MemberManagementPage() {
     } catch { await globalAlert('회원 거절에 실패했습니다.'); }
   };
 
+  const handleReapprove = async (memberId: string) => {
+    try {
+      if (await globalConfirm('회원을 재승인하시겠습니까?')) {
+        await updateStatusMutation.mutateAsync({ userId: memberId, status: 'APPROVED' });
+        await globalAlert('회원 재승인이 완료되었습니다.');
+      }
+    } catch { await globalAlert('회원 재승인에 실패했습니다.'); }
+  };
+
   const updateGradeSetting = (id: string, field: 'minSales' | 'discountRate', value: string) => {
     setGradeSettings(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
   };
@@ -393,6 +402,11 @@ export function MemberManagementPage() {
                           {!showApprovalActions && member.status === 'active' && (
                             <Button size="sm" variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => handleProxyOrder(member)}>
                               <ShoppingCart className="w-4 h-4 mr-1" />대리주문
+                            </Button>
+                          )}
+                          {!showApprovalActions && member.status === 'suspended' && (
+                            <Button size="sm" variant="outline" className="border-green-200 text-green-700 hover:bg-green-50" onClick={() => handleReapprove(member.id)}>
+                              <UserCheck className="w-4 h-4 mr-1" />재승인
                             </Button>
                           )}
                         </div>
