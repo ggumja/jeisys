@@ -1856,19 +1856,34 @@ export function OrderDetailPage() {
             try {
               setIsUpdating(true);
               toast.info(`로젠택배 송장번호를 ${boxCount}개 발급중입니다...`);
-              const finalTrackingNumber = await adminService.registerLogenInvoice(order, boxCount, selectedAddr);
-              if (!finalTrackingNumber) {
+              const logenResult = await adminService.registerLogenInvoice(order, boxCount, selectedAddr);
+              if (!logenResult) {
                 toast.error('송장 번호 발급에 실패했습니다.');
                 return;
               }
+              const finalTrackingNumber = typeof logenResult === 'string' ? logenResult : logenResult.trackingNumber;
               setTrackingNumber(finalTrackingNumber);
+              
+              const mergedShippingInfo = {
+                ...selectedAddr,
+                ...(typeof logenResult === 'object' ? {
+                  classCd: logenResult.classCd,
+                  salesNm: logenResult.salesNm,
+                  tmlNm: logenResult.tmlNm,
+                  branCd: logenResult.branCd,
+                  jejuRegYn: logenResult.jejuRegYn,
+                  shipYn: logenResult.shipYn,
+                  montYn: logenResult.montYn,
+                } : {})
+              };
+
               const result = await adminService.partialShipOrder({
                 orderId: order.id,
                 trackingNumber: finalTrackingNumber,
                 orderNumber: order.orderNumber,
                 items: itemsToShip,
                 bonusItems: bonusItemsShipped || [],
-                shippingInfo: selectedAddr,
+                shippingInfo: mergedShippingInfo,
               });
               const confirmedStatus = result.status as 'shipped' | 'partially_shipped';
               toast.success(

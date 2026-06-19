@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS shop_settings (
 -- RLS: 관리자만 수정, 전체 읽기
 ALTER TABLE shop_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "읽기 허용" ON shop_settings;
 CREATE POLICY "읽기 허용" ON shop_settings
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "관리자 쓰기" ON shop_settings;
 CREATE POLICY "관리자 쓰기" ON shop_settings
   FOR ALL USING (
     EXISTS (
@@ -83,6 +85,8 @@ INSERT INTO shop_settings (key, value, label, type, group_name) VALUES
   ('email_cust_exchange_done', 'true', '고객: 교환 완료', 'boolean', 'notification'),
   ('email_cust_return_done', 'true', '고객: 반품 완료', 'boolean', 'notification'),
   ('email_cust_signup', 'true', '고객: 회원가입', 'boolean', 'notification'),
+  ('email_cust_signup_approve', 'true', '고객: 회원가입 승인', 'boolean', 'notification'),
+  ('email_cust_signup_reject', 'true', '고객: 회원가입 반려', 'boolean', 'notification'),
   ('email_cust_password_reset', 'true', '고객: 비밀번호 초기화', 'boolean', 'notification'),
   -- SMS 알림
   ('sms_sender_name', '제이시스메디칼', 'SMS 발신자 이름', 'text', 'notification'),
@@ -100,5 +104,7 @@ INSERT INTO shop_settings (key, value, label, type, group_name) VALUES
   ('sms_cust_exchange_done', 'true', 'SMS 고객: 교환 완료', 'boolean', 'notification'),
   ('sms_cust_return_done', 'true', 'SMS 고객: 반품 완료', 'boolean', 'notification'),
   ('sms_cust_signup', 'true', 'SMS 고객: 회원가입', 'boolean', 'notification'),
+  ('sms_cust_signup_approve', 'true', 'SMS 고객: 회원가입 승인', 'boolean', 'notification'),
+  ('sms_cust_signup_reject', 'true', 'SMS 고객: 회원가입 반려', 'boolean', 'notification'),
   ('sms_cust_password_reset', 'true', 'SMS 고객: 비밀번호 초기화', 'boolean', 'notification')
 ON CONFLICT (key) DO NOTHING;

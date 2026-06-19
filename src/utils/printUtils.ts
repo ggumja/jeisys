@@ -28,8 +28,14 @@ export const printInvoice = (order: any, shipment: any) => {
       return;
     }
 
+    // 1. 배송 정보에서 분류 기호 정보 추출
+    const si = shipment.shippingInfo || shipment.shipping_info || {};
+    const classCd = si.classCd || "";
+    const salesNm = si.salesNm || "";
+    const tmlNm = si.tmlNm || "";
+
     // 전화번호 마스킹 처리
-    const maskedPhone = maskPhone(order.shippingInfo?.phone || order.user?.phone || '');
+    const maskedPhone = maskPhone(order.shippingInfo?.phone || order.user?.phone || si.phone || '');
 
     let html = `
       <!DOCTYPE html>
@@ -75,6 +81,22 @@ export const printInvoice = (order: any, shipment: any) => {
               font-weight: 900;
               color: #ed1c24;
               font-style: italic;
+            }
+            .class-badge {
+              background: #000;
+              color: #fff;
+              padding: 1mm 2.5mm;
+              font-size: 16px;
+              font-weight: 900;
+              font-family: sans-serif;
+              border-radius: 2px;
+            }
+            .terminal-badge {
+              border: 1px solid #000;
+              padding: 0.5mm 2mm;
+              font-size: 11px;
+              font-weight: bold;
+              border-radius: 2px;
             }
             .ship-mode {
               background: #ed1c24;
@@ -143,17 +165,23 @@ export const printInvoice = (order: any, shipment: any) => {
       html += `
           <div class="page">
             <div class="logen-header">
-              <div class="logo">iLOGEN</div>
-              <div class="ship-mode">신용 (선불)</div>
+              <div class="logo" style="display: flex; align-items: center; gap: 2mm;">
+                iLOGEN
+                ${classCd ? `<span class="class-badge">${classCd}</span>` : ''}
+              </div>
+              <div style="display: flex; align-items: center; gap: 1.5mm;">
+                ${tmlNm ? `<span class="terminal-badge">${tmlNm}</span>` : ''}
+                <div class="ship-mode">신용 (선불)</div>
+              </div>
             </div>
             
             <div class="section-receiver">
               <div class="label">받는 분 (TO)</div>
-              <div class="receiver-name">${order.customerName || '고객명'} 고객님</div>
+              <div class="receiver-name">${order.customerName || si.recipient || '고객명'} 고객님</div>
               <div class="receiver-phone">${maskedPhone}</div>
               <div class="receiver-addr">
-                ${order.shippingInfo?.address || order.user?.address || '주소 정보 없음'}<br/>
-                <strong>${order.shippingInfo?.addressDetail || order.user?.address_detail || ''}</strong>
+                ${si.address || order.shippingInfo?.address || order.user?.address || '주소 정보 없음'}<br/>
+                <strong>${si.addressDetail || order.shippingInfo?.addressDetail || order.user?.address_detail || ''}</strong>
               </div>
             </div>
 
@@ -165,7 +193,8 @@ export const printInvoice = (order: any, shipment: any) => {
                 서울 특별시 금천구 가산디지털1로 131
               </div>
               <div class="info-box" style="text-align: right;">
-                <div class="label">주문 정보</div>
+                <div class="label">도착지 및 주문 정보</div>
+                ${salesNm ? `<strong style="font-size: 12px; color: #ed1c24;">도착점: ${salesNm}</strong><br/>` : ''}
                 ${order.orderNumber}<br/>
                 박스: ${index + 1} / ${trackingNumbers.length}<br/>
                 ${shipment.shippedAt ? new Date(shipment.shippedAt).toLocaleDateString() : new Date().toLocaleDateString()}
@@ -184,7 +213,7 @@ export const printInvoice = (order: any, shipment: any) => {
               <div style="font-size: 13px; font-weight: bold;">
                 ${items[0]?.productName || '주문 상품'} ${items.length > 1 ? `외 ${items.length - 1}건` : ''}
               </div>
-              <div style="font-size: 10px; margin-top: 1mm;">${order.shippingInfo?.memo || ''}</div>
+              <div style="font-size: 10px; margin-top: 1mm;">${order.shippingInfo?.memo || si.memo || ''}</div>
             </div>
 
             <div class="notes">

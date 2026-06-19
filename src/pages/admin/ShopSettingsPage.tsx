@@ -131,6 +131,8 @@ const EMAIL_CUST_MEMBER: NotificationSection = {
   title: '고객 알림 — 회원',
   items: [
     { key: 'email_cust_signup', label: '회원가입 완료' },
+    { key: 'email_cust_signup_approve', label: '회원가입 승인' },
+    { key: 'email_cust_signup_reject', label: '회원가입 반려' },
     { key: 'email_cust_password_reset', label: '비밀번호 초기화' },
   ],
 };
@@ -181,6 +183,8 @@ const SMS_CUST_MEMBER: NotificationSection = {
   title: '고객 알림 — 회원',
   items: [
     { key: 'sms_cust_signup', label: '회원가입 완료' },
+    { key: 'sms_cust_signup_approve', label: '회원가입 승인' },
+    { key: 'sms_cust_signup_reject', label: '회원가입 반려' },
     { key: 'sms_cust_password_reset', label: '비밀번호 초기화' },
   ],
 };
@@ -659,6 +663,7 @@ function NotificationTab({
                   <VarBtn v="credit_type" label="크레딧 종류" />
                   <VarBtn v="expire_date" label="소멸(만료) 일자" />
                   <VarBtn v="expire_days_left" label="소멸까지 남은 일수 (ex: 30, 7)" />
+                  <VarBtn v="reject_reason" label="가입 반려 사유" />
                 </div>
               </div>
 

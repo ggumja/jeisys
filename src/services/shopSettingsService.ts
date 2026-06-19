@@ -324,6 +324,33 @@ const DEFAULTS: Record<string, string> = {
   </div>
   <p style="font-size: 14px; color: #d9534f; margin-bottom: 30px;">보안을 위해 로그인하신 후 <strong>[마이페이지 > 회원정보 수정]</strong>에서 반드시 안전한 새 비밀번호로 변경해 주시기 바랍니다.</p>
 </div>`,
+  email_cust_signup_approve: 'true',
+  email_cust_signup_approve_subject: '[{{shop_name}}] 회원가입 신청이 승인되었습니다. 🎉',
+  email_cust_signup_approve_template: `<div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eee; border-radius: 12px; text-align: center;">
+  <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+  <h2 style="color: #111; font-size: 24px; margin-bottom: 20px;">회원 승인 안내</h2>
+  <p style="font-size: 16px; margin-bottom: 10px;">안녕하세요 <b>{{customer_name}}</b>님,</p>
+  <p style="font-size: 16px; margin-bottom: 30px;"><b>{{shop_name}}</b>의 회원가입 신청이 최종 승인되었습니다!<br>지금 바로 로그인하셔서 다양한 회원 혜택과 맞춤형 상품들을 만나보세요.</p>
+  <a href="/" style="display: inline-block; background-color: #111; color: #fff; text-decoration: none; padding: 12px 30px; font-size: 16px; font-weight: bold; border-radius: 6px;">쇼핑몰 바로가기</a>
+  <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; font-size: 13px; color: #888; text-align: left;">
+    <p style="margin: 0;">앞으로 {{shop_name}}에서 즐거운 쇼핑 되시길 바랍니다.</p>
+  </div>
+</div>`,
+  email_cust_signup_reject: 'true',
+  email_cust_signup_reject_subject: '[{{shop_name}}] 회원가입 신청 결과 안내',
+  email_cust_signup_reject_template: `<div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eee; border-radius: 12px;">
+  <h2 style="color: #111; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; font-size: 22px;">회원가입 신청 반려 안내 ✉️</h2>
+  <p style="font-size: 16px;">안녕하세요 <b>{{customer_name}}</b>님,</p>
+  <p style="font-size: 16px; margin-bottom: 25px;">저희 <b>{{shop_name}}</b>에 보내주신 가입 신청 감사드립니다.<br>제출해주신 정보를 검토한 결과, 아래의 사유로 가입 신청이 반려되었음을 안내해 드립니다.</p>
+  <div style="background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 8px; padding: 20px; margin-bottom: 25px; color: #8a6d3b;">
+    <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 15px;">반려 사유</h4>
+    <p style="margin: 0; font-size: 14px;">{{reject_reason}}</p>
+  </div>
+  <p style="font-size: 14px; color: #666; margin-bottom: 30px;">관련하여 문의 사항이 있으시거나 정보를 수정하여 재신청하고자 하시는 경우, 고객센터로 연락해주시면 정성껏 안내해 드리겠습니다.</p>
+  <div style="border-top: 1px solid #eee; padding-top: 20px; font-size: 13px; color: #888;">
+    <p style="margin: 0;">감사합니다.</p>
+  </div>
+</div>`,
   // 이메일 알림 고객 - 포인트/크레딧 소멸
   email_cust_point_expire: 'true',
   email_cust_point_expire_subject: '[{{shop_name}}] 소중한 포인트가 {{expire_days_left}}일 뒤 소멸될 예정입니다.',
@@ -476,6 +503,20 @@ const DEFAULTS: Record<string, string> = {
 고객님의 요청에 의해 임시 비밀번호가 성공적으로 발급되었습니다. 🔒
 
 보안을 위해 사이트에 로그인하신 후, 반드시 [마이페이지 > 회원정보 수정]에서 안전한 새 비밀번호로 변경해 주세요!`,
+  sms_cust_signup_approve: 'true',
+  sms_cust_signup_approve_template: `[ {{shop_name}} ]
+안녕하세요 {{customer_name}}님, 
+회원가입 신청이 최종 승인되었습니다! 🎉
+
+지금 바로 로그인하셔서 다양한 회원 혜택과 프리미엄 서비스를 이용해 보세요.`,
+  sms_cust_signup_reject: 'true',
+  sms_cust_signup_reject_template: `[ {{shop_name}} ]
+안녕하세요 {{customer_name}}님, 
+회원가입 신청이 반려되었음을 안내해 드립니다. ✉️
+
+▶ 반려 사유 : {{reject_reason}}
+
+문의사항은 고객센터로 연락해 주시면 정성껏 안내해 드리겠습니다.`,
   sms_cust_payment_partial: 'true',
   sms_cust_payment_partial_template: `[ {{shop_name}} ]
 안녕하세요 {{customer_name}}님, 

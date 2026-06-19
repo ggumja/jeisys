@@ -474,33 +474,136 @@ export const adminService = {
         address: string;
         addressDetail?: string;
     }) {
-        // 로젠택배 테스트 연동업체코드 및 거래처코드 사용
-        const userId = "10358007";
-        const custCd = "20179999";
-        const rcvBranCd = "244"; // 테스트 배송점코드
-        const fareTy = "030"; // 신용 처리
+        const secretKey = import.meta.env.VITE_LOGEN_SECRET_KEY || "NwhVa2AZi4O1A-bpkiJZURqL3btC-LR8UjjjL_ET7_A";
+        const userId = import.meta.env.VITE_LOGEN_USER_ID || "24457087";
+        const custCd = import.meta.env.VITE_LOGEN_CUST_CD || "jeisysmall";
+        
+        let rcvBranCd = "244"; // 테스트 배송점코드
+        let fareTy = "030"; // 신용 처리
 
         const today = new Date();
         const takeDt = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-        const payloadData = [];
-        const fallbackSlipNos = [];
+        // 1. 거래처 계약 정보 조회 (contractTotalInfo)
+        try {
+            const contractResponse = await fetch('/logenApi/edi/contractTotalInfo', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "secretKey": secretKey
+                },
+                body: JSON.stringify({
+                    userId,
+                    data: [{ custCd }]
+                })
+            });
 
-        // 요청한 박스 수(boxCount)만큼 payload data 배열 생성
+            if (contractResponse.ok) {
+                const contractResult = await contractResponse.json();
+                console.log("Logen contractTotalInfo Response:", contractResult);
+                if (contractResult.sttsCd === "SUCCESS" && contractResult.data && contractResult.data.length > 0) {
+                    const cInfo = contractResult.data[0];
+                    if (cInfo.fareTy && cInfo.useYn === "Y") {
+                        fareTy = cInfo.fareTy;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to query Logen contractTotalInfo:", err);
+        }
+
+        // 2. 송장 출력정보 통합조회 (integratedInquiry)
+        let printInfoResult: any = null;
+        const targetAddress = overrideAddress?.address || order.shippingInfo?.address || order.user?.address || "";
+        if (targetAddress) {
+            try {
+                const inquiryResponse = await fetch('/logenApi/edi/integratedInquiry', {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "secretKey": secretKey
+                    },
+                    body: JSON.stringify({
+                        userId,
+                        data: [{
+                            custCd,
+                            addr: targetAddress
+                        }]
+                    })
+                });
+
+                if (inquiryResponse.ok) {
+                    const inquiryResult = await inquiryResponse.json();
+                    console.log("Logen integratedInquiry Response:", inquiryResult);
+                    if (inquiryResult.sttsCd === "SUCCESS" && inquiryResult.data && inquiryResult.data.length > 0) {
+                        printInfoResult = inquiryResult.data[0];
+                        if (printInfoResult.branCd) {
+                            rcvBranCd = printInfoResult.branCd;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to query Logen integratedInquiry:", err);
+            }
+        }
+
+        const slipNos: string[] = [];
+        const fallbackSlipNos: string[] = [];
+
+        // 임시 대비용 fallback 생성
         for (let i = 0; i < boxCount; i++) {
             const randomSuffix = Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
-            const slipNo = `9${randomSuffix}`;
-            fallbackSlipNos.push(slipNo);
+            fallbackSlipNos.push(`9${randomSuffix}`);
+        }
 
+        // 3. 로젠 API(getSlipNo)를 통해 실시간 송장 채번 시도
+        try {
+            const slipNoResponse = await fetch('/logenApi/edi/getSlipNo', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "secretKey": secretKey
+                },
+                body: JSON.stringify({
+                    userId,
+                    data: [{ slipQty: boxCount }]
+                })
+            });
+
+            if (slipNoResponse.ok) {
+                const slipNoResult = await slipNoResponse.json();
+                console.log("Logen getSlipNo Response:", slipNoResult);
+                
+                if (slipNoResult.sttsCd === "SUCCESS" && slipNoResult.data && slipNoResult.data.length > 0) {
+                    slipNoResult.data.forEach((row: any) => {
+                        if (row.slipNo) slipNos.push(row.slipNo);
+                    });
+                } else if (slipNoResult.startSlipNo && slipNoResult.closeSlipNo) {
+                    const startNum = BigInt(slipNoResult.startSlipNo);
+                    for (let i = 0; i < boxCount; i++) {
+                        slipNos.push((startNum + BigInt(i)).toString());
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to fetch real slip numbers from Logen:", err);
+        }
+
+        // 채번 실패 시 fallback 사용
+        const finalSlipNos = slipNos.length === boxCount ? slipNos : fallbackSlipNos;
+
+        const payloadData = [];
+        for (let i = 0; i < boxCount; i++) {
+            const slipNo = finalSlipNos[i];
             payloadData.push({
                 printYn: "Y",
                 slipNo,
                 slipTy: "100",
                 custCd,
                 sndCustNm: "제이시스메디칼",
-                sndTelNo: "02-1234-5678",
-                sndCustAddr1: "서울 강남구 테헤란로 123",
-                sndCustAddr2: "제이시스타워",
+                sndTelNo: "02-3651-3300",
+                sndCustAddr1: "서울 특별시 금천구 가산디지털1로 131",
+                sndCustAddr2: "",
                 rcvCustNm: overrideAddress?.recipient || order.customerName || order.user?.name || "고객명",
                 rcvTelNo: overrideAddress?.phone || order.shippingInfo?.phone || order.user?.phone || "010-0000-0000",
                 rcvZipCd: overrideAddress?.zipCode || order.shippingInfo?.zipCode || order.user?.zip_code || "06236",
@@ -515,7 +618,10 @@ export const adminService = {
                 dlvFare: 3000,
                 extraFare: 0,
                 goodsAmt: 0,
-                takeDt
+                takeDt,
+                jejuAmt: printInfoResult?.jejuRegYn === "Y" ? 3000 : 0,
+                shipFare: printInfoResult?.shipYn === "Y" ? 3000 : 0,
+                montFare: printInfoResult?.montYn === "Y" ? 3000 : 0
             });
         }
 
@@ -529,11 +635,11 @@ export const adminService = {
 
         try {
             // vite.config.ts에 설정된 프록시(/logenApi)를 통해 실제 서버로 요청
-            // 로컬 환경에서는 프록시, 운영 환경에서는 다른 방식을 사용해야 합니다.
             const response = await fetch('/logenApi/edi/slipPrintM', {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "secretKey": secretKey
                 },
                 body: JSON.stringify(payload),
                 signal: controller.signal
@@ -543,32 +649,24 @@ export const adminService = {
 
             if (!response.ok) {
                 console.warn("Logen API Fetch Error:", response.statusText);
-                return fallbackSlipNos.join(", ");
-            }
-
-            const data = await response.json();
-            console.log("Logen API Response:", data);
-
-            // 로젠 API 성공 응답 파싱. 단일 혹은 복수 처리를 대응
-            if (data.data) {
-                if (Array.isArray(data.data)) {
-                    // 다중 응답인 경우 (문서에 따라 배열일 가능성 고려)
-                    const returnedSlips = data.data.map((row: any) => row.slipNo).filter(Boolean);
-                    if (returnedSlips.length > 0) return returnedSlips.join(", ");
-                } else if (data.data.slipNo) {
-                    return data.data.slipNo;
-                }
-            }
-
-            return fallbackSlipNos.join(", ");
-        } catch (e: any) {
-            if (e.name === 'AbortError') {
-                console.warn("Logen API 10초 초과 타임아웃 발생 -> 임시 송장 생성");
             } else {
-                console.error("Logen API Integration Failed:", e);
+                const data = await response.json();
+                console.log("Logen API Response:", data);
             }
-            return fallbackSlipNos.join(", ");
+        } catch (e: any) {
+            console.error("Logen API Integration Failed:", e);
         }
+
+        return {
+            trackingNumber: finalSlipNos.join(", "),
+            classCd: printInfoResult?.classCd || "",
+            salesNm: printInfoResult?.salesNm || "",
+            tmlNm: printInfoResult?.tmlNm || "",
+            branCd: printInfoResult?.branCd || "",
+            jejuRegYn: printInfoResult?.jejuRegYn || "N",
+            shipYn: printInfoResult?.shipYn || "N",
+            montYn: printInfoResult?.montYn || "N"
+        };
     },
 
     /** 주문 고객의 배송지 목록 조회 (어드민용) */
@@ -855,11 +953,21 @@ export const adminService = {
             shippingInfo: shipment.shipping_info
         };
 
-        const trackingNumber = await this.registerLogenInvoice(orderForLogen, 1, shipment.shipping_info);
+        const logenResult = await this.registerLogenInvoice(orderForLogen, 1, shipment.shipping_info);
+        const trackingNumber = typeof logenResult === 'string' ? logenResult : logenResult.trackingNumber;
         
-        if (!trackingNumber || trackingNumber.includes('9000000000')) { // 로젠 API 실패 시 임시 번호 반환 로직 대응
-             console.warn('Logen API returned fallback tracking number:', trackingNumber);
-        }
+        const updatedShippingInfo = {
+            ...(shipment.shipping_info || {}),
+            ...(typeof logenResult === 'object' ? {
+                classCd: logenResult.classCd,
+                salesNm: logenResult.salesNm,
+                tmlNm: logenResult.tmlNm,
+                branCd: logenResult.branCd,
+                jejuRegYn: logenResult.jejuRegYn,
+                shipYn: logenResult.shipYn,
+                montYn: logenResult.montYn,
+            } : {})
+        };
 
         // 3. shipment 상태 업데이트
         const { error: updateShipErr } = await supabase
@@ -867,7 +975,8 @@ export const adminService = {
             .update({
                 tracking_number: trackingNumber,
                 status: 'SHIPPED',
-                shipped_at: new Date().toISOString()
+                shipped_at: new Date().toISOString(),
+                shipping_info: updatedShippingInfo
             })
             .eq('id', shipmentId);
 

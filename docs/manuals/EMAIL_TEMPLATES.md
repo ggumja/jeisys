@@ -391,6 +391,43 @@
   </div>
   ```
 
+### 6.3 회원가입 승인 (`email_cust_signup_approve`)
+- **발송 상황**: 회원가입 신청이 최종 승인(APPROVED)되었을 때
+- **메일 제목**: `[{{shop_name}}] 회원가입 신청이 승인되었습니다. 🎉`
+- **본문 (HTML)**:
+  ```html
+  <div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eee; border-radius: 12px; text-align: center;">
+    <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+    <h2 style="color: #111; font-size: 24px; margin-bottom: 20px;">회원 승인 안내</h2>
+    <p style="font-size: 16px; margin-bottom: 10px;">안녕하세요 <b>{{customer_name}}</b>님,</p>
+    <p style="font-size: 16px; margin-bottom: 30px;"><b>{{shop_name}}</b>의 회원가입 신청이 최종 승인되었습니다!<br>지금 바로 로그인하셔서 다양한 회원 혜택과 맞춤형 상품들을 만나보세요.</p>
+    <a href="/" style="display: inline-block; background-color: #111; color: #fff; text-decoration: none; padding: 12px 30px; font-size: 16px; font-weight: bold; border-radius: 6px;">쇼핑몰 바로가기</a>
+    <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; font-size: 13px; color: #888; text-align: left;">
+      <p style="margin: 0;">앞으로 {{shop_name}}에서 즐거운 쇼핑 되시길 바랍니다.</p>
+    </div>
+  </div>
+  ```
+
+### 6.4 회원가입 반려 (`email_cust_signup_reject`)
+- **발송 상황**: 회원가입 신청이 반려(REJECTED)되었을 때
+- **메일 제목**: `[{{shop_name}}] 회원가입 신청 결과 안내`
+- **본문 (HTML)**:
+  ```html
+  <div style="font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 30px 20px; border: 1px solid #eee; border-radius: 12px;">
+    <h2 style="color: #111; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; font-size: 22px;">회원가입 신청 반려 안내 ✉️</h2>
+    <p style="font-size: 16px;">안녕하세요 <b>{{customer_name}}</b>님,</p>
+    <p style="font-size: 16px; margin-bottom: 25px;">저희 <b>{{shop_name}}</b>에 보내주신 가입 신청 감사드립니다.<br>제출해주신 정보를 검토한 결과, 아래의 사유로 가입 신청이 반려되었음을 안내해 드립니다.</p>
+    <div style="background-color: #fcf8e3; border: 1px solid #faebcc; border-radius: 8px; padding: 20px; margin-bottom: 25px; color: #8a6d3b;">
+      <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 15px;">반려 사유</h4>
+      <p style="margin: 0; font-size: 14px;">{{reject_reason}}</p>
+    </div>
+    <p style="font-size: 14px; color: #666; margin-bottom: 30px;">관련하여 문의 사항이 있으시거나 정보를 수정하여 재신청하고자 하시는 경우, 고객센터로 연락해주시면 정성껏 안내해 드리겠습니다.</p>
+    <div style="border-top: 1px solid #eee; padding-top: 20px; font-size: 13px; color: #888;">
+      <p style="margin: 0;">감사합니다.</p>
+    </div>
+  </div>
+  ```
+
 ---
 
 ## 7. 고객 알림 - 포인트 및 크레딧 소멸 안내 (Customer - Reward Expiration)
