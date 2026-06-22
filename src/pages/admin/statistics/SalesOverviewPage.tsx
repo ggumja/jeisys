@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
 import { TrendingUp, ShoppingCart, Users, Package } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Legend } from 'recharts';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { adminService } from '../../../services/adminService';
 
 // Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
@@ -37,7 +37,7 @@ function useChartDimensions(defaultWidth = 500) {
 }
 
 // Dynamic Mock Fallback Data Generator
-function getMockSalesOverviewData(period: 'day' | 'week' | 'month', dateRange: string) {
+function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' | 'half', dateRange: string) {
   const now = new Date();
   const chartData = [];
   let totalSales = 0;
@@ -71,7 +71,7 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month', dateRange: s
       totalSales += sales;
       totalOrders += orders;
     }
-  } else {
+  } else if (period === 'month') {
     // Generate data for past 6 months
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
@@ -80,6 +80,32 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month', dateRange: s
       const sales = 45000000 + Math.floor(Math.random() * 35000000);
       const orders = 110 + Math.floor(Math.random() * 80);
       chartData.push({ label, sales, orders, customers: Math.max(20, orders - 40) });
+      totalSales += sales;
+      totalOrders += orders;
+    }
+  } else if (period === 'quarter') {
+    // Generate data for past 4 quarters
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (i * 3));
+      const q = Math.floor(d.getMonth() / 3) + 1;
+      const label = `${d.getFullYear()}-Q${q}`;
+      const sales = 120000000 + Math.floor(Math.random() * 80000000);
+      const orders = 300 + Math.floor(Math.random() * 200);
+      chartData.push({ label, sales, orders, customers: Math.max(50, orders - 100) });
+      totalSales += sales;
+      totalOrders += orders;
+    }
+  } else {
+    // Generate data for past 4 halves (2 years)
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (i * 6));
+      const h = Math.floor(d.getMonth() / 6) + 1;
+      const label = `${d.getFullYear()}-H${h}`;
+      const sales = 250000000 + Math.floor(Math.random() * 150000000);
+      const orders = 600 + Math.floor(Math.random() * 400);
+      chartData.push({ label, sales, orders, customers: Math.max(100, orders - 200) });
       totalSales += sales;
       totalOrders += orders;
     }
@@ -102,14 +128,13 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month', dateRange: s
 
 export function SalesOverviewPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
-  const [period, setPeriod] = useState<'day' | 'week' | 'month'>('day');
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'quarter' | 'half'>('day');
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [isDemo, setIsDemo] = useState(false);
 
   // Resize refs
-  const [salesRef, salesWidth] = useChartDimensions();
-  const [ordersRef, ordersWidth] = useChartDimensions();
+  const [chartRef, chartWidth] = useChartDimensions();
 
   useEffect(() => {
     async function fetchStats() {
@@ -177,7 +202,7 @@ export function SalesOverviewPage() {
       <div className="flex justify-end items-center bg-white border border-neutral-200 p-3 shadow-sm gap-2">
         <span className="text-xs text-neutral-500 font-medium">데이터 단위:</span>
         <div className="flex bg-neutral-100 p-0.5 rounded border border-neutral-200">
-          {(['day', 'week', 'month'] as const).map((p) => (
+          {(['day', 'week', 'month', 'quarter', 'half'] as const).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
@@ -187,59 +212,91 @@ export function SalesOverviewPage() {
                   : 'text-neutral-500 hover:text-neutral-900'
               }`}
             >
-              {p === 'day' ? '일별' : p === 'week' ? '주별' : '월별'}
+              {p === 'day' ? '일별' : p === 'week' ? '주별' : p === 'month' ? '월별' : p === 'quarter' ? '분기별' : '반기별'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 차트 영역 (매출 추이 차트부터 보여주도록 요약 지표 카드보다 상단에 위치) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 매출 트렌드 차트 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm min-w-0">
-          <h3 className="font-semibold text-neutral-900 mb-6 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#21358D]" />
-            <span>매출 추이</span>
-          </h3>
-          <div ref={salesRef} className="h-[350px] w-full min-w-0 relative">
-            <AreaChart width={salesWidth} height={350} data={chartData}>
-              <defs>
-                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#21358D" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#21358D" stopOpacity={0.01} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="label" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `₩${(v / 10000).toLocaleString()}만`} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
-                formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']}
-              />
-              <Area type="monotone" dataKey="sales" stroke="#21358D" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
-            </AreaChart>
-          </div>
-        </div>
-
-        {/* 주문건수 및 구매 고객수 차트 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm min-w-0">
-          <h3 className="font-semibold text-neutral-900 mb-6 flex items-center gap-2">
-            <ShoppingCart className="w-4 h-4 text-indigo-600" />
-            <span>주문 및 고객 수 추이</span>
-          </h3>
-          <div ref={ordersRef} className="h-[350px] w-full min-w-0 relative">
-            <BarChart width={ordersWidth} height={350} data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="label" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-              <Bar dataKey="orders" name="주문건수" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="customers" name="고객수" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </div>
+      {/* 통합 매출 및 주문/고객 추이 차트 */}
+      <div className="bg-white border border-neutral-200 p-6 shadow-sm min-w-0">
+        <h3 className="font-semibold text-neutral-900 mb-6 flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-[#21358D]" />
+          <span>매출 및 주문/고객 수 추이</span>
+        </h3>
+        <div ref={chartRef} className="h-[400px] w-full min-w-0 relative">
+          <ComposedChart width={chartWidth} height={400} data={chartData} margin={{ top: 10, right: 5, left: 5, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="label" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+            
+            {/* Left YAxis for Sales (Bar) */}
+            <YAxis 
+              yAxisId="left"
+              stroke="#888888" 
+              style={{ fontSize: '11px', fontWeight: 500 }} 
+              formatter={(v: number) => `₩${(v / 10000).toLocaleString()}만`} 
+            />
+            
+            {/* Right YAxis for Orders and Customers (Line) */}
+            <YAxis 
+              yAxisId="right" 
+              orientation="right"
+              stroke="#888888" 
+              style={{ fontSize: '11px', fontWeight: 500 }} 
+              formatter={(v: number) => `${v.toLocaleString()}`}
+            />
+            
+            <Tooltip
+              contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+              formatter={(value: number, name: string) => {
+                if (name === '매출액') {
+                  return [`₩${value.toLocaleString()}`, name];
+                }
+                if (name === '주문건수') {
+                  return [`${value.toLocaleString()}건`, name];
+                }
+                if (name === '고객수') {
+                  return [`${value.toLocaleString()}명`, name];
+                }
+                return [value, name];
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+            
+            {/* Bar for Sales (Left Y-Axis) */}
+            <Bar 
+              yAxisId="left" 
+              dataKey="sales" 
+              name="매출액" 
+              fill="#21358D" 
+              radius={[4, 4, 0, 0]} 
+              maxBarSize={50}
+            />
+            
+            {/* Line for Orders (Right Y-Axis) */}
+            <Line 
+              yAxisId="right" 
+              type="monotone" 
+              dataKey="orders" 
+              name="주문건수" 
+              stroke="#8b5cf6" 
+              strokeWidth={2} 
+              dot={{ r: 3 }} 
+              activeDot={{ r: 5 }} 
+            />
+            
+            {/* Line for Customers (Right Y-Axis) */}
+            <Line 
+              yAxisId="right" 
+              type="monotone" 
+              dataKey="customers" 
+              name="고객수" 
+              stroke="#f59e0b" 
+              strokeWidth={2} 
+              dot={{ r: 3 }} 
+              activeDot={{ r: 5 }} 
+            />
+          </ComposedChart>
         </div>
       </div>
 

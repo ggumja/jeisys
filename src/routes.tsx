@@ -58,11 +58,13 @@ import { SalesOverviewPage } from "./pages/admin/statistics/SalesOverviewPage";
 import { SalesCategoryPage } from "./pages/admin/statistics/SalesCategoryPage";
 import { SalesPaymentPage } from "./pages/admin/statistics/SalesPaymentPage";
 import { SalesCustomerPage } from "./pages/admin/statistics/SalesCustomerPage";
+import { SalesCustomerTypePage } from "./pages/admin/statistics/SalesCustomerTypePage";
 import { SalesProductPaymentPage } from "./pages/admin/statistics/SalesProductPaymentPage";
 import { SalesOfficePage } from "./pages/admin/statistics/SalesOfficePage";
 import { SalesTrendPage } from "./pages/admin/statistics/SalesTrendPage";
 import { ProductAnalyticsLayout } from "./pages/admin/statistics/ProductAnalyticsLayout";
 import { ProductOverviewPage } from "./pages/admin/statistics/ProductOverviewPage";
+import { ProductCategoryPage } from "./pages/admin/statistics/ProductCategoryPage";
 import { ProductBestsellerPage } from "./pages/admin/statistics/ProductBestsellerPage";
 import { ProductStockPage } from "./pages/admin/statistics/ProductStockPage";
 import { ProductConversionPage } from "./pages/admin/statistics/ProductConversionPage";
@@ -142,6 +144,7 @@ export const router = createBrowserRouter([
                     { path: "category", Component: SalesCategoryPage },
                     { path: "payment", Component: SalesPaymentPage },
                     { path: "customer", Component: SalesCustomerPage },
+                    { path: "customer-type", Component: SalesCustomerTypePage },
                     { path: "product-payment", Component: SalesProductPaymentPage },
                     { path: "office", Component: SalesOfficePage },
                     { path: "trend", Component: SalesTrendPage },
@@ -153,6 +156,7 @@ export const router = createBrowserRouter([
                 children: [
                     { index: true, element: <Navigate to="overview" replace /> },
                     { path: "overview", Component: ProductOverviewPage },
+                    { path: "category", Component: ProductCategoryPage },
                     { path: "bestseller", Component: ProductBestsellerPage },
                     { path: "stock", Component: ProductStockPage },
                     { path: "conversion", Component: ProductConversionPage },

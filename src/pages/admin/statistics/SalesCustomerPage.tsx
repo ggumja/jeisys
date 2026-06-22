@@ -112,7 +112,6 @@ export function SalesCustomerPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="py-3 px-6 font-semibold text-neutral-700 w-20 text-center">No.</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700 w-24 text-center">순위</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700">고객명</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700">병원명</th>
@@ -124,23 +123,20 @@ export function SalesCustomerPage() {
             <tbody className="divide-y divide-neutral-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16">
+                  <td colSpan={6} className="text-center py-16">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#21358D] mx-auto" />
                   </td>
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-neutral-400">
+                  <td colSpan={6} className="text-center py-16 text-neutral-400">
                     조회된 고객 매출 데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
                 customers.map((c, index) => {
-                  // No. 계산 공식 적용 - 가이드라인 1-1
-                  const rowNo = (page - 1) * limit + (index + 1);
                   return (
                     <tr key={c.userId} className="hover:bg-neutral-50/50 transition-colors">
-                      <td className="py-3 px-6 text-center text-neutral-500 font-medium">{rowNo}</td>
                       <td className="py-3 px-6 text-center">
                         <span className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
                           c.rank <= 3

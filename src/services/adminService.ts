@@ -1898,6 +1898,14 @@ export const adminService = {
                 const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
                 const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
                 key = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else if (period === 'quarter') {
+                // YYYY-Qn 포맷 (분기별)
+                const q = Math.floor(date.getMonth() / 3) + 1;
+                key = `${date.getFullYear()}-Q${q}`;
+            } else if (period === 'half') {
+                // YYYY-Hn 포맷 (반기별)
+                const h = Math.floor(date.getMonth() / 6) + 1;
+                key = `${date.getFullYear()}-H${h}`;
             } else {
                 // YYYY-MM 포맷 (월별)
                 key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -2025,6 +2033,7 @@ export const adminService = {
             .from('orders')
             .select(`
                 id,
+                ordered_at,
                 order_items (
                     quantity,
                     unit_price,
@@ -2042,9 +2051,29 @@ export const adminService = {
 
         if (error) throw error;
 
-        const categoryMap: Record<string, { sales: number; ordersCount: Set<string>; itemsCount: number; products: Record<string, { name: string; sales: number; qty: number }> }> = {};
+        const categoryMap: Record<string, { 
+            sales: number; 
+            ordersCount: Set<string>; 
+            itemsCount: number; 
+            products: Record<string, { name: string; sales: number; qty: number }>;
+            trend: Record<string, number>;
+        }> = {};
 
         (orders || []).forEach(order => {
+            const date = new Date(order.ordered_at);
+            // Determine grouping key based on dateRange
+            let dateKey = '';
+            if (dateRange === '7days' || dateRange === '30days') {
+                dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+            } else if (dateRange === '3months') {
+                const oneJan = new Date(date.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else {
+                dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            }
+
             (order.order_items || []).forEach((item: any) => {
                 const category = item.product?.category || '기타소모품';
                 const revenue = Number(item.total_price || (item.unit_price * item.quantity));
@@ -2052,12 +2081,13 @@ export const adminService = {
                 const prodName = item.product?.name || '기타 상품';
 
                 if (!categoryMap[category]) {
-                    categoryMap[category] = { sales: 0, ordersCount: new Set(), itemsCount: 0, products: {} };
+                    categoryMap[category] = { sales: 0, ordersCount: new Set(), itemsCount: 0, products: {}, trend: {} };
                 }
 
                 categoryMap[category].sales += revenue;
                 categoryMap[category].ordersCount.add(order.id);
                 categoryMap[category].itemsCount += item.quantity;
+                categoryMap[category].trend[dateKey] = (categoryMap[category].trend[dateKey] || 0) + revenue;
 
                 if (!categoryMap[category].products[prodId]) {
                     categoryMap[category].products[prodId] = { name: prodName, sales: 0, qty: 0 };
@@ -2078,6 +2108,11 @@ export const adminService = {
                 percentage: data.sales > 0 ? Number(((p.sales / data.sales) * 100).toFixed(1)) : 0
             })).sort((a, b) => b.sales - a.sales);
 
+            const trendData = Object.entries(data.trend).map(([label, sales]) => ({
+                label,
+                sales
+            })).sort((a, b) => a.label.localeCompare(b.label));
+
             return {
                 category: name,
                 sales: data.sales,
@@ -2085,7 +2120,8 @@ export const adminService = {
                 percentage: totalRevenue > 0 ? Number(((data.sales / totalRevenue) * 100).toFixed(1)) : 0,
                 avgOrder: data.ordersCount.size > 0 ? Math.round(data.sales / data.ordersCount.size) : 0,
                 growth: 12.5, 
-                products: productContribution
+                products: productContribution,
+                trendData
             };
         }).sort((a, b) => b.sales - a.sales);
 
@@ -2165,17 +2201,17 @@ export const adminService = {
     },
 
     // 1-4. getSalesCustomerStats
-    async getSalesCustomerStats(dateRange: string, page: number, limit: number, search: string) {
+    async getSalesCustomerStats(dateRange: string, page: number, limit: number, search: string, memberType?: string) {
         const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
 
         const { data: users, error: userErr } = await supabase
             .from('users')
-            .select('id, name, hospital_name');
+            .select('id, name, hospital_name, member_type');
         
         if (userErr) throw userErr;
 
         const userMap = (users || []).reduce((acc: any, u) => {
-            acc[u.id] = { name: u.name, hospitalName: u.hospital_name || '일반고객' };
+            acc[u.id] = { name: u.name, hospitalName: u.hospital_name || '일반고객', memberType: u.member_type || '미지정' };
             return acc;
         }, {});
 
@@ -2201,11 +2237,12 @@ export const adminService = {
         });
 
         let customerStats = Object.entries(customerSalesMap).map(([uId, d]) => {
-            const uInfo = userMap[uId] || { name: '비회원', hospitalName: '-' };
+            const uInfo = userMap[uId] || { name: '비회원', hospitalName: '-', memberType: '-' };
             return {
                 userId: uId,
                 name: uInfo.name,
                 hospitalName: uInfo.hospitalName,
+                memberType: uInfo.memberType,
                 totalSales: d.totalSales,
                 orders: d.ordersCount,
                 avgOrder: d.ordersCount > 0 ? Math.round(d.totalSales / d.ordersCount) : 0
@@ -2217,8 +2254,14 @@ export const adminService = {
             const sLower = search.toLowerCase();
             customerStats = customerStats.filter(c => 
                 c.name.toLowerCase().includes(sLower) || 
-                c.hospitalName.toLowerCase().includes(sLower)
+                c.hospitalName.toLowerCase().includes(sLower) ||
+                c.memberType.toLowerCase().includes(sLower)
             );
+        }
+
+        // 고객분류 필터링 (정렬 및 순위 매기기 전)
+        if (memberType && memberType !== 'all') {
+            customerStats = customerStats.filter(c => c.memberType === memberType);
         }
 
         // 정렬: 매출 기준 내림차순
@@ -2240,6 +2283,64 @@ export const adminService = {
             data: paginatedData,
             totalCount
         };
+    },
+
+    // 1-4-extra. getSalesCustomerTypeStats
+    async getSalesCustomerTypeStats(dateRange: string) {
+        const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
+
+        const { data: users, error: userErr } = await supabase
+            .from('users')
+            .select('id, member_type');
+        
+        if (userErr) throw userErr;
+
+        const userMap = (users || []).reduce((acc: any, u) => {
+            acc[u.id] = u.member_type || '미지정';
+            return acc;
+        }, {});
+
+        // 주문 데이터 조회
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('user_id, total_amount')
+            .in('status', statuses)
+            .gte('ordered_at', startDateIso)
+            .lte('ordered_at', endDateIso);
+
+        if (error) throw error;
+
+        const typeSalesMap: Record<string, { totalSales: number; ordersCount: number; customerSet: Set<string> }> = {};
+
+        (orders || []).forEach(o => {
+            const uId = o.user_id || 'guest';
+            const mType = userMap[uId] || '미지정';
+            if (!typeSalesMap[mType]) {
+                typeSalesMap[mType] = { totalSales: 0, ordersCount: 0, customerSet: new Set() };
+            }
+            typeSalesMap[mType].totalSales += Number(o.total_amount);
+            typeSalesMap[mType].ordersCount += 1;
+            if (o.user_id) {
+                typeSalesMap[mType].customerSet.add(o.user_id);
+            }
+        });
+
+        const totalRevenue = Object.values(typeSalesMap).reduce((sum, d) => sum + d.totalSales, 0);
+
+        const stats = Object.entries(typeSalesMap).map(([type, d]) => ({
+            memberType: type,
+            totalSales: d.totalSales,
+            orders: d.ordersCount,
+            customers: d.customerSet.size,
+            percentage: totalRevenue > 0 ? Number(((d.totalSales / totalRevenue) * 100).toFixed(1)) : 0,
+            avgOrder: d.ordersCount > 0 ? Math.round(d.totalSales / d.ordersCount) : 0
+        })).sort((a, b) => b.totalSales - a.totalSales)
+           .map((item, index) => ({
+               rank: index + 1,
+               ...item
+           }));
+
+        return stats;
     },
 
     // 1-5. getSalesProductPaymentStats
@@ -2566,6 +2667,204 @@ export const adminService = {
                 growth
             },
             categoryTrendData
+        };
+    },
+
+    // 1-1.5. getProductCategoryTrendStats
+    async getProductCategoryTrendStats(dateRange: string, category: string) {
+        const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
+
+        // 1. 전체 상품 조회 (자식/옵션 상품 제외, 단가 조회를 위해 price 필드 추가)
+        const { data: allProducts, error: prodErr } = await supabase
+            .from('products')
+            .select('id, name, category, stock, is_active, base_product_id, price');
+        if (prodErr) throw prodErr;
+
+        const baseProducts = (allProducts || []).filter(p => !p.base_product_id);
+
+        // Categories list
+        const categoriesSet = new Set<string>();
+        baseProducts.forEach(p => {
+            if (p.category) {
+                categoriesSet.add(p.category);
+            }
+        });
+        const categories = Array.from(categoriesSet);
+
+        // 2. Filter products by selected category
+        const selectedCategory = category || categories[0] || '의료기기 장비';
+        const targetProducts = baseProducts.filter(p => p.category === selectedCategory);
+        const targetProductIds = targetProducts.map(p => p.id);
+
+        // 2-1. 구성품 매핑 관계 데이터 병렬 조회 (세트상품/복합상품/패키지/사은품 구성 해소용)
+        const [
+            { data: pkgItems },
+            { data: bonusItems },
+            { data: promoItems }
+        ] = await Promise.all([
+            supabase.from('package_items').select('package_id, product_id'),
+            supabase.from('product_bonus_items').select('parent_product_id, bonus_product_id, quantity'),
+            supabase.from('product_promotion_items').select('parent_product_id, product_id')
+        ]);
+
+        const packageMap: Record<string, string[]> = {};
+        (pkgItems || []).forEach((item: any) => {
+            if (!packageMap[item.package_id]) packageMap[item.package_id] = [];
+            packageMap[item.package_id].push(item.product_id);
+        });
+
+        const bonusMap: Record<string, Array<{ id: string; qty: number }>> = {};
+        (bonusItems || []).forEach((item: any) => {
+            if (!bonusMap[item.parent_product_id]) bonusMap[item.parent_product_id] = [];
+            bonusMap[item.parent_product_id].push({
+                id: item.bonus_product_id,
+                qty: Number(item.quantity || 1)
+            });
+        });
+
+        const promoMap: Record<string, string[]> = {};
+        (promoItems || []).forEach((item: any) => {
+            if (!promoMap[item.parent_product_id]) promoMap[item.parent_product_id] = [];
+            promoMap[item.parent_product_id].push(item.product_id);
+        });
+
+        // 3. Fetch orders in range (selected_product_ids 포함)
+        const { data: orders, error: orderErr } = await supabase
+            .from('orders')
+            .select(`
+                ordered_at,
+                order_items (
+                    quantity,
+                    total_price,
+                    unit_price,
+                    product_id,
+                    selected_product_ids
+                )
+            `)
+            .in('status', statuses)
+            .gte('ordered_at', startDateIso)
+            .lte('ordered_at', endDateIso);
+
+        if (orderErr) throw orderErr;
+
+        // product-specific totals and trends
+        const productTrendsMap: Record<string, Record<string, number>> = {}; // productId -> { month: qty }
+        const productStatsMap: Record<string, { totalQty: number; totalRevenue: number }> = {};
+
+        // Initialize maps
+        targetProductIds.forEach(id => {
+            productTrendsMap[id] = {};
+            productStatsMap[id] = { totalQty: 0, totalRevenue: 0 };
+        });
+
+        (orders || []).forEach(order => {
+            const date = new Date(order.ordered_at);
+            const monthStr = `${date.getMonth() + 1}월`;
+
+            (order.order_items || []).forEach((item: any) => {
+                const parentId = item.product_id;
+                if (!parentId) return;
+
+                const qty = Number(item.quantity || 0);
+
+                // 구성 상품 해소 배열
+                const resolvedItems: Array<{ id: string; qty: number }> = [];
+
+                // A. 선택된 제품 구성 리스트가 존재하는 경우 (복합/패키지 번들 선택)
+                if (item.selected_product_ids && item.selected_product_ids.length > 0) {
+                    item.selected_product_ids.forEach((id: string) => {
+                        resolvedItems.push({ id, qty: qty });
+                    });
+                } else {
+                    // B. 고정 구성 패키지 아이템인 경우
+                    if (packageMap[parentId]) {
+                        packageMap[parentId].forEach((prodId: string) => {
+                            resolvedItems.push({ id: prodId, qty: qty });
+                        });
+                    }
+                    // C. 프로모션 묶음 상품인 경우
+                    else if (promoMap[parentId]) {
+                        promoMap[parentId].forEach((prodId: string) => {
+                            resolvedItems.push({ id: prodId, qty: qty });
+                        });
+                    }
+                    // D. 단일 상품인 경우
+                    else {
+                        resolvedItems.push({ id: parentId, qty: qty });
+                    }
+                }
+
+                // E. 부속 사은품(Bonus)이 있는 경우 추가 해소
+                if (bonusMap[parentId]) {
+                    bonusMap[parentId].forEach((bonus: any) => {
+                        resolvedItems.push({ id: bonus.id, qty: qty * bonus.qty });
+                    });
+                }
+
+                // 매핑된 구성 상품 중, 현재 조회 카테고리에 속한 본 상품들만 누적 집계
+                resolvedItems.forEach(resolved => {
+                    const prodId = resolved.id;
+                    const resolvedQty = resolved.qty;
+
+                    if (!targetProductIds.includes(prodId)) return;
+
+                    productTrendsMap[prodId][monthStr] = (productTrendsMap[prodId][monthStr] || 0) + resolvedQty;
+                    productStatsMap[prodId].totalQty += resolvedQty;
+
+                    // 단가 x 판매수량으로 매출액 누적 계산
+                    const prodPrice = allProducts.find(p => p.id === prodId)?.price || 0;
+                    productStatsMap[prodId].totalRevenue += (resolvedQty * Number(prodPrice));
+                });
+            });
+        });
+
+        // Determine months to display
+        const start = new Date(startDateIso);
+        const end = new Date(endDateIso);
+        const activeMonths: string[] = [];
+        let cur = new Date(start.getFullYear(), start.getMonth(), 1);
+        const last = new Date(end.getFullYear(), end.getMonth(), 1);
+        while (cur <= last) {
+            activeMonths.push(`${cur.getMonth() + 1}월`);
+            cur.setMonth(cur.getMonth() + 1);
+        }
+        if (activeMonths.length === 0) {
+            // Fallback to last 6 months
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                activeMonths.push(`${d.getMonth() + 1}월`);
+            }
+        }
+
+        // Format trendData: Array of { month: string, [productId]: qty }
+        const trendData = activeMonths.map(month => {
+            const row: Record<string, any> = { month };
+            targetProducts.forEach(p => {
+                row[p.id] = productTrendsMap[p.id]?.[month] || 0;
+            });
+            return row;
+        });
+
+        // Product list for table
+        const productsList = targetProducts.map(p => {
+            const stats = productStatsMap[p.id] || { totalQty: 0, totalRevenue: 0 };
+            return {
+                id: p.id,
+                name: p.name,
+                category: p.category,
+                stock: p.stock || 0,
+                is_active: p.is_active,
+                totalQty: stats.totalQty,
+                totalRevenue: stats.totalRevenue
+            };
+        });
+
+        return {
+            categories,
+            selectedCategory,
+            products: productsList,
+            trendData
         };
     },
 

@@ -34,6 +34,7 @@ export function ProductAnalyticsLayout() {
 
   const tabs = [
     { path: '/admin/statistics/products/overview', label: '상품 개요', icon: TrendingUp },
+    { path: '/admin/statistics/products/category', label: '상품카테고리별', icon: BarChart3 },
     { path: '/admin/statistics/products/bestseller', label: '베스트셀러', icon: AwardIcon },
     { path: '/admin/statistics/products/stock', label: '재고 분석', icon: AlertTriangle },
     { path: '/admin/statistics/products/conversion', label: '전환율 분석', icon: RefreshCw },
