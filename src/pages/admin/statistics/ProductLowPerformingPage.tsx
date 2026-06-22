@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router';
-import { Archive, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
 export function ProductLowPerformingPage() {
@@ -38,29 +38,9 @@ export function ProductLowPerformingPage() {
   const { data: products, totalCount } = data;
   const totalPages = Math.ceil(totalCount / limit);
 
-  // 대기 중인(판매 안된) 총 사장 재고 자산 규모 계산
-  // (실제 데이터와 비례하여 전체 상품 리스트의 가상 deadStockValue 합계)
-  // 여기서는 로딩된 데이터 기반으로 렌더링
-  const totalDeadStockAsset = products.reduce((sum: number, p: any) => sum + p.deadStockValue, 0);
 
   return (
     <div className="space-y-6">
-      {/* 사장 재고 자산 경보 요약 */}
-      <div className="bg-[#21358D]/5 border border-[#21358D]/20 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="p-2.5 bg-[#21358D] text-white rounded">
-            <Archive className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="font-bold text-neutral-900 mb-1">장기 판매 부진 상품 (Dead Stock)</h4>
-            <p className="text-xs text-neutral-600">최근 판매 실적이 적고 현재 창고 재고량이 많아 자산이 잠겨 있는 품목입니다. 특별 할인 또는 프로모션을 권장합니다.</p>
-          </div>
-        </div>
-        <div className="shrink-0 bg-white border border-neutral-200 px-6 py-3 shadow-sm text-right">
-          <span className="text-xs text-neutral-500 font-semibold block">현재 페이지 내 잠재 사장 재고액</span>
-          <span className="text-lg font-extrabold text-red-600">₩{totalDeadStockAsset.toLocaleString()}</span>
-        </div>
-      </div>
 
       {/* 상세 테이블 */}
       <div className="bg-white border border-neutral-200 shadow-sm overflow-hidden">
@@ -97,7 +77,6 @@ export function ProductLowPerformingPage() {
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">단가</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">지정 기간 판매량</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">현재 창고재고</th>
-                <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">재고 자산 가치</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -111,9 +90,6 @@ export function ProductLowPerformingPage() {
                     <td className="py-3 px-6 text-right text-neutral-600">₩{prod.price.toLocaleString()}</td>
                     <td className="py-3 px-6 text-right font-semibold text-red-600">{prod.sales.toLocaleString()}개</td>
                     <td className="py-3 px-6 text-right font-semibold text-neutral-800">{prod.stock.toLocaleString()}개</td>
-                    <td className="py-3 px-6 text-right font-bold text-neutral-950">
-                      ₩{prod.deadStockValue.toLocaleString()}
-                    </td>
                   </tr>
                 );
               })}
