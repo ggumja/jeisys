@@ -189,6 +189,257 @@ export const adminService = {
             bestProducts
         };
     },
+    
+    // getDashboardComprehensiveStats (Dashboard High-Level stats with date range)
+    async getDashboardComprehensiveStats(filters: {
+        dateRange: string;
+    }) {
+        const { dateRange } = filters;
+        
+        // 1. Determine Date Range
+        const now = new Date();
+        let startDate = new Date();
+        let endDate = new Date();
+        let isCumulative = false;
+        
+        if (dateRange && dateRange.startsWith('custom:')) {
+            const [_, rangeStr] = dateRange.split(':');
+            const [startStr, endStr] = rangeStr.split('_');
+            startDate = new Date(startStr);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(endStr);
+            endDate.setHours(23, 59, 59, 999);
+        } else if (dateRange === 'year') {
+            startDate = new Date(now.getFullYear(), 0, 1);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+        } else if (dateRange === 'cumulative') {
+            isCumulative = true;
+        } else {
+            // Default: 'month' (당월)
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        }
+
+        const validStatuses = ['paid', 'processing', 'shipped', 'delivered'];
+
+        // 2. Fetch Users to mapping region and signup stats
+        const { data: usersData, error: userErr } = await supabase
+            .from('users')
+            .select('id, name, hospital_name, address, created_at');
+        if (userErr) throw userErr;
+
+        const usersMap = (usersData || []).reduce((acc: any, u) => {
+            acc[u.id] = {
+                name: u.name,
+                hospitalName: u.hospital_name || '일반고객',
+                address: u.address || '',
+                region: u.address ? u.address.trim().split(/\s+/)[0] : '미등록',
+                createdAt: new Date(u.created_at)
+            };
+            return acc;
+        }, {});
+
+        // 3. Filter orders and order_items
+        let ordersQuery = supabase
+            .from('orders')
+            .select(`
+                id,
+                total_amount,
+                payment_method,
+                ordered_at,
+                user_id,
+                status,
+                order_items (
+                    id,
+                    product_id,
+                    quantity,
+                    unit_price,
+                    total_price
+                )
+            `)
+            .in('status', validStatuses);
+            
+        if (!isCumulative) {
+            ordersQuery = ordersQuery
+                .gte('ordered_at', startDate.toISOString())
+                .lte('ordered_at', endDate.toISOString());
+        }
+
+        const { data: rawOrders, error: ordersErr } = await ordersQuery;
+        if (ordersErr) throw ordersErr;
+
+        const filteredOrders = (rawOrders || []).map((order: any) => {
+            const items = order.order_items || [];
+            const orderTotalAmount = items.reduce((sum: number, item: any) => sum + Number(item.total_price || (item.unit_price * item.quantity)), 0);
+            return {
+                ...order,
+                order_items: items,
+                computed_total: orderTotalAmount
+            };
+        }).filter(o => o.order_items.length > 0);
+
+        // A. 누적 매출 & 선택 기간 매출
+        const periodSales = filteredOrders.reduce((sum, o) => sum + o.computed_total, 0);
+
+        // B. 결제수단별 매출 & 비중
+        const methodMapping: Record<string, string> = {
+            'virtual': '가상계좌',
+            'transfer': '무통장입금',
+            'credit': '신용카드(저장)',
+            'general': '일반결제(신용카드)',
+            'split': '카드분할결제',
+            'partial_card': '카드일부결제'
+        };
+        const paymentMap: Record<string, number> = {};
+        filteredOrders.forEach(o => {
+            const rawMethod = o.payment_method || 'transfer';
+            const method = methodMapping[rawMethod] || rawMethod;
+            paymentMap[method] = (paymentMap[method] || 0) + o.computed_total;
+        });
+        const paymentData = Object.entries(paymentMap).map(([name, value]) => ({
+            name,
+            value,
+            percentage: periodSales > 0 ? Number(((value / periodSales) * 100).toFixed(1)) : 0
+        })).sort((a, b) => b.value - a.value);
+
+        // C. 카테고리 요약 지표 (최상단 설정 기간/장비에 따라)
+        // 누적 구매 회원수 (중복 제거)
+        const uniqueBuyingUsers = new Set(filteredOrders.map(o => o.user_id).filter(Boolean));
+        const buyingUsersCount = uniqueBuyingUsers.size;
+        
+        // 거래처(회원)당 평균 매출 금액 = 기간 매출 / 누적 구매 회원수
+        const avgSalesPerCustomer = buyingUsersCount > 0 ? Math.round(periodSales / buyingUsersCount) : 0;
+        
+        // 주문 건당 평균 매출 금액 = 기간 매출 / 총 주문 건수
+        const avgSalesPerOrder = filteredOrders.length > 0 ? Math.round(periodSales / filteredOrders.length) : 0;
+
+        // D. 카테고리별 매출 비율 (도넛 차트용)
+        const productIdsInOrders = Array.from(new Set(
+            filteredOrders.flatMap(o => o.order_items.map((i: any) => i.product_id))
+        )).filter(Boolean);
+
+        let categoryData: { name: string; value: number; color: string }[] = [];
+        let bestProducts: { name: string; sales: number; revenue: number }[] = [];
+        
+        if (productIdsInOrders.length > 0) {
+            const { data: prodData, error: prodErr } = await supabase
+                .from('products')
+                .select('id, name, category')
+                .in('id', productIdsInOrders);
+            
+            if (prodErr) throw prodErr;
+
+            const productCategoryMap = (prodData || []).reduce((acc: any, p) => {
+                acc[p.id] = { name: p.name, category: p.category || '기타소모품' };
+                return acc;
+            }, {});
+
+            const catSalesMap: Record<string, number> = {};
+            const prodAggregateMap: Record<string, { sales: number; revenue: number }> = {};
+
+            filteredOrders.forEach(o => {
+                o.order_items.forEach((item: any) => {
+                    const pInfo = productCategoryMap[item.product_id] || { name: '알수없음', category: '기타소모품' };
+                    const rev = Number(item.total_price || (item.unit_price * item.quantity));
+                    const qty = Number(item.quantity);
+
+                    catSalesMap[pInfo.category] = (catSalesMap[pInfo.category] || 0) + rev;
+
+                    if (!prodAggregateMap[pInfo.name]) {
+                        prodAggregateMap[pInfo.name] = { sales: 0, revenue: 0 };
+                    }
+                    prodAggregateMap[pInfo.name].sales += qty;
+                    prodAggregateMap[pInfo.name].revenue += rev;
+                });
+            });
+
+            const colors = ['#21358D', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#f43f5e'];
+            categoryData = Object.entries(catSalesMap)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, value], idx) => ({
+                    name,
+                    value: periodSales > 0 ? Number(((value / periodSales) * 100).toFixed(1)) : 0,
+                    color: colors[idx % colors.length]
+                }));
+
+            bestProducts = Object.entries(prodAggregateMap)
+                .map(([name, d]) => ({ name, sales: d.sales, revenue: d.revenue }))
+                .sort((a, b) => b.revenue - a.revenue)
+                .slice(0, 5);
+        }
+
+        // E. TOP 구매 거래처 (선택값 카테고리 필터 포함)
+        const customerSales: Record<string, number> = {};
+        filteredOrders.forEach(o => {
+            const uId = o.user_id;
+            if (uId) {
+                customerSales[uId] = (customerSales[uId] || 0) + o.computed_total;
+            }
+        });
+        const topCustomers = Object.entries(customerSales)
+            .map(([uId, totalSales]) => {
+                const uInfo = usersMap[uId] || { name: '비회원', hospitalName: '-' };
+                return {
+                    name: uInfo.name,
+                    hospitalName: uInfo.hospitalName,
+                    totalSales
+                };
+            })
+            .sort((a, b) => b.totalSales - a.totalSales)
+            .slice(0, 10);
+
+        // F. 지역별 매출 (병원 주소 파싱)
+        const regionSalesMap: Record<string, number> = {};
+        filteredOrders.forEach(o => {
+            const uId = o.user_id;
+            const uInfo = usersMap[uId] || { region: '미등록' };
+            const region = uInfo.region;
+            regionSalesMap[region] = (regionSalesMap[region] || 0) + o.computed_total;
+        });
+        const regionSales = Object.entries(regionSalesMap)
+            .map(([region, sales]) => ({
+                region,
+                sales,
+                percentage: periodSales > 0 ? Number(((sales / periodSales) * 100).toFixed(1)) : 0
+            }))
+            .sort((a, b) => b.sales - a.sales);
+
+        // G. 신규 회원 수 (선택 기간 내 가입)
+        const newUsersCount = (usersData || []).filter(u => {
+            const cDate = new Date(u.created_at);
+            if (isCumulative) return true;
+            return cDate >= startDate && cDate <= endDate;
+        }).length;
+
+        // H. 매출 추이 그래프용 데이터 (그룹화)
+        const trendDataMap: Record<string, number> = {};
+        filteredOrders.forEach(o => {
+            const date = new Date(o.ordered_at);
+            const key = `${date.getMonth() + 1}/${date.getDate()}`; // default: 일 단위
+            trendDataMap[key] = (trendDataMap[key] || 0) + o.computed_total;
+        });
+        const trendData = Object.entries(trendDataMap).map(([label, sales]) => ({
+            label,
+            sales
+        }));
+
+        return {
+            periodSales,
+            newUsersCount,
+            avgSalesPerCustomer,
+            avgSalesPerOrder,
+            buyingUsersCount,
+            paymentData,
+            categoryData,
+            bestProducts,
+            topCustomers,
+            regionSales,
+            trendData
+        };
+    },
+
 
     // Orders
     async getOrders() {
