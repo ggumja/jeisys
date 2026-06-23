@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
-import { Download, Calendar, BarChart3, TrendingUp, PieChart, Users, DollarSign, Clock, Building2 } from 'lucide-react';
+import { Download, Calendar, TrendingUp, PieChart, Users, DollarSign, Clock, Building2 } from 'lucide-react';
 
 export function SalesAnalyticsLayout() {
   const [selectRange, setSelectRange] = useState('6months');
@@ -38,7 +38,6 @@ export function SalesAnalyticsLayout() {
     { path: '/admin/statistics/sales/payment', label: '결제수단별', icon: DollarSign },
     { path: '/admin/statistics/sales/customer', label: '고객별 순위', icon: Users },
     { path: '/admin/statistics/sales/customer-type', label: '고객유형별 순위', icon: Users },
-    { path: '/admin/statistics/sales/product-payment', label: '상품별 결제수단', icon: BarChart3 },
     { path: '/admin/statistics/sales/office', label: '영업처별 기여도', icon: Building2 },
     { path: '/admin/statistics/sales/trend', label: '요일/시간별', icon: Clock },
   ];
