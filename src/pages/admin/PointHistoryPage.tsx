@@ -21,6 +21,10 @@ interface PointTransaction {
     email: string;
     login_id: string;
   } | null;
+  order: {
+    id: string;
+    order_number: string;
+  } | null;
 }
 
 export function PointHistoryPage() {
@@ -36,11 +40,30 @@ export function PointHistoryPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const handlePresetDate = (days: number) => {
+    const today = new Date();
+    const targetDate = new Date();
+    targetDate.setDate(today.getDate() - days);
+
+    const formatDate = (date: Date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    setEndDate(formatDate(today));
+    setStartDate(formatDate(targetDate));
+    setCurrentPage(1);
+  };
 
   const fetchTransactions = async (page: number, size: number, search: string, type: string, silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const result = await adminService.getAllPointTransactions(page, size, search, type);
+      const result = await adminService.getAllPointTransactions(page, size, search, type, startDate, endDate);
       setTransactions(result.data as PointTransaction[]);
       setTotalCount(result.total);
     } catch (error) {
@@ -52,7 +75,7 @@ export function PointHistoryPage() {
 
   useEffect(() => {
     fetchTransactions(currentPage, pageSize, searchTerm, typeFilter);
-  }, [currentPage, pageSize, typeFilter]);
+  }, [currentPage, pageSize, typeFilter, startDate, endDate]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,10 +93,10 @@ export function PointHistoryPage() {
     setIsDownloading(true);
     try {
       // 0은 전체 데이터 조회를 뜻함
-      const result = await adminService.getAllPointTransactions(0, 0, searchTerm, typeFilter);
+      const result = await adminService.getAllPointTransactions(0, 0, searchTerm, typeFilter, startDate, endDate);
       const allData = result.data as PointTransaction[];
       
-      const headers = ['일시', '아이디', '회원명', '병원명', '구분', '변동 포인트(P)', '상세내용', '관련 주문ID'];
+      const headers = ['일시', '아이디', '회원명', '병원명', '구분', '변동 포인트(P)', '상세내용', '관련 주문번호'];
       const body = allData.map(tx => {
         const typeLabels: Record<string, string> = {
           issue: '지급',
@@ -85,6 +108,11 @@ export function PointHistoryPage() {
         const date = new Date(tx.created_at);
         const dateStr = date.toLocaleString('ko-KR');
         const sign = ['issue', 'refund'].includes(tx.type) ? '+' : '-';
+        
+        // ORD-... 형태의 주문번호 패턴 제거
+        const cleanedDesc = tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-';
+        const displayOrderNo = tx.order?.order_number || tx.order_id || '-';
+
         return [
           dateStr,
           tx.user?.login_id || '-',
@@ -92,8 +120,8 @@ export function PointHistoryPage() {
           tx.user?.hospital_name || '-',
           typeLabels[tx.type] || tx.type,
           `${sign}${tx.amount.toLocaleString()} P`,
-          tx.description || '-',
-          tx.order_id || '-'
+          cleanedDesc,
+          displayOrderNo
         ];
       });
 
@@ -163,34 +191,91 @@ export function PointHistoryPage() {
 
       {/* 필터 영역 */}
       <div className="bg-white border border-neutral-200 p-6">
-        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="이름, 병원명, 이메일, 아이디 검색..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
-          </div>
-          
-          <select
-            value={typeFilter}
-            onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
-            className="w-full px-4 py-3 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-          >
-            <option value="all">전체 거래유형</option>
-            <option value="issue">지급</option>
-            <option value="use">사용</option>
-            <option value="refund">취소환불</option>
-            <option value="revoke">관리자회수</option>
-            <option value="expire">기간만료</option>
-          </select>
+        <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative md:col-span-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="이름, 병원명, 이메일, 아이디 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-11 pl-10 pr-4 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
+            </div>
+            
+            <select
+              value={typeFilter}
+              onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full h-11 px-4 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            >
+              <option value="all">전체 거래유형</option>
+              <option value="issue">지급</option>
+              <option value="use">사용</option>
+              <option value="refund">취소환불</option>
+              <option value="revoke">관리자회수</option>
+              <option value="expire">기간만료</option>
+            </select>
 
-          <Button type="submit" className="w-full h-full bg-neutral-900 text-white hover:bg-neutral-800">
-            검색하기
-          </Button>
+            <Button type="submit" className="w-full h-11 bg-neutral-900 text-white hover:bg-neutral-800">
+              검색하기
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+            <span className="font-medium mr-2">기간 조회</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-1.5 border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+            />
+            <span className="text-neutral-400">~</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-1.5 border border-neutral-300 focus:outline-none focus:ring-1 focus:ring-neutral-900"
+            />
+            <div className="flex gap-1 ml-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePresetDate(0)}
+                className="h-8 text-xs px-2.5"
+              >
+                오늘
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePresetDate(7)}
+                className="h-8 text-xs px-2.5"
+              >
+                1주일
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePresetDate(30)}
+                className="h-8 text-xs px-2.5"
+              >
+                1개월
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => { setStartDate(''); setEndDate(''); setCurrentPage(1); }}
+                className="h-8 text-xs px-2.5 text-neutral-500 hover:text-neutral-900"
+              >
+                초기화
+              </Button>
+            </div>
+          </div>
         </form>
       </div>
 
@@ -239,7 +324,7 @@ export function PointHistoryPage() {
                       <td className="py-4 px-6 whitespace-nowrap">{getTypeBadge(tx.type)}</td>
                       <td className="py-4 px-6 text-right font-medium">{getAmountDisplay(tx)}</td>
                       <td className="py-4 px-6 text-neutral-700 max-w-xs truncate" title={tx.description || ''}>
-                        {tx.description || '-'}
+                        {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
                       </td>
                       <td className="py-4 px-6 text-neutral-500 font-mono text-xs">
                         {tx.order_id ? (
@@ -247,7 +332,7 @@ export function PointHistoryPage() {
                             onClick={() => navigate(`/admin/orders/${tx.order_id}`)}
                             className="text-[#21358D] hover:underline"
                           >
-                            {tx.order_id}
+                            {tx.order?.order_number || tx.order_id}
                           </button>
                         ) : (
                           '-'

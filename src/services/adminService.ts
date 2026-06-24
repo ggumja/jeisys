@@ -3883,7 +3883,7 @@ export const adminService = {
     },
 
     /** [관리자] 전체 크레딧 거래 내역 조회 (페이징, 검색, 필터 포함) */
-    async getAllCreditTransactions(page: number, limit: number, search: string, type: string) {
+    async getAllCreditTransactions(page: number, limit: number, search: string, type: string, startDate?: string, endDate?: string) {
         let query = supabase
             .from('credit_transactions')
             .select(`
@@ -3894,11 +3894,24 @@ export const adminService = {
                     hospital_name,
                     email,
                     login_id
+                ),
+                order:orders!order_id (
+                    id,
+                    order_number
                 )
             `, { count: 'exact' });
 
         if (type && type !== 'all') {
             query = query.eq('type', type);
+        }
+
+        if (startDate) {
+            const sDate = new Date(`${startDate}T00:00:00`);
+            query = query.gte('created_at', sDate.toISOString());
+        }
+        if (endDate) {
+            const eDate = new Date(`${endDate}T23:59:59.999`);
+            query = query.lte('created_at', eDate.toISOString());
         }
 
         // 검색어 필터링
@@ -3935,7 +3948,7 @@ export const adminService = {
     },
 
     /** [관리자] 전체 포인트 거래 내역 조회 (페이징, 검색, 필터 포함) */
-    async getAllPointTransactions(page: number, limit: number, search: string, type: string) {
+    async getAllPointTransactions(page: number, limit: number, search: string, type: string, startDate?: string, endDate?: string) {
         let query = supabase
             .from('point_transactions')
             .select(`
@@ -3946,11 +3959,24 @@ export const adminService = {
                     hospital_name,
                     email,
                     login_id
+                ),
+                order:orders!order_id (
+                    id,
+                    order_number
                 )
             `, { count: 'exact' });
 
         if (type && type !== 'all') {
             query = query.eq('type', type);
+        }
+
+        if (startDate) {
+            const sDate = new Date(`${startDate}T00:00:00`);
+            query = query.gte('created_at', sDate.toISOString());
+        }
+        if (endDate) {
+            const eDate = new Date(`${endDate}T23:59:59.999`);
+            query = query.lte('created_at', eDate.toISOString());
         }
 
         // 검색어 필터링
