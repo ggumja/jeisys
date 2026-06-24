@@ -100,7 +100,7 @@ export function CreditHistoryPage() {
       const result = await adminService.getAllCreditTransactions(0, 0, searchTerm, typeFilter, startDate, endDate);
       const allData = result.data as CreditTransaction[];
       
-      const headers = ['일시', '아이디', '회원명', '병원명', '크레딧 종류', '구분', '변동 크레딧(원)', '상세내용', '관련 주문번호'];
+      const headers = ['일시', '아이디', '회원명', '병원명', '구분', '크레딧 종류', '변동 크레딧(원)', '상세내용', '관련 주문번호'];
       const body = allData.map(tx => {
         const typeLabels: Record<string, string> = {
           issue: '발급/충전',
@@ -122,8 +122,8 @@ export function CreditHistoryPage() {
           tx.user?.login_id || '-',
           tx.user?.name || '-',
           tx.user?.hospital_name || '-',
-          tx.credit?.equipment_type || '-',
           typeLabels[tx.type] || tx.type,
+          tx.credit?.equipment_type || '-',
           `${sign}${tx.amount.toLocaleString()}`,
           cleanedDesc,
           displayOrderNo
@@ -293,8 +293,8 @@ export function CreditHistoryPage() {
                 <th className="py-4 px-6 font-semibold text-neutral-700 w-16 text-center">No.</th>
                 <th className="py-4 px-6 font-semibold text-neutral-700">일시</th>
                 <th className="py-4 px-6 font-semibold text-neutral-700">회원 정보</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">크레딧 종류</th>
                 <th className="py-4 px-6 font-semibold text-neutral-700">구분</th>
+                <th className="py-4 px-6 font-semibold text-neutral-700">크레딧 종류</th>
                 <th className="py-4 px-6 font-semibold text-neutral-700 text-right">변동 크레딧</th>
                 <th className="py-4 px-6 font-semibold text-neutral-700">내용/메모</th>
                 <th className="py-4 px-6 font-semibold text-neutral-700">관련 주문</th>
@@ -327,10 +327,10 @@ export function CreditHistoryPage() {
                         <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
                         <div className="text-xs text-neutral-500">{tx.user?.name} ({tx.user?.login_id})</div>
                       </td>
+                      <td className="py-4 px-6 whitespace-nowrap">{getTypeBadge(tx.type)}</td>
                       <td className="py-4 px-6 font-medium text-neutral-800 whitespace-nowrap">
                         {tx.credit?.equipment_type || '-'}
                       </td>
-                      <td className="py-4 px-6 whitespace-nowrap">{getTypeBadge(tx.type)}</td>
                       <td className="py-4 px-6 text-right font-medium">{getAmountDisplay(tx)}</td>
                       <td className="py-4 px-6 text-neutral-700 max-w-xs truncate" title={tx.description || ''}>
                         {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
