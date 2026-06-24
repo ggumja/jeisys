@@ -3898,6 +3898,9 @@ export const adminService = {
                 order:orders!order_id (
                     id,
                     order_number
+                ),
+                credit:user_credits!credit_id (
+                    equipment_type
                 )
             `, { count: 'exact' });
 
