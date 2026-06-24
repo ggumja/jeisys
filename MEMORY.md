@@ -38,3 +38,11 @@
     - Integrated ModalProvider in RootLayout for application-wide availability.
     - Replaced native alert() and confirm() calls across all major user-facing (Cart, Product Detail, Signup, Login) and administrative (Member, Product, Order, FAQ, etc.) pages.
     - Standardized on Radix UI AlertDialog for a premium, consistent design language.
+
+## 2026-06-24
+- **Credit and Point History Management Implementation:**
+    - Refactored the single 'Member Management' menu into an Accordion-based multi-submenu navigation structure.
+    - Added 'Credit History Management' (`/admin/credit-history`) and 'Point History Management' (`/admin/point-history`) submenus.
+    - Implemented respective transaction log tables, filtering by transaction types, unified keyword searching (user name, hospital name, email, login ID), pagination, and instant XLSX-based Excel downloads.
+    - Standardized nested relations keyword query through pre-fetching user IDs to resolve Supabase ORM nested query limitations.
+

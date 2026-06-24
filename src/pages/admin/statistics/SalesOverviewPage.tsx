@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router';
 import { TrendingUp, ShoppingCart, Users, Package } from 'lucide-react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { adminService } from '../../../services/adminService';
+import * as XLSX from 'xlsx';
 
 // Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
 function useChartDimensions(defaultWidth = 500) {
@@ -45,7 +46,6 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
   const totalCustomers = 42;
   
   if (period === 'day') {
-    // Generate data for past 10 days
     for (let i = 9; i >= 0; i--) {
       const d = new Date();
       d.setDate(now.getDate() - i);
@@ -57,7 +57,6 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
       totalOrders += orders;
     }
   } else if (period === 'week') {
-    // Generate data for past 6 weeks
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setDate(now.getDate() - (i * 7));
@@ -72,7 +71,6 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
       totalOrders += orders;
     }
   } else if (period === 'month') {
-    // Generate data for past 6 months
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(now.getMonth() - i);
@@ -84,7 +82,6 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
       totalOrders += orders;
     }
   } else if (period === 'quarter') {
-    // Generate data for past 4 quarters
     for (let i = 3; i >= 0; i--) {
       const d = new Date();
       d.setMonth(now.getMonth() - (i * 3));
@@ -97,7 +94,6 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
       totalOrders += orders;
     }
   } else {
-    // Generate data for past 4 halves (2 years)
     for (let i = 3; i >= 0; i--) {
       const d = new Date();
       d.setMonth(now.getMonth() - (i * 6));
@@ -127,8 +123,12 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
 }
 
 export function SalesOverviewPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
-  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'quarter' | 'half'>('day');
+  const { dateRange, granularity, onRegisterExport } = useOutletContext<{
+    dateRange: string;
+    granularity: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    onRegisterExport: (fn: () => void) => void;
+  }>();
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'quarter' | 'half'>('month');
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -159,16 +159,59 @@ export function SalesOverviewPage() {
     fetchStats();
   }, [dateRange, period]);
 
-  // 분석 기간 기본값(7일/30일 등)에 맞추어 period 자동 추천 설정
+  // granularity 변경 시 period 자동 동기화
   useEffect(() => {
-    if (dateRange === '7days' || dateRange === '30days') {
-      setPeriod('day');
-    } else if (dateRange === '3months') {
-      setPeriod('week');
-    } else {
-      setPeriod('month');
-    }
-  }, [dateRange]);
+    if (granularity === 'daily') setPeriod('day');
+    else if (granularity === 'weekly') setPeriod('week');
+    else if (granularity === 'monthly') setPeriod('month');
+    else if (granularity === 'yearly') setPeriod('month');
+  }, [granularity]);
+
+  // 엑셀 export 함수 등록
+  useEffect(() => {
+    if (!onRegisterExport) return;
+
+    onRegisterExport(() => {
+      if (!stats) return;
+
+      const { summary, chartData } = stats;
+      const periodLabel = period === 'day' ? '일별' : period === 'week' ? '주별' : period === 'month' ? '월별' : period === 'quarter' ? '분기별' : '반기별';
+
+      // 시트1: 요약
+      const summaryRows = [
+        ['항목', '값'],
+        ['총 매출', summary.totalSales],
+        ['총 주문건수', summary.totalOrders],
+        ['구매 고객수', summary.totalCustomers],
+        ['평균 주문액', summary.avgOrder],
+        ['매출 성장률(%)', summary.salesGrowth],
+        ['주문 성장률(%)', summary.orderGrowth],
+      ];
+
+      // 시트2: 기간별 매출현황
+      const trendHeaders = ['기간', '매출액(원)', '주문건수', '고객수'];
+      const trendRows = chartData.map((row: any) => [
+        row.label,
+        row.sales,
+        row.orders,
+        row.customers ?? '-',
+      ]);
+
+      const wb = XLSX.utils.book_new();
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      wsSummary['!cols'] = [{ wch: 20 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, '요약');
+
+      const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendRows]);
+      wsTrend['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 12 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, wsTrend, `${periodLabel} 매출현황`);
+
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `매출개요_${periodLabel}_${dateStr}.xlsx`);
+    });
+  }, [stats, period, onRegisterExport]);
 
   if (isLoading || !stats) {
     return (
@@ -198,24 +241,13 @@ export function SalesOverviewPage() {
         </div>
       )}
 
-      {/* 데이터 단위 필터 */}
-      <div className="flex justify-end items-center bg-white border border-neutral-200 p-3 shadow-sm gap-2">
-        <span className="text-xs text-neutral-500 font-medium">데이터 단위:</span>
-        <div className="flex bg-neutral-100 p-0.5 rounded border border-neutral-200">
-          {(['day', 'week', 'month', 'quarter', 'half'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 py-1 text-xs font-semibold rounded transition-all ${
-                period === p
-                  ? 'bg-white text-neutral-900 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-900'
-              }`}
-            >
-              {p === 'day' ? '일별' : p === 'week' ? '주별' : p === 'month' ? '월별' : p === 'quarter' ? '분기별' : '반기별'}
-            </button>
-          ))}
-        </div>
+
+      {/* 데이터 단위 표시 (레이아웃 granularity와 연동) */}
+      <div className="flex justify-end items-center gap-2">
+        <span className="text-xs text-neutral-500">차트 단위:</span>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-[#21358D]/30 text-[#21358D] bg-blue-50/40">
+          {period === 'day' ? '일별' : period === 'week' ? '주별' : period === 'month' ? '월별' : period === 'quarter' ? '분기별' : '반기별'}
+        </span>
       </div>
 
       {/* 통합 매출 및 주문/고객 추이 차트 */}

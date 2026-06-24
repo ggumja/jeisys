@@ -42,6 +42,7 @@ export function ProductOverviewPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
 
   // Resize Ref
   const [chartRef, chartWidth] = useChartDimensions(500);
@@ -60,6 +61,18 @@ export function ProductOverviewPage() {
     }
     fetchStats();
   }, [dateRange]);
+
+  // stats 로드 시 전체 카테고리 활성화
+  useEffect(() => {
+    if (!stats) return;
+    const categoriesSet = new Set<string>();
+    stats.categoryTrendData.forEach((row: any) => {
+      Object.keys(row).forEach((k) => {
+        if (k !== 'month') categoriesSet.add(k);
+      });
+    });
+    setActiveCategories(Array.from(categoriesSet));
+  }, [stats]);
 
   if (isLoading || !stats) {
     return (
@@ -135,11 +148,63 @@ export function ProductOverviewPage() {
 
       {/* 카테고리별 판매 추이 그래프 */}
       <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-        <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
+        <h3 className="font-semibold text-neutral-900 mb-1 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-[#21358D]" />
           <span>카테고리별 누적 판매량 추이 (최근 6개월)</span>
         </h3>
-        <p className="text-xs text-neutral-500 mb-6">주요 브랜드 카테고리별 월간 판매량 변동 트렌드를 보여줍니다.</p>
+        <p className="text-xs text-neutral-500 mb-4">
+          분석 기간 내 각 카테고리의 판매 추이를 비교하여 시각화합니다. 아래 체크박스를 통해 개별 카테고리 표시를 켜거나 끌 수 있습니다.
+        </p>
+
+        {/* 카테고리 선택 체크박스 필터 */}
+        {uniqueCategories.length > 0 && (
+          <div className="flex flex-wrap gap-4 mb-6 p-4 bg-neutral-50 rounded border border-neutral-200">
+            {/* 전체선택 체크박스 */}
+            <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer select-none border-r border-neutral-300 pr-4 mr-1">
+              <input
+                type="checkbox"
+                checked={activeCategories.length === uniqueCategories.length && uniqueCategories.length > 0}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setActiveCategories(uniqueCategories);
+                  } else {
+                    setActiveCategories([]);
+                  }
+                }}
+                className="w-4 h-4 rounded border-neutral-300 text-[#21358D] focus:ring-[#21358D] transition-colors cursor-pointer"
+              />
+              <span>전체선택</span>
+            </label>
+
+            {uniqueCategories.map((cat, index) => {
+              const isChecked = activeCategories.includes(cat);
+              return (
+                <label key={cat} className="flex items-center gap-2 text-xs font-semibold text-neutral-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => {
+                      if (activeCategories.includes(cat)) {
+                        setActiveCategories(activeCategories.filter((c) => c !== cat));
+                      } else {
+                        setActiveCategories([...activeCategories, cat]);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-neutral-300 text-[#21358D] focus:ring-[#21358D] transition-colors cursor-pointer"
+                  />
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 inline-block rounded-full"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    {cat}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+
         <div ref={chartRef} className="h-[350px] w-full min-w-0 relative">
           {categoryTrendData.length > 0 ? (
             <LineChart width={chartWidth} height={350} data={categoryTrendData}>
@@ -147,20 +212,24 @@ export function ProductOverviewPage() {
               <XAxis dataKey="month" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
               <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: number) => `${v.toLocaleString()}개`} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px' }}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
               />
               <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-              {uniqueCategories.map((cat, index) => (
-                <Line
-                  key={cat}
-                  type="monotone"
-                  dataKey={cat}
-                  name={cat}
-                  stroke={COLORS[index % COLORS.length]}
-                  strokeWidth={2.5}
-                  activeDot={{ r: 6 }}
-                />
-              ))}
+              {uniqueCategories.map((cat, index) => {
+                if (!activeCategories.includes(cat)) return null;
+                return (
+                  <Line
+                    key={cat}
+                    type="monotone"
+                    dataKey={cat}
+                    name={cat}
+                    stroke={COLORS[index % COLORS.length]}
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 6 }}
+                  />
+                );
+              })}
             </LineChart>
           ) : (
             <div className="h-full flex items-center justify-center text-neutral-400 text-sm">

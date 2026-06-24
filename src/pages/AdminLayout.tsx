@@ -15,6 +15,7 @@ export function AdminLayout() {
   const [isMarketingOpen, setIsMarketingOpen] = useState(false);
   const [isSmsMktOpen, setIsSmsMktOpen] = useState(false);
   const [isEmailMktOpen, setIsEmailMktOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -96,7 +97,6 @@ export function AdminLayout() {
 
   const bottomMenuItems = [
     { to: '/admin/sales-offices', icon: Building2, label: '판매영업점 관리', permKey: 'sales_offices' },
-    { to: '/admin/members', icon: Users, label: '회원관리', permKey: 'members' },
     { to: '/admin/admins', icon: Shield, label: '관리자 계정관리', permKey: 'admins' },
     { to: '/admin/settings', icon: Settings, label: '쇼핑몰 기본 설정', permKey: 'settings' },
   ];
@@ -110,6 +110,7 @@ export function AdminLayout() {
   const isMarketingActive = location.pathname.startsWith('/admin/marketing');
   const isSmsMktActive = location.pathname.startsWith('/admin/marketing/sms');
   const isEmailMktActive = location.pathname.startsWith('/admin/marketing/email');
+  const isMembersActive = location.pathname.startsWith('/admin/members') || location.pathname.startsWith('/admin/credit-history') || location.pathname.startsWith('/admin/point-history');
 
   // Auto-expand menus if active and collapse others
   useEffect(() => {
@@ -121,42 +122,55 @@ export function AdminLayout() {
       setIsAdsOpen(false);
       setIsProductsOpen(false);
       setIsMarketingOpen(false);
+      setIsMembersOpen(false);
     } else if (isStatisticsActive) {
       setIsCommunicationOpen(false);
       setIsStatisticsOpen(true);
       setIsAdsOpen(false);
       setIsProductsOpen(false);
       setIsMarketingOpen(false);
+      setIsMembersOpen(false);
     } else if (isAdsActive) {
       setIsCommunicationOpen(false);
       setIsStatisticsOpen(false);
       setIsAdsOpen(true);
       setIsProductsOpen(false);
       setIsMarketingOpen(false);
+      setIsMembersOpen(false);
     } else if (isProductsActive) {
       setIsCommunicationOpen(false);
       setIsStatisticsOpen(false);
       setIsAdsOpen(false);
       setIsProductsOpen(true);
       setIsMarketingOpen(false);
+      setIsMembersOpen(false);
     } else if (isMarketingActive) {
       setIsCommunicationOpen(false);
       setIsStatisticsOpen(false);
       setIsAdsOpen(false);
       setIsProductsOpen(false);
       setIsMarketingOpen(true);
+      setIsMembersOpen(false);
       if (isSmsMktActive) setIsSmsMktOpen(true);
       if (isEmailMktActive) setIsEmailMktOpen(true);
+    } else if (isMembersActive) {
+      setIsCommunicationOpen(false);
+      setIsStatisticsOpen(false);
+      setIsAdsOpen(false);
+      setIsProductsOpen(false);
+      setIsMarketingOpen(false);
+      setIsMembersOpen(true);
     }
-  }, [location.pathname, isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive]);
+  }, [location.pathname, isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive, isMembersActive]);
 
-  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'marketing') => {
+  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'marketing' | 'members') => {
     if (!hasPermission(menu)) return;
     setIsCommunicationOpen(menu === 'communication' ? !isCommunicationOpen : false);
     setIsStatisticsOpen(menu === 'statistics' ? !isStatisticsOpen : false);
     setIsAdsOpen(menu === 'ads' ? !isAdsOpen : false);
     setIsProductsOpen(menu === 'products' ? !isProductsOpen : false);
     setIsMarketingOpen(menu === 'marketing' ? !isMarketingOpen : false);
+    setIsMembersOpen(menu === 'members' ? !isMembersOpen : false);
   };
 
   // Redirect to dashboard if at base admin path
@@ -514,6 +528,45 @@ export function AdminLayout() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Members Menu - Accordion */}
+                <div>
+                  <button
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMembersActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('members') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={() => toggleMenu('members')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Users className="w-5 h-5 shrink-0" />
+                      <span>회원관리</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!hasPermission('members') && <Lock className="w-4 h-4 text-neutral-400" />}
+                      {hasPermission('members') && (isMembersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                    </div>
+                  </button>
+                  {isMembersOpen && hasPermission('members') && (
+                    <div className="bg-white">
+                      <Link
+                        to="/admin/members"
+                        className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${location.pathname === '/admin/members' || location.pathname.startsWith('/admin/members/') ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                      >
+                        <span>회원 목록</span>
+                      </Link>
+                      <Link
+                        to="/admin/credit-history"
+                        className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${location.pathname === '/admin/credit-history' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                      >
+                        <span>크레딧 이력 관리</span>
+                      </Link>
+                      <Link
+                        to="/admin/point-history"
+                        className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${location.pathname === '/admin/point-history' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                      >
+                        <span>포인트 이력 관리</span>
+                      </Link>
                     </div>
                   )}
                 </div>

@@ -1943,14 +1943,20 @@ export const adminService = {
     },
 
     // 1-1-extra. getPeriodSalesStats (기간별 매출현황 - daily/weekly/monthly/yearly)
-    async getPeriodSalesStats(viewMode: 'daily' | 'weekly' | 'monthly' | 'yearly', year?: number, month?: number) {
+    async getPeriodSalesStats(viewMode: 'daily' | 'weekly' | 'monthly' | 'yearly', year?: number, month?: number, startDate?: Date, endDate?: Date) {
         const statuses = ['paid', 'processing', 'shipped', 'delivered'];
         let startDateIso: string;
         let endDateIso: string;
 
         const now = new Date();
 
-        if (viewMode === 'daily') {
+        // 외부에서 날짜 범위를 직접 주입한 경우 우선 사용
+        if (startDate && endDate) {
+            const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+            const e = new Date(endDate); e.setHours(23, 59, 59, 999);
+            startDateIso = s.toISOString();
+            endDateIso = e.toISOString();
+        } else if (viewMode === 'daily') {
             const y = year || now.getFullYear();
             const m = month || (now.getMonth() + 1);
             const start = new Date(y, m - 1, 1);
@@ -1977,6 +1983,23 @@ export const adminService = {
             endDateIso = now.toISOString();
         }
 
+        function getLocalMonday(d: Date): Date {
+            const date = new Date(d);
+            date.setHours(0, 0, 0, 0);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            date.setDate(diff);
+            return date;
+        }
+
+        function getISOWeek(d: Date): number {
+            const date = new Date(d);
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+            const week1 = new Date(date.getFullYear(), 0, 4);
+            return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+        }
+
         const { data: orders, error } = await supabase
             .from('orders')
             .select('ordered_at, total_amount')
@@ -1996,10 +2019,9 @@ export const adminService = {
             if (viewMode === 'daily') {
                 key = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
             } else if (viewMode === 'weekly') {
-                const oneJan = new Date(date.getFullYear(), 0, 1);
-                const days = Math.floor((date.getTime() - oneJan.getTime()) / 86400000);
-                const week = Math.ceil((days + oneJan.getDay() + 1) / 7);
-                key = `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
+                const mon = getLocalMonday(date);
+                const w = getISOWeek(mon);
+                key = `${mon.getFullYear()}-W${String(w).padStart(2, '0')}`;
             } else if (viewMode === 'monthly') {
                 key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             } else {
@@ -2011,12 +2033,68 @@ export const adminService = {
             groupMap[key].orders += 1;
         });
 
-        const rows = Object.entries(groupMap).map(([label, d]) => ({
-            label,
-            sales: d.sales,
-            orders: d.orders,
-            avgOrder: d.orders > 0 ? Math.round(d.sales / d.orders) : 0,
-        }));
+        // 기간 내 모든 단위 레이블을 생성하고 데이터가 없는 구간은 0으로 채움
+        const periods: { label: string; dateText: string }[] = [];
+        const rangeStart = new Date(startDateIso);
+        const rangeEnd = new Date(endDateIso);
+        const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        if (viewMode === 'daily') {
+            const cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            const last = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), rangeEnd.getDate());
+            while (cur <= last) {
+                const label = `${String(cur.getMonth() + 1).padStart(2, '0')}/${String(cur.getDate()).padStart(2, '0')}`;
+                periods.push({
+                    label,
+                    dateText: formatDate(cur)
+                });
+                cur.setDate(cur.getDate() + 1);
+            }
+        } else if (viewMode === 'weekly') {
+            const cur = getLocalMonday(rangeStart);
+            const last = getLocalMonday(rangeEnd);
+            while (cur <= last) {
+                const sunday = new Date(cur);
+                sunday.setDate(cur.getDate() + 6);
+                const w = getISOWeek(cur);
+                const wKey = `${cur.getFullYear()}-W${String(w).padStart(2, '0')}`;
+                periods.push({
+                    label: wKey,
+                    dateText: `${formatDate(cur)} ~ ${formatDate(sunday)}`
+                });
+                cur.setDate(cur.getDate() + 7);
+            }
+        } else if (viewMode === 'monthly') {
+            const cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+            const last = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+            while (cur <= last) {
+                const label = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`;
+                const lastDay = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+                periods.push({
+                    label,
+                    dateText: `${formatDate(cur)} ~ ${formatDate(lastDay)}`
+                });
+                cur.setMonth(cur.getMonth() + 1);
+            }
+        } else {
+            for (let y = rangeStart.getFullYear(); y <= rangeEnd.getFullYear(); y++) {
+                periods.push({
+                    label: `${y}`,
+                    dateText: `${y}-01-01 ~ ${y}-12-31`
+                });
+            }
+        }
+
+        const rows = periods.map(p => {
+            const d = groupMap[p.label] ?? { sales: 0, orders: 0 };
+            return {
+                label: p.label,
+                dateText: p.dateText,
+                sales: d.sales,
+                orders: d.orders,
+                avgOrder: d.orders > 0 ? Math.round(d.sales / d.orders) : 0,
+            };
+        });
 
         const totalSales = rows.reduce((s, r) => s + r.sales, 0);
         const totalOrders = rows.reduce((s, r) => s + r.orders, 0);
@@ -2597,37 +2675,82 @@ export const adminService = {
 
         let totalQtySold = 0;
 
-        // 카테고리별 월별 판매량 집계
-        const categoryMonthlySalesMap: Record<string, Record<string, number>> = {};
+        // dateRange에 따라 그루핑 단위 결정 (매출분석 카테고리별 차트와 동일한 로직)
+        const categoryDateSalesMap: Record<string, Record<string, number>> = {};
 
         (orders || []).forEach(order => {
             const date = new Date(order.ordered_at);
-            const monthStr = `${date.getMonth() + 1}월`;
+            let dateKey = '';
+            if (dateRange === '7days' || dateRange === '30days') {
+                // 일별: MM/DD
+                dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+            } else if (dateRange === '3months') {
+                // 주별: YYYY-Www
+                const oneJan = new Date(date.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else {
+                // 월별: YYYY-MM
+                dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            }
 
             (order.order_items || []).forEach((item: any) => {
                 const qty = Number(item.quantity || 0);
                 totalQtySold += qty;
 
                 const category = item.product?.category || '기타소모품';
-                if (!categoryMonthlySalesMap[monthStr]) {
-                    categoryMonthlySalesMap[monthStr] = {};
+                if (!categoryDateSalesMap[dateKey]) {
+                    categoryDateSalesMap[dateKey] = {};
                 }
-                categoryMonthlySalesMap[monthStr][category] = (categoryMonthlySalesMap[monthStr][category] || 0) + qty;
+                categoryDateSalesMap[dateKey][category] = (categoryDateSalesMap[dateKey][category] || 0) + qty;
             });
         });
 
-        // 현재 날짜 기준 최근 6개월에 포함되는 월 목록 추출
-        const now = new Date();
-        const activeMonths: string[] = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            activeMonths.push(`${d.getMonth() + 1}월`);
+        // dateRange에 따라 X축 레이블 목록 생성
+        const activeKeys: string[] = [];
+        const rangeStart = new Date(startDateIso);
+        const rangeEnd = new Date(endDateIso);
+
+        if (dateRange === '7days' || dateRange === '30days') {
+            // 일별: startDate ~ endDate 순회
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                activeKeys.push(`${String(cur.getMonth() + 1).padStart(2, '0')}/${String(cur.getDate()).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+        } else if (dateRange === '3months') {
+            // 주별: 범위 내 주차 목록 생성
+            const weekSet = new Set<string>();
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                const oneJan = new Date(cur.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((cur.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                weekSet.add(`${cur.getFullYear()}-W${String(weekNum).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+            activeKeys.push(...Array.from(weekSet).sort());
+        } else {
+            // 월별: startMonth ~ endMonth 순회
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+            const last = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+            while (cur <= last) {
+                activeKeys.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+                cur.setMonth(cur.getMonth() + 1);
+            }
         }
 
-        const categoryTrendData = activeMonths.map(month => {
-            const categoriesData = categoryMonthlySalesMap[month] || {};
+        const categoryTrendData = activeKeys.map(key => {
+            const categoriesData = categoryDateSalesMap[key] || {};
+            // X축 레이블: 월별인 경우 "YY.MM", 나머지는 그대로
+            let label = key;
+            if (dateRange !== '7days' && dateRange !== '30days' && dateRange !== '3months') {
+                const [y, m] = key.split('-');
+                label = `${y.slice(2)}.${m}`;
+            }
             return {
-                month,
+                month: label,
                 ...categoriesData
             };
         });
@@ -3757,6 +3880,110 @@ export const adminService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    /** [관리자] 전체 크레딧 거래 내역 조회 (페이징, 검색, 필터 포함) */
+    async getAllCreditTransactions(page: number, limit: number, search: string, type: string) {
+        let query = supabase
+            .from('credit_transactions')
+            .select(`
+                *,
+                user:users!user_id (
+                    id,
+                    name,
+                    hospital_name,
+                    email,
+                    login_id
+                )
+            `, { count: 'exact' });
+
+        if (type && type !== 'all') {
+            query = query.eq('type', type);
+        }
+
+        // 검색어 필터링
+        if (search) {
+            const { data: matchedUsers, error: userErr } = await supabase
+                .from('users')
+                .select('id')
+                .or(`name.ilike.%${search}%,hospital_name.ilike.%${search}%,email.ilike.%${search}%,login_id.ilike.%${search}%`);
+
+            if (userErr) throw userErr;
+
+            const userIds = (matchedUsers || []).map(u => u.id);
+            if (userIds.length > 0) {
+                query = query.in('user_id', userIds);
+            } else {
+                return { data: [], total: 0 };
+            }
+        }
+
+        let finalQuery = query.order('created_at', { ascending: false });
+        if (page > 0) {
+            const startRange = (page - 1) * limit;
+            const endRange = page * limit - 1;
+            finalQuery = finalQuery.range(startRange, endRange);
+        }
+
+        const { data, count, error } = await finalQuery;
+        if (error) throw error;
+
+        return {
+            data: data || [],
+            total: count || 0
+        };
+    },
+
+    /** [관리자] 전체 포인트 거래 내역 조회 (페이징, 검색, 필터 포함) */
+    async getAllPointTransactions(page: number, limit: number, search: string, type: string) {
+        let query = supabase
+            .from('point_transactions')
+            .select(`
+                *,
+                user:users!user_id (
+                    id,
+                    name,
+                    hospital_name,
+                    email,
+                    login_id
+                )
+            `, { count: 'exact' });
+
+        if (type && type !== 'all') {
+            query = query.eq('type', type);
+        }
+
+        // 검색어 필터링
+        if (search) {
+            const { data: matchedUsers, error: userErr } = await supabase
+                .from('users')
+                .select('id')
+                .or(`name.ilike.%${search}%,hospital_name.ilike.%${search}%,email.ilike.%${search}%,login_id.ilike.%${search}%`);
+
+            if (userErr) throw userErr;
+
+            const userIds = (matchedUsers || []).map(u => u.id);
+            if (userIds.length > 0) {
+                query = query.in('user_id', userIds);
+            } else {
+                return { data: [], total: 0 };
+            }
+        }
+
+        let finalQuery = query.order('created_at', { ascending: false });
+        if (page > 0) {
+            const startRange = (page - 1) * limit;
+            const endRange = page * limit - 1;
+            finalQuery = finalQuery.range(startRange, endRange);
+        }
+
+        const { data, count, error } = await finalQuery;
+        if (error) throw error;
+
+        return {
+            data: data || [],
+            total: count || 0
+        };
     },
 };
 

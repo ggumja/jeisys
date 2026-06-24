@@ -45,6 +45,8 @@ import { NewsManagementPage } from "./pages/admin/NewsManagementPage";
 import { MediaManagementPage } from "./pages/admin/MediaManagementPage";
 import { MemberManagementPage } from "./pages/admin/MemberManagementPage";
 import { MemberDetailPage } from "./pages/admin/MemberDetailPage";
+import { CreditHistoryPage } from "./pages/admin/CreditHistoryPage";
+import { PointHistoryPage } from "./pages/admin/PointHistoryPage";
 import { AdminManagementPage } from "./pages/admin/AdminManagementPage";
 import { AdManagementPage } from "./pages/admin/AdManagementPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -184,6 +186,8 @@ export const router = createBrowserRouter([
             { path: "communication/media", Component: MediaManagementPage },
             { path: "members", Component: MemberManagementPage },
             { path: "members/:id", Component: MemberDetailPage },
+            { path: "credit-history", Component: CreditHistoryPage },
+            { path: "point-history", Component: PointHistoryPage },
             { path: "admins", Component: AdminManagementPage },
             { path: "adstats", Component: AdManagementPage },
             { path: "ads", Component: AdManagementPage },
