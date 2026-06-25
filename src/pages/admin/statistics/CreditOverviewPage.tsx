@@ -42,6 +42,7 @@ export function CreditOverviewPage() {
   const { dateRange } = useOutletContext<{ dateRange: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
 
   // Resize Refs
   const [trendRef, trendWidth] = useChartDimensions(500);
@@ -51,7 +52,7 @@ export function CreditOverviewPage() {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getCreditOverviewStats(dateRange);
+        const data = await adminService.getCreditOverviewStats(dateRange, equipmentFilter);
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -60,7 +61,7 @@ export function CreditOverviewPage() {
       }
     }
     fetchStats();
-  }, [dateRange]);
+  }, [dateRange, equipmentFilter]);
 
   if (isLoading || !stats) {
     return (
@@ -74,6 +75,24 @@ export function CreditOverviewPage() {
 
   return (
     <div className="space-y-6">
+      {/* 장비 필터링 영역 */}
+      <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div>
+            <label className="block text-xs font-semibold text-neutral-500 mb-1.5">장비 필터</label>
+            <select
+              value={equipmentFilter}
+              onChange={(e) => setEquipmentFilter(e.target.value)}
+              className="border border-neutral-300 rounded px-3 py-1.5 text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-semibold"
+            >
+              <option value="all">전체 장비</option>
+              <option value="density">DENSITY</option>
+              <option value="potenza">POTENZA</option>
+              <option value="linearz">LINEARZ</option>
+            </select>
+          </div>
+        </div>
+      </div>
       {/* 요약 지표 카드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 누적 발행액 */}

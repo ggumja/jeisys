@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ShieldAlert, Send, PhoneCall } from 'lucide-react';
+import { ShieldAlert, PhoneCall } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
 export function CreditExpiryPage() {
@@ -36,19 +36,6 @@ export function CreditExpiryPage() {
 
   const filteredList = detailedList.filter((row: any) => row.daysRemaining <= selectedRange);
 
-  const handleSendGroupSms = () => {
-    const receivers = filteredList.map((d: any) => ({
-      name: d.hospitalName,
-      phone: d.phone
-    }));
-    navigate('/admin/marketing/sms/send', { 
-      state: { 
-        receivers, 
-        defaultMessage: `[제이시스 메디컬] 보유하신 크레딧 만료 안내 (${selectedRange}일 이내)` 
-      } 
-    });
-  };
-
   const handleSendSingleSms = (row: any) => {
     navigate('/admin/marketing/sms/send', {
       state: {
@@ -70,7 +57,6 @@ export function CreditExpiryPage() {
             selectedRange === 30 ? 'bg-blue-50/5' : 'border-red-100 hover:border-red-200'
           }`}
         >
-          <span className="absolute top-4 right-4 text-xs font-bold px-2 py-0.5 bg-red-100 text-red-700 rounded-full">D-30 임박</span>
           <span className="text-sm text-neutral-500 font-semibold block mb-2">30일 이내 만료 예정</span>
           <p className="text-2xl font-bold text-red-600">₩{summary.exp30.amount.toLocaleString()}</p>
           <div className="mt-2 text-xs text-neutral-500 font-semibold flex justify-between">
@@ -87,7 +73,6 @@ export function CreditExpiryPage() {
             selectedRange === 60 ? 'bg-blue-50/5' : 'border-neutral-200 hover:border-neutral-300'
           }`}
         >
-          <span className="absolute top-4 right-4 text-xs font-bold px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">D-60 여유</span>
           <span className="text-sm text-neutral-500 font-semibold block mb-2">60일 이내 만료 예정</span>
           <p className="text-2xl font-bold text-neutral-800">₩{summary.exp60.amount.toLocaleString()}</p>
           <div className="mt-2 text-xs text-neutral-500 font-semibold flex justify-between">
@@ -104,7 +89,6 @@ export function CreditExpiryPage() {
             selectedRange === 90 ? 'bg-blue-50/5' : 'border-neutral-200 hover:border-neutral-300'
           }`}
         >
-          <span className="absolute top-4 right-4 text-xs font-bold px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded-full">D-90 여유</span>
           <span className="text-sm text-neutral-500 font-semibold block mb-2">90일 이내 만료 예정</span>
           <p className="text-2xl font-bold text-neutral-800">₩{summary.exp90.amount.toLocaleString()}</p>
           <div className="mt-2 text-xs text-neutral-500 font-semibold flex justify-between">
@@ -124,15 +108,6 @@ export function CreditExpiryPage() {
             </h3>
             <p className="text-xs text-neutral-500 mt-1">곧 소멸 예정인 미사용 크레딧 보유 현황이며, 즉각적인 소진 프로모션 안내가 필요합니다.</p>
           </div>
-          {filteredList.length > 0 && (
-            <button
-              onClick={handleSendGroupSms}
-              className="inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-semibold text-xs rounded transition-colors shadow-sm self-start sm:self-center"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>전체 대상자 안내문자 발송</span>
-            </button>
-          )}
         </div>
 
         <div className="overflow-x-auto">

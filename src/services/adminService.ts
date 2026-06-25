@@ -3448,15 +3448,24 @@ export const adminService = {
     // ──────────────────────────────────────────────────────────────
 
     // 1-1. getCreditOverviewStats
-    async getCreditOverviewStats(dateRange: string) {
+    async getCreditOverviewStats(dateRange: string, equipmentFilter?: string) {
         const { startDateIso, endDateIso } = this._getSalesRangeAndStatuses(dateRange);
 
-        // 1. 거래 내역 조회
-        const { data: txs, error: txErr } = await supabase
+        // 1. 거래 내역 조회 (credit_id가 있고 user_credits의 equipment_type과 일치해야 하므로 조인 사용)
+        let txQuery = supabase
             .from('credit_transactions')
-            .select('amount, type, created_at')
+            .select(`
+                amount,
+                type,
+                created_at,
+                credit:user_credits!credit_id (
+                    equipment_type
+                )
+            `)
             .gte('created_at', startDateIso)
             .lte('created_at', endDateIso);
+
+        const { data: txs, error: txErr } = await txQuery;
 
         if (txErr) throw txErr;
 
@@ -3466,7 +3475,16 @@ export const adminService = {
 
         const monthlyMap: Record<string, { issue: number; use: number }> = {};
 
-        (txs || []).forEach(tx => {
+        (txs || []).forEach((tx: any) => {
+            const eqType = tx.credit?.equipment_type || '기타';
+            
+            // 장비 필터링 적용
+            if (equipmentFilter && equipmentFilter !== 'all') {
+                if (eqType.toUpperCase() !== equipmentFilter.toUpperCase()) {
+                    return;
+                }
+            }
+
             const amt = Number(tx.amount || 0);
             const type = tx.type;
             if (type === 'issue') issued += amt;
@@ -3483,9 +3501,15 @@ export const adminService = {
         });
 
         // 2. 현재 잔액 및 장비별 분포 (user_credits 조회)
-        const { data: credits, error: credErr } = await supabase
+        let credQuery = supabase
             .from('user_credits')
             .select('equipment_type, amount, used_amount, status, expiry_date');
+        
+        if (equipmentFilter && equipmentFilter !== 'all') {
+            credQuery = credQuery.ilike('equipment_type', equipmentFilter);
+        }
+
+        const { data: credits, error: credErr } = await credQuery;
 
         if (credErr) throw credErr;
 
