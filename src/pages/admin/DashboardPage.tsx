@@ -704,7 +704,7 @@ export function DashboardPage() {
               <p className="text-2xl font-bold tracking-tight text-neutral-900">{cumulativeStats.totalUsers.toLocaleString()}명</p>
             </div>
 
-            <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+            <div className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => navigate('/admin/products')}>
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-neutral-900 text-white rounded">
                   <Package className="w-5 h-5" />
@@ -717,7 +717,7 @@ export function DashboardPage() {
               <p className="text-2xl font-bold tracking-tight text-neutral-900">{cumulativeStats.totalProducts.toLocaleString()}개</p>
             </div>
 
-            <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+            <div className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50 transition-colors" onClick={() => navigate('/admin/statistics/sales')}>
               <div className="flex items-center justify-between mb-4">
                 <div className="p-3 bg-neutral-900 text-white rounded">
                   <ShoppingCart className="w-5 h-5" />
@@ -730,23 +730,38 @@ export function DashboardPage() {
 
           {/* 2단: 기간 선택형 동적 지표 요약 */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
+            <div 
+              onClick={() => navigate('/admin/members')}
+              className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between cursor-pointer hover:bg-neutral-100 transition-colors"
+            >
               <span className="text-xs text-neutral-500 font-bold">신규 회원수 (선택 기간)</span>
               <p className="text-3xl font-extrabold text-neutral-900 mt-2 font-mono">{stats.newUsersCount}명</p>
             </div>
-            <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
+            <div 
+              onClick={() => navigate('/admin/members')}
+              className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between cursor-pointer hover:bg-neutral-100 transition-colors"
+            >
               <span className="text-xs text-neutral-500 font-bold">누적 구매 회원수 (선택 기간)</span>
               <p className="text-3xl font-extrabold text-neutral-900 mt-2 font-mono">{stats.buyingUsersCount}명</p>
             </div>
-            <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
+            <div 
+              onClick={() => navigate('/admin/statistics/sales')}
+              className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between cursor-pointer hover:bg-neutral-100 transition-colors"
+            >
               <span className="text-xs text-neutral-500 font-bold">총 구매건수 (선택 기간)</span>
               <p className="text-3xl font-extrabold text-neutral-900 mt-2 font-mono">{stats.periodOrdersCount}건</p>
             </div>
-            <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
+            <div 
+              onClick={() => navigate('/admin/statistics/sales')}
+              className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between cursor-pointer hover:bg-neutral-100 transition-colors"
+            >
               <span className="text-xs text-neutral-500 font-bold">거래처당 평균 매출 (선택 기간)</span>
               <p className="text-2xl font-extrabold text-[#21358D] mt-2 font-mono">₩{stats.avgSalesPerCustomer.toLocaleString()}</p>
             </div>
-            <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
+            <div 
+              onClick={() => navigate('/admin/statistics/sales')}
+              className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between cursor-pointer hover:bg-neutral-100 transition-colors"
+            >
               <span className="text-xs text-neutral-500 font-bold">주문 건당 평균 매출 (선택 기간)</span>
               <p className="text-2xl font-extrabold text-[#21358D] mt-2 font-mono">₩{stats.avgSalesPerOrder.toLocaleString()}</p>
             </div>
@@ -755,7 +770,10 @@ export function DashboardPage() {
           {/* 3단: 시각화 차트 그리드 */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 매출 추이 시계열 그래프 */}
-            <div className="lg:col-span-2 bg-white border border-neutral-200 p-6 shadow-sm">
+            <div 
+              onClick={() => navigate('/admin/statistics/period-sales')}
+              className="lg:col-span-2 bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+            >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-base font-bold text-neutral-900">선택 기간 매출 추이</h2>
               </div>
@@ -781,7 +799,10 @@ export function DashboardPage() {
             </div>
 
             {/* 카테고리별 매출 비율 (도넛 차트) */}
-            <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between">
+            <div 
+              onClick={() => navigate('/admin/statistics/sales/category')}
+              className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:bg-neutral-50/50 transition-colors"
+            >
               <h2 className="text-base font-bold text-neutral-900 mb-4">카테고리별 매출 비중</h2>
               <div ref={categoryRef} className="h-[220px] w-full min-w-0 relative">
                 {stats.categoryData.length === 0 ? (
@@ -818,7 +839,10 @@ export function DashboardPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 결제수단별 매출 비중 */}
-            <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+            <div 
+              onClick={() => navigate('/admin/statistics/sales/payment')}
+              className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+            >
               <h2 className="text-base font-bold text-neutral-900 mb-4">결제수단별 매출 비율</h2>
               <div ref={paymentRef} className="h-[200px] w-full min-w-0 relative">
                 {stats.paymentData.length === 0 ? (
@@ -865,7 +889,10 @@ export function DashboardPage() {
           {/* 4단: 베스트셀러 및 TOP구매 거래처 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 베스트셀러 제품 */}
-            <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+            <div 
+              onClick={() => navigate('/admin/statistics/products/bestseller')}
+              className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+            >
               <h2 className="text-base font-bold text-neutral-900 mb-4">베스트셀러 제품 TOP 5</h2>
               <div className="space-y-4">
                 {stats.bestProducts.length === 0 ? (
@@ -890,7 +917,10 @@ export function DashboardPage() {
             </div>
 
             {/* TOP 구매 거래처 */}
-            <div className="bg-white border border-neutral-200 p-6 shadow-sm">
+            <div 
+              onClick={() => navigate('/admin/statistics/sales/customer')}
+              className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+            >
               <h2 className="text-base font-bold text-neutral-900 mb-4">TOP 구매 거래처</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left border-collapse">
