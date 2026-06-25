@@ -2943,7 +2943,7 @@ export const adminService = {
         // 1. 전체 상품 조회 (자식/옵션 상품 제외, 단가 조회를 위해 price 필드 추가)
         const { data: allProducts, error: prodErr } = await supabase
             .from('products')
-            .select('id, name, category, stock, is_active, base_product_id, price');
+            .select('id, name, sku, category, stock, is_active, base_product_id, price');
         if (prodErr) throw prodErr;
 
         const baseProducts = (allProducts || []).filter(p => !p.base_product_id);
@@ -2959,7 +2959,15 @@ export const adminService = {
 
         // 2. Filter products by selected category
         const selectedCategory = category || categories[0] || '의료기기 장비';
-        const targetProducts = baseProducts.filter(p => p.category === selectedCategory);
+        
+        // Map to deduplicate target products by their ID
+        const uniqueProductsMap = new Map<string, any>();
+        baseProducts.forEach(p => {
+            if (p.category === selectedCategory && p.id) {
+                uniqueProductsMap.set(p.id, p);
+            }
+        });
+        const targetProducts = Array.from(uniqueProductsMap.values());
         const targetProductIds = targetProducts.map(p => p.id);
 
         // 2-1. 구성품 매핑 관계 데이터 병렬 조회 (세트상품/복합상품/패키지/사은품 구성 해소용)
@@ -3118,6 +3126,7 @@ export const adminService = {
             return {
                 id: p.id,
                 name: p.name,
+                sku: p.sku || '-',
                 category: p.category,
                 stock: p.stock || 0,
                 is_active: p.is_active,

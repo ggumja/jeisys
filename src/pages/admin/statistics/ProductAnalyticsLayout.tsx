@@ -426,7 +426,7 @@ export function ProductAnalyticsLayout() {
 
   const tabs = [
     { path: '/admin/statistics/products/overview', label: '상품 개요', icon: TrendingUp },
-    { path: '/admin/statistics/products/category', label: '상품카테고리별', icon: BarChart3 },
+    { path: '/admin/statistics/products/category', label: '카테고리별', icon: BarChart3 },
     { path: '/admin/statistics/products/bestseller', label: '베스트셀러', icon: AwardIcon },
     { path: '/admin/statistics/products/conversion', label: '전환율 분석', icon: RefreshCw },
     { path: '/admin/statistics/products/stock', label: '재고 분석', icon: AlertTriangle },
@@ -461,7 +461,7 @@ export function ProductAnalyticsLayout() {
             className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-medium text-sm transition-colors shadow-sm"
           >
             <Download className="w-4 h-4" />
-            <span>리포트 다운로드</span>
+            <span>엑셀 다운로드</span>
           </button>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, TrendingDown, Hourglass } from 'lucide-react';
+import { AlertTriangle, TrendingDown, Hourglass, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
 export function ProductStockPage() {
@@ -160,61 +160,63 @@ export function ProductStockPage() {
 
         {/* 페이징 컴포넌트 */}
         {totalCount > 0 && (
-          <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-                className="relative inline-flex items-center rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-              >
-                이전
-              </button>
-              <button
-                onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-                className="relative ml-3 inline-flex items-center rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-              >
-                다음
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs text-neutral-600">
-                  전체 <span className="font-semibold text-neutral-900">{totalCount}</span>개 상품 중{' '}
-                  <span className="font-semibold text-neutral-900">{(page - 1) * limit + 1}</span>~
-                  <span className="font-semibold text-neutral-900">{Math.min(page * limit, totalCount)}</span>번째 표시
-                </p>
+          <div className="bg-white border-t border-neutral-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-neutral-600">
+                전체 <span className="font-medium text-neutral-900">{totalCount}</span>개 중{' '}
+                <span className="font-medium text-neutral-900">{(page - 1) * limit + 1}</span>-
+                <span className="font-medium text-neutral-900">{Math.min(page * limit, totalCount)}</span>개
               </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded shadow-sm gap-1" aria-label="Pagination">
-                  <button
-                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                    disabled={page === 1}
-                    className="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-50"
-                  >
-                    이전
-                  </button>
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded border ${
-                        page === i + 1
-                          ? 'bg-[#21358D] text-white border-[#21358D] z-10'
-                          : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={page === totalPages}
-                    className="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-50"
-                  >
-                    다음
-                  </button>
-                </nav>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-2 text-sm border bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50 disabled:opacity-50 transition-colors flex items-center justify-center"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
+                    if (
+                      p === 1 ||
+                      p === totalPages ||
+                      (p >= page - 2 && p <= page + 2)
+                    ) {
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`px-3 py-2 text-sm border transition-colors ${page === p
+                              ? 'bg-neutral-900 text-white border-neutral-900'
+                              : 'bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50'
+                            }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    } else if (
+                      p === page - 3 ||
+                      p === page + 3
+                    ) {
+                      return (
+                        <span key={p} className="px-2 text-neutral-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <button
+                  onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-2 text-sm border bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50 disabled:opacity-50 transition-colors flex items-center justify-center"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>

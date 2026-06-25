@@ -1,10 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
-import { Award, TrendingUp } from 'lucide-react';
+import { Award, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
+import * as XLSX from 'xlsx';
+
 export function ProductBestsellerPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -14,6 +20,60 @@ export function ProductBestsellerPage() {
   const [sortBy, setSortBy] = useState('sales');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10); // 10개 기본보기
+
+  // 엑셀 다운로드 핸들러
+  const handleExport = useCallback(async () => {
+    try {
+      const stats = await adminService.getProductBestsellerStats(
+        dateRange,
+        1,
+        999999, // 전체 다운로드
+        categoryFilter,
+        sortBy
+      );
+      const allData = stats.data || [];
+
+      const titleRows = [
+        ['베스트셀러 상품 순위'],
+        [`카테고리 필터: ${categoryFilter === 'all' ? '전체' : categoryFilter}`],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
+      const headers = ['순위', '상품명', '카테고리', '판매량', '매출액', '현재 재고', '상태'];
+      const body = allData.map((p: any) => [
+        p.rank,
+        p.name,
+        p.category || '-',
+        p.qtySold,
+        p.revenue,
+        p.stock,
+        p.is_active ? '판매중' : '판매중지'
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body]);
+      ws['!cols'] = [{ wch: 8 }, { wch: 30 }, { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '베스트셀러 상품 순위');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `베스트셀러_상품순위_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('베스트셀러 엑셀 다운로드 실패:', error);
+    }
+  }, [dateRange, categoryFilter, sortBy, label]);
+
+  // Register Export Function
+  useEffect(() => {
+    if (!isLoading && products.length > 0) {
+      onRegisterExport(handleExport);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [isLoading, products, handleExport, onRegisterExport]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -80,7 +140,6 @@ export function ProductBestsellerPage() {
             >
               <option value="sales">판매량순</option>
               <option value="revenue">매출액순</option>
-              <option value="growth">성장률순</option>
             </select>
           </div>
         </div>
@@ -123,19 +182,18 @@ export function ProductBestsellerPage() {
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">판매수량</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">총 매출액</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">재고수량</th>
-                <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">성장률</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16">
+                  <td colSpan={6} className="text-center py-16">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#21358D] mx-auto" />
                   </td>
                 </tr>
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-neutral-400">
+                  <td colSpan={6} className="text-center py-16 text-neutral-400">
                     해당 조건에 부합하는 상품 판매 기록이 없습니다.
                   </td>
                 </tr>
@@ -163,11 +221,6 @@ export function ProductBestsellerPage() {
                           {product.stock.toLocaleString()}개
                         </span>
                       </td>
-                      <td className={`py-4 px-6 text-right font-bold ${
-                        product.growth >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {product.growth >= 0 ? '+' : ''}{product.growth}%
-                      </td>
                     </tr>
                   );
                 })
@@ -176,63 +229,65 @@ export function ProductBestsellerPage() {
           </table>
         </div>
 
-        {/* 페이징 컴포넌트 - 가이드라인 1-2 */}
+        {/* 페이징 컴포넌트 */}
         {!isLoading && totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-neutral-200 px-6 py-4">
-            <div className="flex flex-1 justify-between sm:hidden">
-              <button
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                disabled={page === 1}
-                className="relative inline-flex items-center rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-              >
-                이전
-              </button>
-              <button
-                onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={page === totalPages}
-                className="relative ml-3 inline-flex items-center rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
-              >
-                다음
-              </button>
-            </div>
-            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs text-neutral-600">
-                  전체 <span className="font-semibold text-neutral-900">{totalCount}</span>개 상품 중{' '}
-                  <span className="font-semibold text-neutral-900">{(page - 1) * limit + 1}</span>~
-                  <span className="font-semibold text-neutral-900">{Math.min(page * limit, totalCount)}</span>위 표시
-                </p>
+          <div className="bg-white border-t border-neutral-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-neutral-600">
+                전체 <span className="font-medium text-neutral-900">{totalCount}</span>개 중{' '}
+                <span className="font-medium text-neutral-900">{(page - 1) * limit + 1}</span>-
+                <span className="font-medium text-neutral-900">{Math.min(page * limit, totalCount)}</span>개
               </div>
-              <div>
-                <nav className="isolate inline-flex -space-x-px rounded shadow-sm gap-1" aria-label="Pagination">
-                  <button
-                    onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-                    disabled={page === 1}
-                    className="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-50 transition-colors"
-                  >
-                    이전
-                  </button>
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`relative inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
-                        page === i + 1
-                          ? 'bg-[#21358D] text-white border-[#21358D] z-10'
-                          : 'bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={page === totalPages}
-                    className="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 border border-neutral-300 rounded disabled:opacity-50 transition-colors"
-                  >
-                    다음
-                  </button>
-                </nav>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-2 text-sm border bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50 disabled:opacity-50 transition-colors flex items-center justify-center"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => {
+                    if (
+                      p === 1 ||
+                      p === totalPages ||
+                      (p >= page - 2 && p <= page + 2)
+                    ) {
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`px-3 py-2 text-sm border transition-colors ${page === p
+                              ? 'bg-neutral-900 text-white border-neutral-900'
+                              : 'bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50'
+                            }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    } else if (
+                      p === page - 3 ||
+                      p === page + 3
+                    ) {
+                      return (
+                        <span key={p} className="px-2 text-neutral-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <button
+                  onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-2 text-sm border bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-50 disabled:opacity-50 transition-colors flex items-center justify-center"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>

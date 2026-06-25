@@ -4,6 +4,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'r
 import { Tag, TrendingUp, Info } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
+import * as XLSX from 'xlsx';
+
 // Custom ResizeObserver Hook using callback ref
 function useChartDimensions(defaultWidth = 500) {
   const [width, setWidth] = useState(defaultWidth);
@@ -42,7 +44,11 @@ const COLORS = [
 ];
 
 export function ProductCategoryPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -50,6 +56,52 @@ export function ProductCategoryPage() {
 
   // Resize Ref
   const [chartRef, chartWidth] = useChartDimensions(500);
+
+  // 엑셀 다운로드 핸들러
+  const handleExport = useCallback(() => {
+    if (!stats || !stats.products) return;
+    try {
+      const titleRows = [
+        ['카테고리별 상품 판매 실적 현황'],
+        [`선택 카테고리: ${selectedCategory || stats.selectedCategory}`],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
+      const headers = ['상품명', '상품코드', '카테고리', '누적 판매 수량', '총 판매 금액', '현재 재고', '판매 상태'];
+      const body = stats.products.map((p: any) => [
+        p.name,
+        p.sku || '-',
+        p.category || '-',
+        p.totalQty,
+        p.totalRevenue,
+        p.stock,
+        p.is_active ? '판매중' : '판매중지'
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body]);
+      ws['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '카테고리별 상품 실적');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `카테고리별_상품실적_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('카테고리별 엑셀 다운로드 실패:', error);
+    }
+  }, [stats, selectedCategory, label]);
+
+  // Register Export Function
+  useEffect(() => {
+    if (!isLoading && stats) {
+      onRegisterExport(handleExport);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [isLoading, stats, handleExport, onRegisterExport]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -59,9 +111,6 @@ export function ProductCategoryPage() {
         setStats(data);
         if (data && data.selectedCategory) {
           setSelectedCategory(data.selectedCategory);
-          // Default check all products by ID
-          const productIds = data.products.map((p: any) => p.id);
-          setCheckedProducts(productIds);
         }
       } catch (err) {
         console.error(err);
@@ -71,6 +120,14 @@ export function ProductCategoryPage() {
     }
     fetchStats();
   }, [dateRange, selectedCategory]);
+
+  // 카테고리 변경 혹은 데이터 로드 시 체크 상품 ID 목록 초기화
+  useEffect(() => {
+    if (stats?.products) {
+      const productIds = stats.products.map((p: any) => p.id);
+      setCheckedProducts(productIds);
+    }
+  }, [stats?.products]);
 
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat);
@@ -230,6 +287,7 @@ export function ProductCategoryPage() {
             <thead>
               <tr className="bg-neutral-50 border-b border-neutral-200">
                 <th className="px-6 py-3.5 text-xs font-semibold text-neutral-700">상품명</th>
+                <th className="px-6 py-3.5 text-xs font-semibold text-neutral-700">상품코드</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-neutral-700">카테고리</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-neutral-700 text-right">누적 판매 수량</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-neutral-700 text-right">총 판매 금액</th>
@@ -241,6 +299,7 @@ export function ProductCategoryPage() {
               {products.map((p: any) => (
                 <tr key={p.id} className="hover:bg-neutral-50 transition-colors">
                   <td className="px-6 py-4 font-medium text-neutral-900">{p.name}</td>
+                  <td className="px-6 py-4 font-semibold text-neutral-500 uppercase tracking-wider">{p.sku}</td>
                   <td className="px-6 py-4 text-neutral-500">{p.category}</td>
                   <td className="px-6 py-4 text-right font-medium text-neutral-900">{p.totalQty.toLocaleString()}개</td>
                   <td className="px-6 py-4 text-right font-semibold text-[#21358D]">{p.totalRevenue.toLocaleString()}원</td>
@@ -260,7 +319,7 @@ export function ProductCategoryPage() {
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-neutral-400">
+                  <td colSpan={7} className="px-6 py-10 text-center text-neutral-400">
                     등록된 상품이 없습니다.
                   </td>
                 </tr>
