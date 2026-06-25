@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router';
 import { PieChart, Pie, Cell, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Tag, TrendingUp, ChevronRight } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+import * as XLSX from 'xlsx';
 
 // Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
 function useChartDimensions(defaultWidth = 250) {
@@ -126,11 +127,75 @@ const MOCK_CATEGORY_DATA = [
 ];
 
 export function SalesCategoryPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [activeCategoryNames, setActiveCategoryNames] = useState<string[]>([]);
   const [isDemo, setIsDemo] = useState(false);
+
+  // 엑셀 다운로드 핸들러 정의
+  const handleExport = useCallback(() => {
+    if (!categories || categories.length === 0) return;
+
+    try {
+      // 1. 카테고리 요약 시트 데이터 준비
+      const summaryHeaders = ['순위', '카테고리', '매출액', '주문수', '평균주문액', '점유율'];
+      const summaryBody = categories.map((c, index) => [
+        index + 1,
+        c.category,
+        c.sales,
+        c.orders,
+        c.avgOrder,
+        `${c.percentage}%`
+      ]);
+      const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryBody]);
+      wsSummary['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
+
+      // 2. 제품별 상세 매출 시트 데이터 준비
+      const detailHeaders = ['카테고리', '제품명', '제품 매출액', '판매 수량', '카테고리 내 매출 비중'];
+      const detailBody: any[] = [];
+      categories.forEach(c => {
+        if (c.products && Array.isArray(c.products)) {
+          c.products.forEach((p: any) => {
+            detailBody.push([
+              c.category,
+              p.name || p.product_name || '-',
+              p.sales,
+              p.quantity,
+              `${p.percentage}%`
+            ]);
+          });
+        }
+      });
+      const wsDetail = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailBody]);
+      wsDetail['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 12 }, { wch: 15 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsSummary, '카테고리 요약');
+      XLSX.utils.book_append_sheet(wb, wsDetail, '카테고리별 제품 상세');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `카테고리별_매출분석_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('카테고리별 매출 엑셀 다운로드 실패:', error);
+    }
+  }, [categories]);
+
+  // 엑셀 다운로드 함수 등록
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      onRegisterExport(handleExport);
+    } else {
+      onRegisterExport(null);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [categories, handleExport, onRegisterExport]);
 
   useEffect(() => {
     if (categories && categories.length > 0) {
@@ -139,7 +204,6 @@ export function SalesCategoryPage() {
   }, [categories]);
 
   // Resize Ref
-  const [pieRef, pieWidth] = useChartDimensions();
   const [trendRef, trendWidth] = useChartDimensions();
 
   useEffect(() => {
@@ -173,11 +237,7 @@ export function SalesCategoryPage() {
     );
   }
 
-  // 파이 차트용 데이터 포맷
-  const chartData = categories.map((c) => ({
-    name: c.category,
-    value: c.sales,
-  }));
+
 
   // 모든 카테고리의 trendData를 라벨(날짜) 기준으로 병합
   const mergedTrendData = (() => {
@@ -226,43 +286,46 @@ export function SalesCategoryPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 점유율 도넛 차트 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between">
+        {/* 카테고리별 매출 점유율 (막대 게이지 목록으로 변경) */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
           <div>
             <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
               <Tag className="w-4 h-4 text-[#21358D]" />
               <span>카테고리별 매출 점유율</span>
             </h3>
-            <p className="text-xs text-neutral-500 mb-6">전체 매출 대비 카테고리별 기여도를 시각화합니다.</p>
+            <p className="text-xs text-neutral-500 mb-6">전체 매출 대비 카테고리별 기여도와 비중입니다.</p>
           </div>
-          <div ref={pieRef} className="h-[250px] w-full min-w-0 relative">
-            <PieChart width={pieWidth} height={250}>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: number) => `₩${value.toLocaleString()}`} />
-            </PieChart>
+          <div className="space-y-5 flex-1 flex flex-col justify-center">
+            {categories.map((c: any, index: number) => {
+              const color = COLORS[index % COLORS.length];
+              return (
+                <div key={c.category} className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-neutral-700">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                      <span>{c.category}</span>
+                      <span className="text-neutral-400 font-normal">({c.orders}건)</span>
+                    </div>
+                    <div className="text-right flex items-center gap-3">
+                      <span className="text-neutral-900">₩{c.sales.toLocaleString()}</span>
+                      <span className="font-semibold" style={{ color }}>{c.percentage}%</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-neutral-100 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${c.percentage}%`, backgroundColor: color }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-neutral-600">
-            {categories.map((c, index) => (
-              <div key={c.category} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 shrink-0"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                />
-                <span className="truncate">{c.category} ({c.percentage}%)</span>
-              </div>
-            ))}
+          <div className="mt-6 pt-4 border-t border-neutral-200 flex justify-between items-center text-sm font-semibold text-neutral-800">
+            <span>총 매출액</span>
+            <span className="text-base text-neutral-950 font-bold">
+              ₩{categories.reduce((sum: number, c: any) => sum + c.sales, 0).toLocaleString()}
+            </span>
           </div>
         </div>
 

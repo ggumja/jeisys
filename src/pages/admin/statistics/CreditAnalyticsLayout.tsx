@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
 import { Download, Calendar, Coins, TrendingUp, Award, ShieldAlert } from 'lucide-react';
 
@@ -14,6 +14,19 @@ export function CreditAnalyticsLayout() {
   });
   const location = useLocation();
   const isTransactionsTab = location.pathname === '/admin/statistics/credits/transactions';
+
+  const [showDownloadBtn, setShowDownloadBtn] = useState(false);
+  const exportFnRef = useRef<(() => void) | null>(null);
+  const onRegisterExport = useCallback((fn: (() => void) | null) => {
+    exportFnRef.current = fn;
+    setShowDownloadBtn(fn !== null);
+  }, []);
+
+  // Clear export fn when path changes
+  useEffect(() => {
+    exportFnRef.current = null;
+    setShowDownloadBtn(false);
+  }, [location.pathname]);
 
   const getEffectiveRange = () => {
     if (selectRange === 'custom') {
@@ -40,8 +53,13 @@ export function CreditAnalyticsLayout() {
     { path: '/admin/statistics/credits/transactions', label: '거래 통계', icon: Coins },
   ];
 
-  const handleDownloadReport = () => {
-    alert('크레딧 분석 리포트 다운로드 기능은 현재 준비 중입니다.');
+  const handleDownloadReport = async () => {
+    if (!exportFnRef.current) return;
+    try {
+      await exportFnRef.current();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Base path 리다이렉션
@@ -57,13 +75,15 @@ export function CreditAnalyticsLayout() {
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">크레딧 통계 분석</h1>
           <p className="text-sm text-neutral-600">장비별 크레딧 발급 및 사용 실적, 만료 예정 잔액을 통합 모니터링합니다.</p>
         </div>
-        <button
-          onClick={handleDownloadReport}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-medium text-sm transition-colors shadow-sm"
-        >
-          <Download className="w-4 h-4" />
-          <span>리포트 다운로드</span>
-        </button>
+        {showDownloadBtn && (
+          <button
+            onClick={handleDownloadReport}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-medium text-sm transition-colors shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            <span>리포트 다운로드</span>
+          </button>
+        )}
       </div>
 
       {/* 탭 바 */}
@@ -140,7 +160,7 @@ export function CreditAnalyticsLayout() {
 
       {/* 하위 컴포넌트 렌더링 */}
       <div className="min-h-[400px]">
-        <Outlet context={{ dateRange }} />
+        <Outlet context={{ dateRange, onRegisterExport }} />
       </div>
     </div>
   );

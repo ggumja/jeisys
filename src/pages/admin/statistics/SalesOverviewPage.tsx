@@ -167,51 +167,7 @@ export function SalesOverviewPage() {
     else if (granularity === 'yearly') setPeriod('month');
   }, [granularity]);
 
-  // 엑셀 export 함수 등록
-  useEffect(() => {
-    if (!onRegisterExport) return;
 
-    onRegisterExport(() => {
-      if (!stats) return;
-
-      const { summary, chartData } = stats;
-      const periodLabel = period === 'day' ? '일별' : period === 'week' ? '주별' : period === 'month' ? '월별' : period === 'quarter' ? '분기별' : '반기별';
-
-      // 시트1: 요약
-      const summaryRows = [
-        ['항목', '값'],
-        ['총 매출', summary.totalSales],
-        ['총 주문건수', summary.totalOrders],
-        ['구매 고객수', summary.totalCustomers],
-        ['평균 주문액', summary.avgOrder],
-        ['매출 성장률(%)', summary.salesGrowth],
-        ['주문 성장률(%)', summary.orderGrowth],
-      ];
-
-      // 시트2: 기간별 매출현황
-      const trendHeaders = ['기간', '매출액(원)', '주문건수', '고객수'];
-      const trendRows = chartData.map((row: any) => [
-        row.label,
-        row.sales,
-        row.orders,
-        row.customers ?? '-',
-      ]);
-
-      const wb = XLSX.utils.book_new();
-
-      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-      wsSummary['!cols'] = [{ wch: 20 }, { wch: 20 }];
-      XLSX.utils.book_append_sheet(wb, wsSummary, '요약');
-
-      const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendRows]);
-      wsTrend['!cols'] = [{ wch: 16 }, { wch: 18 }, { wch: 12 }, { wch: 12 }];
-      XLSX.utils.book_append_sheet(wb, wsTrend, `${periodLabel} 매출현황`);
-
-      const now = new Date();
-      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-      XLSX.writeFile(wb, `매출개요_${periodLabel}_${dateStr}.xlsx`);
-    });
-  }, [stats, period, onRegisterExport]);
 
   if (isLoading || !stats) {
     return (

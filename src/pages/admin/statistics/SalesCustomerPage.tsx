@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
 import { Search, RotateCcw, Award } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+import * as XLSX from 'xlsx';
 
 export function SalesCustomerPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -14,6 +18,45 @@ export function SalesCustomerPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10); // 기본 10개씩 보기
+
+  // 엑셀 다운로드 핸들러 정의
+  const handleExport = useCallback(async () => {
+    try {
+      const stats = await adminService.getSalesCustomerStats(dateRange, 1, 999999, appliedSearch);
+      const allData = stats.data || [];
+
+      const headers = ['순위', '고객명', '병원명', '고객분류', '총 주문건수', '평균 주문액', '누적 매출액'];
+      const body = allData.map((c: any) => [
+        c.rank,
+        c.name || '-',
+        c.hospitalName || '-',
+        c.memberType || '-',
+        c.orders,
+        c.avgOrder,
+        c.totalSales
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
+      ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 20 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '고객별 매출 순위');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `고객별_매출순위_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('고객별 매출 순위 엑셀 다운로드 실패:', error);
+    }
+  }, [dateRange, appliedSearch]);
+
+  // 엑셀 다운로드 함수 등록
+  useEffect(() => {
+    onRegisterExport(handleExport);
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [handleExport, onRegisterExport]);
 
   useEffect(() => {
     async function fetchStats() {

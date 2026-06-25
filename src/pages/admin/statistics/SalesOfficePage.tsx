@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Building2, TrendingUp } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+import * as XLSX from 'xlsx';
 
 // Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
 function useChartDimensions(defaultWidth = 250) {
@@ -39,12 +40,57 @@ function useChartDimensions(defaultWidth = 250) {
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
 export function SalesOfficePage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [offices, setOffices] = useState<any[]>([]);
 
   // Resize Ref
   const [chartRef, chartWidth] = useChartDimensions();
+
+  // 엑셀 다운로드 핸들러 정의
+  const handleExport = useCallback(() => {
+    if (!offices || offices.length === 0) return;
+
+    try {
+      const headers = ['순위', '지점명', '지점코드', '담당지역', '총 주문건수', '총 매출액', '점유율'];
+      const body = offices.map((o: any, index: number) => [
+        index + 1,
+        o.officeName || '-',
+        o.officeCode || '-',
+        o.region || '-',
+        o.orders,
+        o.sales,
+        `${o.percentage}%`
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
+      ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '영업처별 매출 기여도');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `영업처별_기여도_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('영업처별 기여도 엑셀 다운로드 실패:', error);
+    }
+  }, [offices]);
+
+  // 엑셀 다운로드 함수 등록
+  useEffect(() => {
+    if (offices && offices.length > 0) {
+      onRegisterExport(handleExport);
+    } else {
+      onRegisterExport(null);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [offices, handleExport, onRegisterExport]);
 
   useEffect(() => {
     async function fetchStats() {

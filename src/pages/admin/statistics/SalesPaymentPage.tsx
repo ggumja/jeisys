@@ -54,14 +54,76 @@ const MOCK_PAYMENT_STATS = {
 
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
+import * as XLSX from 'xlsx';
+
 export function SalesPaymentPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [isDemo, setIsDemo] = useState(false);
 
   // Resize Ref
   const [chartRef, chartWidth] = useChartDimensions();
+
+  // 엑셀 다운로드 핸들러 정의
+  const handleExport = useCallback(() => {
+    if (!data || !data.paymentStats) return;
+
+    try {
+      const { paymentStats, trendData } = data;
+
+      // 1. 결제수단별 요약
+      const summaryHeaders = ['결제수단', '결제건수', '누적 결제금액', '비중'];
+      const summaryBody = paymentStats.map((p: any) => [
+        p.method,
+        p.count,
+        p.amount,
+        `${p.percentage}%`
+      ]);
+      const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryBody]);
+      wsSummary['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
+
+      // 2. 결제수단별 추이
+      const trendHeaders: string[] = ['기간'];
+      const uniqueMethods = Array.from(new Set(paymentStats.map((p: any) => p.method))) as string[];
+      trendHeaders.push(...uniqueMethods);
+
+      const trendBody = (trendData || []).map((t: any) => {
+        const row = [t.label];
+        uniqueMethods.forEach(method => {
+          row.push(t[method] || 0);
+        });
+        return row;
+      });
+      const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendBody]);
+      wsTrend['!cols'] = [{ wch: 15 }, ...uniqueMethods.map(() => ({ wch: 18 }))];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsSummary, '결제수단별 요약');
+      XLSX.utils.book_append_sheet(wb, wsTrend, '결제수단별 추이');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `결제수단별_매출분석_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('결제수단별 매출 엑셀 다운로드 실패:', error);
+    }
+  }, [data]);
+
+  // 엑셀 다운로드 함수 등록
+  useEffect(() => {
+    if (data && data.paymentStats && data.paymentStats.length > 0) {
+      onRegisterExport(handleExport);
+    } else {
+      onRegisterExport(null);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [data, handleExport, onRegisterExport]);
 
   useEffect(() => {
     async function fetchStats() {

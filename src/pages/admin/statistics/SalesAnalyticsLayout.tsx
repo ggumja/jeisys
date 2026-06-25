@@ -395,10 +395,18 @@ export function SalesAnalyticsLayout() {
   const pickerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
+  const [showDownloadBtn, setShowDownloadBtn] = useState(false);
   const exportFnRef = useRef<(() => void) | null>(null);
-  const onRegisterExport = useCallback((fn: () => void) => {
+  const onRegisterExport = useCallback((fn: (() => void) | null) => {
     exportFnRef.current = fn;
+    setShowDownloadBtn(fn !== null);
   }, []);
+
+  // Clear export fn when path changes
+  useEffect(() => {
+    exportFnRef.current = null;
+    setShowDownloadBtn(false);
+  }, [location.pathname]);
 
   // 외부 클릭 시 팝오버 닫기
   useEffect(() => {
@@ -473,16 +481,18 @@ export function SalesAnalyticsLayout() {
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">매출 분석</h1>
           <p className="text-sm text-neutral-600">쇼핑몰 매출 성과와 구매 행동 통계를 다각도로 분석합니다.</p>
         </div>
-        <button
-          onClick={handleDownloadReport}
-          disabled={isDownloading}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isDownloading
-            ? <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
-            : <Download className="w-4 h-4" />}
-          <span>{isDownloading ? '다운로드 중...' : '엑셀 다운로드'}</span>
-        </button>
+        {showDownloadBtn && (
+          <button
+            onClick={handleDownloadReport}
+            disabled={isDownloading}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isDownloading
+              ? <div className="w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin" />
+              : <Download className="w-4 h-4" />}
+            <span>{isDownloading ? '다운로드 중...' : '엑셀 다운로드'}</span>
+          </button>
+        )}
       </div>
 
       {/* 기간 필터 */}
