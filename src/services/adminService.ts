@@ -431,6 +431,7 @@ export const adminService = {
             avgSalesPerCustomer,
             avgSalesPerOrder,
             buyingUsersCount,
+            periodOrdersCount: filteredOrders.length,
             paymentData,
             categoryData,
             bestProducts,

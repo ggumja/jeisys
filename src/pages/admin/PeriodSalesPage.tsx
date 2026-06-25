@@ -355,10 +355,15 @@ export function PeriodSalesPage() {
 
   const handleExcel = () => {
     if (!rows.length) return;
+    const titleRows = [
+      [`${modeLabel[viewMode]} 매출현황`],
+      [`분석 기간: ${label}`],
+      []
+    ];
     const headers = ['기간', '상세날짜', '매출액(원)', '주문건수', '평균주문액(원)'];
     const body = rows.map(r => [r.label, r.dateText || '', r.sales, r.orders, r.avgOrder]);
     const summary = [[], ['합계', '', totalSales, totalOrders, avgOrderAmount]];
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...body, ...summary]);
+    const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body, ...summary]);
     ws['!cols'] = [{ wch: 16 }, { wch: 24 }, { wch: 18 }, { wch: 12 }, { wch: 18 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${modeLabel[viewMode]} 매출현황`);

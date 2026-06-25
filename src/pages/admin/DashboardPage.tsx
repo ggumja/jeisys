@@ -64,6 +64,7 @@ export function DashboardPage() {
     avgSalesPerCustomer: 0,
     avgSalesPerOrder: 0,
     buyingUsersCount: 0,
+    periodOrdersCount: 0,
     paymentData: [] as { name: string; value: number; percentage: number }[],
     categoryData: [] as { name: string; value: number; color: string }[],
     bestProducts: [] as { name: string; sales: number; revenue: number }[],
@@ -239,7 +240,7 @@ export function DashboardPage() {
           </div>
 
           {/* 2단: 기간 선택형 동적 지표 요약 */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
               <span className="text-xs text-neutral-500 font-bold">신규 회원수 (선택 기간)</span>
               <p className="text-3xl font-extrabold text-neutral-900 mt-2 font-mono">{stats.newUsersCount}명</p>
@@ -247,6 +248,10 @@ export function DashboardPage() {
             <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
               <span className="text-xs text-neutral-500 font-bold">누적 구매 회원수 (선택 기간)</span>
               <p className="text-3xl font-extrabold text-neutral-900 mt-2 font-mono">{stats.buyingUsersCount}명</p>
+            </div>
+            <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
+              <span className="text-xs text-neutral-500 font-bold">총 구매건수 (선택 기간)</span>
+              <p className="text-3xl font-extrabold text-neutral-900 mt-2 font-mono">{stats.periodOrdersCount}건</p>
             </div>
             <div className="bg-neutral-50 border border-neutral-200 p-5 rounded flex flex-col justify-between">
               <span className="text-xs text-neutral-500 font-bold">거래처당 평균 매출 (선택 기간)</span>
