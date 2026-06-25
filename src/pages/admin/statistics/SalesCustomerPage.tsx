@@ -5,9 +5,10 @@ import { adminService } from '../../../services/adminService';
 import * as XLSX from 'xlsx';
 
 export function SalesCustomerPage() {
-  const { dateRange, onRegisterExport } = useOutletContext<{
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
     onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -25,6 +26,12 @@ export function SalesCustomerPage() {
       const stats = await adminService.getSalesCustomerStats(dateRange, 1, 999999, appliedSearch);
       const allData = stats.data || [];
 
+      const titleRows = [
+        ['고객별 매출 순위'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
       const headers = ['순위', '고객명', '병원명', '고객분류', '총 주문건수', '평균 주문액', '누적 매출액'];
       const body = allData.map((c: any) => [
         c.rank,
@@ -36,7 +43,7 @@ export function SalesCustomerPage() {
         c.totalSales
       ]);
 
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
+      const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body]);
       ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 20 }];
 
       const wb = XLSX.utils.book_new();
@@ -48,15 +55,23 @@ export function SalesCustomerPage() {
     } catch (error) {
       console.error('고객별 매출 순위 엑셀 다운로드 실패:', error);
     }
-  }, [dateRange, appliedSearch]);
+  }, [dateRange, appliedSearch, label]);
+
+
+
+
 
   // 엑셀 다운로드 함수 등록
   useEffect(() => {
-    onRegisterExport(handleExport);
+    if (!isLoading && customers && customers.length > 0) {
+      onRegisterExport(handleExport);
+    } else {
+      onRegisterExport(null);
+    }
     return () => {
       onRegisterExport(null);
     };
-  }, [handleExport, onRegisterExport]);
+  }, [isLoading, customers, handleExport, onRegisterExport]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -73,6 +88,7 @@ export function SalesCustomerPage() {
     }
     fetchStats();
   }, [dateRange, page, limit, appliedSearch]);
+
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

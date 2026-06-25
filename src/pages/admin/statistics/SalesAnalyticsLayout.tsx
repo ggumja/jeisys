@@ -609,11 +609,9 @@ export function SalesAnalyticsLayout() {
           );
         })}
       </div>
-
       {/* 하위 컴포넌트 렌더링 */}
       <div className="min-h-[400px]">
-        <Outlet context={{ dateRange, granularity, onRegisterExport }} />
-      </div>
-    </div>
+        <Outlet context={{ dateRange, granularity, onRegisterExport, label }} />
+      </div>    </div>
   );
 }

@@ -5,9 +5,10 @@ import { adminService } from '../../../services/adminService';
 import * as XLSX from 'xlsx';
 
 export function SalesCustomerTypePage() {
-  const { dateRange, onRegisterExport } = useOutletContext<{
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
     onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [typesData, setTypesData] = useState<any[]>([]);
@@ -17,6 +18,12 @@ export function SalesCustomerTypePage() {
     if (!typesData || typesData.length === 0) return;
 
     try {
+      const titleRows = [
+        ['고객유형별 매출 순위'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
       const headers = ['순위', '고객유형', '구매고객 수', '총 주문건수', '평균 주문액', '매출 비중', '누적 매출액'];
       const body = typesData.map((t: any) => [
         t.rank,
@@ -28,7 +35,7 @@ export function SalesCustomerTypePage() {
         t.totalSales
       ]);
 
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
+      const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body]);
       ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 20 }];
 
       const wb = XLSX.utils.book_new();
@@ -40,7 +47,7 @@ export function SalesCustomerTypePage() {
     } catch (error) {
       console.error('고객유형별 매출 순위 엑셀 다운로드 실패:', error);
     }
-  }, [typesData]);
+  }, [typesData, label]);
 
   // 엑셀 다운로드 함수 등록
   useEffect(() => {

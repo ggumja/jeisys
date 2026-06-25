@@ -127,20 +127,26 @@ const MOCK_CATEGORY_DATA = [
 ];
 
 export function SalesCategoryPage() {
-  const { dateRange, onRegisterExport } = useOutletContext<{
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
     onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [activeCategoryNames, setActiveCategoryNames] = useState<string[]>([]);
   const [isDemo, setIsDemo] = useState(false);
 
-  // 엑셀 다운로드 핸들러 정의
   const handleExport = useCallback(() => {
     if (!categories || categories.length === 0) return;
 
     try {
+      const titleRows = [
+        ['카테고리별 매출 분석'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
       // 1. 카테고리 요약 시트 데이터 준비
       const summaryHeaders = ['순위', '카테고리', '매출액', '주문수', '평균주문액', '점유율'];
       const summaryBody = categories.map((c, index) => [
@@ -151,7 +157,7 @@ export function SalesCategoryPage() {
         c.avgOrder,
         `${c.percentage}%`
       ]);
-      const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryBody]);
+      const wsSummary = XLSX.utils.aoa_to_sheet([...titleRows, summaryHeaders, ...summaryBody]);
       wsSummary['!cols'] = [{ wch: 8 }, { wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
 
       // 2. 제품별 상세 매출 시트 데이터 준비
@@ -170,7 +176,7 @@ export function SalesCategoryPage() {
           });
         }
       });
-      const wsDetail = XLSX.utils.aoa_to_sheet([detailHeaders, ...detailBody]);
+      const wsDetail = XLSX.utils.aoa_to_sheet([...titleRows, detailHeaders, ...detailBody]);
       wsDetail['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 20 }, { wch: 12 }, { wch: 15 }];
 
       const wb = XLSX.utils.book_new();
@@ -183,7 +189,9 @@ export function SalesCategoryPage() {
     } catch (error) {
       console.error('카테고리별 매출 엑셀 다운로드 실패:', error);
     }
-  }, [categories]);
+  }, [categories, label]);
+
+
 
   // 엑셀 다운로드 함수 등록
   useEffect(() => {

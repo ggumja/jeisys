@@ -57,9 +57,10 @@ const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'
 import * as XLSX from 'xlsx';
 
 export function SalesPaymentPage() {
-  const { dateRange, onRegisterExport } = useOutletContext<{
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
     onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
@@ -75,6 +76,12 @@ export function SalesPaymentPage() {
     try {
       const { paymentStats, trendData } = data;
 
+      const titleRows = [
+        ['결제수단별 매출 분석'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
       // 1. 결제수단별 요약
       const summaryHeaders = ['결제수단', '결제건수', '누적 결제금액', '비중'];
       const summaryBody = paymentStats.map((p: any) => [
@@ -83,7 +90,7 @@ export function SalesPaymentPage() {
         p.amount,
         `${p.percentage}%`
       ]);
-      const wsSummary = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryBody]);
+      const wsSummary = XLSX.utils.aoa_to_sheet([...titleRows, summaryHeaders, ...summaryBody]);
       wsSummary['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
 
       // 2. 결제수단별 추이
@@ -98,7 +105,7 @@ export function SalesPaymentPage() {
         });
         return row;
       });
-      const wsTrend = XLSX.utils.aoa_to_sheet([trendHeaders, ...trendBody]);
+      const wsTrend = XLSX.utils.aoa_to_sheet([...titleRows, trendHeaders, ...trendBody]);
       wsTrend['!cols'] = [{ wch: 15 }, ...uniqueMethods.map(() => ({ wch: 18 }))];
 
       const wb = XLSX.utils.book_new();
@@ -111,8 +118,9 @@ export function SalesPaymentPage() {
     } catch (error) {
       console.error('결제수단별 매출 엑셀 다운로드 실패:', error);
     }
-  }, [data]);
+  }, [data, label]);
 
+  // 엑셀 다운로드 함수 등록
   // 엑셀 다운로드 함수 등록
   useEffect(() => {
     if (data && data.paymentStats && data.paymentStats.length > 0) {

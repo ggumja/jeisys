@@ -40,21 +40,31 @@ function useChartDimensions(defaultWidth = 250) {
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
 export function SalesOfficePage() {
-  const { dateRange, onRegisterExport } = useOutletContext<{
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
     onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [offices, setOffices] = useState<any[]>([]);
 
   // Resize Ref
   const [chartRef, chartWidth] = useChartDimensions();
-
   // 엑셀 다운로드 핸들러 정의
   const handleExport = useCallback(() => {
     if (!offices || offices.length === 0) return;
 
     try {
+      const formattedPeriod = dateRange.startsWith('custom:')
+        ? dateRange.replace('custom:', '').replace('_', ' ~ ')
+        : dateRange;
+
+      const titleRows = [
+        ['영업처별 매출 기여도'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
       const headers = ['순위', '지점명', '지점코드', '담당지역', '총 주문건수', '총 매출액', '점유율'];
       const body = offices.map((o: any, index: number) => [
         index + 1,
@@ -66,7 +76,7 @@ export function SalesOfficePage() {
         `${o.percentage}%`
       ]);
 
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
+      const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body]);
       ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
 
       const wb = XLSX.utils.book_new();
@@ -78,7 +88,7 @@ export function SalesOfficePage() {
     } catch (error) {
       console.error('영업처별 기여도 엑셀 다운로드 실패:', error);
     }
-  }, [offices]);
+  }, [offices, label]);
 
   // 엑셀 다운로드 함수 등록
   useEffect(() => {
