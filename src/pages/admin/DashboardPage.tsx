@@ -456,6 +456,8 @@ export function DashboardPage() {
     }
   });
 
+  const [todoCounts, setTodoCounts] = useState({ paid: 0, claims: 0, failed: 0 });
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -477,7 +479,10 @@ export function DashboardPage() {
 
   const loadInitialData = async () => {
     try {
-      const basicStats = await adminService.getDashboardStats();
+      const [basicStats, counts] = await Promise.all([
+        adminService.getDashboardStats(),
+        adminService.getTodoOrderCounts()
+      ]);
       setCumulativeStats({
         totalSales: basicStats.monthSales,
         totalUsers: basicStats.totalUsers,
@@ -485,6 +490,7 @@ export function DashboardPage() {
         totalProducts: basicStats.totalProducts,
         gradeStats: basicStats.gradeStats
       });
+      setTodoCounts(counts);
     } catch (error) {
       console.error('Failed to load initial dashboard config', error);
     }
@@ -554,6 +560,36 @@ export function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-1">대시보드</h1>
           <p className="text-sm text-neutral-600">제이시스메디칼 쇼핑몰 운영 성과와 통계를 통합 필터링하여 확인하세요.</p>
+        </div>
+      </div>
+
+      {/* 처리해야 하는 주문 */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-bold text-neutral-800 tracking-tight">처리해야 하는 주문</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div 
+            onClick={() => navigate('/admin/orders?status=paid')} 
+            className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+          >
+            <p className="text-xs text-neutral-500 font-medium mb-1">결제완료</p>
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{todoCounts.paid}건</p>
+          </div>
+          
+          <div 
+            onClick={() => navigate('/admin/orders?status=claims')} 
+            className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+          >
+            <p className="text-xs text-neutral-500 font-medium mb-1">취소/환불/교환 요청</p>
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{todoCounts.claims}건</p>
+          </div>
+          
+          <div 
+            onClick={() => navigate('/admin/orders?status=cancelled')} 
+            className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
+          >
+            <p className="text-xs text-neutral-500 font-medium mb-1">결제실패</p>
+            <p className="text-2xl font-bold tracking-tight text-neutral-900">{todoCounts.failed}건</p>
+          </div>
         </div>
       </div>
 

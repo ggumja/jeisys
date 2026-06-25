@@ -34,6 +34,39 @@ export interface OrderHistory {
 }
 
 export const adminService = {
+    // Get counts of orders that need to be processed (paid, claims, failed)
+    async getTodoOrderCounts() {
+        const { count: paidCount, error: paidError } = await supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'paid');
+
+        if (paidError) throw paidError;
+
+        const { count: claimsCount, error: claimsError } = await supabase
+            .from('orders')
+            .select('*', { count: 'exact', head: true })
+            .in('status', ['cancel_requested', 'return_requested', 'returning', 'returned', 'exchange_requested']);
+
+        if (claimsError) throw claimsError;
+
+        const { data: failedPayments, error: failedError } = await supabase
+            .from('payment_history')
+            .select('order_id')
+            .eq('status', 'FAILURE');
+
+        if (failedError) throw failedError;
+
+        const uniqueFailedOrderIds = new Set(failedPayments?.map(p => p.order_id).filter(Boolean));
+        const failedCount = uniqueFailedOrderIds.size;
+
+        return {
+            paid: paidCount || 0,
+            claims: claimsCount || 0,
+            failed: failedCount || 0
+        };
+    },
+
     // Dashboard Stats
     async getDashboardStats() {
         const now = new Date();

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { Search, Package, Truck, Printer, Loader2, ChevronLeft, ChevronRight, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Badge } from '../../components/ui/badge';
@@ -72,7 +72,14 @@ export function OrderManagementPage() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get('status') || 'all';
+  const [selectedStatus, setSelectedStatus] = useState<string>(statusParam);
+
+  useEffect(() => {
+    setSelectedStatus(statusParam);
+  }, [statusParam]);
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -403,7 +410,7 @@ export function OrderManagementPage() {
         ].map(tab => (
           <button
             key={tab.id}
-            onClick={() => setSelectedStatus(tab.id)}
+            onClick={() => setSearchParams({ status: tab.id })}
             className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${selectedStatus === tab.id
                 ? 'border-neutral-900 text-neutral-900'
                 : 'border-transparent text-neutral-500 hover:text-neutral-700'
