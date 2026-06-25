@@ -2455,6 +2455,75 @@ export const adminService = {
         return stats;
     },
 
+    // 1-4-extra-2. getSalesRegionStats (주문 고객 주소지 기준 지역별 매출 통계)
+    async getSalesRegionStats(dateRange: string) {
+        const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
+
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select('user_id, total_amount, delivery_address')
+            .in('status', statuses)
+            .gte('ordered_at', startDateIso)
+            .lte('ordered_at', endDateIso);
+
+        if (error) throw error;
+
+        const regionSalesMap: Record<string, { totalSales: number; ordersCount: number; customerSet: Set<string> }> = {};
+
+        const getRegionFromAddress = (address: string): string => {
+            if (!address) return '기타/미지정';
+            const firstWord = address.trim().split(/\s+/)[0];
+            if (firstWord.startsWith('서울')) return '서울';
+            if (firstWord.startsWith('경기')) return '경기';
+            if (firstWord.startsWith('인천')) return '인천';
+            if (firstWord.startsWith('부산')) return '부산';
+            if (firstWord.startsWith('대구')) return '대구';
+            if (firstWord.startsWith('대전')) return '대전';
+            if (firstWord.startsWith('광주')) return '광주';
+            if (firstWord.startsWith('울산')) return '울산';
+            if (firstWord.startsWith('세종')) return '세종';
+            if (firstWord.startsWith('강원')) return '강원';
+            if (firstWord.startsWith('제주')) return '제주';
+            if (firstWord.startsWith('충청북') || firstWord === '충북') return '충북';
+            if (firstWord.startsWith('충청남') || firstWord === '충남') return '충남';
+            if (firstWord.startsWith('전라북') || firstWord === '전북') return '전북';
+            if (firstWord.startsWith('전라남') || firstWord === '전남') return '전남';
+            if (firstWord.startsWith('경상북') || firstWord === '경북') return '경북';
+            if (firstWord.startsWith('경상남') || firstWord === '경남') return '경남';
+            return firstWord || '기타/미지정';
+        };
+
+        (orders || []).forEach(o => {
+            const address = o.delivery_address || '';
+            const region = getRegionFromAddress(address);
+            if (!regionSalesMap[region]) {
+                regionSalesMap[region] = { totalSales: 0, ordersCount: 0, customerSet: new Set() };
+            }
+            regionSalesMap[region].totalSales += Number(o.total_amount);
+            regionSalesMap[region].ordersCount += 1;
+            if (o.user_id) {
+                regionSalesMap[region].customerSet.add(o.user_id);
+            }
+        });
+
+        const totalRevenue = Object.values(regionSalesMap).reduce((sum, d) => sum + d.totalSales, 0);
+
+        const stats = Object.entries(regionSalesMap).map(([region, d]) => ({
+            region,
+            totalSales: d.totalSales,
+            orders: d.ordersCount,
+            customers: d.customerSet.size,
+            percentage: totalRevenue > 0 ? Number(((d.totalSales / totalRevenue) * 100).toFixed(1)) : 0,
+            avgOrder: d.ordersCount > 0 ? Math.round(d.totalSales / d.ordersCount) : 0
+        })).sort((a, b) => b.totalSales - a.totalSales)
+           .map((item, index) => ({
+               rank: index + 1,
+               ...item
+           }));
+
+        return stats;
+    },
+
     // 1-5. getSalesProductPaymentStats
     async getSalesProductPaymentStats(dateRange: string) {
         const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);

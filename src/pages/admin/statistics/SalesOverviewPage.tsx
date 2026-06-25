@@ -123,11 +123,13 @@ function getMockSalesOverviewData(period: 'day' | 'week' | 'month' | 'quarter' |
 }
 
 export function SalesOverviewPage() {
-  const { dateRange, granularity, onRegisterExport } = useOutletContext<{
+  const { dateRange, granularity, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
     granularity: 'daily' | 'weekly' | 'monthly' | 'yearly';
-    onRegisterExport: (fn: () => void) => void;
+    onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
   }>();
+
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'quarter' | 'half'>('month');
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
@@ -167,7 +169,48 @@ export function SalesOverviewPage() {
     else if (granularity === 'yearly') setPeriod('month');
   }, [granularity]);
 
+  const handleExport = useCallback(() => {
+    if (!stats || !stats.chartData || stats.chartData.length === 0) return;
 
+    try {
+      const titleRows = [
+        ['매출 및 주문/고객 수 추이 개요'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
+      const headers = ['구분 (단위)', '매출액', '주문건수', '고객수'];
+      const body = stats.chartData.map((d: any) => [
+        d.label,
+        d.sales,
+        d.orders,
+        d.customers
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet([...titleRows, headers, ...body]);
+      ws['!cols'] = [{ wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '매출 개요');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `매출개요_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('매출 개요 엑셀 다운로드 실패:', error);
+    }
+  }, [stats, label]);
+
+  useEffect(() => {
+    if (stats && stats.chartData && stats.chartData.length > 0) {
+      onRegisterExport(handleExport);
+    } else {
+      onRegisterExport(null);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [stats, handleExport, onRegisterExport]);
 
   if (isLoading || !stats) {
     return (

@@ -61,6 +61,7 @@ import { SalesCategoryPage } from "./pages/admin/statistics/SalesCategoryPage";
 import { SalesPaymentPage } from "./pages/admin/statistics/SalesPaymentPage";
 import { SalesCustomerPage } from "./pages/admin/statistics/SalesCustomerPage";
 import { SalesCustomerTypePage } from "./pages/admin/statistics/SalesCustomerTypePage";
+import { SalesRegionPage } from "./pages/admin/statistics/SalesRegionPage";
 import { SalesProductPaymentPage } from "./pages/admin/statistics/SalesProductPaymentPage";
 import { SalesOfficePage } from "./pages/admin/statistics/SalesOfficePage";
 import { SalesTrendPage } from "./pages/admin/statistics/SalesTrendPage";
@@ -147,6 +148,7 @@ export const router = createBrowserRouter([
                     { path: "payment", Component: SalesPaymentPage },
                     { path: "customer", Component: SalesCustomerPage },
                     { path: "customer-type", Component: SalesCustomerTypePage },
+                    { path: "region", Component: SalesRegionPage },
                     { path: "product-payment", Component: SalesProductPaymentPage },
                     { path: "office", Component: SalesOfficePage },
                     { path: "trend", Component: SalesTrendPage },

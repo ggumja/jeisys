@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
 import { Calendar, Clock, BarChart3, TrendingUp } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+import * as XLSX from 'xlsx';
 
 // Custom ResizeObserver Hook using callback ref to bypass React conditional loading state ref issues
 function useChartDimensions(defaultWidth = 500) {
@@ -63,7 +64,11 @@ const MOCK_TREND_STATS = {
 };
 
 export function SalesTrendPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, onRegisterExport, label } = useOutletContext<{
+    dateRange: string;
+    onRegisterExport: (fn: (() => void) | null) => void;
+    label: string;
+  }>();
   const [isLoading, setIsLoading] = useState(true);
   const [trendStats, setTrendStats] = useState<any>(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -94,6 +99,51 @@ export function SalesTrendPage() {
     }
     fetchStats();
   }, [dateRange]);
+
+  const handleExport = useCallback(() => {
+    if (!trendStats) return;
+
+    try {
+      const titleRows = [
+        ['요일/시간별 매출 및 주문 분석'],
+        [`분석 기간: ${label}`],
+        []
+      ];
+
+      // 요일별 시트
+      const dayHeaders = ['요일', '매출액', '주문건수'];
+      const dayBody = trendStats.dayStats.map((d: any) => [d.label, d.sales, d.orders]);
+      const wsDay = XLSX.utils.aoa_to_sheet([...titleRows, dayHeaders, ...dayBody]);
+      wsDay['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }];
+
+      // 시간별 시트
+      const hourHeaders = ['시간대', '매출액', '주문건수'];
+      const hourBody = trendStats.hourStats.map((h: any) => [h.label, h.sales, h.orders]);
+      const wsHour = XLSX.utils.aoa_to_sheet([...titleRows, hourHeaders, ...hourBody]);
+      wsHour['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsDay, '요일별 매출');
+      XLSX.utils.book_append_sheet(wb, wsHour, '시간대별 매출');
+
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      XLSX.writeFile(wb, `요일_시간별_매출통계_${dateSuffix}.xlsx`);
+    } catch (error) {
+      console.error('요일/시간별 매출 통계 엑셀 다운로드 실패:', error);
+    }
+  }, [trendStats, label]);
+
+  useEffect(() => {
+    if (trendStats && trendStats.dayStats && trendStats.dayStats.length > 0) {
+      onRegisterExport(handleExport);
+    } else {
+      onRegisterExport(null);
+    }
+    return () => {
+      onRegisterExport(null);
+    };
+  }, [trendStats, handleExport, onRegisterExport]);
 
   if (isLoading || !trendStats) {
     return (
