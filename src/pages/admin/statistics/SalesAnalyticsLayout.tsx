@@ -1,7 +1,10 @@
+
+
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
 import { Download, TrendingUp, PieChart, Users, DollarSign, Clock, Building2, CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { DayPicker } from 'react-day-picker';
+import { Calendar } from '../../../components/ui/calendar';
+import { ko } from 'date-fns/locale';
 
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -97,7 +100,7 @@ function DailyPicker({ startDate, endDate, onChange }: {
 
   return (
     <div className="p-3">
-      <DayPicker
+      <Calendar
         mode="range"
         selected={range}
         onSelect={(r) => {
@@ -107,29 +110,8 @@ function DailyPicker({ startDate, endDate, onChange }: {
         }}
         month={month}
         onMonthChange={setMonth}
-        classNames={{
-          months: 'flex gap-6',
-          month: 'space-y-3',
-          month_caption: 'flex justify-center pt-1 relative items-center',
-          caption_label: 'text-sm font-semibold text-neutral-800',
-          nav: 'space-x-1 flex items-center absolute inset-x-0 top-0 justify-between px-1',
-          button_previous: 'inline-flex items-center justify-center size-7 bg-transparent p-0 opacity-60 hover:opacity-100 rounded hover:bg-neutral-100',
-          button_next: 'inline-flex items-center justify-center size-7 bg-transparent p-0 opacity-60 hover:opacity-100 rounded hover:bg-neutral-100',
-          month_grid: 'w-full border-collapse space-y-1',
-          weekdays: 'grid grid-cols-7 w-full',
-          weekday: 'text-neutral-500 rounded-md font-normal text-[0.8rem] text-center',
-          week: 'grid grid-cols-7 w-full mt-2',
-          day: 'relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([data-selected=true])]:bg-blue-50 first:[&:has([data-selected=true])]:rounded-l-md last:[&:has([data-selected=true])]:rounded-r-md [&:has([data-range-start=true])]:rounded-l-md [&:has([data-range-end=true])]:rounded-r-md',
-          day_button: 'relative size-9 mx-auto p-0 font-normal inline-flex items-center justify-center rounded text-sm transition-colors hover:bg-neutral-100 disabled:opacity-50 data-[selected=true]:bg-[#21358D] data-[selected=true]:text-white data-[today=true]:bg-neutral-100 data-[today=true]:text-neutral-900 data-[outside=true]:text-neutral-400 data-[outside=true]:opacity-50 data-[range-start=true]:rounded-l-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none',
-          range_start: 'rounded-l-md',
-          range_end: 'rounded-r-md',
-          range_middle: 'bg-blue-50 rounded-none',
-        }}
-        formatters={{
-          formatWeekdayName: (d) => ['일','월','화','수','목','금','토'][d.getDay()],
-          formatCaption: (d) => `${d.getFullYear()}년 ${d.getMonth() + 1}월`,
-        }}
         numberOfMonths={2}
+        locale={ko}
       />
       {range.from && range.to && (
         <p className="text-center text-xs text-neutral-500 mt-2 border-t border-neutral-100 pt-2">

@@ -32,33 +32,39 @@ function Calendar({
         ...formatters,
       }}
       classNames={{
-        months: "flex flex-col sm:flex-row gap-4",
-        month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
+        ...defaultClassNames,
+        months: cn(defaultClassNames.months, "flex flex-col sm:flex-row gap-4"),
+        month: cn(defaultClassNames.month, "space-y-4"),
+        month_caption: cn(defaultClassNames.month_caption, "flex justify-center pt-1 relative items-center"),
+        caption_label: cn(defaultClassNames.caption_label, "text-sm font-medium"),
+        nav: cn(defaultClassNames.nav, "space-x-1 flex items-center"),
         button_previous: cn(
+          defaultClassNames.button_previous,
           "absolute left-1 size-7 bg-transparent p-0 opacity-50 hover:opacity-100",
           "inline-flex items-center justify-center whitespace-nowrap rounded text-sm font-medium transition-colors",
           "hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50"
         ),
         button_next: cn(
+          defaultClassNames.button_next,
           "absolute right-1 size-7 bg-transparent p-0 opacity-50 hover:opacity-100",
           "inline-flex items-center justify-center whitespace-nowrap rounded text-sm font-medium transition-colors",
           "hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50"
         ),
-        month_grid: "w-full border-collapse space-y-1",
-        weekdays: "flex",
-        weekday: "text-neutral-500 rounded w-9 font-normal text-[0.8rem]",
-        week: "flex w-full mt-2",
+        month_grid: cn(defaultClassNames.month_grid, "w-full border-collapse space-y-1"),
+        weekdays: cn(defaultClassNames.weekdays, "flex w-full justify-between"),
+        weekday: cn(defaultClassNames.weekday, "text-neutral-500 rounded w-9 h-9 font-normal text-[0.8rem] flex items-center justify-center"),
+        week: cn(defaultClassNames.week, "flex w-full mt-2 justify-between"),
         day: cn(
+          defaultClassNames.day,
           "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
+          "[&_button]:size-9",
           "[&:has([data-selected=true])]:bg-neutral-100 first:[&:has([data-selected=true])]:rounded-s-md last:[&:has([data-selected=true])]:rounded-e-md",
           "[&:last-child[data-selected=true]_button]:rounded-e-md",
           "[&:nth-child(2)[data-selected=true]_button]:rounded-s-md",
           "[&:first-child[data-selected=true]_button]:rounded-s-md"
         ),
         day_button: cn(
+          defaultClassNames.day_button,
           "relative size-9 p-0 font-normal",
           "inline-flex items-center justify-center whitespace-nowrap rounded text-sm transition-colors",
           "hover:bg-neutral-100 hover:text-neutral-900",
@@ -70,16 +76,18 @@ function Calendar({
           "data-[range-start=true]:rounded-s-md"
         ),
         range_start: cn(
+          defaultClassNames.range_start,
           "rounded-s-md",
           "after:absolute after:inset-y-0 after:end-0 after:w-1/2 after:bg-neutral-100 after:z-[-1]"
         ),
         range_end: cn(
+          defaultClassNames.range_end,
           "rounded-e-md",
           "before:absolute before:inset-y-0 before:start-0 before:w-1/2 before:bg-neutral-100 before:z-[-1]"
         ),
-        range_middle: "bg-neutral-100 rounded-none",
-        disabled: "text-neutral-500 opacity-50",
-        hidden: "invisible",
+        range_middle: cn(defaultClassNames.range_middle, "bg-neutral-100 rounded-none"),
+        disabled: cn(defaultClassNames.disabled, "text-neutral-500 opacity-50"),
+        hidden: cn(defaultClassNames.hidden, "invisible"),
         ...classNames,
       }}
       components={{
