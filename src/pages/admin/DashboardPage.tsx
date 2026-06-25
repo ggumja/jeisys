@@ -1,12 +1,50 @@
 import { ShoppingCart, Users, Package, DollarSign, ArrowUpRight, ArrowDownRight, Loader2, Calendar, Eye } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { adminService } from '../../services/adminService';
+
+// Custom ResizeObserver Hook using callback ref
+function useChartDimensions(defaultWidth = 500) {
+  const [width, setWidth] = useState(defaultWidth);
+  const observerRef = useRef<ResizeObserver | null>(null);
+
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (node) {
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const { width } = entries[0].contentRect;
+        if (width > 0) {
+          setWidth(width);
+        }
+      });
+      observer.observe(node);
+      observerRef.current = observer;
+
+      const initialWidth = node.getBoundingClientRect().width;
+      if (initialWidth > 0) {
+        setWidth(initialWidth);
+      }
+    }
+  }, []);
+
+  return [ref, width] as const;
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+
+  // Resize Refs for Recharts rendering stability
+  const [trendRef, trendWidth] = useChartDimensions(600);
+  const [categoryRef, categoryWidth] = useChartDimensions(300);
+  const [paymentRef, paymentWidth] = useChartDimensions(300);
+  const [regionRef, regionWidth] = useChartDimensions(600);
   
   // Filters
   const [dateRange, setDateRange] = useState('month'); // month, year, cumulative, custom
@@ -227,25 +265,23 @@ export function DashboardPage() {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-base font-bold text-neutral-900">선택 기간 매출 추이</h2>
               </div>
-              <div className="h-[300px]">
+              <div ref={trendRef} className="h-[300px] w-full min-w-0 relative">
                 {stats.trendData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-sm text-neutral-400">조회된 기간 내 매출 데이터가 없습니다.</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats.trendData}>
-                      <defs>
-                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#21358D" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="#21358D" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="label" stroke="#888888" fontSize={11} tickLine={false} />
-                      <YAxis stroke="#888888" fontSize={11} tickLine={false} formatter={(val: number) => `₩${(val/10000).toLocaleString()}만`} />
-                      <Tooltip formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']} />
-                      <Area type="monotone" dataKey="sales" stroke="#21358D" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <AreaChart width={trendWidth} height={300} data={stats.trendData}>
+                    <defs>
+                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#21358D" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#21358D" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="label" stroke="#888888" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#888888" fontSize={11} tickLine={false} formatter={(val: number) => `₩${(val/10000).toLocaleString()}만`} />
+                    <Tooltip formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']} />
+                    <Area type="monotone" dataKey="sales" stroke="#21358D" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSales)" />
+                  </AreaChart>
                 )}
               </div>
             </div>
@@ -253,28 +289,26 @@ export function DashboardPage() {
             {/* 카테고리별 매출 비율 (도넛 차트) */}
             <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between">
               <h2 className="text-base font-bold text-neutral-900 mb-4">카테고리별 매출 비중</h2>
-              <div className="h-[220px] relative">
+              <div ref={categoryRef} className="h-[220px] w-full min-w-0 relative">
                 {stats.categoryData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-sm text-neutral-400">데이터 없음</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={55}
-                        outerRadius={75}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {stats.categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => `${value}%`} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <PieChart width={categoryWidth} height={220}>
+                    <Pie
+                      data={stats.categoryData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={75}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {stats.categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `${value}%`} />
+                  </PieChart>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
@@ -292,27 +326,25 @@ export function DashboardPage() {
             {/* 결제수단별 매출 비중 */}
             <div className="bg-white border border-neutral-200 p-6 shadow-sm">
               <h2 className="text-base font-bold text-neutral-900 mb-4">결제수단별 매출 비율</h2>
-              <div className="h-[200px]">
+              <div ref={paymentRef} className="h-[200px] w-full min-w-0 relative">
                 {stats.paymentData.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-sm text-neutral-400 font-medium">결제 데이터 없음</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.paymentData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={70}
-                        dataKey="value"
-                        label={({ name, percentage }) => `${name} ${percentage}%`}
-                      >
-                        {stats.paymentData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={['#21358D', '#4b5563', '#9ca3af', '#d1d5db', '#e5e7eb'][index % 5]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <PieChart width={paymentWidth} height={200}>
+                    <Pie
+                      data={stats.paymentData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      dataKey="value"
+                      label={({ name, percentage }) => `${name} ${percentage}%`}
+                    >
+                      {stats.paymentData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={['#21358D', '#4b5563', '#9ca3af', '#d1d5db', '#e5e7eb'][index % 5]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']} />
+                  </PieChart>
                 )}
               </div>
             </div>
@@ -320,19 +352,17 @@ export function DashboardPage() {
             {/* 지역별 매출 (병원 주소 파싱) */}
             <div className="lg:col-span-2 bg-white border border-neutral-200 p-6 shadow-sm">
               <h2 className="text-base font-bold text-neutral-900 mb-4">지역별 매출 분포</h2>
-              <div className="h-[200px]">
+              <div ref={regionRef} className="h-[200px] w-full min-w-0 relative">
                 {stats.regionSales.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-sm text-neutral-400 font-medium">지역 매출 데이터 없음</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.regionSales.slice(0, 7)}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="region" stroke="#888888" fontSize={11} tickLine={false} />
-                      <YAxis stroke="#888888" fontSize={11} tickLine={false} formatter={(val: number) => `₩${(val/10000).toLocaleString()}만`} />
-                      <Tooltip formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']} />
-                      <Bar dataKey="sales" fill="#21358D" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <BarChart width={regionWidth} height={200} data={stats.regionSales.slice(0, 7)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="region" stroke="#888888" fontSize={11} tickLine={false} />
+                    <YAxis stroke="#888888" fontSize={11} tickLine={false} formatter={(val: number) => `₩${(val/10000).toLocaleString()}만`} />
+                    <Tooltip formatter={(value: number) => [`₩${value.toLocaleString()}`, '매출액']} />
+                    <Bar dataKey="sales" fill="#21358D" radius={[4, 4, 0, 0]} />
+                  </BarChart>
                 )}
               </div>
             </div>
