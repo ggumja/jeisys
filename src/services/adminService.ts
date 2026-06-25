@@ -226,8 +226,9 @@ export const adminService = {
     // getDashboardComprehensiveStats (Dashboard High-Level stats with date range)
     async getDashboardComprehensiveStats(filters: {
         dateRange: string;
+        granularity?: string;
     }) {
-        const { dateRange } = filters;
+        const { dateRange, granularity } = filters;
         
         // 1. Determine Date Range
         const now = new Date();
@@ -448,11 +449,34 @@ export const adminService = {
 
         // H. 매출 추이 그래프용 데이터 (그룹화)
         const trendDataMap: Record<string, number> = {};
-        filteredOrders.forEach(o => {
+        const getISOWeek = (d: Date): number => {
+            const date = new Date(d.getTime());
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+            const week1 = new Date(date.getFullYear(), 0, 4);
+            return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+        };
+
+        const sortedOrdersForTrend = [...filteredOrders].sort((a, b) => new Date(a.ordered_at).getTime() - new Date(b.ordered_at).getTime());
+
+        sortedOrdersForTrend.forEach(o => {
             const date = new Date(o.ordered_at);
-            const key = `${date.getMonth() + 1}/${date.getDate()}`; // default: 일 단위
+            let key = '';
+            if (granularity === 'daily') {
+                key = `${date.getMonth() + 1}/${date.getDate()}`;
+            } else if (granularity === 'weekly') {
+                const weekNum = getISOWeek(date);
+                key = `${date.getFullYear()}년 ${weekNum}주차`;
+            } else if (granularity === 'monthly') {
+                key = `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+            } else if (granularity === 'yearly') {
+                key = `${date.getFullYear()}년`;
+            } else {
+                key = `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+            }
             trendDataMap[key] = (trendDataMap[key] || 0) + o.computed_total;
         });
+
         const trendData = Object.entries(trendDataMap).map(([label, sales]) => ({
             label,
             sales

@@ -503,7 +503,8 @@ export function DashboardPage() {
       
       const [comprehensive, basicStats] = await Promise.all([
         adminService.getDashboardComprehensiveStats({
-          dateRange: effectiveRange
+          dateRange: effectiveRange,
+          granularity: granularity
         }),
         // Fetch static stats for total cumulative items
         adminService.getDashboardComprehensiveStats({
