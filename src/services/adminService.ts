@@ -2769,7 +2769,7 @@ export const adminService = {
     // ──────────────────────────────────────────────────────────────
 
     // 1-1. getProductOverviewStats
-    async getProductOverviewStats(dateRange: string) {
+    async getProductOverviewStats(dateRange: string, granularity?: string) {
         const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
 
         // 1. 전체 상품 수 & 활성 상품 수
@@ -2802,21 +2802,29 @@ export const adminService = {
 
         let totalQtySold = 0;
 
-        // dateRange에 따라 그루핑 단위 결정 (매출분석 카테고리별 차트와 동일한 로직)
+        // dateRange 및 granularity에 따라 그루핑 단위 결정
+        const resolvedGranularity = granularity || (
+            (dateRange === '7days' || dateRange === '30days') ? 'daily' :
+            (dateRange === '3months') ? 'weekly' : 'monthly'
+        );
+
         const categoryDateSalesMap: Record<string, Record<string, number>> = {};
 
         (orders || []).forEach(order => {
             const date = new Date(order.ordered_at);
             let dateKey = '';
-            if (dateRange === '7days' || dateRange === '30days') {
+            if (resolvedGranularity === 'daily') {
                 // 일별: MM/DD
                 dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
-            } else if (dateRange === '3months') {
+            } else if (resolvedGranularity === 'weekly') {
                 // 주별: YYYY-Www
                 const oneJan = new Date(date.getFullYear(), 0, 1);
                 const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
                 const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
                 dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else if (resolvedGranularity === 'yearly') {
+                // 년별: YYYY
+                dateKey = `${date.getFullYear()}`;
             } else {
                 // 월별: YYYY-MM
                 dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -2834,19 +2842,19 @@ export const adminService = {
             });
         });
 
-        // dateRange에 따라 X축 레이블 목록 생성
+        // dateRange 및 granularity에 따라 X축 레이블 목록 생성
         const activeKeys: string[] = [];
         const rangeStart = new Date(startDateIso);
         const rangeEnd = new Date(endDateIso);
 
-        if (dateRange === '7days' || dateRange === '30days') {
+        if (resolvedGranularity === 'daily') {
             // 일별: startDate ~ endDate 순회
             let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
             while (cur <= rangeEnd) {
                 activeKeys.push(`${String(cur.getMonth() + 1).padStart(2, '0')}/${String(cur.getDate()).padStart(2, '0')}`);
                 cur.setDate(cur.getDate() + 1);
             }
-        } else if (dateRange === '3months') {
+        } else if (resolvedGranularity === 'weekly') {
             // 주별: 범위 내 주차 목록 생성
             const weekSet = new Set<string>();
             let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
@@ -2858,6 +2866,14 @@ export const adminService = {
                 cur.setDate(cur.getDate() + 1);
             }
             activeKeys.push(...Array.from(weekSet).sort());
+        } else if (resolvedGranularity === 'yearly') {
+            // 년별: startYear ~ endYear 순회
+            let curY = rangeStart.getFullYear();
+            const endY = rangeEnd.getFullYear();
+            while (curY <= endY) {
+                activeKeys.push(`${curY}`);
+                curY++;
+            }
         } else {
             // 월별: startMonth ~ endMonth 순회
             let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
@@ -2872,7 +2888,7 @@ export const adminService = {
             const categoriesData = categoryDateSalesMap[key] || {};
             // X축 레이블: 월별인 경우 "YY.MM", 나머지는 그대로
             let label = key;
-            if (dateRange !== '7days' && dateRange !== '30days' && dateRange !== '3months') {
+            if (resolvedGranularity === 'monthly') {
                 const [y, m] = key.split('-');
                 label = `${y.slice(2)}.${m}`;
             }

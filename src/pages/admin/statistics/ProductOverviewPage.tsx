@@ -39,7 +39,7 @@ function useChartDimensions(defaultWidth = 500) {
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#64748b'];
 
 export function ProductOverviewPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, granularity } = useOutletContext<{ dateRange: string; granularity: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
@@ -51,7 +51,7 @@ export function ProductOverviewPage() {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getProductOverviewStats(dateRange);
+        const data = await adminService.getProductOverviewStats(dateRange, granularity);
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -60,7 +60,7 @@ export function ProductOverviewPage() {
       }
     }
     fetchStats();
-  }, [dateRange]);
+  }, [dateRange, granularity]);
 
   // stats 로드 시 전체 카테고리 활성화
   useEffect(() => {
@@ -118,15 +118,9 @@ export function ProductOverviewPage() {
             <div className="p-2.5 bg-green-50 text-green-600 rounded">
               <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">총 누적 판매량</span>
+            <span className="text-sm text-neutral-600 font-medium">선택 기간 판매량</span>
           </div>
           <p className="text-2xl font-bold text-neutral-900">{summary.totalQtySold.toLocaleString()}개</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className={`text-xs font-semibold ${summary.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {summary.growth >= 0 ? '+' : ''}{summary.growth}%
-            </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
-          </div>
           <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
         </div>
 
@@ -150,7 +144,7 @@ export function ProductOverviewPage() {
       <div className="bg-white border border-neutral-200 p-6 shadow-sm">
         <h3 className="font-semibold text-neutral-900 mb-1 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-[#21358D]" />
-          <span>카테고리별 누적 판매량 추이 (최근 6개월)</span>
+          <span>카테고리별 판매량 추이</span>
         </h3>
         <p className="text-xs text-neutral-500 mb-4">
           분석 기간 내 각 카테고리의 판매 추이를 비교하여 시각화합니다. 아래 체크박스를 통해 개별 카테고리 표시를 켜거나 끌 수 있습니다.

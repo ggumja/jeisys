@@ -428,8 +428,8 @@ export function ProductAnalyticsLayout() {
     { path: '/admin/statistics/products/overview', label: '상품 개요', icon: TrendingUp },
     { path: '/admin/statistics/products/category', label: '상품카테고리별', icon: BarChart3 },
     { path: '/admin/statistics/products/bestseller', label: '베스트셀러', icon: AwardIcon },
-    { path: '/admin/statistics/products/stock', label: '재고 분석', icon: AlertTriangle },
     { path: '/admin/statistics/products/conversion', label: '전환율 분석', icon: RefreshCw },
+    { path: '/admin/statistics/products/stock', label: '재고 분석', icon: AlertTriangle },
     { path: '/admin/statistics/products/low-performing', label: '비인기 상품', icon: Archive },
   ];
 
@@ -467,97 +467,99 @@ export function ProductAnalyticsLayout() {
       </div>
 
       {/* 공통 필터 영역 */}
-      <div className="bg-white border border-neutral-200 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Granularity 탭 */}
-          <div className="flex bg-neutral-100 p-0.5 rounded border border-neutral-200">
-            {granularityOptions.map(opt => (
+      {!(location.pathname.endsWith('/products/stock') || location.pathname.endsWith('/products/low-performing')) && (
+        <div className="bg-white border border-neutral-200 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Granularity 탭 */}
+            <div className="flex bg-neutral-100 p-0.5 rounded border border-neutral-200">
+              {granularityOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleGranularityChange(opt.value)}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded transition-all ${
+                    granularity === opt.value
+                      ? 'text-white shadow-sm'
+                      : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/50'
+                  }`}
+                  style={granularity === opt.value ? { backgroundColor: '#21358D' } : undefined}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 날짜 선택 버튼 + 팝오버 */}
+            <div className="relative" ref={pickerRef}>
               <button
-                key={opt.value}
                 type="button"
-                onClick={() => handleGranularityChange(opt.value)}
-                className={`px-4 py-1.5 text-xs font-semibold rounded transition-all ${
-                  granularity === opt.value
-                    ? 'text-white shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/50'
+                onClick={() => setPickerOpen(o => !o)}
+                className={`flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium transition-all ${
+                  pickerOpen
+                    ? 'border-[#21358D] text-[#21358D] bg-blue-50/30'
+                    : 'border-neutral-300 text-neutral-700 bg-white hover:border-neutral-400'
                 }`}
-                style={granularity === opt.value ? { backgroundColor: '#21358D' } : undefined}
               >
-                {opt.label}
+                <CalendarIcon className="w-4 h-4 shrink-0" />
+                <span className="max-w-xs truncate">{label}</span>
               </button>
-            ))}
-          </div>
 
-          {/* 날짜 선택 버튼 + 팝오버 */}
-          <div className="relative" ref={pickerRef}>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(o => !o)}
-              className={`flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium transition-all ${
-                pickerOpen
-                  ? 'border-[#21358D] text-[#21358D] bg-blue-50/30'
-                  : 'border-neutral-300 text-neutral-700 bg-white hover:border-neutral-400'
-              }`}
-            >
-              <CalendarIcon className="w-4 h-4 shrink-0" />
-              <span className="max-w-xs truncate">{label}</span>
-            </button>
-
-            {/* 팝오버 */}
-            {pickerOpen && (
-              <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white rounded-lg border border-neutral-200 shadow-xl overflow-hidden animate-fadeIn">
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 bg-neutral-50">
-                  <span className="text-xs font-semibold text-neutral-600">
-                    {granularity === 'daily' ? '날짜 범위 선택' : granularity === 'weekly' ? '주차 범위 선택' : granularity === 'monthly' ? '월 범위 선택' : '연도 범위 선택'}
-                  </span>
-                  <button onClick={() => setPickerOpen(false)} className="p-0.5 hover:bg-neutral-200 rounded">
-                    <X className="w-3.5 h-3.5 text-neutral-400" />
-                  </button>
-                </div>
-
-                {granularity === 'daily' && (
-                  <DailyPicker
-                    startDate={startDate}
-                    endDate={endDate}
-                    onChange={(s, e) => {
-                      setStartDate(s);
-                      setEndDate(e);
-                    }}
-                  />
-                )}
-                {granularity === 'weekly' && (
-                  <WeeklyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
-                )}
-                {granularity === 'monthly' && (
-                  <MonthlyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
-                )}
-                {granularity === 'yearly' && (
-                  <YearlyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
-                )}
-
-                {/* 일별 적용 버튼 */}
-                {granularity === 'daily' && (
-                  <div className="border-t border-neutral-100 px-4 py-2.5 flex justify-end gap-2">
-                    <button
-                      onClick={() => setPickerOpen(false)}
-                      className="px-4 py-1.5 text-xs font-semibold rounded border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
-                    >
-                      취소
-                    </button>
-                    <button
-                      onClick={() => setPickerOpen(false)}
-                      className="px-4 py-1.5 text-xs font-semibold rounded text-white"
-                      style={{ backgroundColor: '#21358D' }}
-                    >
-                      적용
+              {/* 팝오버 */}
+              {pickerOpen && (
+                <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white rounded-lg border border-neutral-200 shadow-xl overflow-hidden animate-fadeIn">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 bg-neutral-50">
+                    <span className="text-xs font-semibold text-neutral-600">
+                      {granularity === 'daily' ? '날짜 범위 선택' : granularity === 'weekly' ? '주차 범위 선택' : granularity === 'monthly' ? '월 범위 선택' : '연도 범위 선택'}
+                    </span>
+                    <button onClick={() => setPickerOpen(false)} className="p-0.5 hover:bg-neutral-200 rounded">
+                      <X className="w-3.5 h-3.5 text-neutral-400" />
                     </button>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {granularity === 'daily' && (
+                    <DailyPicker
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={(s, e) => {
+                        setStartDate(s);
+                        setEndDate(e);
+                      }}
+                    />
+                  )}
+                  {granularity === 'weekly' && (
+                    <WeeklyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
+                  )}
+                  {granularity === 'monthly' && (
+                    <MonthlyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
+                  )}
+                  {granularity === 'yearly' && (
+                    <YearlyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
+                  )}
+
+                  {/* 일별 적용 버튼 */}
+                  {granularity === 'daily' && (
+                    <div className="border-t border-neutral-100 px-4 py-2.5 flex justify-end gap-2">
+                      <button
+                        onClick={() => setPickerOpen(false)}
+                        className="px-4 py-1.5 text-xs font-semibold rounded border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={() => setPickerOpen(false)}
+                        className="px-4 py-1.5 text-xs font-semibold rounded text-white"
+                        style={{ backgroundColor: '#21358D' }}
+                      >
+                        적용
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 상단 탭 바 (Brand Color #21358D 적용) */}
       <div className="border-b border-neutral-200 bg-white px-2 pt-2 flex flex-wrap gap-1 shadow-sm">
