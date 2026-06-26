@@ -351,6 +351,22 @@ export function PeriodSalesPage() {
   const maxSales = rows.length > 0 ? Math.max(...rows.map(r => r.sales)) : 0;
   const maxRow = rows.find(r => r.sales === maxSales);
 
+  // 선택 기간별 평균 매출 계산 (viewMode 기준)
+  const periodCount = (() => {
+    try {
+      const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (viewMode === 'daily')   return Math.max(1, diffDays);
+      if (viewMode === 'weekly')  return Math.max(1, Math.round(diffDays / 7));
+      if (viewMode === 'monthly') return Math.max(1, Math.round(diffDays / 30.44));
+      return Math.max(1, Math.round(diffDays / 365.25));
+    } catch {
+      return rows.length || 1;
+    }
+  })();
+  const avgPeriodSales = Math.round(totalSales / periodCount);
+  const avgLabel = viewMode === 'daily' ? '일평균 매출' : viewMode === 'weekly' ? '주평균 매출' : viewMode === 'monthly' ? '월평균 매출' : '연평균 매출';
+  const avgSubLabel = viewMode === 'daily' ? `${periodCount}일 기준` : viewMode === 'weekly' ? `${periodCount}주 기준` : viewMode === 'monthly' ? `${periodCount}개월 기준` : `${periodCount}년 기준`;
+
   const modeLabel: Record<ViewMode, string> = { daily: '일별', weekly: '주별', monthly: '월별', yearly: '연도별' };
 
   const handleExcel = () => {
@@ -465,12 +481,13 @@ export function PeriodSalesPage() {
       </div>
 
       {/* 요약 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
           { label: '총 매출', value: `₩${totalSales.toLocaleString()}`, sub: '', icon: TrendingUp, color: '#21358D' },
           { label: '총 주문', value: `${totalOrders.toLocaleString()}건`, sub: rows.length > 0 ? `평균 ${Math.round(totalOrders / rows.length)}건/${modeLabel[viewMode].replace('별','').replace('도','')}` : '-', icon: ShoppingCart, color: '#059669' },
           { label: '평균 주문액', value: `₩${avgOrderAmount.toLocaleString()}`, sub: '건당 평균', icon: BarChart3, color: '#d97706' },
           { label: '최고 매출', value: maxSales > 0 ? `₩${maxSales.toLocaleString()}` : '-', sub: maxRow?.label ?? '', icon: TrendingUp, color: '#7c3aed' },
+          { label: avgLabel, value: `₩${avgPeriodSales.toLocaleString()}`, sub: avgSubLabel, icon: TrendingUp, color: '#6366f1' },
         ].map(card => (
           <div key={card.label} className="bg-white border border-neutral-200 p-5 shadow-sm">
             <p className="text-xs text-neutral-500 font-medium mb-2">{card.label}</p>
