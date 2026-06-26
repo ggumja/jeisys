@@ -376,6 +376,7 @@ export function CreditAnalyticsLayout() {
   const isTransactionsTab = location.pathname === '/admin/statistics/credits/transactions';
 
   const [showDownloadBtn, setShowDownloadBtn] = useState(false);
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const exportFnRef = useRef<(() => void) | null>(null);
   const onRegisterExport = useCallback((fn: (() => void) | null) => {
     exportFnRef.current = fn;
@@ -491,6 +492,27 @@ export function CreditAnalyticsLayout() {
       {isTransactionsTab && (
         <div className="bg-white border border-neutral-200 p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
+            {/* 장비 필터 버튼 그룹 */}
+            <div className="flex gap-1">
+              {[{ value: 'all', label: '전체' }, { value: 'Density', label: 'Density' }, { value: 'POTENZA', label: 'POTENZA' }, { value: 'LinearZ', label: 'LINEARZ' }].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setEquipmentFilter(opt.value)}
+                  className={`px-3 py-1.5 text-xs font-semibold border transition-all ${
+                    equipmentFilter === opt.value
+                      ? 'text-white border-[#21358D]'
+                      : 'border-neutral-300 text-neutral-600 bg-white hover:border-neutral-400 hover:bg-neutral-50'
+                  }`}
+                  style={equipmentFilter === opt.value ? { backgroundColor: '#21358D' } : undefined}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-5 bg-neutral-200" />
+
             {/* Granularity 탭 */}
             <div className="flex bg-neutral-100 p-0.5 rounded border border-neutral-200">
               {granularityOptions.map(opt => (
@@ -584,7 +606,7 @@ export function CreditAnalyticsLayout() {
 
       {/* 하위 컴포넌트 렌더링 */}
       <div className="min-h-[400px]">
-        <Outlet context={{ dateRange, granularity, onRegisterExport, label }} />
+        <Outlet context={{ dateRange, granularity, onRegisterExport, label, equipmentFilter }} />
       </div>
     </div>
   );

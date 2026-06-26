@@ -3675,7 +3675,7 @@ export const adminService = {
     },
 
     // 1-3. getCreditExpiryStats
-    async getCreditExpiryStats() {
+    async getCreditExpiryStats(equipmentType?: string) {
         const now = new Date();
         const nowIso = now.toISOString();
 
@@ -3685,7 +3685,7 @@ export const adminService = {
         const date90 = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
         // user_credits 테이블에서 잔액이 있는 데이터 가져오기
-        const { data: credits, error: credErr } = await supabase
+        let credQuery = supabase
             .from('user_credits')
             .select(`
                 id,
@@ -3701,6 +3701,12 @@ export const adminService = {
                     phone
                 )
             `);
+
+        if (equipmentType && equipmentType !== 'all') {
+            credQuery = credQuery.ilike('equipment_type', equipmentType);
+        }
+
+        const { data: credits, error: credErr } = await credQuery;
 
         if (credErr) throw credErr;
 
@@ -3776,11 +3782,34 @@ export const adminService = {
     },
 
     // 1-4. getCreditTransactionStats
-    async getCreditTransactionStats(dateRange: string) {
+    async getCreditTransactionStats(dateRange: string, equipmentFilter?: string) {
         const { startDateIso } = this._getSalesRangeAndStatuses(dateRange);
 
+        // 장비 필터 적용 시 해당 credit_id 목록 먼저 조회
+        let creditIdFilter: string[] | null = null;
+        if (equipmentFilter && equipmentFilter !== 'all') {
+            const { data: filteredCredits } = await supabase
+                .from('user_credits')
+                .select('id')
+                .ilike('equipment_type', equipmentFilter);
+            creditIdFilter = (filteredCredits || []).map(c => c.id);
+            if (creditIdFilter.length === 0) {
+                return {
+                    typeSummary: {
+                        issue: { amount: 0, count: 0 },
+                        use: { amount: 0, count: 0 },
+                        refund: { amount: 0, count: 0 },
+                        revoke: { amount: 0, count: 0 },
+                        expire: { amount: 0, count: 0 }
+                    },
+                    trendData: [],
+                    leadTimeAnalysis: { avgUseDays: 0, avgExhaustDays: 0 }
+                };
+            }
+        }
+
         // 전체 트랜잭션 조회
-        const { data: txs, error: txErr } = await supabase
+        let txQuery = supabase
             .from('credit_transactions')
             .select(`
                 amount,
@@ -3791,6 +3820,12 @@ export const adminService = {
                 )
             `)
             .gte('created_at', startDateIso);
+
+        if (creditIdFilter) {
+            txQuery = txQuery.in('credit_id', creditIdFilter);
+        }
+
+        const { data: txs, error: txErr } = await txQuery;
 
         if (txErr) throw txErr;
 
@@ -4059,7 +4094,7 @@ export const adminService = {
     },
 
     /** [관리자] 전체 크레딧 거래 내역 조회 (페이징, 검색, 필터 포함) */
-    async getAllCreditTransactions(page: number, limit: number, search: string, type: string, startDate?: string, endDate?: string) {
+    async getAllCreditTransactions(page: number, limit: number, search: string, type: string, startDate?: string, endDate?: string, creditType?: string) {
         let query = supabase
             .from('credit_transactions')
             .select(`
@@ -4091,6 +4126,23 @@ export const adminService = {
         if (endDate) {
             const eDate = new Date(`${endDate}T23:59:59.999`);
             query = query.lte('created_at', eDate.toISOString());
+        }
+
+        // 크레딧 종류(장비 필터) 필터링
+        if (creditType && creditType !== 'all') {
+            const { data: matchedCredits, error: credErr } = await supabase
+                .from('user_credits')
+                .select('id')
+                .ilike('equipment_type', creditType);
+            
+            if (credErr) throw credErr;
+
+            const creditIds = (matchedCredits || []).map(c => c.id);
+            if (creditIds.length > 0) {
+                query = query.in('credit_id', creditIds);
+            } else {
+                return { data: [], total: 0 };
+            }
         }
 
         // 검색어 필터링

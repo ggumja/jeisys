@@ -76,21 +76,24 @@ export function CreditOverviewPage() {
   return (
     <div className="space-y-6">
       {/* 장비 필터링 영역 */}
-      <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div>
-            <label className="block text-xs font-semibold text-neutral-500 mb-1.5">장비 필터</label>
-            <select
-              value={equipmentFilter}
-              onChange={(e) => setEquipmentFilter(e.target.value)}
-              className="border border-neutral-300 rounded px-3 py-1.5 text-xs bg-white text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 font-semibold"
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-neutral-600">장비</span>
+        <div className="flex gap-1">
+          {[{ value: 'all', label: '전체' }, { value: 'density', label: 'Density' }, { value: 'potenza', label: 'POTENZA' }, { value: 'linearz', label: 'LINEARZ' }].map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setEquipmentFilter(opt.value)}
+              className={`px-3 py-1.5 text-xs font-semibold border transition-all ${
+                equipmentFilter === opt.value
+                  ? 'text-white border-[#21358D]'
+                  : 'border-neutral-300 text-neutral-600 bg-white hover:border-neutral-400 hover:bg-neutral-50'
+              }`}
+              style={equipmentFilter === opt.value ? { backgroundColor: '#21358D' } : undefined}
             >
-              <option value="all">전체 장비</option>
-              <option value="density">DENSITY</option>
-              <option value="potenza">POTENZA</option>
-              <option value="linearz">LINEARZ</option>
-            </select>
-          </div>
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
       {/* 요약 지표 카드 */}

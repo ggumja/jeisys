@@ -37,7 +37,7 @@ function useChartDimensions(defaultWidth = 500) {
 }
 
 export function CreditTransactionPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, equipmentFilter } = useOutletContext<{ dateRange: string; equipmentFilter: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
@@ -48,7 +48,7 @@ export function CreditTransactionPage() {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getCreditTransactionStats(dateRange);
+        const data = await adminService.getCreditTransactionStats(dateRange, equipmentFilter);
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -57,7 +57,7 @@ export function CreditTransactionPage() {
       }
     }
     fetchStats();
-  }, [dateRange]);
+  }, [dateRange, equipmentFilter]);
 
   if (isLoading || !stats) {
     return (

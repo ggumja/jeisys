@@ -42,6 +42,7 @@ export function CreditHistoryPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [startDate, setStartDate] = useState('');
@@ -64,10 +65,10 @@ export function CreditHistoryPage() {
     setCurrentPage(1);
   };
 
-  const fetchTransactions = async (page: number, size: number, search: string, type: string, silent = false) => {
+  const fetchTransactions = async (page: number, size: number, search: string, type: string, equipment: string, silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const result = await adminService.getAllCreditTransactions(page, size, search, type, startDate, endDate);
+      const result = await adminService.getAllCreditTransactions(page, size, search, type, startDate, endDate, equipment);
       setTransactions(result.data as CreditTransaction[]);
       setTotalCount(result.total);
     } catch (error) {
@@ -78,18 +79,18 @@ export function CreditHistoryPage() {
   };
 
   useEffect(() => {
-    fetchTransactions(currentPage, pageSize, searchTerm, typeFilter);
-  }, [currentPage, pageSize, typeFilter, startDate, endDate]);
+    fetchTransactions(currentPage, pageSize, searchTerm, typeFilter, equipmentFilter);
+  }, [currentPage, pageSize, typeFilter, equipmentFilter, startDate, endDate]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    fetchTransactions(1, pageSize, searchTerm, typeFilter);
+    fetchTransactions(1, pageSize, searchTerm, typeFilter, equipmentFilter);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchTransactions(currentPage, pageSize, searchTerm, typeFilter, true);
+    await fetchTransactions(currentPage, pageSize, searchTerm, typeFilter, equipmentFilter, true);
     setIsRefreshing(false);
   };
 
@@ -97,7 +98,7 @@ export function CreditHistoryPage() {
     setIsDownloading(true);
     try {
       // 0은 전체 데이터 조회를 뜻함
-      const result = await adminService.getAllCreditTransactions(0, 0, searchTerm, typeFilter, startDate, endDate);
+      const result = await adminService.getAllCreditTransactions(0, 0, searchTerm, typeFilter, startDate, endDate, equipmentFilter);
       const allData = result.data as CreditTransaction[];
       
       const headers = ['일시', '아이디', '회원명', '병원명', '구분', '크레딧 종류', '변동 크레딧(원)', '상세내용', '관련 주문번호'];
@@ -197,7 +198,7 @@ export function CreditHistoryPage() {
       {/* 필터 영역 */}
       <div className="bg-white border border-neutral-200 p-6">
         <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400" />
               <input
@@ -220,6 +221,17 @@ export function CreditHistoryPage() {
               <option value="refund">취소환불</option>
               <option value="revoke">관리자회수</option>
               <option value="expire">기간만료</option>
+            </select>
+
+            <select
+              value={equipmentFilter}
+              onChange={(e) => { setEquipmentFilter(e.target.value); setCurrentPage(1); }}
+              className="w-full h-11 px-4 border border-neutral-300 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            >
+              <option value="all">전체 장비</option>
+              <option value="Density">Density</option>
+              <option value="POTENZA">POTENZA</option>
+              <option value="LinearZ">LINEARZ</option>
             </select>
 
             <Button type="submit" className="w-full h-11 bg-neutral-900 text-white hover:bg-neutral-800">

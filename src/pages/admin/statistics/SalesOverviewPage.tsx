@@ -166,7 +166,7 @@ export function SalesOverviewPage() {
     if (granularity === 'daily') setPeriod('day');
     else if (granularity === 'weekly') setPeriod('week');
     else if (granularity === 'monthly') setPeriod('month');
-    else if (granularity === 'yearly') setPeriod('month');
+    else if (granularity === 'yearly') setPeriod('quarter');
   }, [granularity]);
 
   const handleExport = useCallback(() => {
@@ -222,6 +222,12 @@ export function SalesOverviewPage() {
 
   const { summary, chartData } = stats;
 
+  // 선택 기간별 평균 매출 계산 (granularity 기준)
+  const periodCount = chartData.length || 1;
+  const avgPeriodSales = Math.round(summary.totalSales / periodCount);
+  const avgLabel = granularity === 'daily' ? '일평균 매출' : granularity === 'weekly' ? '주평균 매출' : granularity === 'monthly' ? '월평균 매출' : '년평균 매출';
+  const avgSubLabel = granularity === 'daily' ? `${periodCount}일 기준` : granularity === 'weekly' ? `${periodCount}주 기준` : granularity === 'monthly' ? `${periodCount}개월 기준` : `${periodCount}년 기준`;
+
   return (
     <div className="space-y-6">
       {/* 데모 데이터 알림 배너 */}
@@ -240,6 +246,91 @@ export function SalesOverviewPage() {
         </div>
       )}
 
+
+
+      {/* 요약 지표 카드 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* 총 매출 */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-blue-50 text-[#21358D] rounded">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <span className="text-sm text-neutral-600 font-medium">총 매출</span>
+          </div>
+          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalSales.toLocaleString()}</p>
+          <div className="mt-2 flex items-center gap-1">
+            <span className={`text-xs font-semibold ${summary.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {summary.salesGrowth >= 0 ? '+' : ''}{summary.salesGrowth}%
+            </span>
+            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
+          </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-[#21358D]/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+        </div>
+
+        {/* 총 주문수 */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <span className="text-sm text-neutral-600 font-medium">총 주문건수</span>
+          </div>
+          <p className="text-2xl font-bold text-neutral-900">{summary.totalOrders}건</p>
+          <div className="mt-2 flex items-center gap-1">
+            <span className={`text-xs font-semibold ${summary.orderGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {summary.orderGrowth >= 0 ? '+' : ''}{summary.orderGrowth}%
+            </span>
+            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
+          </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+        </div>
+
+        {/* 구매 고객수 */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-orange-50 text-orange-600 rounded">
+              <Users className="w-5 h-5" />
+            </div>
+            <span className="text-sm text-neutral-600 font-medium">구매 고객수</span>
+          </div>
+          <p className="text-2xl font-bold text-neutral-900">{summary.totalCustomers}명</p>
+          <div className="mt-2 flex items-center gap-1">
+            <span className="text-xs font-semibold text-neutral-500">실시간 집계</span>
+          </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+        </div>
+
+        {/* 평균 주문액 */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded">
+              <Package className="w-5 h-5" />
+            </div>
+            <span className="text-sm text-neutral-600 font-medium">평균 주문액</span>
+          </div>
+          <p className="text-2xl font-bold text-neutral-900">₩{summary.avgOrder.toLocaleString()}</p>
+          <div className="mt-2 flex items-center gap-1">
+            <span className="text-xs text-neutral-500 font-medium">1회 거래당 평균</span>
+          </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+        </div>
+
+        {/* 기간별 평균 매출 (동적) */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2.5 bg-violet-50 text-violet-600 rounded">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <span className="text-sm text-neutral-600 font-medium">{avgLabel}</span>
+          </div>
+          <p className="text-2xl font-bold text-neutral-900">₩{avgPeriodSales.toLocaleString()}</p>
+          <div className="mt-2 flex items-center gap-1">
+            <span className="text-xs text-neutral-500 font-medium">{avgSubLabel}</span>
+          </div>
+          <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+        </div>
+      </div>
 
       {/* 데이터 단위 표시 (레이아웃 granularity와 연동) */}
       <div className="flex justify-end items-center gap-2">
@@ -328,75 +419,6 @@ export function SalesOverviewPage() {
               activeDot={{ r: 5 }} 
             />
           </ComposedChart>
-        </div>
-      </div>
-
-      {/* 요약 지표 카드 (차트 하단으로 이동 배치) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* 총 매출 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-blue-50 text-[#21358D] rounded">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <span className="text-sm text-neutral-600 font-medium">총 매출</span>
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalSales.toLocaleString()}</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className={`text-xs font-semibold ${summary.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {summary.salesGrowth >= 0 ? '+' : ''}{summary.salesGrowth}%
-            </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
-          </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#21358D]/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
-        </div>
-
-        {/* 총 주문수 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded">
-              <ShoppingCart className="w-5 h-5" />
-            </div>
-            <span className="text-sm text-neutral-600 font-medium">총 주문건수</span>
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.totalOrders}건</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className={`text-xs font-semibold ${summary.orderGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {summary.orderGrowth >= 0 ? '+' : ''}{summary.orderGrowth}%
-            </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
-          </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
-        </div>
-
-        {/* 구매 고객수 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-orange-50 text-orange-600 rounded">
-              <Users className="w-5 h-5" />
-            </div>
-            <span className="text-sm text-neutral-600 font-medium">구매 고객수</span>
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.totalCustomers}명</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className="text-xs font-semibold text-neutral-500">실시간 집계</span>
-          </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
-        </div>
-
-        {/* 평균 주문액 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded">
-              <Package className="w-5 h-5" />
-            </div>
-            <span className="text-sm text-neutral-600 font-medium">평균 주문액</span>
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.avgOrder.toLocaleString()}</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className="text-xs text-neutral-500 font-medium">1회 거래당 평균</span>
-          </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
         </div>
       </div>
     </div>

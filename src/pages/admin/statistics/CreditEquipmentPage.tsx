@@ -55,7 +55,7 @@ export function CreditEquipmentPage() {
         <div className="p-6 border-b border-neutral-200">
           <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
             <Award className="w-4 h-4 text-[#21358D]" />
-            <span>장비별 크레딧 운영 성과</span>
+            <span>장비별 크레딧 현황</span>
           </h3>
           <p className="text-xs text-neutral-500 mt-1">
             각 장비별 크레딧 발행과 사용 소진율, 현재 활성 잔액 규모를 나타냅니다.

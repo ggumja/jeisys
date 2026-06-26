@@ -357,7 +357,7 @@ export function AdminLayout() {
                   {isStatisticsOpen && hasPermission('statistics') && (
                     <div className="bg-white">
                       {statisticsSubMenus.map((item) => {
-                        const isActive = location.pathname === item.to;
+                        const isActive = location.pathname.startsWith(item.to);
                         return (
                           <Link
                             key={item.to}

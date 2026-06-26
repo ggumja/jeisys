@@ -7,13 +7,14 @@ export function CreditExpiryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [selectedRange, setSelectedRange] = useState<30 | 60 | 90>(30);
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getCreditExpiryStats();
+        const data = await adminService.getCreditExpiryStats(equipmentFilter);
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -22,7 +23,7 @@ export function CreditExpiryPage() {
       }
     }
     fetchStats();
-  }, []);
+  }, [equipmentFilter]);
 
   if (isLoading || !stats) {
     return (
@@ -34,7 +35,11 @@ export function CreditExpiryPage() {
 
   const { summary, detailedList } = stats;
 
-  const filteredList = detailedList.filter((row: any) => row.daysRemaining <= selectedRange);
+  const filteredList = detailedList.filter((row: any) => {
+    const inRange = row.daysRemaining <= selectedRange;
+    const inEquipment = equipmentFilter === 'all' || row.equipmentType === equipmentFilter;
+    return inRange && inEquipment;
+  });
 
   const handleSendSingleSms = (row: any) => {
     navigate('/admin/marketing/sms/send', {
@@ -47,6 +52,28 @@ export function CreditExpiryPage() {
 
   return (
     <div className="space-y-6">
+      {/* 장비 필터 */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-neutral-600">장비</span>
+        <div className="flex gap-1">
+          {[{ value: 'all', label: '전체' }, { value: 'Density', label: 'Density' }, { value: 'POTENZA', label: 'POTENZA' }, { value: 'LinearZ', label: 'LINEARZ' }].map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setEquipmentFilter(opt.value)}
+              className={`px-3 py-1.5 text-xs font-semibold border transition-all ${
+                equipmentFilter === opt.value
+                  ? 'text-white border-[#21358D]'
+                  : 'border-neutral-300 text-neutral-600 bg-white hover:border-neutral-400 hover:bg-neutral-50'
+              }`}
+              style={equipmentFilter === opt.value ? { backgroundColor: '#21358D' } : undefined}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* 만료 임박 구간별 요약 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 30일 이내 */}
@@ -100,7 +127,7 @@ export function CreditExpiryPage() {
 
       {/* 만료 임박 상세 내역 */}
       <div className="bg-white border border-neutral-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-6 border-b border-neutral-200 flex items-start">
           <div>
             <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-red-500" />
