@@ -222,11 +222,72 @@ export function SalesOverviewPage() {
 
   const { summary, chartData } = stats;
 
-  // 선택 기간별 평균 매출 계산 (granularity 기준)
-  const periodCount = chartData.length || 1;
+  // 선택 기간별 평균 매출 계산 — dateRange에서 실제 기간 수 산출
+  const periodCount = (() => {
+    try {
+      const raw = dateRange.replace('custom:', '');
+      const [startStr, endStr] = raw.split('_');
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (granularity === 'daily')   return Math.max(1, diffDays);
+      if (granularity === 'weekly')  return Math.max(1, Math.round(diffDays / 7));
+      if (granularity === 'monthly') return Math.max(1, Math.round(diffDays / 30.44));
+      return Math.max(1, Math.round(diffDays / 365.25));
+    } catch {
+      return chartData.length || 1;
+    }
+  })();
   const avgPeriodSales = Math.round(summary.totalSales / periodCount);
   const avgLabel = granularity === 'daily' ? '일평균 매출' : granularity === 'weekly' ? '주평균 매출' : granularity === 'monthly' ? '월평균 매출' : '년평균 매출';
   const avgSubLabel = granularity === 'daily' ? `${periodCount}일 기준` : granularity === 'weekly' ? `${periodCount}주 기준` : granularity === 'monthly' ? `${periodCount}개월 기준` : `${periodCount}년 기준`;
+
+  // 비교 기간 라벨 계산
+  const prevPeriodLabel = (() => {
+    try {
+      const raw = dateRange.replace('custom:', '');
+      const [startStr, endStr] = raw.split('_');
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      const prevStart = new Date(start);
+      prevStart.setDate(start.getDate() - diffDays);
+      const prevEnd = new Date(start);
+      prevEnd.setDate(start.getDate() - 1);
+
+      const formatYear = (d: Date) => `${String(d.getFullYear()).slice(-2)}년`;
+      const getISOWeekLocal = (d: Date): number => {
+        const date = new Date(d);
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+        const week1 = new Date(date.getFullYear(), 0, 4);
+        return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+      };
+
+      if (granularity === 'monthly') {
+        const startLabel = `${formatYear(prevStart)} ${prevStart.getMonth() + 1}월`;
+        const endLabel = `${formatYear(prevEnd)} ${prevEnd.getMonth() + 1}월`;
+        return startLabel === endLabel ? startLabel : `${startLabel}~${endLabel}`;
+      } else if (granularity === 'weekly') {
+        const sw = getISOWeekLocal(prevStart);
+        const ew = getISOWeekLocal(prevEnd);
+        const startLabel = `${formatYear(prevStart)} ${sw}주차`;
+        const endLabel = `${formatYear(prevEnd)} ${ew}주차`;
+        return startLabel === endLabel ? startLabel : `${startLabel}~${endLabel}`;
+      } else if (granularity === 'daily') {
+        const startLabel = `${formatYear(prevStart)} ${prevStart.getMonth() + 1}월 ${prevStart.getDate()}일`;
+        const endLabel = `${formatYear(prevEnd)} ${prevEnd.getMonth() + 1}월 ${prevEnd.getDate()}일`;
+        return startLabel === endLabel ? startLabel : `${startLabel}~${endLabel}`;
+      } else {
+        const startLabel = `${formatYear(prevStart)}`;
+        const endLabel = `${formatYear(prevEnd)}`;
+        return startLabel === endLabel ? startLabel : `${startLabel}~${endLabel}`;
+      }
+    } catch {
+      return '';
+    }
+  })();
 
   return (
     <div className="space-y-6">
@@ -263,7 +324,7 @@ export function SalesOverviewPage() {
             <span className={`text-xs font-semibold ${summary.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {summary.salesGrowth >= 0 ? '+' : ''}{summary.salesGrowth}%
             </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
+            <span className="text-[10px] text-neutral-400">이전 동기 대비{prevPeriodLabel ? ` (${prevPeriodLabel})` : ''}</span>
           </div>
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#21358D]/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
         </div>
@@ -281,7 +342,7 @@ export function SalesOverviewPage() {
             <span className={`text-xs font-semibold ${summary.orderGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {summary.orderGrowth >= 0 ? '+' : ''}{summary.orderGrowth}%
             </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비</span>
+            <span className="text-[10px] text-neutral-400">이전 동기 대비{prevPeriodLabel ? ` (${prevPeriodLabel})` : ''}</span>
           </div>
           <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
         </div>
