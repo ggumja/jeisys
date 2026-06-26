@@ -72,55 +72,55 @@ export function CreditTransactionPage() {
   return (
     <div className="space-y-6">
       {/* 거래 유형별 집계 그리드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {/* 발급 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#21358D]" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#21358D]" />
             <span className="text-xs text-neutral-500 font-semibold">크레딧 충전(발행)</span>
           </div>
-          <p className="text-xl font-bold text-neutral-900">₩{typeSummary.issue.amount.toLocaleString()}</p>
-          <span className="text-[11px] text-neutral-400 font-medium">거래 건수: {typeSummary.issue.count}건</span>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.issue.amount.toLocaleString()}</p>
+          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.issue.count}건</span>
         </div>
 
         {/* 사용 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-xs text-neutral-500 font-semibold">크레딧 차감(사용)</span>
           </div>
-          <p className="text-xl font-bold text-neutral-900">₩{typeSummary.use.amount.toLocaleString()}</p>
-          <span className="text-[11px] text-neutral-400 font-medium">거래 건수: {typeSummary.use.count}건</span>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.use.amount.toLocaleString()}</p>
+          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.use.count}건</span>
         </div>
 
         {/* 환불 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-400" />
             <span className="text-xs text-neutral-500 font-semibold">취소 환불(refund)</span>
           </div>
-          <p className="text-xl font-bold text-neutral-900">₩{typeSummary.refund.amount.toLocaleString()}</p>
-          <span className="text-[11px] text-neutral-400 font-medium">거래 건수: {typeSummary.refund.count}건</span>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.refund.amount.toLocaleString()}</p>
+          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.refund.count}건</span>
         </div>
 
         {/* 만료 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-400" />
             <span className="text-xs text-neutral-500 font-semibold">기간 만료(expire)</span>
           </div>
-          <p className="text-xl font-bold text-neutral-900">₩{typeSummary.expire.amount.toLocaleString()}</p>
-          <span className="text-[11px] text-neutral-400 font-medium">거래 건수: {typeSummary.expire.count}건</span>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.expire.amount.toLocaleString()}</p>
+          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.expire.count}건</span>
         </div>
 
         {/* 회수 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-neutral-400" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-neutral-400" />
             <span className="text-xs text-neutral-500 font-semibold">관리자 회수(revoke)</span>
           </div>
-          <p className="text-xl font-bold text-neutral-900">₩{typeSummary.revoke.amount.toLocaleString()}</p>
-          <span className="text-[11px] text-neutral-400 font-medium">거래 건수: {typeSummary.revoke.count}건</span>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.revoke.amount.toLocaleString()}</p>
+          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.revoke.count}건</span>
         </div>
       </div>
 

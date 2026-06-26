@@ -481,7 +481,7 @@ export function PeriodSalesPage() {
       </div>
 
       {/* 요약 카드 */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {[
           { label: '총 매출', value: `₩${totalSales.toLocaleString()}`, sub: '', icon: TrendingUp, color: '#21358D' },
           { label: '총 주문', value: `${totalOrders.toLocaleString()}건`, sub: rows.length > 0 ? `평균 ${Math.round(totalOrders / rows.length)}건/${modeLabel[viewMode].replace('별','').replace('도','')}` : '-', icon: ShoppingCart, color: '#059669' },
@@ -489,10 +489,10 @@ export function PeriodSalesPage() {
           { label: '최고 매출', value: maxSales > 0 ? `₩${maxSales.toLocaleString()}` : '-', sub: maxRow?.label ?? '', icon: TrendingUp, color: '#7c3aed' },
           { label: avgLabel, value: `₩${avgPeriodSales.toLocaleString()}`, sub: avgSubLabel, icon: TrendingUp, color: '#6366f1' },
         ].map(card => (
-          <div key={card.label} className="bg-white border border-neutral-200 p-5 shadow-sm">
-            <p className="text-xs text-neutral-500 font-medium mb-2">{card.label}</p>
-            <p className="text-xl font-bold text-neutral-900 mb-1">{isLoading ? '...' : card.value}</p>
-            {card.sub && <p className="text-xs text-neutral-400">{card.sub}</p>}
+          <div key={card.label} className="bg-white border border-neutral-200 p-5 shadow-sm hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+            <p className="text-xs text-neutral-500 font-semibold mb-1">{card.label}</p>
+            <p className="text-lg font-bold text-neutral-900 leading-tight">{isLoading ? '...' : card.value}</p>
+            {card.sub && <p className="text-xs text-neutral-400 mt-0.5 whitespace-nowrap">{card.sub}</p>}
           </div>
         ))}
       </div>

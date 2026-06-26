@@ -97,57 +97,57 @@ export function CreditOverviewPage() {
         </div>
       </div>
       {/* 요약 지표 카드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {/* 누적 발행액 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-blue-50 text-[#21358D] rounded">
-              <Coins className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-blue-50 text-[#21358D] rounded">
+              <Coins className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-semibold">누적 총 발행액</span>
+            <span className="text-xs text-neutral-600 font-semibold">누적 총 발행액</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalIssued.toLocaleString()}</p>
-          <p className="text-xs text-neutral-400 mt-2 font-medium">선택 기간 내 신규 충전</p>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#21358D]/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalIssued.toLocaleString()}</p>
+          <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">선택 기간 내 신규 충전</p>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-[#21358D]/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 누적 사용액 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-green-50 text-green-600 rounded">
-              <TrendingUp className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-green-50 text-green-600 rounded">
+              <TrendingUp className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-semibold">누적 총 사용액</span>
+            <span className="text-xs text-neutral-600 font-semibold">누적 총 사용액</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalUsed.toLocaleString()}</p>
-          <p className="text-xs text-neutral-400 mt-2 font-medium">선택 기간 내 실제 차감</p>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalUsed.toLocaleString()}</p>
+          <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">선택 기간 내 실제 차감</p>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-green-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 현재 총 잔액 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-purple-50 text-purple-600 rounded">
-              <Sparkles className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-purple-50 text-purple-600 rounded">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-semibold">현재 총 잔액</span>
+            <span className="text-xs text-neutral-600 font-semibold">현재 총 잔액</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalRemaining.toLocaleString()}</p>
-          <p className="text-xs text-neutral-400 mt-2 font-medium">모든 고객사 미소진 활성액</p>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalRemaining.toLocaleString()}</p>
+          <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">모든 고객사 미소진 활성액</p>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 누적 만료액 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-red-50 text-red-600 rounded">
-              <AlertCircle className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-red-50 text-red-600 rounded">
+              <AlertCircle className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-semibold">누적 총 만료액</span>
+            <span className="text-xs text-neutral-600 font-semibold">누적 총 만료액</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalExpired.toLocaleString()}</p>
-          <p className="text-xs text-neutral-400 mt-2 font-medium">유효기간 종료 미사용 소멸</p>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalExpired.toLocaleString()}</p>
+          <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">유효기간 종료 미사용 소멸</p>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
       </div>
 

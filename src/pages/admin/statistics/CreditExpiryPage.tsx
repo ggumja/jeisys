@@ -75,18 +75,18 @@ export function CreditExpiryPage() {
       </div>
 
       {/* 만료 임박 구간별 요약 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {/* 30일 이내 */}
         <div 
           onClick={() => setSelectedRange(30)}
           style={selectedRange === 30 ? { borderColor: '#21358D' } : {}}
-          className={`bg-white p-6 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 ${
+          className={`bg-white p-5 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 flex-1 min-w-[200px] ${
             selectedRange === 30 ? 'bg-blue-50/5' : 'border-red-100 hover:border-red-200'
           }`}
         >
-          <span className="text-sm text-neutral-500 font-semibold block mb-2">30일 이내 만료 예정</span>
-          <p className="text-2xl font-bold text-red-600">₩{summary.exp30.amount.toLocaleString()}</p>
-          <div className="mt-2 text-xs text-neutral-500 font-semibold flex justify-between">
+          <span className="text-xs text-neutral-500 font-semibold block mb-1">30일 이내 만료 예정</span>
+          <p className="text-lg font-bold text-red-600 leading-tight">₩{summary.exp30.amount.toLocaleString()}</p>
+          <div className="mt-1 text-xs text-neutral-500 font-semibold flex justify-between whitespace-nowrap gap-2">
             <span>대상 건수: {summary.exp30.count}건</span>
             <span>대상 병원: {summary.exp30.hospitalCount}개사</span>
           </div>
@@ -96,13 +96,13 @@ export function CreditExpiryPage() {
         <div 
           onClick={() => setSelectedRange(60)}
           style={selectedRange === 60 ? { borderColor: '#21358D' } : {}}
-          className={`bg-white p-6 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 ${
+          className={`bg-white p-5 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 flex-1 min-w-[200px] ${
             selectedRange === 60 ? 'bg-blue-50/5' : 'border-neutral-200 hover:border-neutral-300'
           }`}
         >
-          <span className="text-sm text-neutral-500 font-semibold block mb-2">60일 이내 만료 예정</span>
-          <p className="text-2xl font-bold text-neutral-800">₩{summary.exp60.amount.toLocaleString()}</p>
-          <div className="mt-2 text-xs text-neutral-500 font-semibold flex justify-between">
+          <span className="text-xs text-neutral-500 font-semibold block mb-1">60일 이내 만료 예정</span>
+          <p className="text-lg font-bold text-neutral-800 leading-tight">₩{summary.exp60.amount.toLocaleString()}</p>
+          <div className="mt-1 text-xs text-neutral-500 font-semibold flex justify-between whitespace-nowrap gap-2">
             <span>대상 건수: {summary.exp60.count}건</span>
             <span>대상 병원: {summary.exp60.hospitalCount}개사</span>
           </div>
@@ -112,13 +112,13 @@ export function CreditExpiryPage() {
         <div 
           onClick={() => setSelectedRange(90)}
           style={selectedRange === 90 ? { borderColor: '#21358D' } : {}}
-          className={`bg-white p-6 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 ${
+          className={`bg-white p-5 shadow-sm relative group cursor-pointer transition-all duration-200 rounded border-2 flex-1 min-w-[200px] ${
             selectedRange === 90 ? 'bg-blue-50/5' : 'border-neutral-200 hover:border-neutral-300'
           }`}
         >
-          <span className="text-sm text-neutral-500 font-semibold block mb-2">90일 이내 만료 예정</span>
-          <p className="text-2xl font-bold text-neutral-800">₩{summary.exp90.amount.toLocaleString()}</p>
-          <div className="mt-2 text-xs text-neutral-500 font-semibold flex justify-between">
+          <span className="text-xs text-neutral-500 font-semibold block mb-1">90일 이내 만료 예정</span>
+          <p className="text-lg font-bold text-neutral-800 leading-tight">₩{summary.exp90.amount.toLocaleString()}</p>
+          <div className="mt-1 text-xs text-neutral-500 font-semibold flex justify-between whitespace-nowrap gap-2">
             <span>대상 건수: {summary.exp90.count}건</span>
             <span>대상 병원: {summary.exp90.hospitalCount}개사</span>
           </div>

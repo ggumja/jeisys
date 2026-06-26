@@ -96,47 +96,50 @@ export function ProductOverviewPage() {
   return (
     <div className="space-y-6">
       {/* 요약 지표 카드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {/* 전체 상품 수 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-blue-50 text-[#21358D] rounded">
-              <Package className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-blue-50 text-[#21358D] rounded">
+              <Package className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">전체 등록 상품</span>
+            <span className="text-xs text-neutral-600 font-semibold">전체 등록 상품</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.totalProducts}개</p>
-          <div className="mt-2 flex items-center gap-1">
+          <p className="text-lg font-bold text-neutral-900 leading-tight">{summary.totalProducts}개</p>
+          <div className="mt-1 flex items-center gap-1 whitespace-nowrap">
             <span className="text-xs text-neutral-500 font-medium">활성 판매중: {summary.activeProducts}개</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#21358D]/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-[#21358D]/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 총 판매량 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-green-50 text-green-600 rounded">
-              <TrendingUp className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-green-50 text-green-600 rounded">
+              <TrendingUp className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">선택 기간 판매량</span>
+            <span className="text-xs text-neutral-600 font-semibold">선택 기간 판매량</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.totalQtySold.toLocaleString()}개</p>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <p className="text-lg font-bold text-neutral-900 leading-tight">{summary.totalQtySold.toLocaleString()}개</p>
+          <div className="mt-1 flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs text-neutral-500 font-medium">실시간 판매수량</span>
+          </div>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-green-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 재고 부족 경고 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-red-50 text-red-600 rounded">
-              <AlertTriangle className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-red-50 text-red-600 rounded">
+              <AlertTriangle className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">재고 부족 경보</span>
+            <span className="text-xs text-neutral-600 font-semibold">재고 부족 경보</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.lowStockCount}개 상품</p>
-          <div className="mt-2 flex items-center gap-1">
+          <p className="text-lg font-bold text-neutral-900 leading-tight">{summary.lowStockCount}개 상품</p>
+          <div className="mt-1 flex items-center gap-1 whitespace-nowrap">
             <span className="text-xs text-red-600 font-semibold">재고 10개 미만 상품</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
       </div>
 

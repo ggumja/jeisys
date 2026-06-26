@@ -251,10 +251,23 @@ export function SalesOverviewPage() {
       const end = new Date(endStr);
       const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
       
-      const prevStart = new Date(start);
-      prevStart.setDate(start.getDate() - diffDays);
-      const prevEnd = new Date(start);
-      prevEnd.setDate(start.getDate() - 1);
+      let prevStart: Date;
+      let prevEnd: Date;
+
+      if (granularity === 'monthly') {
+        const diffMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
+        prevStart = new Date(start.getFullYear(), start.getMonth() - diffMonths, 1);
+        prevEnd = new Date(start.getFullYear(), start.getMonth(), 0);
+      } else if (granularity === 'yearly') {
+        const diffYears = end.getFullYear() - start.getFullYear() + 1;
+        prevStart = new Date(start.getFullYear() - diffYears, 0, 1);
+        prevEnd = new Date(start.getFullYear(), 0, 0);
+      } else {
+        prevStart = new Date(start);
+        prevStart.setDate(start.getDate() - diffDays);
+        prevEnd = new Date(start);
+        prevEnd.setDate(start.getDate() - 1);
+      }
 
       const formatYear = (d: Date) => `${String(d.getFullYear()).slice(-2)}년`;
       const getISOWeekLocal = (d: Date): number => {
@@ -310,86 +323,86 @@ export function SalesOverviewPage() {
 
 
       {/* 요약 지표 카드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {/* 총 매출 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-blue-50 text-[#21358D] rounded">
-              <TrendingUp className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-blue-50 text-[#21358D] rounded">
+              <TrendingUp className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">총 매출</span>
+            <span className="text-xs text-neutral-600 font-semibold">총 매출</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.totalSales.toLocaleString()}</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className={`text-xs font-semibold ${summary.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalSales.toLocaleString()}</p>
+          <div className="mt-1 flex items-center gap-1 flex-wrap whitespace-nowrap">
+            <span className={`text-xs font-bold ${summary.salesGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {summary.salesGrowth >= 0 ? '+' : ''}{summary.salesGrowth}%
             </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비{prevPeriodLabel ? ` (${prevPeriodLabel})` : ''}</span>
+            <span className="text-xs text-neutral-400">전기대비{prevPeriodLabel ? ` (${prevPeriodLabel})` : ''}</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-[#21358D]/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-[#21358D]/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 총 주문수 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded">
-              <ShoppingCart className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded">
+              <ShoppingCart className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">총 주문건수</span>
+            <span className="text-xs text-neutral-600 font-semibold">총 주문건수</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.totalOrders}건</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className={`text-xs font-semibold ${summary.orderGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">{summary.totalOrders}건</p>
+          <div className="mt-1 flex items-center gap-1 flex-wrap whitespace-nowrap">
+            <span className={`text-xs font-bold ${summary.orderGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {summary.orderGrowth >= 0 ? '+' : ''}{summary.orderGrowth}%
             </span>
-            <span className="text-[10px] text-neutral-400">이전 동기 대비{prevPeriodLabel ? ` (${prevPeriodLabel})` : ''}</span>
+            <span className="text-xs text-neutral-400">전기대비{prevPeriodLabel ? ` (${prevPeriodLabel})` : ''}</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 구매 고객수 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-orange-50 text-orange-600 rounded">
-              <Users className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-orange-50 text-orange-600 rounded">
+              <Users className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">구매 고객수</span>
+            <span className="text-xs text-neutral-600 font-semibold">구매 고객수</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">{summary.totalCustomers}명</p>
-          <div className="mt-2 flex items-center gap-1">
+          <p className="text-lg font-bold text-neutral-900 leading-tight">{summary.totalCustomers}명</p>
+          <div className="mt-1 flex items-center gap-1 whitespace-nowrap">
             <span className="text-xs font-semibold text-neutral-500">실시간 집계</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 평균 주문액 */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded">
-              <Package className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded">
+              <Package className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">평균 주문액</span>
+            <span className="text-xs text-neutral-600 font-semibold">평균 주문액</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{summary.avgOrder.toLocaleString()}</p>
-          <div className="mt-2 flex items-center gap-1">
-            <span className="text-xs text-neutral-500 font-medium">1회 거래당 평균</span>
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.avgOrder.toLocaleString()}</p>
+          <div className="mt-1 flex items-center gap-1 whitespace-nowrap">
+            <span className="text-xs text-neutral-500 font-medium">1회 거래 평균</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
 
         {/* 기간별 평균 매출 (동적) */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-violet-50 text-violet-600 rounded">
-              <TrendingUp className="w-5 h-5" />
+        <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 bg-violet-50 text-violet-600 rounded">
+              <TrendingUp className="w-4 h-4" />
             </div>
-            <span className="text-sm text-neutral-600 font-medium">{avgLabel}</span>
+            <span className="text-xs text-neutral-600 font-semibold">{avgLabel}</span>
           </div>
-          <p className="text-2xl font-bold text-neutral-900">₩{avgPeriodSales.toLocaleString()}</p>
-          <div className="mt-2 flex items-center gap-1">
+          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{avgPeriodSales.toLocaleString()}</p>
+          <div className="mt-1 flex items-center gap-1 whitespace-nowrap">
             <span className="text-xs text-neutral-500 font-medium">{avgSubLabel}</span>
           </div>
-          <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 rounded-full translate-x-8 -translate-y-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-violet-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
         </div>
       </div>
 
