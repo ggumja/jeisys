@@ -29,18 +29,25 @@ function weekStartDate(year: number, week: number): Date {
 function getDefaults(mode: ViewMode): { startDate: Date; endDate: Date } {
   const now = new Date();
   if (mode === 'daily') {
-    return { startDate: new Date(now.getFullYear(), now.getMonth(), 1), endDate: now };
+    const s = new Date(now);
+    s.setDate(now.getDate() - 13);
+    return { startDate: s, endDate: now };
   }
   if (mode === 'weekly') {
     const w = getISOWeek(now);
     const s = weekStartDate(now.getFullYear(), w);
     const e = new Date(s); e.setDate(s.getDate() + 6);
-    return { startDate: s, endDate: e };
+    const start = new Date(s);
+    start.setDate(s.getDate() - 9 * 7);
+    return { startDate: start, endDate: e };
   }
   if (mode === 'monthly') {
-    return { startDate: new Date(now.getFullYear(), 0, 1), endDate: new Date(now.getFullYear(), 11, 31) };
+    const s = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { startDate: s, endDate: e };
   }
-  return { startDate: new Date(now.getFullYear(), 0, 1), endDate: new Date(now.getFullYear(), 11, 31) };
+  // yearly
+  return { startDate: new Date(now.getFullYear() - 4, 0, 1), endDate: new Date(now.getFullYear(), 11, 31) };
 }
 function formatLabel(mode: ViewMode, s: Date, e: Date): string {
   const ko = (d: Date, opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString('ko-KR', opts);
