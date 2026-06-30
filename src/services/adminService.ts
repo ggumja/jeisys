@@ -2184,7 +2184,8 @@ export const adminService = {
                     product:products (
                         id,
                         name,
-                        category
+                        category,
+                        subcategory
                     )
                 )
             `)
@@ -2199,6 +2200,7 @@ export const adminService = {
             ordersCount: Set<string>; 
             itemsCount: number; 
             products: Record<string, { name: string; sales: number; qty: number }>;
+            subcategories: Record<string, { sales: number; ordersCount: Set<string>; itemsCount: number }>;
             trend: Record<string, number>;
         }> = {};
 
@@ -2219,18 +2221,28 @@ export const adminService = {
 
             (order.order_items || []).forEach((item: any) => {
                 const category = item.product?.category || '기타소모품';
+                const subcategory = item.product?.subcategory || '미분류';
                 const revenue = Number(item.total_price || (item.unit_price * item.quantity));
                 const prodId = item.product?.id || 'unknown';
                 const prodName = item.product?.name || '기타 상품';
 
                 if (!categoryMap[category]) {
-                    categoryMap[category] = { sales: 0, ordersCount: new Set(), itemsCount: 0, products: {}, trend: {} };
+                    categoryMap[category] = { sales: 0, ordersCount: new Set(), itemsCount: 0, products: {}, subcategories: {}, trend: {} };
                 }
 
                 categoryMap[category].sales += revenue;
                 categoryMap[category].ordersCount.add(order.id);
                 categoryMap[category].itemsCount += item.quantity;
                 categoryMap[category].trend[dateKey] = (categoryMap[category].trend[dateKey] || 0) + revenue;
+
+                if (subcategory) {
+                    if (!categoryMap[category].subcategories[subcategory]) {
+                        categoryMap[category].subcategories[subcategory] = { sales: 0, ordersCount: new Set(), itemsCount: 0 };
+                    }
+                    categoryMap[category].subcategories[subcategory].sales += revenue;
+                    categoryMap[category].subcategories[subcategory].ordersCount.add(order.id);
+                    categoryMap[category].subcategories[subcategory].itemsCount += item.quantity;
+                }
 
                 if (!categoryMap[category].products[prodId]) {
                     categoryMap[category].products[prodId] = { name: prodName, sales: 0, qty: 0 };
@@ -2251,6 +2263,14 @@ export const adminService = {
                 percentage: data.sales > 0 ? Number(((p.sales / data.sales) * 100).toFixed(1)) : 0
             })).sort((a, b) => b.sales - a.sales);
 
+            const subcategoryList = Object.entries(data.subcategories).map(([subName, subData]) => ({
+                subcategory: subName,
+                sales: subData.sales,
+                orders: subData.ordersCount.size,
+                percentage: data.sales > 0 ? Number(((subData.sales / data.sales) * 100).toFixed(1)) : 0,
+                avgOrder: subData.ordersCount.size > 0 ? Math.round(subData.sales / subData.ordersCount.size) : 0
+            })).sort((a, b) => b.sales - a.sales);
+
             const trendData = Object.entries(data.trend).map(([label, sales]) => ({
                 label,
                 sales
@@ -2264,6 +2284,7 @@ export const adminService = {
                 avgOrder: data.ordersCount.size > 0 ? Math.round(data.sales / data.ordersCount.size) : 0,
                 growth: 12.5, 
                 products: productContribution,
+                subcategories: subcategoryList,
                 trendData
             };
         }).sort((a, b) => b.sales - a.sales);

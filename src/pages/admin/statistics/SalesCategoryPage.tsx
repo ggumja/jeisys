@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { useOutletContext } from 'react-router';
 import { PieChart, Pie, Cell, Tooltip, Legend, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Tag, TrendingUp, ChevronRight } from 'lucide-react';
+import { Tag, TrendingUp, ChevronRight, ChevronDown } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 import * as XLSX from 'xlsx';
 
@@ -46,6 +46,11 @@ const MOCK_CATEGORY_DATA = [
     orders: 45,
     avgOrder: 2777777,
     percentage: 54.3,
+    subcategories: [
+      { subcategory: 'Density 계열', sales: 75000000, orders: 15, avgOrder: 5000000, percentage: 60.0 },
+      { subcategory: 'POTENZA 계열', sales: 30000000, orders: 10, avgOrder: 3000000, percentage: 24.0 },
+      { subcategory: 'LinearZ 계열', sales: 20000000, orders: 20, avgOrder: 1000000, percentage: 16.0 }
+    ],
     products: [
       { id: 'p1', name: 'Density 장비 세트', sales: 75000000, quantity: 15, percentage: 60.0 },
       { id: 'p2', name: 'POTENZA 메인 바디', sales: 30000000, quantity: 10, percentage: 24.0 },
@@ -67,6 +72,11 @@ const MOCK_CATEGORY_DATA = [
     orders: 120,
     avgOrder: 541666,
     percentage: 28.3,
+    subcategories: [
+      { subcategory: 'POTENZA 팁', sales: 35000000, orders: 70, avgOrder: 500000, percentage: 53.8 },
+      { subcategory: 'Density 팁', sales: 20000000, orders: 30, avgOrder: 666666, percentage: 30.8 },
+      { subcategory: 'LinearZ 팁', sales: 10000000, orders: 20, avgOrder: 500000, percentage: 15.4 }
+    ],
     products: [
       { id: 'p4', name: 'POTENZA 전용 DDR Tip', sales: 35000000, quantity: 175, percentage: 53.8 },
       { id: 'p5', name: 'Density 단독 팁 결제', sales: 20000000, quantity: 80, percentage: 30.8 },
@@ -88,6 +98,11 @@ const MOCK_CATEGORY_DATA = [
     orders: 95,
     avgOrder: 294736,
     percentage: 12.2,
+    subcategories: [
+      { subcategory: '일회용 음극판', sales: 15000000, orders: 50, avgOrder: 300000, percentage: 53.6 },
+      { subcategory: '포텐자 오일', sales: 8000000, orders: 25, avgOrder: 320000, percentage: 28.6 },
+      { subcategory: '카본 크림', sales: 5000000, orders: 20, avgOrder: 250000, percentage: 17.8 }
+    ],
     products: [
       { id: 'p7', name: '일회용 환자 음극판 (밴드형)', sales: 15000000, quantity: 500, percentage: 53.6 },
       { id: 'p8', name: '포텐자 전용 커플링 플로이드', sales: 8000000, quantity: 160, percentage: 28.6 },
@@ -109,6 +124,7 @@ const MOCK_CATEGORY_DATA = [
     orders: 60,
     avgOrder: 200000,
     percentage: 5.2,
+    subcategories: [],
     products: [
       { id: 'p10', name: '시술자 보호 고글 (셀렉V 전용)', sales: 6000000, quantity: 30, percentage: 50.0 },
       { id: 'p11', name: '환자 보호용 아이쉴드 고글', sales: 4000000, quantity: 40, percentage: 33.3 },
@@ -136,6 +152,11 @@ export function SalesCategoryPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [activeCategoryNames, setActiveCategoryNames] = useState<string[]>([]);
   const [isDemo, setIsDemo] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    setExpandedCategories([]);
+  }, [dateRange]);
 
   const handleExport = useCallback(() => {
     if (!categories || categories.length === 0) return;
@@ -337,12 +358,14 @@ export function SalesCategoryPage() {
           </div>
         </div>
 
-        {/* 카테고리 상세 목록 */}
+        {/* 카테고리 상세 목록 (아코디언 형태) */}
         <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2">
-          <h3 className="font-semibold text-neutral-900 mb-6 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#21358D]" />
-            <span>카테고리별 매출 상세</span>
-          </h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[#21358D]" />
+              <span>카테고리별 매출 상세</span>
+            </h3>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-neutral-50 border-b border-neutral-200">
@@ -357,20 +380,54 @@ export function SalesCategoryPage() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {categories.map((item, index) => {
+                  const hasSub = item.subcategories && item.subcategories.length > 0;
+                  const isExpanded = expandedCategories.includes(item.category);
                   return (
-                    <tr
-                      key={item.category}
-                      className="hover:bg-neutral-50/50 transition-colors"
-                    >
-                      <td className="py-3 px-4 text-center text-neutral-500 font-medium">{index + 1}</td>
-                      <td className="py-3 px-4">
-                        <span>{item.category}</span>
-                      </td>
-                      <td className="py-3 px-4 text-right">₩{item.sales.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right">{item.orders}건</td>
-                      <td className="py-3 px-4 text-right">₩{item.avgOrder.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-[#21358D] font-semibold">{item.percentage}%</td>
-                    </tr>
+                    <Fragment key={item.category}>
+                      <tr
+                        onClick={hasSub ? () => {
+                          setExpandedCategories(prev => 
+                            prev.includes(item.category)
+                              ? prev.filter(name => name !== item.category)
+                              : [...prev, item.category]
+                          );
+                        } : undefined}
+                        className={`transition-colors ${hasSub ? 'cursor-pointer hover:bg-neutral-50/80' : 'text-neutral-500'}`}
+                      >
+                        <td className="py-3 px-4 text-center text-neutral-500 font-semibold">{index + 1}</td>
+                        <td className="py-3 px-4 font-bold text-neutral-900">
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.category}</span>
+                            {hasSub && (
+                              isExpanded 
+                                ? <ChevronDown className="w-3.5 h-3.5 text-[#21358D]" /> 
+                                : <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right font-bold">₩{item.sales.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right">{item.orders}건</td>
+                        <td className="py-3 px-4 text-right">₩{item.avgOrder.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right text-[#21358D] font-extrabold">{item.percentage}%</td>
+                      </tr>
+                      {hasSub && isExpanded && item.subcategories.map((sub: any, subIdx: number) => (
+                        <tr key={sub.subcategory} className="bg-neutral-50/60 text-neutral-600 transition-colors">
+                          <td className="py-2.5 px-4 text-center text-neutral-400 font-medium text-xs">
+                            {index + 1}-{subIdx + 1}
+                          </td>
+                          <td className="py-2.5 px-4 pl-8 text-xs font-semibold text-neutral-700">
+                            <span className="text-neutral-300 mr-1.5">└─</span>
+                            <span>{sub.subcategory}</span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-xs">₩{sub.sales.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-right text-xs">{sub.orders}건</td>
+                          <td className="py-2.5 px-4 text-right text-xs">₩{sub.avgOrder.toLocaleString()}</td>
+                          <td className="py-2.5 px-4 text-right text-xs font-semibold text-[#21358D]/80">
+                            {sub.percentage}%
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   );
                 })}
               </tbody>
