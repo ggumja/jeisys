@@ -371,6 +371,7 @@ export const adminService = {
             }, {});
 
             const catSalesMap: Record<string, number> = {};
+            const catOrdersMap: Record<string, Set<string>> = {};
             const prodAggregateMap: Record<string, { sales: number; revenue: number }> = {};
 
             filteredOrders.forEach(o => {
@@ -380,6 +381,10 @@ export const adminService = {
                     const qty = Number(item.quantity);
 
                     catSalesMap[pInfo.category] = (catSalesMap[pInfo.category] || 0) + rev;
+                    if (!catOrdersMap[pInfo.category]) {
+                        catOrdersMap[pInfo.category] = new Set();
+                    }
+                    catOrdersMap[pInfo.category].add(o.id);
 
                     if (!prodAggregateMap[pInfo.name]) {
                         prodAggregateMap[pInfo.name] = { sales: 0, revenue: 0 };
@@ -395,7 +400,9 @@ export const adminService = {
                 .map(([name, value], idx) => ({
                     name,
                     value: periodSales > 0 ? Number(((value / periodSales) * 100).toFixed(1)) : 0,
-                    color: colors[idx % colors.length]
+                    color: colors[idx % colors.length],
+                    amount: value,
+                    orders: catOrdersMap[name] ? catOrdersMap[name].size : 0
                 }));
 
             bestProducts = Object.entries(prodAggregateMap)

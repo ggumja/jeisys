@@ -435,7 +435,7 @@ export function DashboardPage() {
     buyingUsersCount: 0,
     periodOrdersCount: 0,
     paymentData: [] as { name: string; value: number; percentage: number }[],
-    categoryData: [] as { name: string; value: number; color: string }[],
+    categoryData: [] as { name: string; value: number; color: string; amount?: number; orders?: number }[],
     bestProducts: [] as { name: string; sales: number; revenue: number }[],
     topCustomers: [] as { name: string; hospitalName: string; totalSales: number }[],
     regionSales: [] as { region: string; sales: number; percentage: number }[],
@@ -799,41 +799,46 @@ export function DashboardPage() {
               </div>
             </div>
 
-            {/* 카테고리별 매출 비율 (도넛 차트) */}
+            {/* 카테고리별 매출 비중 (막대 게이지 목록) */}
             <div 
               onClick={() => navigate('/admin/statistics/sales/category')}
               className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:bg-neutral-50/50 transition-colors"
             >
-              <h2 className="text-base font-bold text-neutral-900 mb-4">카테고리별 매출 비중</h2>
-              <div ref={categoryRef} className="h-[220px] w-full min-w-0 relative">
-                {stats.categoryData.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-sm text-neutral-400">데이터 없음</div>
-                ) : (
-                  <PieChart width={categoryWidth} height={220}>
-                    <Pie
-                      data={stats.categoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {stats.categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => `${value}%`} />
-                  </PieChart>
-                )}
+              <div>
+                <h2 className="text-base font-bold text-neutral-900 mb-1">카테고리별 매출 비중</h2>
+                <p className="text-[11px] text-neutral-500 mb-4">선택 기간 내 카테고리별 매출 기여도와 비중입니다.</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-                {stats.categoryData.slice(0, 4).map((entry, index) => (
-                  <div key={index} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                    <span className="text-neutral-600 truncate">{entry.name} ({entry.value}%)</span>
-                  </div>
-                ))}
+              <div className="space-y-4 flex-1 flex flex-col justify-center">
+                {stats.categoryData.length === 0 ? (
+                  <div className="h-[200px] flex items-center justify-center text-sm text-neutral-400">데이터 없음</div>
+                ) : (
+                  stats.categoryData.slice(0, 5).map((entry, index) => {
+                    const color = entry.color || '#21358D';
+                    const amount = entry.amount || 0;
+                    const orders = entry.orders || 0;
+                    return (
+                      <div key={entry.name} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs font-semibold text-neutral-700">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                            <span className="truncate">{entry.name}</span>
+                            <span className="text-neutral-400 font-normal">({orders}건)</span>
+                          </div>
+                          <div className="text-right flex items-center gap-2 flex-shrink-0">
+                            <span className="text-neutral-900 font-bold">₩{amount.toLocaleString()}</span>
+                            <span className="font-semibold font-mono text-[11px]" style={{ color }}>{entry.value}%</span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-neutral-100 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${entry.value}%`, backgroundColor: color }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -922,34 +927,26 @@ export function DashboardPage() {
               onClick={() => navigate('/admin/statistics/sales/customer')}
               className="bg-white border border-neutral-200 p-6 shadow-sm cursor-pointer hover:bg-neutral-50/50 transition-colors"
             >
-              <h2 className="text-base font-bold text-neutral-900 mb-4">TOP 구매 거래처</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left border-collapse">
-                  <thead>
-                    <tr className="bg-neutral-50 border-b border-neutral-200">
-                      <th className="py-2.5 px-3 font-semibold text-neutral-700 text-xs">순위</th>
-                      <th className="py-2.5 px-3 font-semibold text-neutral-700 text-xs">병원명</th>
-                      <th className="py-2.5 px-3 font-semibold text-neutral-700 text-xs">담당자</th>
-                      <th className="py-2.5 px-3 font-semibold text-neutral-700 text-xs text-right">총 구매액</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-100">
-                    {stats.topCustomers.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-neutral-400 text-xs font-medium">거래처 데이터가 없습니다.</td>
-                      </tr>
-                    ) : (
-                      stats.topCustomers.map((cust, idx) => (
-                        <tr key={idx} className="hover:bg-neutral-50/50 transition-colors">
-                          <td className="py-3 px-3 font-mono font-bold text-neutral-900 text-xs">{idx + 1}</td>
-                          <td className="py-3 px-3 font-bold text-neutral-900 text-xs">{cust.hospitalName}</td>
-                          <td className="py-3 px-3 text-neutral-600 text-xs">{cust.name}</td>
-                          <td className="py-3 px-3 font-bold text-neutral-900 text-xs text-right">₩{cust.totalSales.toLocaleString()}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+              <h2 className="text-base font-bold text-neutral-900 mb-4">TOP 구매 거래처 TOP 5</h2>
+              <div className="space-y-4">
+                {stats.topCustomers.length === 0 ? (
+                  <div className="text-center py-8 text-neutral-400 text-sm">거래처 데이터가 없습니다.</div>
+                ) : (
+                  stats.topCustomers.slice(0, 5).map((cust, idx) => (
+                    <div key={idx} className="flex items-center justify-between pb-3 border-b border-neutral-100 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-bold font-mono">
+                          {idx + 1}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-neutral-900">{cust.hospitalName}</p>
+                          <p className="text-xs text-neutral-500 font-bold">담당자: {cust.name}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm font-bold text-neutral-900">₩{cust.totalSales.toLocaleString()}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
