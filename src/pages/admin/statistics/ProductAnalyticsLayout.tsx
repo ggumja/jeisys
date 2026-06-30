@@ -29,28 +29,30 @@ function weekStartDate(year: number, week: number): Date {
   return monday;
 }
 
-// granularity별 기본값 반환 (Date 객체)
 function getDefaults(g: Granularity): { startDate: Date; endDate: Date } {
   const now = new Date();
   if (g === 'daily') {
-    return { startDate: new Date(now.getFullYear(), now.getMonth(), 1), endDate: now };
+    const s = new Date(now);
+    s.setDate(now.getDate() - 13);
+    return { startDate: s, endDate: now };
   }
   if (g === 'weekly') {
     const week = getISOWeek(now);
     const start = weekStartDate(now.getFullYear(), week);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
-    return { startDate: start, endDate: end };
+    const start10w = new Date(start);
+    start10w.setDate(start.getDate() - 9 * 7);
+    return { startDate: start10w, endDate: end };
   }
   if (g === 'monthly') {
-    return {
-      startDate: new Date(now.getFullYear(), now.getMonth(), 1),
-      endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-    };
+    const s = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const e = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { startDate: s, endDate: e };
   }
   // yearly
   return {
-    startDate: new Date(now.getFullYear(), 0, 1),
+    startDate: new Date(now.getFullYear() - 4, 0, 1),
     endDate: new Date(now.getFullYear(), 11, 31),
   };
 }
