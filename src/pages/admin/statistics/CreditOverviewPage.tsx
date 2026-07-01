@@ -180,37 +180,54 @@ export function CreditOverviewPage() {
           <p className="text-xs text-neutral-500 mb-6">현재 유효한 크레딧 잔액의 장비별 구성 비율입니다.</p>
           <div ref={pieRef} className="h-[220px] w-full min-w-0 relative">
             {equipmentDistribution.length > 0 ? (
-              <PieChart width={pieWidth} height={220}>
-                <Pie
-                  data={equipmentDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {equipmentDistribution.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: any) => `₩${value.toLocaleString()}`} />
-              </PieChart>
+              (() => {
+                const totalRemainingVal = equipmentDistribution.reduce((sum: number, item: any) => sum + item.value, 0);
+                return (
+                  <>
+                    <PieChart width={pieWidth} height={220}>
+                      <Pie
+                        data={equipmentDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        paddingAngle={3}
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+                      >
+                        {equipmentDistribution.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: any) => `₩${value.toLocaleString()}`} />
+                    </PieChart>
+                    {/* 차트 레전드 */}
+                    <div className="mt-4 space-y-1.5 text-xs font-semibold text-neutral-600 border-t border-neutral-100 pt-4">
+                      {equipmentDistribution.map((item: any, idx: number) => {
+                        const pct = totalRemainingVal > 0 ? ((item.value / totalRemainingVal) * 100).toFixed(1) : '0.0';
+                        return (
+                          <div key={item.name} className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                              <span className="truncate">{item.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 font-mono">
+                              <span className="text-neutral-900">₩{item.value.toLocaleString()}</span>
+                              <span className="text-[#21358D] font-bold">({pct}%)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()
             ) : (
               <div className="h-full flex items-center justify-center text-neutral-400 text-sm">
                 활성 크레딧 잔액이 없습니다.
               </div>
             )}
-          </div>
-          {/* 차트 레전드 */}
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold text-neutral-600">
-            {equipmentDistribution.map((item: any, idx: number) => (
-              <div key={item.name} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                <span className="truncate">{item.name}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>

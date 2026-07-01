@@ -796,13 +796,27 @@ export const adminService = {
         
         let rcvBranCd = "244"; // 테스트 배송점코드
         let fareTy = "030"; // 신용 처리
-
+ 
         const today = new Date();
         const takeDt = today.toISOString().slice(0, 10).replace(/-/g, '');
 
+        // Fetch timeout helper to prevent UI freezing
+        const fetchWithTimeout = async (url: string, options: any, timeoutMs: number = 3000) => {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { ...options, signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } catch (err) {
+                clearTimeout(id);
+                throw err;
+            }
+        };
+ 
         // 1. 거래처 계약 정보 조회 (contractTotalInfo)
         try {
-            const contractResponse = await fetch('/logenApi/edi/contractTotalInfo', {
+            const contractResponse = await fetchWithTimeout('/logenApi/edi/contractTotalInfo', {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -812,8 +826,8 @@ export const adminService = {
                     userId,
                     data: [{ custCd }]
                 })
-            });
-
+            }, 3000);
+ 
             if (contractResponse.ok) {
                 const contractResult = await contractResponse.json();
                 console.log("Logen contractTotalInfo Response:", contractResult);
@@ -827,13 +841,13 @@ export const adminService = {
         } catch (err) {
             console.error("Failed to query Logen contractTotalInfo:", err);
         }
-
+ 
         // 2. 송장 출력정보 통합조회 (integratedInquiry)
         let printInfoResult: any = null;
         const targetAddress = overrideAddress?.address || order.shippingInfo?.address || order.user?.address || "";
         if (targetAddress) {
             try {
-                const inquiryResponse = await fetch('/logenApi/edi/integratedInquiry', {
+                const inquiryResponse = await fetchWithTimeout('/logenApi/edi/integratedInquiry', {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -846,8 +860,8 @@ export const adminService = {
                             addr: targetAddress
                         }]
                     })
-                });
-
+                }, 3000);
+ 
                 if (inquiryResponse.ok) {
                     const inquiryResult = await inquiryResponse.json();
                     console.log("Logen integratedInquiry Response:", inquiryResult);
@@ -862,19 +876,19 @@ export const adminService = {
                 console.error("Failed to query Logen integratedInquiry:", err);
             }
         }
-
+ 
         const slipNos: string[] = [];
         const fallbackSlipNos: string[] = [];
-
+ 
         // 임시 대비용 fallback 생성
         for (let i = 0; i < boxCount; i++) {
             const randomSuffix = Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
             fallbackSlipNos.push(`9${randomSuffix}`);
         }
-
+ 
         // 3. 로젠 API(getSlipNo)를 통해 실시간 송장 채번 시도
         try {
-            const slipNoResponse = await fetch('/logenApi/edi/getSlipNo', {
+            const slipNoResponse = await fetchWithTimeout('/logenApi/edi/getSlipNo', {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -884,8 +898,8 @@ export const adminService = {
                     userId,
                     data: [{ slipQty: boxCount }]
                 })
-            });
-
+            }, 3000);
+ 
             if (slipNoResponse.ok) {
                 const slipNoResult = await slipNoResponse.json();
                 console.log("Logen getSlipNo Response:", slipNoResult);
@@ -904,10 +918,10 @@ export const adminService = {
         } catch (err) {
             console.error("Failed to fetch real slip numbers from Logen:", err);
         }
-
+ 
         // 채번 실패 시 fallback 사용
         const finalSlipNos = slipNos.length === boxCount ? slipNos : fallbackSlipNos;
-
+ 
         const payloadData = [];
         for (let i = 0; i < boxCount; i++) {
             const slipNo = finalSlipNos[i];
@@ -940,29 +954,23 @@ export const adminService = {
                 montFare: printInfoResult?.montYn === "Y" ? 3000 : 0
             });
         }
-
+ 
         const payload = {
             userId,
             data: payloadData
         };
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃 제한
-
+ 
         try {
             // vite.config.ts에 설정된 프록시(/logenApi)를 통해 실제 서버로 요청
-            const response = await fetch('/logenApi/edi/slipPrintM', {
+            const response = await fetchWithTimeout('/logenApi/edi/slipPrintM', {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "secretKey": secretKey
                 },
-                body: JSON.stringify(payload),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
+                body: JSON.stringify(payload)
+            }, 4000);
+ 
             if (!response.ok) {
                 console.warn("Logen API Fetch Error:", response.statusText);
             } else {
@@ -972,7 +980,7 @@ export const adminService = {
         } catch (e: any) {
             console.error("Logen API Integration Failed:", e);
         }
-
+ 
         return {
             trackingNumber: finalSlipNos.join(", "),
             classCd: printInfoResult?.classCd || "",
