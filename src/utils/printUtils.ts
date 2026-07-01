@@ -20,7 +20,7 @@ export const printInvoice = (order: any, shipment: any) => {
       return;
     }
 
-    const items = shipment.items || [];
+    const items = (shipment.items || []).filter((it: any) => it.quantity > 0);
     const trackingNumbers = shipment.trackingNumber?.split(',').map((t: string) => t.trim()).filter(Boolean) || [];
     
     if (trackingNumbers.length === 0) {
@@ -253,16 +253,18 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
 
   // ── 배송지: 이번 발송의 실제 배송지 우선, 없으면 주문 배송지
   const si = (shipment.shippingInfo || order.shippingInfo || {}) as any;
-  const maskedPhone = maskPhone(si.phone || order.user?.phone || '');
+  const maskedPhone = maskPhone(si.phone || order.user?.phone || si.phone || '');
   const recipientName = si.recipient || order.customerName || '';
-  const fullAddr = [si.address, si.addressDetail].filter(Boolean).join(' ');
-  const zipCode = si.zipCode ? `[${si.zipCode}] ` : '';
+  let cleanAddr = [si.address, si.addressDetail].filter(Boolean).join(' ');
+  cleanAddr = cleanAddr.replace(/\(수령인:[^)]*\)/g, '').trim();
+  const hasZipCodePrefix = /^\(\d{5}\)/.test(cleanAddr) || /^\[\d{5}\]/.test(cleanAddr);
+  const zipCodeStr = (si.zipCode && !hasZipCodePrefix) ? `(${si.zipCode}) ` : '';
 
   // ── 발송 아이템 처리 (번들 → 구성품 분리)
-  const items = shipment.items || [];
+  const items = (shipment.items || []).filter((it: any) => it.quantity > 0);
 
   // 각 shipment item을 displayItems로 변환
-  type DisplayItem = { name: string; qty: number; isBonus: boolean };
+  type DisplayItem = { name: string; sku: string; qty: number; isBonus: boolean };
   const displayItems: DisplayItem[] = [];
 
   items.forEach((it: any) => {
@@ -271,28 +273,36 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
     const isBundle = matchOi && matchOi.selected_product_ids && matchOi.selected_product_ids.length > 0;
 
     if (isBundle && matchOi) {
-      // 구성품별 그룹핑 (subProductsMap에서 이름 조회)
-      const grouped: Record<string, { name: string; count: number }> = {};
-      (matchOi.selected_product_ids || []).forEach((pid: string) => {
+      // 구성품별 그룹핑 (실제 발송된 인덱스만 매핑)
+      const shippedIndices = it.shippedSelectedIndices || it.shipped_selected_indices || [];
+      const selectedIds = matchOi.selected_product_ids || [];
+      
+      const groupedShipped: Record<string, { name: string; sku: string; count: number }> = {};
+      shippedIndices.forEach((idx: number) => {
+        const pid = selectedIds[idx];
+        if (!pid) return;
         const name = subProductsMap[pid]?.name || pid;
-        if (!grouped[pid]) grouped[pid] = { name, count: 0 };
-        grouped[pid].count++;
+        const sku = subProductsMap[pid]?.sku || '-';
+        if (!groupedShipped[pid]) groupedShipped[pid] = { name, sku, count: 0 };
+        groupedShipped[pid].count++;
       });
-      const totalSelected = matchOi.selected_product_ids.length || 1;
-      const scale = it.quantity / totalSelected;
-      Object.values(grouped).forEach((g) => {
-        const gQty = Math.round(g.count * scale);
-        if (gQty > 0) displayItems.push({ name: g.name, qty: gQty, isBonus: false });
+
+      Object.values(groupedShipped).forEach((g) => {
+        if (g.count > 0) {
+          displayItems.push({ name: g.name, sku: g.sku, qty: g.count, isBonus: false });
+        }
       });
     } else {
-      displayItems.push({ name: it.productName, qty: it.quantity, isBonus: false });
+      const sku = matchOi?.sku || '-';
+      displayItems.push({ name: it.productName, sku, qty: it.quantity, isBonus: false });
     }
   });
 
   // ── 증정품: shipment.bonusItems (DB 저장값)
   (shipment.bonusItems || []).forEach((bonus: any) => {
     if ((bonus.quantity || 0) > 0) {
-      displayItems.push({ name: bonus.productName, qty: bonus.quantity, isBonus: true });
+      const sku = subProductsMap[bonus.productId]?.sku || '-';
+      displayItems.push({ name: bonus.productName, sku, qty: bonus.quantity, isBonus: true });
     }
   });
 
@@ -342,6 +352,7 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
             <td>
               <span class="bonus-badge">증정</span>${di.name}
             </td>
+            <td style="color: #92400e; font-family: monospace;">${di.sku}</td>
             <td class="qty" style="color:#92400e;">${di.qty}</td>
             <td class="qty" style="color:#92400e;">증정</td>
           </tr>
@@ -351,6 +362,7 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
         <tr>
           <td style="text-align: center;">${rowNum}</td>
           <td>${di.name}</td>
+          <td style="font-family: monospace;">${di.sku}</td>
           <td class="qty">${di.qty}</td>
           <td class="qty">구매</td>
         </tr>
@@ -367,15 +379,14 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
 
         <div class="info-pane">
           <div class="info-group">
-            <div class="info-row"><span class="info-label">Order No:</span> ${order.orderNumber}</div>
-            <div class="info-row"><span class="info-label">Tracking:</span> ${shipment.trackingNumber || 'N/A'}</div>
-            <div class="info-row"><span class="info-label">Customer:</span> ${order.hospitalName || order.customerName || ''}</div>
+            <div class="info-row"><span class="info-label">주문번호:</span> ${order.orderNumber}</div>
+            <div class="info-row"><span class="info-label">고객명:</span> ${order.hospitalName || order.customerName || ''}</div>
           </div>
           <div class="info-group">
-            <div class="addr-block">
-              <div class="addr-name">📦 ${recipientName}</div>
-              <div class="addr-phone">${maskedPhone}</div>
-              <div class="addr-full">${zipCode}${fullAddr || '주소 정보 없음'}</div>
+            <div class="addr-block" style="font-size: 13px; line-height: 1.6; border: 1px solid #ccc; padding: 12px; background: #fafafa;">
+              <div style="margin-bottom: 4px;">수령인: ${recipientName}</div>
+              <div style="margin-bottom: 4px;">연락처: ${maskedPhone}</div>
+              <div>주소: ${zipCodeStr}${cleanAddr || '주소 정보 없음'}</div>
             </div>
           </div>
         </div>
@@ -385,6 +396,7 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
             <tr>
               <th style="width: 50px; text-align: center;">No.</th>
               <th>상품명 (Product Name)</th>
+              <th style="width: 120px;">상품코드</th>
               <th style="width: 80px; text-align: center;">수량 (Qty)</th>
               <th style="width: 60px; text-align: center;">구분</th>
             </tr>

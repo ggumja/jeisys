@@ -228,18 +228,28 @@ export function OrderDetailPage() {
         });
         setBonusShipQtyMap(initBonusMap);
 
-        // 🔄 자동 상태 보정: 전체 발송 완료인데 status가 paid/partially_shipped인 경우 shipped로 업데이트
-        const allFullyShipped = data.orderItems.every(
-          (item: OrderItem) => (item.shippedQuantity || 0) >= item.quantity
-        );
+        // 🔄 자동 상태 보정: 번들 구성품 수량을 반영하여 정확한 배송 상태 동기화
+        const allFullyShipped = data.orderItems.every((item: any) => {
+          const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
+          const targetQty = isBundle ? item.quantity * item.selected_product_ids.length : item.quantity;
+          return (item.shippedQuantity || 0) >= targetQty;
+        });
+
         if (allFullyShipped && (data.status === 'paid' || data.status === 'partially_shipped')) {
           try {
             await adminService.updateOrderStatus(data.id, 'shipped', data.trackingNumber);
-            // 상태 보정 후 데이터 다시 로드
             const refreshed = await adminService.getOrderById(id!);
             setOrder(refreshed);
           } catch (e) {
-            console.error('상태 자동 보정 실패:', e);
+            console.error('상태 자동 보정 실패 (shipped):', e);
+          }
+        } else if (!allFullyShipped && data.status === 'shipped') {
+          try {
+            await adminService.updateOrderStatus(data.id, 'partially_shipped', data.trackingNumber);
+            const refreshed = await adminService.getOrderById(id!);
+            setOrder(refreshed);
+          } catch (e) {
+            console.error('상태 자동 보정 실패 (partially_shipped):', e);
           }
         }
       }
@@ -874,7 +884,12 @@ export function OrderDetailPage() {
           {order.status === 'paid' || order.status === 'processing' || order.status === 'partially_shipped' ? (
             <div className="flex items-center gap-3">
               {(() => {
-                const isAllShipped = !order.orderItems?.some(item => (item.quantity - (item.shippedQuantity || (item as any).shipped_quantity || 0)) > 0);
+                const isAllShipped = !order.orderItems?.some(item => {
+                  const isBundle = item.selected_product_ids && item.selected_product_ids.length > 0;
+                  const targetQty = isBundle ? item.quantity * item.selected_product_ids.length : item.quantity;
+                  const shipped = item.shippedQuantity || (item as any).shipped_quantity || 0;
+                  return (targetQty - shipped) > 0;
+                });
                 return (
                   <>
                     <div className="flex items-center gap-2 mr-1">
@@ -1169,56 +1184,56 @@ export function OrderDetailPage() {
                         </tr>
                       );
                     });
-
-                    // ── 3. 증정품 행 (bonus items) ──
-                    ((item as any).bonusItems || []).forEach((bonus: any, bIdx: number) => {
-                      const bonusQty = bonus.calculationMethod === 'ratio'
-                        ? Math.ceil(item.quantity * (bonus.percentage || 0) / 100)
-                        : (bonus.quantity ?? 1) * item.quantity;
-                      rows.push(
-                        <tr key={`bonus-${item.id}-${bIdx}`} className="bg-amber-50 border-l-4 border-l-amber-300">
-                          <td className="py-2 pl-10 text-sm">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-amber-900">{bonus.productName}</span>
-                                <span className="px-1 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold rounded">증정</span>
-                              </div>
-                              {(() => {
-                                const bShipped = shippedBonusQtyMap[bonus.productId] || 0;
-                                const bRemain = Math.max(0, bonusQty - bShipped);
-                                return <span className="text-amber-600 text-xs">잔여: {bRemain}개 (총 {bonusQty}개 중 {bShipped}개 발송완료)</span>;
-                              })()}
-                            </div>
-                          </td>
-                          <td className="py-2 text-right text-sm text-amber-700 font-medium">{bonusQty}개</td>
-                          <td className="py-2 text-right">
-                            {(() => {
-                              const bonusStock = bonus.productId ? subProductsMap[bonus.productId]?.stock : undefined;
-                              if (bonusStock === null || bonusStock === undefined) return <span className="text-xs text-neutral-400">-</span>;
-                              if (bonusStock === 0) return <span className="inline-flex px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">품절</span>;
-                              if (bonusStock < bonusQty) return <span className="inline-flex px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">⚠ {bonusStock}개</span>;
-                              return <span className="inline-flex px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">✓ {bonusStock}개</span>;
-                            })()}
-                          </td>
-                          <td className="py-2 text-right">
-                            {canEdit && (
-                              <div className="flex items-center justify-end gap-1.5">
-                                <input
-                                  type="number" min={0} max={bonusQty}
-                                  value={bonusShipQtyMap[`${item.id}-${bIdx}`] ?? bonusQty}
-                                  onChange={(e) => setBonusShipQtyMap(prev => ({ ...prev, [`${item.id}-${bIdx}`]: Math.max(0, Math.min(bonusQty, parseInt(e.target.value) || 0)) }))}
-                                  className="w-12 h-7 text-right border border-amber-300 bg-white px-1 text-amber-900 focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
-                                />
-                              </div>
-                            )}
-                            {!canEdit && <span className="text-amber-700 font-bold text-xs">{bonusQty}개</span>}
-                          </td>
-                          <td className="py-2 text-right text-neutral-400 text-xs">-</td>
-                          <td className="py-2 text-right text-neutral-400 text-xs">-</td>
-                        </tr>
-                      );
-                    });
                   }
+
+                  // ── 3. 증정품 행 (bonus items) ──
+                  ((item as any).bonusItems || []).forEach((bonus: any, bIdx: number) => {
+                    const bonusQty = bonus.calculationMethod === 'ratio'
+                      ? Math.ceil(item.quantity * (bonus.percentage || 0) / 100)
+                      : (bonus.quantity ?? 1) * item.quantity;
+                    rows.push(
+                      <tr key={`bonus-${item.id}-${bIdx}`} className="bg-amber-50 border-l-4 border-l-amber-300">
+                        <td className="py-2 pl-10 text-sm">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-amber-900">{bonus.productName}</span>
+                              <span className="px-1 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 text-[9px] font-bold rounded">증정</span>
+                            </div>
+                            {(() => {
+                              const bShipped = shippedBonusQtyMap[bonus.productId] || 0;
+                              const bRemain = Math.max(0, bonusQty - bShipped);
+                              return <span className="text-amber-600 text-xs">잔여: {bRemain}개 (총 {bonusQty}개 중 {bShipped}개 발송완료)</span>;
+                            })()}
+                          </div>
+                        </td>
+                        <td className="py-2 text-right text-sm text-amber-700 font-medium">{bonusQty}개</td>
+                        <td className="py-2 text-right">
+                          {(() => {
+                            const bonusStock = bonus.productId ? subProductsMap[bonus.productId]?.stock : undefined;
+                            if (bonusStock === null || bonusStock === undefined) return <span className="text-xs text-neutral-400">-</span>;
+                            if (bonusStock === 0) return <span className="inline-flex px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">품절</span>;
+                            if (bonusStock < bonusQty) return <span className="inline-flex px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">⚠ {bonusStock}개</span>;
+                            return <span className="inline-flex px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">✓ {bonusStock}개</span>;
+                          })()}
+                        </td>
+                        <td className="py-2 text-right">
+                          {canEdit && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <input
+                                type="number" min={0} max={bonusQty}
+                                value={bonusShipQtyMap[`${item.id}-${bIdx}`] ?? bonusQty}
+                                onChange={(e) => setBonusShipQtyMap(prev => ({ ...prev, [`${item.id}-${bIdx}`]: Math.max(0, Math.min(bonusQty, parseInt(e.target.value) || 0)) }))}
+                                className="w-12 h-7 text-right border border-amber-300 bg-white px-1 text-amber-900 focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
+                              />
+                            </div>
+                          )}
+                          {!canEdit && <span className="text-amber-700 font-bold text-xs">{bonusQty}개</span>}
+                        </td>
+                        <td className="py-2 text-right text-neutral-400 text-xs">-</td>
+                        <td className="py-2 text-right text-neutral-400 text-xs">-</td>
+                      </tr>
+                    );
+                  });
 
                   return rows;
                 })
