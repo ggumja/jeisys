@@ -253,7 +253,7 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
 
   // ── 배송지: 이번 발송의 실제 배송지 우선, 없으면 주문 배송지
   const si = (shipment.shippingInfo || order.shippingInfo || {}) as any;
-  const maskedPhone = maskPhone(si.phone || order.user?.phone || si.phone || '');
+  const phone = si.phone || order.user?.phone || si.phone || '';
   const recipientName = si.recipient || order.customerName || '';
   let cleanMain = (si.address || '').replace(/\(수령인:[^)]*\)/g, '').trim();
   let cleanDetail = (si.addressDetail || '').replace(/\(수령인:[^)]*\)/g, '').trim();
@@ -389,7 +389,7 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
           <div class="info-group">
             <div class="addr-block" style="font-size: 13px; line-height: 1.6; border: 1px solid #ccc; padding: 12px; background: #fafafa;">
               <div style="margin-bottom: 4px;">수령인: ${recipientName}</div>
-              <div style="margin-bottom: 4px;">연락처: ${maskedPhone}</div>
+              <div style="margin-bottom: 4px;">연락처: ${phone}</div>
               <div>주소: ${zipCodeStr}${cleanAddr || '주소 정보 없음'}</div>
             </div>
           </div>
