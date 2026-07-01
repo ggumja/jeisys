@@ -15,6 +15,7 @@ import { ProfileEditPage } from "./pages/ProfileEditPage";
 import { MySubscriptionsPage } from "./pages/MySubscriptionsPage";
 import { ShippingAddressPage } from "./pages/ShippingAddressPage";
 import { MyCreditsPage } from "./pages/MyCreditsPage";
+import { MyPointsPage } from "./pages/MyPointsPage";
 import { CommunicationLayout } from "./pages/CommunicationLayout";
 import { InquiryListPage } from "./pages/InquiryListPage";
 import { InquiryWritePage } from "./pages/InquiryWritePage";
@@ -225,6 +226,7 @@ export const router = createBrowserRouter([
                     { path: "subscriptions", Component: MySubscriptionsPage },
                     { path: "addresses", Component: ShippingAddressPage },
                     { path: "credits", Component: MyCreditsPage },
+                    { path: "points", Component: MyPointsPage },
                 ],
             },
             {
