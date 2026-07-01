@@ -140,6 +140,16 @@ export function OrderDetailPage() {
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
+
+  const renderAddress = (shippingInfo: any) => {
+    if (!shippingInfo) return '';
+    let main = (shippingInfo.address || '').replace(/\(수령인:[^)]*\)/g, '').trim();
+    let detail = (shippingInfo.addressDetail || '').replace(/\(수령인:[^)]*\)/g, '').trim();
+    if (detail && !main.includes(detail)) {
+      return `${main} ${detail}`;
+    }
+    return main;
+  };
   // 발송 수량 상태: { [orderItemId]: shipQty }
   const [shipQtyMap, setShipQtyMap] = useState<Record<string, number>>({});
   // 번들 상품의 발송 대상 인덱스 상태: { [orderItemId]: [index1, index2, ...] }
@@ -1305,7 +1315,7 @@ export function OrderDetailPage() {
                       )}
                       {shipment.shippingInfo && (
                         <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
-                          📍 {shipment.shippingInfo.recipient}{shipment.shippingInfo.recipient ? ' · ' : ''}{shipment.shippingInfo.address}{shipment.shippingInfo.addressDetail ? ' ' + shipment.shippingInfo.addressDetail : ''}
+                          📍 {shipment.shippingInfo.recipient}{shipment.shippingInfo.recipient ? ' · ' : ''}{renderAddress(shipment.shippingInfo)}
                         </span>
                       )}
                     </div>
@@ -1418,7 +1428,7 @@ export function OrderDetailPage() {
                         </span>
                         {(shipment as any).shippingInfo && (
                           <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">
-                            📦 {(shipment as any).shippingInfo.recipient || ''}{(shipment as any).shippingInfo.recipient ? ' · ' : ''}{(shipment as any).shippingInfo.address}{(shipment as any).shippingInfo.addressDetail ? ' ' + (shipment as any).shippingInfo.addressDetail : ''}
+                            📦 {(shipment as any).shippingInfo.recipient || ''}{(shipment as any).shippingInfo.recipient ? ' · ' : ''}{renderAddress((shipment as any).shippingInfo)}
                           </span>
                         )}
 

@@ -255,8 +255,12 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
   const si = (shipment.shippingInfo || order.shippingInfo || {}) as any;
   const maskedPhone = maskPhone(si.phone || order.user?.phone || si.phone || '');
   const recipientName = si.recipient || order.customerName || '';
-  let cleanAddr = [si.address, si.addressDetail].filter(Boolean).join(' ');
-  cleanAddr = cleanAddr.replace(/\(수령인:[^)]*\)/g, '').trim();
+  let cleanMain = (si.address || '').replace(/\(수령인:[^)]*\)/g, '').trim();
+  let cleanDetail = (si.addressDetail || '').replace(/\(수령인:[^)]*\)/g, '').trim();
+  let cleanAddr = cleanMain;
+  if (cleanDetail && !cleanMain.includes(cleanDetail)) {
+    cleanAddr = `${cleanMain} ${cleanDetail}`;
+  }
   const hasZipCodePrefix = /^\(\d{5}\)/.test(cleanAddr) || /^\[\d{5}\]/.test(cleanAddr);
   const zipCodeStr = (si.zipCode && !hasZipCodePrefix) ? `(${si.zipCode}) ` : '';
 
