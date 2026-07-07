@@ -315,52 +315,8 @@ export function SalesCategoryPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 카테고리별 매출 점유율 (막대 게이지 목록으로 변경) */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col justify-between min-w-0">
-          <div>
-            <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-[#21358D]" />
-              <span>카테고리별 매출 점유율</span>
-            </h3>
-            <p className="text-xs text-neutral-500 mb-6">전체 매출 대비 카테고리별 기여도와 비중입니다.</p>
-          </div>
-          <div className="space-y-5 flex-1 flex flex-col justify-center">
-            {categories.map((c: any, index: number) => {
-              const color = COLORS[index % COLORS.length];
-              return (
-                <div key={c.category} className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-semibold text-neutral-700">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                      <span>{c.category}</span>
-                      <span className="text-neutral-400 font-normal">({c.orders}건)</span>
-                    </div>
-                    <div className="text-right flex items-center gap-3">
-                      <span className="text-neutral-900">₩{c.sales.toLocaleString()}</span>
-                      <span className="font-semibold" style={{ color }}>{c.percentage}%</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-neutral-100 rounded-full h-2">
-                    <div
-                      className="h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${c.percentage}%`, backgroundColor: color }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="mt-6 pt-4 border-t border-neutral-200 flex justify-between items-center text-sm font-semibold text-neutral-800">
-            <span>총 매출액</span>
-            <span className="text-base text-neutral-950 font-bold">
-              ₩{categories.reduce((sum: number, c: any) => sum + c.sales, 0).toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* 카테고리 상세 목록 (아코디언 형태) */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2">
+      {/* 카테고리 상세 목록 (아코디언 형태) */}
+      <div className="bg-white border border-neutral-200 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-[#21358D]" />
@@ -434,7 +390,6 @@ export function SalesCategoryPage() {
               </tbody>
             </table>
           </div>
-        </div>
       </div>
 
       {/* 카테고리별 매출 추이 차트 (전체 카테고리 꺾은선 차트) */}
