@@ -3485,7 +3485,7 @@ export const adminService = {
     // ──────────────────────────────────────────────────────────────
 
     // 1-1. getCreditOverviewStats
-    async getCreditOverviewStats(dateRange: string, equipmentFilter?: string) {
+    async getCreditOverviewStats(dateRange: string, equipmentFilter?: string, granularity?: string) {
         const { startDateIso, endDateIso } = this._getSalesRangeAndStatuses(dateRange);
 
         // 1. 거래 내역 조회 (credit_id가 있고 user_credits의 equipment_type과 일치해야 하므로 조인 사용)
@@ -3510,7 +3510,12 @@ export const adminService = {
         let used = 0;
         let expired = 0;
 
-        const monthlyMap: Record<string, { issue: number; use: number }> = {};
+        const resolvedGranularity = granularity || (
+            (dateRange === '7days' || dateRange === '30days') ? 'daily' :
+            (dateRange === '3months') ? 'weekly' : 'monthly'
+        );
+
+        const trendMap: Record<string, { issue: number; use: number }> = {};
 
         (txs || []).forEach((tx: any) => {
             const eqType = tx.credit?.equipment_type || '기타';
@@ -3529,12 +3534,29 @@ export const adminService = {
             else if (type === 'expire') expired += amt;
 
             const date = new Date(tx.created_at);
-            const monthStr = `${date.getMonth() + 1}월`;
-            if (!monthlyMap[monthStr]) {
-                monthlyMap[monthStr] = { issue: 0, use: 0 };
+            let dateKey = '';
+            if (resolvedGranularity === 'daily') {
+                // 일별: MM/DD
+                dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+            } else if (resolvedGranularity === 'weekly') {
+                // 주별: YYYY-Www
+                const oneJan = new Date(date.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else if (resolvedGranularity === 'yearly') {
+                // 년별: YYYY
+                dateKey = `${date.getFullYear()}`;
+            } else {
+                // 월별: YYYY-MM
+                dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             }
-            if (type === 'issue') monthlyMap[monthStr].issue += amt;
-            if (type === 'use') monthlyMap[monthStr].use += amt;
+
+            if (!trendMap[dateKey]) {
+                trendMap[dateKey] = { issue: 0, use: 0 };
+            }
+            if (type === 'issue') trendMap[dateKey].issue += amt;
+            if (type === 'use') trendMap[dateKey].use += amt;
         });
 
         // 2. 현재 잔액 및 장비별 분포 (user_credits 조회)
@@ -3574,18 +3596,58 @@ export const adminService = {
             value
         }));
 
-        // 최근 6개월 월 목록 추출
-        const now = new Date();
-        const activeMonths: string[] = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            activeMonths.push(`${d.getMonth() + 1}월`);
+        // dateRange 및 granularity에 따라 X축 레이블 목록 생성
+        const activeKeys: string[] = [];
+        const rangeStart = new Date(startDateIso);
+        const rangeEnd = new Date(endDateIso);
+
+        if (resolvedGranularity === 'daily') {
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                activeKeys.push(`${String(cur.getMonth() + 1).padStart(2, '0')}/${String(cur.getDate()).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+        } else if (resolvedGranularity === 'weekly') {
+            const weekSet = new Set<string>();
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                const oneJan = new Date(cur.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((cur.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                weekSet.add(`${cur.getFullYear()}-W${String(weekNum).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+            activeKeys.push(...Array.from(weekSet).sort());
+        } else if (resolvedGranularity === 'yearly') {
+            let curY = rangeStart.getFullYear();
+            const endY = rangeEnd.getFullYear();
+            while (curY <= endY) {
+                activeKeys.push(`${curY}`);
+                curY++;
+            }
+        } else {
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+            const last = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+            while (cur <= last) {
+                activeKeys.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+                cur.setMonth(cur.getMonth() + 1);
+            }
         }
 
-        const monthlyTrend = activeMonths.map(month => {
-            const data = monthlyMap[month] || { issue: 0, use: 0 };
+        const monthlyTrend = activeKeys.map(key => {
+            const data = trendMap[key] || { issue: 0, use: 0 };
+            let label = key;
+            if (resolvedGranularity === 'monthly') {
+                const [y, m] = key.split('-');
+                label = `${y.slice(2)}.${m}`;
+            } else if (resolvedGranularity === 'weekly') {
+                const [y, w] = key.split('-W');
+                label = `${y.slice(2)}년 ${Number(w)}주`;
+            } else if (resolvedGranularity === 'yearly') {
+                label = `${key}년`;
+            }
             return {
-                month,
+                month: label,
                 발행액: data.issue,
                 사용액: data.use
             };

@@ -39,10 +39,9 @@ function useChartDimensions(defaultWidth = 500) {
 const COLORS = ['#21358D', '#4f46e5', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
 export function CreditOverviewPage() {
-  const { dateRange } = useOutletContext<{ dateRange: string }>();
+  const { dateRange, granularity, equipmentFilter } = useOutletContext<{ dateRange: string; granularity: string; equipmentFilter: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
-  const [equipmentFilter, setEquipmentFilter] = useState('all');
 
   // Resize Refs
   const [trendRef, trendWidth] = useChartDimensions(500);
@@ -52,7 +51,7 @@ export function CreditOverviewPage() {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getCreditOverviewStats(dateRange, equipmentFilter);
+        const data = await adminService.getCreditOverviewStats(dateRange, equipmentFilter, granularity);
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -61,7 +60,7 @@ export function CreditOverviewPage() {
       }
     }
     fetchStats();
-  }, [dateRange, equipmentFilter]);
+  }, [dateRange, equipmentFilter, granularity]);
 
   if (isLoading || !stats) {
     return (
@@ -75,27 +74,6 @@ export function CreditOverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* 장비 필터링 영역 */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-neutral-600">장비</span>
-        <div className="flex gap-1">
-          {[{ value: 'all', label: '전체' }, { value: 'density', label: 'Density' }, { value: 'potenza', label: 'POTENZA' }, { value: 'linearz', label: 'LINEARZ' }].map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setEquipmentFilter(opt.value)}
-              className={`px-3 py-1.5 text-xs font-semibold border transition-all ${
-                equipmentFilter === opt.value
-                  ? 'text-white border-[#21358D]'
-                  : 'border-neutral-300 text-neutral-600 bg-white hover:border-neutral-400 hover:bg-neutral-50'
-              }`}
-              style={equipmentFilter === opt.value ? { backgroundColor: '#21358D' } : undefined}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
       {/* 요약 지표 카드 */}
       <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
         {/* 누적 발행액 */}
@@ -152,13 +130,13 @@ export function CreditOverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 월별 발행 vs 사용 추이 */}
+        {/* 발행 vs 사용 추이 */}
         <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2 min-w-0">
           <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#21358D]" />
-            <span>월별 발행 vs 사용 추이</span>
+            <span>{granularity === 'daily' ? '일별' : granularity === 'weekly' ? '주별' : granularity === 'yearly' ? '년별' : '월별'} 발행 vs 사용 추이</span>
           </h3>
-          <p className="text-xs text-neutral-500 mb-6">최근 6개월간 신규 발급액과 실제 차감액 추이를 분석합니다.</p>
+          <p className="text-xs text-neutral-500 mb-6">선택한 기간 동안의 신규 발급액과 실제 차감액 추이를 분석합니다.</p>
           <div ref={trendRef} className="h-[300px] w-full min-w-0 relative">
             <ComposedChart width={trendWidth} height={300} data={monthlyTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />

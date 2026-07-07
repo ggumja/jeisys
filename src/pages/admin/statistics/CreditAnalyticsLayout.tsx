@@ -373,7 +373,7 @@ export function CreditAnalyticsLayout() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const isTransactionsTab = location.pathname === '/admin/statistics/credits/transactions';
+  const isFilterVisible = location.pathname === '/admin/statistics/credits/transactions' || location.pathname === '/admin/statistics/credits/overview';
 
   const [showDownloadBtn, setShowDownloadBtn] = useState(false);
   const [equipmentFilter, setEquipmentFilter] = useState('all');
@@ -488,8 +488,8 @@ export function CreditAnalyticsLayout() {
         })}
       </div>
 
-      {/* 기간 필터 - 거래통계 탭에서만 표시 */}
-      {isTransactionsTab && (
+      {/* 기간 필터 - 거래통계 및 개요 탭에서 표시 */}
+      {isFilterVisible && (
         <div className="bg-white border border-neutral-200 p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
             {/* 장비 필터 버튼 그룹 */}
