@@ -417,8 +417,8 @@ export function CreditHistoryPage() {
       const headers = ['일시', '아이디', '회원명', '병원명', '구분', '크레딧 종류', '변동 크레딧(원)', '상세내용', '관련 주문번호'];
       const body = allData.map(tx => {
         const typeLabels: Record<string, string> = {
-          issue: '발급/충전',
-          use: '사용/차감',
+          issue: '발급',
+          use: '사용',
           refund: '취소환불',
           revoke: '관리자회수',
           expire: '기간만료'
@@ -462,9 +462,9 @@ export function CreditHistoryPage() {
   const getTypeBadge = (type: CreditTransaction['type']) => {
     switch (type) {
       case 'issue':
-        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">발급/충전</Badge>;
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">발급</Badge>;
       case 'use':
-        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">사용/차감</Badge>;
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">사용</Badge>;
       case 'refund':
         return <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">취소환불</Badge>;
       case 'revoke':
@@ -539,8 +539,8 @@ export function CreditHistoryPage() {
               <div className="flex flex-wrap items-center gap-1 bg-neutral-100 p-1 border border-neutral-200/60 rounded">
                 {[
                   { value: 'all', label: '전체' },
-                  { value: 'issue', label: '발급/충전' },
-                  { value: 'use', label: '사용/차감' },
+                  { value: 'issue', label: '발급' },
+                  { value: 'use', label: '사용' },
                   { value: 'refund', label: '취소환불' },
                   { value: 'revoke', label: '관리자회수' },
                   { value: 'expire', label: '기간만료' }

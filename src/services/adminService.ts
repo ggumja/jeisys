@@ -1588,24 +1588,25 @@ export const adminService = {
 
     async updateUser(userId: string, data: any) {
         console.log(`Updating member ${userId} with data:`, data);
-        const { error } = await supabase.rpc('admin_update_user_fields', {
-            p_user_id: userId,
-            p_update_data: {
-                name: data.name,
-                hospital_name: data.hospitalName,
-                business_number: data.businessNumber,
-                phone: data.phone,
-                mobile: data.mobile,
-                zip_code: data.zipCode,
-                address: data.address,
-                address_detail: data.addressDetail,
-                region: data.region,
-                hospital_email: data.hospitalEmail,
-                tax_email: data.taxEmail,
-                role: data.role,
-                member_type: data.memberType,
-            }
-        });
+        const updateData: any = {};
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.hospitalName !== undefined) updateData.hospital_name = data.hospitalName;
+        if (data.businessNumber !== undefined) updateData.business_number = data.businessNumber;
+        if (data.phone !== undefined) updateData.phone = data.phone;
+        if (data.mobile !== undefined) updateData.mobile = data.mobile;
+        if (data.zipCode !== undefined) updateData.zip_code = data.zipCode;
+        if (data.address !== undefined) updateData.address = data.address;
+        if (data.addressDetail !== undefined) updateData.address_detail = data.addressDetail;
+        if (data.region !== undefined) updateData.region = data.region;
+        if (data.hospitalEmail !== undefined) updateData.hospital_email = data.hospitalEmail;
+        if (data.taxEmail !== undefined) updateData.tax_email = data.taxEmail;
+        if (data.role !== undefined) updateData.role = data.role;
+        if (data.memberType !== undefined) updateData.member_type = data.memberType;
+
+        const { error } = await supabase
+            .from('users')
+            .update(updateData)
+            .eq('id', userId);
 
         if (error) {
             console.error('Update user error:', error);
