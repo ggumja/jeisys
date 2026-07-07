@@ -37,7 +37,7 @@ function useChartDimensions(defaultWidth = 500) {
 }
 
 export function CreditTransactionPage() {
-  const { dateRange, equipmentFilter } = useOutletContext<{ dateRange: string; equipmentFilter: string }>();
+  const { dateRange, granularity, equipmentFilter } = useOutletContext<{ dateRange: string; granularity: string; equipmentFilter: string }>();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
@@ -48,7 +48,7 @@ export function CreditTransactionPage() {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getCreditTransactionStats(dateRange, equipmentFilter);
+        const data = await adminService.getCreditTransactionStats(dateRange, equipmentFilter, granularity);
         setStats(data);
       } catch (err) {
         console.error(err);
@@ -57,7 +57,7 @@ export function CreditTransactionPage() {
       }
     }
     fetchStats();
-  }, [dateRange, equipmentFilter]);
+  }, [dateRange, equipmentFilter, granularity]);
 
   if (isLoading || !stats) {
     return (
@@ -129,9 +129,9 @@ export function CreditTransactionPage() {
         <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2">
           <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#21358D]" />
-            <span>최근 15일 일별 거래 추이</span>
+            <span>{granularity === 'daily' ? '일별' : granularity === 'weekly' ? '주별' : granularity === 'yearly' ? '년별' : '월별'} 거래 추이</span>
           </h3>
-          <p className="text-xs text-neutral-500 mb-6">최근 15일간 매일 발생하는 발행액과 사용액 트렌드를 비교 분석합니다.</p>
+          <p className="text-xs text-neutral-500 mb-6">선택한 기간 동안 발생하는 발행액과 사용액 트렌드를 비교 분석합니다.</p>
           <div ref={chartRef} className="h-[300px] w-full min-w-0 relative">
             <ComposedChart width={chartWidth} height={300} data={trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />

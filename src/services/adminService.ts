@@ -3881,8 +3881,8 @@ export const adminService = {
     },
 
     // 1-4. getCreditTransactionStats
-    async getCreditTransactionStats(dateRange: string, equipmentFilter?: string) {
-        const { startDateIso } = this._getSalesRangeAndStatuses(dateRange);
+    async getCreditTransactionStats(dateRange: string, equipmentFilter?: string, granularity?: string) {
+        const { startDateIso, endDateIso } = this._getSalesRangeAndStatuses(dateRange);
 
         // 장비 필터 적용 시 해당 credit_id 목록 먼저 조회
         let creditIdFilter: string[] | null = null;
@@ -3918,7 +3918,8 @@ export const adminService = {
                     hospital_name
                 )
             `)
-            .gte('created_at', startDateIso);
+            .gte('created_at', startDateIso)
+            .lte('created_at', endDateIso);
 
         if (creditIdFilter) {
             txQuery = txQuery.in('credit_id', creditIdFilter);
@@ -3936,7 +3937,12 @@ export const adminService = {
             expire: { amount: 0, count: 0 }
         };
 
-        const dailyMap: Record<string, Record<string, number>> = {};
+        const resolvedGranularity = granularity || (
+            (dateRange === '7days' || dateRange === '30days') ? 'daily' :
+            (dateRange === '3months') ? 'weekly' : 'monthly'
+        );
+
+        const trendMap: Record<string, Record<string, number>> = {};
 
         (txs || []).forEach(tx => {
             const amt = Number(tx.amount || 0);
@@ -3947,28 +3953,84 @@ export const adminService = {
             }
 
             const date = new Date(tx.created_at);
-            const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-
-            if (!dailyMap[dateStr]) {
-                dailyMap[dateStr] = { issue: 0, use: 0, refund: 0, expire: 0, revoke: 0 };
+            let dateKey = '';
+            if (resolvedGranularity === 'daily') {
+                // 일별: MM/DD
+                dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+            } else if (resolvedGranularity === 'weekly') {
+                // 주별: YYYY-Www
+                const oneJan = new Date(date.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else if (resolvedGranularity === 'yearly') {
+                // 년별: YYYY
+                dateKey = `${date.getFullYear()}`;
+            } else {
+                // 월별: YYYY-MM
+                dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             }
-            if (dailyMap[dateStr][type] !== undefined) {
-                dailyMap[dateStr][type] += amt;
+
+            if (!trendMap[dateKey]) {
+                trendMap[dateKey] = { issue: 0, use: 0, refund: 0, expire: 0, revoke: 0 };
+            }
+            if (trendMap[dateKey][type] !== undefined) {
+                trendMap[dateKey][type] += amt;
             }
         });
 
-        // 최근 15일 일별 날짜 리스트 생성
-        const now = new Date();
-        const activeDays: string[] = [];
-        for (let i = 14; i >= 0; i--) {
-            const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-            activeDays.push(`${d.getMonth() + 1}/${d.getDate()}`);
+        // dateRange 및 granularity에 따라 X축 레이블 목록 생성
+        const activeKeys: string[] = [];
+        const rangeStart = new Date(startDateIso);
+        const rangeEnd = new Date(endDateIso);
+
+        if (resolvedGranularity === 'daily') {
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                activeKeys.push(`${String(cur.getMonth() + 1).padStart(2, '0')}/${String(cur.getDate()).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+        } else if (resolvedGranularity === 'weekly') {
+            const weekSet = new Set<string>();
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                const oneJan = new Date(cur.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((cur.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                weekSet.add(`${cur.getFullYear()}-W${String(weekNum).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+            activeKeys.push(...Array.from(weekSet).sort());
+        } else if (resolvedGranularity === 'yearly') {
+            let curY = rangeStart.getFullYear();
+            const endY = rangeEnd.getFullYear();
+            while (curY <= endY) {
+                activeKeys.push(`${curY}`);
+                curY++;
+            }
+        } else {
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+            const last = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+            while (cur <= last) {
+                activeKeys.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+                cur.setMonth(cur.getMonth() + 1);
+            }
         }
 
-        const trendData = activeDays.map(day => {
-            const data = dailyMap[day] || { issue: 0, use: 0, refund: 0, expire: 0, revoke: 0 };
+        const trendData = activeKeys.map(key => {
+            const data = trendMap[key] || { issue: 0, use: 0, refund: 0, expire: 0, revoke: 0 };
+            let label = key;
+            if (resolvedGranularity === 'monthly') {
+                const [y, m] = key.split('-');
+                label = `${y.slice(2)}.${m}`;
+            } else if (resolvedGranularity === 'weekly') {
+                const [y, w] = key.split('-W');
+                label = `${y.slice(2)}년 ${Number(w)}주`;
+            } else if (resolvedGranularity === 'yearly') {
+                label = `${key}년`;
+            }
             return {
-                day,
+                day: label,
                 발행액: data.issue,
                 사용액: data.use,
                 환불액: data.refund,
