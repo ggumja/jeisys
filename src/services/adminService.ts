@@ -2177,7 +2177,7 @@ export const adminService = {
     },
 
 
-    async getSalesCategoryStats(dateRange: string) {
+    async getSalesCategoryStats(dateRange: string, granularity?: string) {
         const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
 
         // 주문과 주문 품목 조인하여 가져옴
@@ -2204,6 +2204,11 @@ export const adminService = {
 
         if (error) throw error;
 
+        const resolvedGranularity = granularity || (
+            (dateRange === '7days' || dateRange === '30days') ? 'daily' :
+            (dateRange === '3months') ? 'weekly' : 'monthly'
+        );
+
         const categoryMap: Record<string, { 
             sales: number; 
             ordersCount: Set<string>; 
@@ -2215,16 +2220,21 @@ export const adminService = {
 
         (orders || []).forEach(order => {
             const date = new Date(order.ordered_at);
-            // Determine grouping key based on dateRange
             let dateKey = '';
-            if (dateRange === '7days' || dateRange === '30days') {
+            if (resolvedGranularity === 'daily') {
+                // 일별: MM/DD
                 dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
-            } else if (dateRange === '3months') {
+            } else if (resolvedGranularity === 'weekly') {
+                // 주별: YYYY-Www
                 const oneJan = new Date(date.getFullYear(), 0, 1);
                 const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
                 const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
                 dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+            } else if (resolvedGranularity === 'yearly') {
+                // 년별: YYYY
+                dateKey = `${date.getFullYear()}`;
             } else {
+                // 월별: YYYY-MM
                 dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             }
 
@@ -2263,6 +2273,44 @@ export const adminService = {
 
         const totalRevenue = Object.values(categoryMap).reduce((sum, c) => sum + c.sales, 0);
 
+        // dateRange 및 granularity에 따라 X축 레이블 목록 생성
+        const activeKeys: string[] = [];
+        const rangeStart = new Date(startDateIso);
+        const rangeEnd = new Date(endDateIso);
+
+        if (resolvedGranularity === 'daily') {
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                activeKeys.push(`${String(cur.getMonth() + 1).padStart(2, '0')}/${String(cur.getDate()).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+        } else if (resolvedGranularity === 'weekly') {
+            const weekSet = new Set<string>();
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+            while (cur <= rangeEnd) {
+                const oneJan = new Date(cur.getFullYear(), 0, 1);
+                const numberOfDays = Math.floor((cur.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
+                const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
+                weekSet.add(`${cur.getFullYear()}-W${String(weekNum).padStart(2, '0')}`);
+                cur.setDate(cur.getDate() + 1);
+            }
+            activeKeys.push(...Array.from(weekSet).sort());
+        } else if (resolvedGranularity === 'yearly') {
+            let curY = rangeStart.getFullYear();
+            const endY = rangeEnd.getFullYear();
+            while (curY <= endY) {
+                activeKeys.push(`${curY}`);
+                curY++;
+            }
+        } else {
+            let cur = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
+            const last = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+            while (cur <= last) {
+                activeKeys.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
+                cur.setMonth(cur.getMonth() + 1);
+            }
+        }
+
         const categoryStats = Object.entries(categoryMap).map(([name, data]) => {
             const productContribution = Object.entries(data.products).map(([id, p]) => ({
                 id,
@@ -2280,10 +2328,23 @@ export const adminService = {
                 avgOrder: subData.ordersCount.size > 0 ? Math.round(subData.sales / subData.ordersCount.size) : 0
             })).sort((a, b) => b.sales - a.sales);
 
-            const trendData = Object.entries(data.trend).map(([label, sales]) => ({
-                label,
-                sales
-            })).sort((a, b) => a.label.localeCompare(b.label));
+            const trendData = activeKeys.map(key => {
+                const sales = data.trend[key] || 0;
+                let label = key;
+                if (resolvedGranularity === 'monthly') {
+                    const [y, m] = key.split('-');
+                    label = `${y.slice(2)}.${m}`;
+                } else if (resolvedGranularity === 'weekly') {
+                    const [y, w] = key.split('-W');
+                    label = `${y.slice(2)}년 ${Number(w)}주`;
+                } else if (resolvedGranularity === 'yearly') {
+                    label = `${key}년`;
+                }
+                return {
+                    label,
+                    sales
+                };
+            });
 
             return {
                 category: name,

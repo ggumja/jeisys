@@ -143,8 +143,9 @@ const MOCK_CATEGORY_DATA = [
 ];
 
 export function SalesCategoryPage() {
-  const { dateRange, onRegisterExport, label } = useOutletContext<{
+  const { dateRange, granularity, onRegisterExport, label } = useOutletContext<{
     dateRange: string;
+    granularity: string;
     onRegisterExport: (fn: (() => void) | null) => void;
     label: string;
   }>();
@@ -156,7 +157,7 @@ export function SalesCategoryPage() {
 
   useEffect(() => {
     setExpandedCategories([]);
-  }, [dateRange]);
+  }, [dateRange, granularity]);
 
   const handleExport = useCallback(() => {
     if (!categories || categories.length === 0) return;
@@ -239,7 +240,7 @@ export function SalesCategoryPage() {
     async function fetchStats() {
       setIsLoading(true);
       try {
-        const data = await adminService.getSalesCategoryStats(dateRange);
+        const data = await adminService.getSalesCategoryStats(dateRange, granularity);
         if (data && data.length > 0) {
           setCategories(data);
           setIsDemo(false);
@@ -256,7 +257,7 @@ export function SalesCategoryPage() {
       }
     }
     fetchStats();
-  }, [dateRange]);
+  }, [dateRange, granularity]);
 
   if (isLoading) {
     return (
