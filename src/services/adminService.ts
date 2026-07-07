@@ -2458,7 +2458,6 @@ export const adminService = {
         };
     },
 
-    // 1-4-extra. getSalesCustomerTypeStats
     async getSalesCustomerTypeStats(dateRange: string) {
         const { startDateIso, endDateIso, statuses } = this._getSalesRangeAndStatuses(dateRange);
 
@@ -2468,8 +2467,14 @@ export const adminService = {
         
         if (userErr) throw userErr;
 
-        const userMap = (users || []).reduce((acc: any, u) => {
-            acc[u.id] = u.member_type || '미지정';
+        const getMemberTypes = (mTypeStr: string | null): string[] => {
+            if (!mTypeStr) return ['미지정'];
+            const types = mTypeStr.split(',').map(s => s.trim()).filter(Boolean);
+            return types.length > 0 ? types : ['미지정'];
+        };
+
+        const userMap = (users || []).reduce((acc: Record<string, string[]>, u) => {
+            acc[u.id] = getMemberTypes(u.member_type);
             return acc;
         }, {});
 
@@ -2487,15 +2492,18 @@ export const adminService = {
 
         (orders || []).forEach(o => {
             const uId = o.user_id || 'guest';
-            const mType = userMap[uId] || '미지정';
-            if (!typeSalesMap[mType]) {
-                typeSalesMap[mType] = { totalSales: 0, ordersCount: 0, customerSet: new Set() };
-            }
-            typeSalesMap[mType].totalSales += Number(o.total_amount);
-            typeSalesMap[mType].ordersCount += 1;
-            if (o.user_id) {
-                typeSalesMap[mType].customerSet.add(o.user_id);
-            }
+            const mTypes = userMap[uId] || ['미지정'];
+
+            mTypes.forEach(mType => {
+                if (!typeSalesMap[mType]) {
+                    typeSalesMap[mType] = { totalSales: 0, ordersCount: 0, customerSet: new Set() };
+                }
+                typeSalesMap[mType].totalSales += Number(o.total_amount);
+                typeSalesMap[mType].ordersCount += 1;
+                if (o.user_id) {
+                    typeSalesMap[mType].customerSet.add(o.user_id);
+                }
+            });
         });
 
         const totalRevenue = Object.values(typeSalesMap).reduce((sum, d) => sum + d.totalSales, 0);

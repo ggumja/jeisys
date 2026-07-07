@@ -435,7 +435,7 @@ export function SalesAnalyticsLayout() {
     { path: '/admin/statistics/sales/category', label: '카테고리별', icon: PieChart },
     { path: '/admin/statistics/sales/payment', label: '결제수단별', icon: DollarSign },
     { path: '/admin/statistics/sales/customer', label: '고객별 순위', icon: Users },
-    { path: '/admin/statistics/sales/customer-type', label: '고객유형별 순위', icon: Users },
+    { path: '/admin/statistics/sales/customer-type', label: '회원그룹별 순위', icon: Users },
     { path: '/admin/statistics/sales/region', label: '지역별 매출분석', icon: MapPin },
     { path: '/admin/statistics/sales/office', label: '영업처별 기여도', icon: Building2 },
     { path: '/admin/statistics/sales/trend', label: '요일/시간별', icon: Clock },

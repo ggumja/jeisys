@@ -19,12 +19,12 @@ export function SalesCustomerTypePage() {
 
     try {
       const titleRows = [
-        ['고객유형별 매출 순위'],
+        ['회원그룹별 매출 순위'],
         [`분석 기간: ${label}`],
         []
       ];
 
-      const headers = ['순위', '고객유형', '구매고객 수', '총 주문건수', '평균 주문액', '매출 비중', '누적 매출액'];
+      const headers = ['순위', '회원그룹', '구매고객 수', '총 주문건수', '평균 주문액', '매출 비중', '누적 매출액'];
       const body = typesData.map((t: any) => [
         t.rank,
         t.memberType,
@@ -39,13 +39,13 @@ export function SalesCustomerTypePage() {
       ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 20 }];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '고객유형별 매출 순위');
+      XLSX.utils.book_append_sheet(wb, ws, '회원그룹별 매출 순위');
 
       const now = new Date();
       const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-      XLSX.writeFile(wb, `고객유형별_매출순위_${dateSuffix}.xlsx`);
+      XLSX.writeFile(wb, `회원그룹별_매출순위_${dateSuffix}.xlsx`);
     } catch (error) {
-      console.error('고객유형별 매출 순위 엑셀 다운로드 실패:', error);
+      console.error('회원그룹별 매출 순위 엑셀 다운로드 실패:', error);
     }
   }, [typesData, label]);
 
@@ -84,9 +84,9 @@ export function SalesCustomerTypePage() {
           <div>
             <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
               <Award className="w-4 h-4 text-[#21358D]" />
-              <span>고객유형별 매출 순위</span>
+              <span>회원그룹별 매출 순위</span>
             </h3>
-            <p className="text-xs text-neutral-500 mt-1">선택한 기간 동안의 각 고객유형(분류)별 누적 매출 및 점유율 현황입니다.</p>
+            <p className="text-xs text-neutral-500 mt-1">선택한 기간 동안의 각 회원그룹별 누적 매출 및 점유율 현황입니다.</p>
           </div>
         </div>
 
@@ -95,7 +95,7 @@ export function SalesCustomerTypePage() {
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 w-24 text-center">순위</th>
-                <th className="py-3.5 px-6 font-semibold text-neutral-700">고객유형</th>
+                <th className="py-3.5 px-6 font-semibold text-neutral-700">회원그룹</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">구매고객 수</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">총 주문건수</th>
                 <th className="py-3.5 px-6 font-semibold text-neutral-700 text-right">평균 주문액</th>
@@ -113,7 +113,7 @@ export function SalesCustomerTypePage() {
               ) : typesData.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-16 text-neutral-400">
-                    조회된 고객유형별 매출 데이터가 없습니다.
+                    조회된 회원그룹별 매출 데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
