@@ -607,9 +607,7 @@ export function ProductDetailPage() {
                               <div className="text-4xl lg:text-5xl tracking-tighter text-red-600 font-black font-outfit">
                                 ₩{discountedUnit.toLocaleString()}
                               </div>
-                              <div className="text-xs text-blue-600 font-medium mt-1">
-                                구독 {selectedSubOption.discountRate}% 할인 적용 단가
-                              </div>
+
                             </>
                           );
                         }
@@ -1218,14 +1216,17 @@ export function ProductDetailPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-sm text-neutral-900">{opt.optionLabel}</p>
-                              {opt.discountRate > 0 && (
-                                <p className="text-xs text-blue-600 mt-0.5">{opt.discountRate}% 할인 적용</p>
-                              )}
+
                             </div>
                           </div>
-                          <p className="font-bold text-base text-red-600 whitespace-nowrap">
-                            ₩{totalPrice.toLocaleString()}
-                          </p>
+                          <div className="text-right whitespace-nowrap">
+                            <p className="font-bold text-base text-red-600">
+                              ₩{totalPrice.toLocaleString()}
+                            </p>
+                            <p className="text-xs text-neutral-500 mt-0.5">
+                              단가 ₩{Math.round(product.price * (1 - (opt.discountRate || 0) / 100)).toLocaleString()}/개
+                            </p>
+                          </div>
                         </div>
                       );
                     })}
@@ -1458,12 +1459,7 @@ export function ProductDetailPage() {
                   })()}
                 </div>
                 {/* 정기구독: 선택된 옵션 요약 */}
-                {product.product_type === 'subscription' && selectedSubOption && selectedSubOption.discountRate > 0 && (
-                  <p className="text-xs text-neutral-500 mt-1">
-                    정가 {product.price.toLocaleString()}원에서{' '}
-                    <span className="text-blue-600 font-medium">{selectedSubOption.discountRate}% 할인</span> 적용
-                  </p>
-                )}
+
               </div>
             </div>
           </div>
