@@ -39,6 +39,7 @@ export function ProductDetailPage() {
   const [selectedCombo, setSelectedCombo] = useState<RoundCombination | null>(null);
   const [subScheduleOpen, setSubScheduleOpen] = useState(true);
   const [subTermsAgreed, setSubTermsAgreed] = useState(false);
+  const [selectedBillingDay, setSelectedBillingDay] = useState<number>(new Date().getDate()); // 결제일 (1~28)
   // 기존 플래그형 정기배송 (is_subscription_product, 구버전)
   const [subQty, setSubQty] = useState<number>(100);
   const [subCycle, setSubCycle] = useState<1 | 2 | 3 | 6>(1);
@@ -1323,15 +1324,50 @@ export function ProductDetailPage() {
                 );
               })()}
 
+              {/* 결제일 선택 (회차 선택 후 바로 표시) */}
+              {selectedSubOption && selectedCombo && (
+                <div className="mb-2 px-4 py-3 border border-neutral-200 bg-neutral-50">
+                  <p className="text-sm font-bold text-neutral-800 mb-2">
+                    결제일 선택 <span className="text-red-500">*</span>
+                    <span className="text-xs font-normal text-neutral-400 ml-2">(2회차부터 적용)</span>
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={selectedBillingDay}
+                      onChange={e => setSelectedBillingDay(Number(e.target.value))}
+                      className="border border-neutral-300 text-sm px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#21358D]"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{d}일</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-neutral-500">
+                      1회차: 오늘({new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}) 결제<br />
+                      2회차~: 매월 <strong>{selectedBillingDay}일</strong> 결제
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* ④ 출고 스케줄 프리뷰 */}
               {selectedSubOption && selectedCombo && (() => {
                 const unitPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
+                const today = new Date();
                 const rounds = Array.from({ length: selectedCombo.totalRounds }, (_, i) => {
-                  const d = new Date();
-                  d.setMonth(d.getMonth() + i * selectedCombo!.cycleMonths);
+                  const d = new Date(today);
+                  if (i === 0) {
+                    // 1회차: 오늘 날짜
+                  } else {
+                    // 2회차~: billingDay 기준으로 cycleMonths 후
+                    d.setMonth(d.getMonth() + i * selectedCombo!.cycleMonths);
+                    d.setDate(selectedBillingDay);
+                    // 말일 오버 방지 (e.g. 31일 지정인데 2월 등)
+                    const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+                    if (selectedBillingDay > maxDay) d.setDate(maxDay);
+                  }
                   return {
                     no: i + 1,
-                    label: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`,
+                    label: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`,
                     qty: selectedCombo!.qtyPerRound,
                     amount: selectedCombo!.qtyPerRound * unitPrice,
                   };
@@ -1552,6 +1588,7 @@ export function ProductDetailPage() {
                           cycleMonths: selectedCombo.cycleMonths,
                           qtyPerRound: selectedCombo.qtyPerRound,
                           totalRounds: selectedCombo.totalRounds,
+                          billingDay: selectedBillingDay,  // 결제일
                         },
                       },
                     });

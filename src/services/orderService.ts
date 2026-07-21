@@ -505,14 +505,20 @@ export const orderService = {
 
         // 3-A. 신규 정기구독 상품 (product_type='subscription') → 완전한 구독 레코드 생성
         if (subscriptionMeta && billingKeyId) {
-            const { cycleMonths, qtyPerRound, totalRounds, totalQuantity, discountedPrice, discountRate, optionId, regularPrice } = subscriptionMeta;
+            const { cycleMonths, qtyPerRound, totalRounds, totalQuantity, discountedPrice, discountRate, optionId, regularPrice, billingDay } = subscriptionMeta;
             // regularPrice(개당 원가)를 직접 사용. 없으면 discountRate 역산 (fallback)
             const regularUnitPrice = regularPrice
                 ? regularPrice
                 : (discountRate > 0 ? Math.round(discountedPrice / (1 - discountRate / 100)) : discountedPrice);
             const startDate = new Date().toISOString().split('T')[0];
+            // 2회차 결제일: billingDay 기준으로 cycleMonths 후
+            const bd = billingDay ?? new Date().getDate();
             const nextBillingDate = new Date();
             nextBillingDate.setMonth(nextBillingDate.getMonth() + cycleMonths);
+            nextBillingDate.setDate(bd);
+            // 말일 오버 방지
+            const maxDay = new Date(nextBillingDate.getFullYear(), nextBillingDate.getMonth() + 1, 0).getDate();
+            if (bd > maxDay) nextBillingDate.setDate(maxDay);
 
             // subscriptions 레코드
             const { data: subData, error: subError } = await supabase
@@ -544,12 +550,22 @@ export const orderService = {
             } else if (subData) {
                 // subscription_shipments 회차별 스케줄 생성
                 const shipments = Array.from({ length: totalRounds }, (_, i) => {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() + i * cycleMonths);
+                    let scheduled: Date;
+                    if (i === 0) {
+                        // 1회차: 오늘 (신청일)
+                        scheduled = new Date();
+                    } else {
+                        // 2회차~: billingDay 기준으로 cycleMonths 후
+                        scheduled = new Date();
+                        scheduled.setMonth(scheduled.getMonth() + i * cycleMonths);
+                        scheduled.setDate(bd);
+                        const mDay = new Date(scheduled.getFullYear(), scheduled.getMonth() + 1, 0).getDate();
+                        if (bd > mDay) scheduled.setDate(mDay);
+                    }
                     return {
                         subscription_id: subData.id,
                         round_no: i + 1,
-                        scheduled_date: d.toISOString().split('T')[0],
+                        scheduled_date: scheduled.toISOString().split('T')[0],
                         quantity: qtyPerRound,
                         amount: discountedPrice * qtyPerRound,
                         status: i === 0 ? 'paid' : 'pending',

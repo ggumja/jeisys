@@ -51,6 +51,7 @@ export function CheckoutPage() {
     cycleMonths: number;
     qtyPerRound: number;
     totalRounds: number;
+    billingDay: number;      // 결제일 (2회차부터 적용)
   } | undefined;
   const [cart, setCart] = useState<CartItem[]>([]);
   const [productsMap, setProductsMap] = useState<Record<string, Product>>({});
@@ -515,6 +516,7 @@ export function CheckoutPage() {
           cycleMonths: subscriptionMeta.cycleMonths,
           qtyPerRound: subscriptionMeta.qtyPerRound,
           totalRounds: subscriptionMeta.totalRounds,
+          billingDay: subscriptionMeta.billingDay ?? new Date().getDate(),
         } : undefined,
       });
 
