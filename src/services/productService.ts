@@ -23,6 +23,8 @@ export interface ProductInput {
   credit_available?: boolean;
   points_available?: boolean;
   subscription_discount?: number;
+  is_subscription_product?: boolean;
+  subscription_quantities?: number[];
   min_order_quantity?: number;
   max_order_quantity?: number;
   quantity_input_type?: 'button' | 'list';
@@ -30,6 +32,7 @@ export interface ProductInput {
   buy_quantity?: number;
   get_quantity?: number;
   promotion_item_ids?: string[];
+  product_type?: 'single' | 'set' | 'package' | 'promotion' | 'subscription';
 }
 
 export interface PricingTierInput {
@@ -64,7 +67,8 @@ export const productService = {
         product_add_on_items:product_add_on_items!parent_product_id (
           *,
           product:products!add_on_product_id (*)
-        )
+        ),
+        subscription_product_options (*)
       `)
       .order('display_no', { ascending: false });
 
@@ -102,7 +106,8 @@ export const productService = {
         product_add_on_items:product_add_on_items!parent_product_id (
           *,
           product:products!add_on_product_id (*)
-        )
+        ),
+        subscription_product_options (*)
       `)
       .eq('id', id)
       .single();
@@ -145,6 +150,8 @@ export const productService = {
         quantity_input_type: productData.quantity_input_type ?? 'button',
         base_product_id: productData.base_product_id || null,
         stock_multiplier: productData.stock_multiplier || 1,
+        is_subscription_product: productData.is_subscription_product ?? false,
+        product_type: productData.product_type ?? 'single',
       })
       .select()
       .single();
@@ -188,6 +195,8 @@ export const productService = {
         ...(productData.sales_unit !== undefined && { sales_unit: productData.sales_unit }),
         ...(productData.base_product_id !== undefined && { base_product_id: productData.base_product_id }),
         ...(productData.stock_multiplier !== undefined && { stock_multiplier: productData.stock_multiplier }),
+        ...(productData.is_subscription_product !== undefined && { is_subscription_product: productData.is_subscription_product }),
+        ...(productData.product_type !== undefined && { product_type: productData.product_type }),
       })
       .eq('id', id)
       .select()
@@ -356,6 +365,19 @@ export const productService = {
       isVisible: item.is_visible,
       isActive: item.is_active,
       subscriptionDiscount: item.subscription_discount,
+      is_subscription_product: item.is_subscription_product ?? false,
+      subscription_quantities: item.subscription_quantities ?? [],
+      product_type: item.product_type ?? 'single',
+      subscriptionOptions: (item.subscription_product_options ?? []).map((opt: any) => ({
+        id: opt.id,
+        productId: opt.product_id,
+        optionLabel: opt.option_label,
+        totalQuantity: opt.total_quantity,
+        discountRate: opt.discount_rate ?? 0,
+        roundCombinations: opt.round_combinations ?? [],
+        displayOrder: opt.display_order ?? 0,
+        isActive: opt.is_active ?? true,
+      })),
       minOrderQuantity: item.min_order_quantity || 1,
       maxOrderQuantity: item.max_order_quantity || undefined,
       quantityInputType: item.quantity_input_type || 'button',

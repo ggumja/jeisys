@@ -16,6 +16,7 @@ export function AdminLayout() {
   const [isSmsMktOpen, setIsSmsMktOpen] = useState(false);
   const [isEmailMktOpen, setIsEmailMktOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -81,6 +82,7 @@ export function AdminLayout() {
     { to: '/admin/products/set', icon: Layers, label: '셋트상품관리' },
     { to: '/admin/products/package', icon: Package, label: '복합상품관리' },
     { to: '/admin/products/promotion', icon: Package, label: '프로모션번들관리' },
+    { to: '/admin/products/subscription', icon: RefreshCw, label: '정기구독상품관리' },
   ];
 
   const smsSubMenus = [
@@ -163,7 +165,7 @@ export function AdminLayout() {
     }
   }, [location.pathname, isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive, isMembersActive]);
 
-  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'marketing' | 'members') => {
+  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'marketing' | 'members' | 'subscription') => {
     if (!hasPermission(menu)) return;
     setIsCommunicationOpen(menu === 'communication' ? !isCommunicationOpen : false);
     setIsStatisticsOpen(menu === 'statistics' ? !isStatisticsOpen : false);
@@ -171,6 +173,7 @@ export function AdminLayout() {
     setIsProductsOpen(menu === 'products' ? !isProductsOpen : false);
     setIsMarketingOpen(menu === 'marketing' ? !isMarketingOpen : false);
     setIsMembersOpen(menu === 'members' ? !isMembersOpen : false);
+    setIsSubscriptionOpen(menu === 'subscription' ? !isSubscriptionOpen : false);
   };
 
   // Redirect to dashboard if at base admin path
@@ -286,22 +289,46 @@ export function AdminLayout() {
                   );
                 })()}
 
-                {/* Subscription List */}
+                {/* Subscription — 아코디언 */}
                 {(() => {
                   const allowed = hasPermission('subscriptions');
-                  const isActive = location.pathname === '/admin/subscriptions' || location.pathname.startsWith('/admin/subscriptions/');
+                  const isSubActive = location.pathname.startsWith('/admin/subscriptions');
+                  const isSubOpen = isSubscriptionOpen;
                   return (
-                    <Link
-                      to="/admin/subscriptions"
-                      onClick={(e) => { if (!allowed) e.preventDefault(); }}
-                      className={`flex items-center justify-between px-4 py-3 transition-colors text-sm ${isActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!allowed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <RefreshCw className="w-5 h-5 shrink-0" />
-                        <span>정기배송목록</span>
-                      </div>
-                      {!allowed && <Lock className="w-4 h-4 text-neutral-400" />}
-                    </Link>
+                    <div>
+                      <button
+                        className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isSubActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!allowed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => allowed && toggleMenu('subscription')}
+                      >
+                        <div className="flex items-center gap-3">
+                          <RefreshCw className="w-5 h-5 shrink-0" />
+                          <span>정기구독관리</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!allowed && <Lock className="w-4 h-4 text-neutral-400" />}
+                          {allowed && (isSubOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                        </div>
+                      </button>
+                      {isSubOpen && allowed && (
+                        <div className="bg-white">
+                          {[
+                            { to: '/admin/subscriptions', label: '구독 목록' },
+                            { to: '/admin/subscriptions/cancellations', label: '해지신청 관리' },
+                          ].map((item) => {
+                            const isItemActive = location.pathname === item.to;
+                            return (
+                              <Link
+                                key={item.to}
+                                to={item.to}
+                                className={`flex items-center pl-12 pr-4 py-2.5 text-sm transition-colors ${isItemActive ? 'text-neutral-900 font-medium bg-neutral-100' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                              >
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
 
@@ -434,6 +461,8 @@ export function AdminLayout() {
                           isActive = location.pathname === '/admin/products/package' || location.pathname === '/admin/products/package-register' || location.pathname.startsWith('/admin/products/package-edit/');
                         } else if (item.to === '/admin/products/promotion') {
                           isActive = location.pathname === '/admin/products/promotion' || location.pathname === '/admin/products/promotion-register' || location.pathname.startsWith('/admin/products/promotion-edit/');
+                        } else if (item.to === '/admin/products/subscription') {
+                          isActive = location.pathname === '/admin/products/subscription' || location.pathname === '/admin/products/subscription-register' || location.pathname.startsWith('/admin/products/subscription-edit/');
                         } else {
                           isActive = location.pathname === item.to;
                         }

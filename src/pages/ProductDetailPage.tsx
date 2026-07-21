@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
-import { ShoppingCart, Check, Minus, Plus, Package, Loader2, CreditCard, X } from 'lucide-react';
+import { ShoppingCart, Check, Minus, Plus, Package, Loader2, CreditCard, X, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { productService } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { equipmentService, EquipmentModel } from '../services/equipmentService';
-import { Product, PackageItem, ProductOptionGroup } from '../types';
+import { Product, PackageItem, ProductOptionGroup, SubscriptionProductOption, RoundCombination } from '../types';
 import { storage } from '../lib/storage';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { ProductImage } from '../components/ui/ProductImage';
 import { useModal } from '../context/ModalContext';
+import { calculateSchedule } from '../services/subscriptionService';
 
 export function ProductDetailPage() {
   const { alert: globalAlert, confirm: globalConfirm } = useModal();
@@ -32,6 +33,13 @@ export function ProductDetailPage() {
   const [inputQuantities, setInputQuantities] = useState<Record<string, number>>({});
   const [selectedOptionId, setSelectedOptionId] = useState<string>('');
   const [activeImage, setActiveImage] = useState<string>('');
+  // 정기구독 전용 상품 선택 상태 (product_type === 'subscription')
+  const [selectedSubOption, setSelectedSubOption] = useState<SubscriptionProductOption | null>(null);
+  const [selectedCombo, setSelectedCombo] = useState<RoundCombination | null>(null);
+  const [subScheduleOpen, setSubScheduleOpen] = useState(true);
+  // 기존 플래그형 정기배송 (is_subscription_product, 구버전)
+  const [subQty, setSubQty] = useState<number>(100);
+  const [subCycle, setSubCycle] = useState<1 | 2 | 3 | 6>(1);
   
   // Promotion States
   const [promotionPool, setPromotionPool] = useState<Product[]>([]);
@@ -585,6 +593,32 @@ export function ProductDetailPage() {
                       const listPricePerPiece = product.price;
                       const discountRate = product.discountRate || 0;
                       
+                      // ── 정기구독 전용 상품: 선택된 옵션의 할인 단가 표시 ──
+                      if (product.product_type === 'subscription') {
+                        if (selectedSubOption && selectedSubOption.discountRate > 0) {
+                          const discountedUnit = Math.round(product.price * (1 - selectedSubOption.discountRate / 100));
+                          return (
+                            <>
+                              <div className="text-sm text-neutral-500 font-medium font-outfit">
+                                <span className="line-through decoration-neutral-400">₩{product.price.toLocaleString()}원</span>
+                              </div>
+                              <div className="text-4xl lg:text-5xl tracking-tighter text-red-600 font-black font-outfit">
+                                ₩{discountedUnit.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-blue-600 font-medium mt-1">
+                                구독 {selectedSubOption.discountRate}% 할인 적용 단가
+                              </div>
+                            </>
+                          );
+                        }
+                        // 옵션 미선택 시 기본가
+                        return (
+                          <div className="text-4xl lg:text-5xl tracking-tighter text-red-600 font-black font-outfit">
+                            ₩{product.price.toLocaleString()}
+                          </div>
+                        );
+                      }
+
                       const totalListPrice = listPricePerPiece * quantity;
                       const totalDiscountedPrice = currentUnitPrice * quantity;
                       const finalAmount = isSubscription ? Math.round(totalDiscountedPrice * (1 - (product.subscriptionDiscount || 0) / 100)) : totalDiscountedPrice;
@@ -1140,23 +1174,185 @@ export function ProductDetailPage() {
             </div>
           )}
 
-          {/* Subscription Option */}
-          {(product.subscriptionDiscount ?? 0) > 0 && (
+          {/* ═══ 정기구독 전용 상품 (product_type='subscription') ═══ */}
+          {product.product_type === 'subscription' && (product.subscriptionOptions ?? []).length > 0 ? (
+            <div className="mb-8 space-y-5">
+              <div className="flex items-center gap-2 border-l-4 border-[#21358D] pl-3">
+                <RefreshCw className="w-4 h-4 text-[#21358D]" />
+                <span className="text-sm font-semibold text-neutral-900">구독 옵션 선택</span>
+              </div>
+
+              {/* 옵션(수량) 선택 */}
+              <div className="grid grid-cols-2 gap-2">
+                {(product.subscriptionOptions ?? []).sort((a, b) => a.displayOrder - b.displayOrder).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setSelectedSubOption(opt); setSelectedCombo(null); }}
+                    className="p-4 border-2 text-sm transition-colors text-left"
+                    style={selectedSubOption?.id === opt.id
+                      ? { borderColor: '#21358D', backgroundColor: '#21358D', color: '#ffffff' }
+                      : { borderColor: '#e5e7eb', backgroundColor: '#ffffff', color: '#111827' }
+                    }
+                  >
+                    <p className="font-semibold">{opt.optionLabel}</p>
+                    <p className="text-xs mt-1" style={{ color: selectedSubOption?.id === opt.id ? 'rgba(255,255,255,0.8)' : '#6b7280' }}>
+                      총 {opt.totalQuantity.toLocaleString()}개
+                      {opt.discountRate > 0 && (
+                        <span className="ml-1.5 font-medium" style={{ color: selectedSubOption?.id === opt.id ? '#ffffff' : '#21358D' }}>{opt.discountRate}% 할인</span>
+                      )}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
+              {/* 회차 조합 선택 (옵션 선택 후 표시) */}
+              {selectedSubOption && (() => {
+                // cycleMonths 기준으로 그룹화
+                const byMonth = selectedSubOption.roundCombinations.reduce<Record<number, RoundCombination[]>>(
+                  (acc, c) => { (acc[c.cycleMonths] ??= []).push(c); return acc; },
+                  {},
+                );
+                const CYCLE_LABELS: Record<number, string> = { 1: '1개월', 2: '2개월', 3: '3개월', 4: '4개월', 6: '6개월' };
+                return (
+                  <div className="border border-neutral-200">
+                    <div className="px-4 py-2.5 bg-neutral-50 border-b border-neutral-200">
+                      <p className="text-xs font-semibold text-neutral-600">결제 주기 &amp; 회차 선택</p>
+                    </div>
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-neutral-100">
+                        {([1, 2, 3, 4, 6] as const).filter(m => byMonth[m]?.length).map(m => (
+                          <tr key={m}>
+                            <td className="px-4 py-3 text-xs font-medium text-neutral-600 whitespace-nowrap w-16">
+                              {CYCLE_LABELS[m]}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-wrap gap-2">
+                                {(byMonth[m] ?? []).map((c) => {
+                                  const isSelected = selectedCombo?.cycleMonths === c.cycleMonths && selectedCombo?.qtyPerRound === c.qtyPerRound && selectedCombo?.totalRounds === c.totalRounds;
+                                  return (
+                                    <button
+                                      key={`${c.cycleMonths}-${c.qtyPerRound}`}
+                                      onClick={() => setSelectedCombo(c)}
+                                      className="px-3 py-1.5 border-2 text-xs font-medium transition-all"
+                                      style={isSelected
+                                        ? { borderColor: '#21358D', backgroundColor: '#21358D', color: '#ffffff' }
+                                        : { borderColor: '#d1d5db', backgroundColor: '#ffffff', color: '#374151' }
+                                      }
+                                    >
+                                      {c.qtyPerRound}개 × {c.totalRounds}회 (총 {c.totalRounds * c.cycleMonths}개월)
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+
+              {/* 출고 스케줄 프리뷰 */}
+              {selectedSubOption && selectedCombo && (() => {
+                const unitPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
+                const rounds = Array.from({ length: selectedCombo.totalRounds }, (_, i) => {
+                  const d = new Date();
+                  d.setMonth(d.getMonth() + i * selectedCombo!.cycleMonths);
+                  return {
+                    no: i + 1,
+                    label: `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`,
+                    qty: selectedCombo!.qtyPerRound,
+                    amount: selectedCombo!.qtyPerRound * unitPrice,
+                  };
+                });
+                const total = rounds.reduce((s, r) => s + r.amount, 0);
+                return (
+                  <div className="border border-neutral-200">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                      onClick={() => setSubScheduleOpen(v => !v)}
+                    >
+                      <span>📦 회차별 출고 스케줄 ({rounds.length}회)</span>
+                      {subScheduleOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                    {subScheduleOpen && (
+                      <div className="border-t border-neutral-200 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-neutral-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs text-neutral-500">회차</th>
+                              <th className="px-4 py-2 text-left text-xs text-neutral-500">출고 예정</th>
+                              <th className="px-4 py-2 text-right text-xs text-neutral-500">수량</th>
+                              <th className="px-4 py-2 text-right text-xs text-neutral-500">결제금액</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-100">
+                            {rounds.map(r => (
+                              <tr key={r.no}>
+                                <td className="px-4 py-2 text-neutral-700 font-medium">{r.no}회차</td>
+                                <td className="px-4 py-2 text-neutral-600">{r.label}</td>
+                                <td className="px-4 py-2 text-right text-neutral-700">{r.qty}개</td>
+                                <td className="px-4 py-2 text-right font-medium text-neutral-900">{r.amount.toLocaleString()}원</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-neutral-50 border-t">
+                            <tr>
+                              <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-neutral-600">총계</td>
+                              <td className="px-4 py-2 text-right text-xs font-semibold text-neutral-600">{selectedSubOption.totalQuantity}개</td>
+                              <td className="px-4 py-2 text-right text-xs font-semibold text-[#21358D]">{total.toLocaleString()}원</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+          ) : (product.is_subscription_product) ? (
+            /* ── 구버전: 플래그형 정기구독 UI (수량/주기 직접 선택) ── */
+            <div className="mb-8 space-y-4">
+              <div className="flex items-center gap-2 border-l-4 border-[#21358D] pl-3">
+                <RefreshCw className="w-4 h-4 text-[#21358D]" />
+                <span className="text-sm font-semibold text-neutral-900">정기구독 설정</span>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wider">구독 수량</p>
+                <div className="flex gap-2">
+                  {[100, 200].map((q) => (
+                    <button key={q} onClick={() => setSubQty(q)}
+                      className={`flex-1 py-3 border text-sm font-medium transition-colors ${subQty === q ? 'border-[#21358D] bg-[#21358D] text-white' : 'border-neutral-300 text-neutral-700 hover:border-[#21358D]'}`}
+                    >{q}개</button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wider">결제 주기</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {([1, 2, 3, 6] as const).map((m) => (
+                    <button key={m} onClick={() => setSubCycle(m)}
+                      className={`py-3 border text-sm font-medium transition-colors ${subCycle === m ? 'border-[#21358D] bg-[#21358D] text-white' : 'border-neutral-300 text-neutral-700 hover:border-[#21358D]'}`}
+                    >{m}개월</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (product.subscriptionDiscount ?? 0) > 0 ? (
+            /* ── 일반 정기배송 체크박스 ── */
             <div className="mb-8">
               <label className="flex items-center gap-4 p-6 border border-neutral-200 cursor-pointer hover:bg-neutral-50 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={isSubscription}
-                  onChange={(e) => setIsSubscription(e.target.checked)}
-                  className="w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900"
-                />
+                <input type="checkbox" checked={isSubscription} onChange={(e) => setIsSubscription(e.target.checked)}
+                  className="w-5 h-5 text-neutral-900 border-neutral-300 focus:ring-neutral-900" />
                 <div>
                   <p className="text-base font-medium text-neutral-900">정기 배송 ({product.subscriptionDiscount}% 추가 할인)</p>
                   <p className="text-sm text-neutral-600 mt-1">매달 자동으로 배송받으세요</p>
                 </div>
               </label>
             </div>
-          )}
+          ) : null}
 
 
           {/* Total Amount Summary Section */}
@@ -1166,6 +1362,17 @@ export function ProductDetailPage() {
               <div className="text-right">
                 <div className="text-4xl font-black tracking-tighter text-red-600">
                   ₩{(() => {
+                    // ── 정기구독 전용 상품 계산 ──
+                    if (product.product_type === 'subscription') {
+                      if (!selectedSubOption) {
+                        return product.price.toLocaleString();
+                      }
+                      // 할인 적용 단가만 표시
+                      const discountedUnitPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
+                      return discountedUnitPrice.toLocaleString();
+                    }
+
+                    // ── 일반 상품 계산 ──
                     if (!selectedOptionId && product.options && product.options.length > 0) return "0";
                     
                     let total = 0;
@@ -1176,35 +1383,81 @@ export function ProductDetailPage() {
                       total = currentUnitPrice * quantity + addOnProductsTotalPrice;
                     }
                     
-                    // Apply subscription discount if active
                     const finalAmount = isSubscription ? Math.round(total * (1 - (product.subscriptionDiscount || 0) / 100)) : total;
                     return finalAmount.toLocaleString();
                   })()}
                 </div>
+                {/* 정기구독: 선택된 옵션 요약 */}
+                {product.product_type === 'subscription' && selectedSubOption && selectedSubOption.discountRate > 0 && (
+                  <p className="text-xs text-neutral-500 mt-1">
+                    정가 {product.price.toLocaleString()}원에서{' '}
+                    <span className="text-blue-600 font-medium">{selectedSubOption.discountRate}% 할인</span> 적용
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <button
-              onClick={handleAddToCart}
-              className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white py-4 font-medium flex items-center justify-center gap-2 transition-colors text-sm tracking-wide uppercase cursor-pointer"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {addedToCart ? '장바구니에 담김!' : '장바구니'}
-            </button>
-            <button
-              onClick={async () => {
-                await handleAddToCart();
-                navigate('/cart');
-              }}
-              className="flex-1 bg-[#1e3a8a] hover:bg-[#1e40af] text-white py-4 font-medium transition-colors text-sm tracking-wide uppercase cursor-pointer flex items-center justify-center gap-2"
-            >
-              <CreditCard className="w-5 h-5" />
-              바로 구매
-            </button>
-          </div>
+          {product.product_type === 'subscription' ? (
+            /* 정기구독 전용: 바로구매만 */
+            <div className="flex flex-col gap-3 mb-6 mt-4">
+              <button
+                onClick={async () => {
+                  if (!selectedSubOption) {
+                    toast.error('구독 옵션을 선택해주세요.'); return;
+                  }
+                  if (!selectedCombo) {
+                    toast.error('회차 조합을 선택해주세요.'); return;
+                  }
+                  const item = {
+                    productId: product.id,
+                    productName: product.name,
+                    price: Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100)),
+                    quantity: selectedCombo.qtyPerRound,
+                    imageUrl: product.imageUrl,
+                    isSubscription: true,
+                    subscriptionOptionId: selectedSubOption.id,
+                    subscriptionCombination: {
+                      cycleMonths: selectedCombo.cycleMonths,
+                      qtyPerRound: selectedCombo.qtyPerRound,
+                      totalRounds: selectedCombo.totalRounds,
+                    },
+                  };
+                  await cartService.clearCart();
+                  await cartService.addItem(item as any);
+                  navigate('/cart');
+                }}
+                style={{ backgroundColor: '#21358D', color: '#ffffff' }}
+                className="w-full py-4 font-bold text-sm tracking-wide cursor-pointer flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-5 h-5" />
+                바로 구매
+              </button>
+              <p className="text-xs text-center text-neutral-400">정기구독 상품은 바로 구매만 가능합니다.</p>
+            </div>
+          ) : (
+            /* 일반 상품: 장바구니 + 바로구매 */
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <button
+                onClick={handleAddToCart}
+                className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white py-4 font-medium flex items-center justify-center gap-2 transition-colors text-sm tracking-wide uppercase cursor-pointer"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {addedToCart ? '장바구니에 담김!' : '장바구니'}
+              </button>
+              <button
+                onClick={async () => {
+                  await handleAddToCart();
+                  navigate('/cart');
+                }}
+                className="flex-1 bg-[#1e3a8a] hover:bg-[#1e40af] text-white py-4 font-medium transition-colors text-sm tracking-wide uppercase cursor-pointer flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-5 h-5" />
+                바로 구매
+              </button>
+            </div>
+          )}
 
           {/* Stock Status */}
           <div className="flex items-center gap-2 text-sm">

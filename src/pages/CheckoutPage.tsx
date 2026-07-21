@@ -6,6 +6,7 @@ import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
 import { paymentService } from '../services/paymentService';
+import { subscriptionService } from '../services/subscriptionService';
 import { CartItem, Product, PaymentMethod, ShippingAddress, User, SplitPaymentMethod } from '../types';
 import { addressService } from '../services/addressService';
 import { ProductImage } from '../components/ui/ProductImage';
@@ -532,6 +533,41 @@ export function CheckoutPage() {
       }
 
       navigate(`/order-complete/${order.id}`);
+
+      // ── 정기구독 전용 상품 자동 구독 생성 (Mock 결제, 데모) ──
+      const subItems = cart.filter(item => {
+        const p = productsMap[item.productId];
+        return (p as any)?.is_subscription_product || (p as any)?.isSubscriptionProduct;
+      });
+
+      if (subItems.length > 0 && user) {
+        for (const item of subItems) {
+          const p = productsMap[item.productId];
+          if (!p) continue;
+          const subDiscountRate = (p as any).subscriptionDiscount || 0;
+          const regularUnit = p.price || 0;
+          const discountedUnit = Math.round(regularUnit * (1 - (p.discountRate || 0) / 100));
+          const subUnit = Math.round(discountedUnit * (1 - subDiscountRate / 100));
+          const cycleMonths = item.subscriptionCycle
+            ? Math.round(item.subscriptionCycle / 30)
+            : 1;
+          const totalQty = (item.quantity === 200 ? 200 : 100) as 100 | 200;
+          try {
+            await subscriptionService.createSubscription({
+              userId: user.id,
+              productId: p.id,
+              totalQuantity: totalQty,
+              cycleMonths: cycleMonths as 1 | 2 | 3 | 6,
+              unitPrice: subUnit * totalQty,  // 회차당 결제금액
+              regularUnitPrice: regularUnit,
+              discountRate: subDiscountRate,
+              billingKeyId: selectedCardId || undefined,
+            });
+          } catch (subErr) {
+            console.error('정기구독 생성 실패:', subErr);
+          }
+        }
+      }
     } catch (error: any) {
       console.error('Order failed', error);
       if (error.message && error.message.includes('승인 거절')) {
@@ -1129,8 +1165,8 @@ export function CheckoutPage() {
                   )}
                 </div>
 
-                {/* Recurring Payment Cycle Selection */}
-                {hasSubscriptionItems && paymentMethod === 'credit' && (
+                {/* Recurring Payment Cycle Selection — 일반 정기배송 */}
+                {hasSubscriptionItems && !cart.some(i => (productsMap[i.productId] as any)?.is_subscription_product) && paymentMethod === 'credit' && (
                   <div className="bg-blue-50 border border-blue-100 p-6 mt-4">
                     <div className="flex items-start gap-4">
                       <div className="pt-1">
@@ -1158,6 +1194,17 @@ export function CheckoutPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* 정기구독 전용 상품 안내 */}
+                {cart.some(i => (productsMap[i.productId] as any)?.is_subscription_product) && (
+                  <div className="bg-[#EEF2FF] border border-[#C7D2FE] p-4 mt-4">
+                    <p className="text-xs font-semibold text-[#21358D] mb-1">📋 정기구독 상품이 포함되어 있습니다</p>
+                    <p className="text-xs text-[#3730A3]">
+                      결제 완료 후 선택하신 수량·주기 기준으로 정기구독이 자동 생성됩니다.<br />
+                      마이페이지 → 정기구독 관리에서 확인하실 수 있습니다.
+                    </p>
                   </div>
                 )}
               </div>

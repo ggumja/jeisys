@@ -85,6 +85,10 @@ export interface Product {
   isVisible?: boolean;
   isActive?: boolean;
   subscriptionDiscount?: number;
+  is_subscription_product?: boolean;
+  subscription_quantities?: number[];
+  product_type?: 'single' | 'set' | 'package' | 'promotion' | 'subscription';
+  subscriptionOptions?: SubscriptionProductOption[];
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
   quantityInputType?: 'button' | 'list';
@@ -93,6 +97,24 @@ export interface Product {
   options?: ProductQuantityOption[];
   variantGroups?: ProductOptionGroup[];
   addOnItems?: AddOnItem[];
+}
+
+// 정기구독 상품 옵션 (회차 조합 포함)
+export interface RoundCombination {
+  cycleMonths: 1 | 2 | 3 | 4 | 6;
+  qtyPerRound: number;
+  totalRounds: number;
+}
+
+export interface SubscriptionProductOption {
+  id: string;
+  productId: string;
+  optionLabel: string;      // "200개 세트"
+  totalQuantity: number;    // 200
+  discountRate: number;     // 할인율
+  roundCombinations: RoundCombination[];  // 선택된 회차 조합들
+  displayOrder: number;
+  isActive: boolean;
 }
 
 export interface ProductOptionGroup {

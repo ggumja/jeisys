@@ -88,6 +88,8 @@ interface FormData {
   description: string;
   useSubscriptionDiscount: boolean;
   subscriptionDiscount: string;
+  isSubscriptionProduct: boolean;       // 정기구독 전용 상품 여부
+  subscriptionQuantities: number[];     // 선택 가능 수량 (100, 200)
   minOrderQuantity: string;
   maxOrderQuantity: string;
   quantityInputType: 'button' | 'list';
@@ -128,6 +130,8 @@ export function ProductRegisterPage() {
     description: '',
     useSubscriptionDiscount: false,
     subscriptionDiscount: '',
+    isSubscriptionProduct: false,
+    subscriptionQuantities: [100, 200],
     minOrderQuantity: '1',
     maxOrderQuantity: '0',
     salesUnit: '1',
@@ -238,6 +242,8 @@ export function ProductRegisterPage() {
         description: existingProduct.description || '',
         useSubscriptionDiscount: (existingProduct.subscriptionDiscount ?? 0) > 0,
         subscriptionDiscount: formatWithCommas(existingProduct.subscriptionDiscount || 0),
+        isSubscriptionProduct: !!(existingProduct as any).is_subscription_product,
+        subscriptionQuantities: (existingProduct as any).subscription_quantities ?? [100, 200],
         minOrderQuantity: formatWithCommas(existingProduct.minOrderQuantity || 1),
         maxOrderQuantity: formatWithCommas(existingProduct.maxOrderQuantity || 0),
         quantityInputType: existingProduct.quantityInputType || 'button',
@@ -560,6 +566,8 @@ export function ProductRegisterPage() {
         credit_available: formData.creditAvailable,
         points_available: formData.pointsAvailable,
         subscription_discount: formData.useSubscriptionDiscount ? parseFloat(unformatNumber(formData.subscriptionDiscount)) || 0 : 0,
+        is_subscription_product: formData.isSubscriptionProduct,
+        subscription_quantities: formData.isSubscriptionProduct ? formData.subscriptionQuantities : [],
         min_order_quantity: minQty,
         max_order_quantity: maxQty > 0 ? maxQty : undefined,
         quantity_input_type: formData.quantityInputType,
@@ -1144,12 +1152,62 @@ export function ProductRegisterPage() {
             </div>
           </div>
 
-          {/* Subscription Discount */}
-          <div className="mb-8 p-4 bg-neutral-50/50 border border-neutral-100">
+          {/* Subscription — 정기구독 설정 통합 */}
+          <div className="mb-8 p-4 bg-neutral-50/50 border border-neutral-100 space-y-5">
+            <p className="text-xs font-bold text-neutral-700 uppercase tracking-widest">정기구독 설정</p>
+
+            {/* 정기구독 전용 상품 여부 */}
+            <div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isSubscriptionProduct}
+                  onChange={e => setFormData(prev => ({
+                    ...prev,
+                    isSubscriptionProduct: e.target.checked,
+                    useSubscriptionDiscount: e.target.checked ? prev.useSubscriptionDiscount : prev.useSubscriptionDiscount,
+                  }))}
+                  className="mt-0.5 w-4 h-4 text-[#21358D] border-neutral-300 focus:ring-[#21358D]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">정기구독 전용 상품</p>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    체크 시 상품 상세에서 수량(100/200개)·결제주기 선택 UI와 회차별 출고 스케줄 프리뷰가 표시됩니다.
+                  </p>
+                </div>
+              </label>
+
+              {/* 선택 가능 수량 */}
+              {formData.isSubscriptionProduct && (
+                <div className="mt-3 ml-7">
+                  <p className="text-xs font-medium text-neutral-600 mb-2">선택 가능 수량 옵션</p>
+                  <div className="flex gap-3">
+                    {[100, 200].map(q => (
+                      <label key={q} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.subscriptionQuantities.includes(q)}
+                          onChange={e => {
+                            const next = e.target.checked
+                              ? [...formData.subscriptionQuantities, q].sort((a, b) => a - b)
+                              : formData.subscriptionQuantities.filter(v => v !== q);
+                            setFormData(prev => ({ ...prev, subscriptionQuantities: next }));
+                          }}
+                          className="w-4 h-4 text-[#21358D] border-neutral-300 focus:ring-[#21358D]"
+                        />
+                        <span className="text-sm text-neutral-800">{q}개</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 정기주문 할인율 */}
             <div className="flex flex-col gap-4">
               <div>
-                <label className={ADMIN_STYLES.SECTION_LABEL}>
-                  정기주문 할인 설정
+                <label className="text-xs font-medium text-neutral-700 uppercase tracking-widest block mb-2">
+                  정기주문 할인율
                 </label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -1177,7 +1235,7 @@ export function ProductRegisterPage() {
 
               {formData.useSubscriptionDiscount && (
                 <div className="animate-in fade-in slide-in-from-top-2">
-                  <label className={ADMIN_STYLES.SECTION_LABEL}>
+                  <label className="text-xs font-medium text-neutral-700 uppercase tracking-widest block mb-2">
                     정기주문 할인률 (%)
                   </label>
                   <div className="flex items-center gap-2">
@@ -1187,13 +1245,11 @@ export function ProductRegisterPage() {
                       value={formData.subscriptionDiscount}
                       onChange={handleInputChange}
                       placeholder="0"
-                      className={`${ADMIN_STYLES.INPUT} w-32`}
+                      className="border border-neutral-300 px-3 py-2 text-sm text-neutral-900 w-32 focus:outline-none focus:ring-2 focus:ring-neutral-900"
                     />
                     <span className="text-neutral-600 font-medium">%</span>
                   </div>
-                  <p className={ADMIN_STYLES.HELPER_TEXT}>
-                    정기주문 시 적용될 할인율을 숫자로 입력하세요.
-                  </p>
+                  <p className="text-xs text-neutral-500 mt-1">정기주문 시 적용될 할인율을 숫자로 입력하세요.</p>
                 </div>
               )}
             </div>

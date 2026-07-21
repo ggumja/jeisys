@@ -32,11 +32,14 @@ import { OrderManagementPage } from "./pages/admin/OrderManagementPage";
 import { OrderDetailPage } from "./pages/admin/OrderDetailPage";
 import { OrderHistoryPage } from "./pages/admin/OrderHistoryPage";
 import { SubscriptionListPage } from "./pages/admin/SubscriptionListPage";
+import { SubscriptionCancellationPage } from "./pages/admin/SubscriptionCancellationPage";
 import { ProductManagementPage } from "./pages/admin/ProductManagementPage";
 import { ProductRegisterPage } from "./pages/admin/ProductRegisterPage";
 import { PackageRegisterPage } from "./pages/admin/PackageRegisterPage";
 import { SetRegisterPage } from "./pages/admin/SetRegisterPage";
 import { PromotionRegisterPage } from "./pages/admin/PromotionRegisterPage";
+import { SubscriptionProductListPage } from "./pages/admin/SubscriptionProductListPage";
+import { SubscriptionProductRegisterPage } from "./pages/admin/SubscriptionProductRegisterPage";
 import { InquiryManagementPage } from "./pages/admin/InquiryManagementPage";
 import { FaqManagementPage } from "./pages/admin/FaqManagementPage";
 import { ManualManagementPage } from "./pages/admin/ManualManagementPage";
@@ -124,6 +127,7 @@ export const router = createBrowserRouter([
             { path: "orders", Component: OrderManagementPage },
             { path: "order-history", Component: OrderHistoryPage },
             { path: "subscriptions", Component: SubscriptionListPage },
+            { path: "subscriptions/cancellations", Component: SubscriptionCancellationPage },
             { path: "orders/:id", Component: OrderDetailPage },
             { path: "products", element: <Navigate to="single" replace /> },
             { path: "products/single", Component: ProductManagementPage },
@@ -138,6 +142,9 @@ export const router = createBrowserRouter([
             { path: "products/set-edit/:id", Component: SetRegisterPage },
             { path: "products/package-edit/:id", Component: PackageRegisterPage },
             { path: "products/promotion-edit/:id", Component: PromotionRegisterPage },
+            { path: "products/subscription", Component: SubscriptionProductListPage },
+            { path: "products/subscription-register", Component: SubscriptionProductRegisterPage },
+            { path: "products/subscription-edit/:id", Component: SubscriptionProductRegisterPage },
             { path: "sales-offices", Component: SalesOfficeManagementPage },
             {
                 path: "statistics/sales",
