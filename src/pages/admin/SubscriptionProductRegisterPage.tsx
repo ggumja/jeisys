@@ -735,36 +735,6 @@ export function SubscriptionProductRegisterPage() {
           </div>
         </div>
 
-        {/* ══════ 할인 설정 ══════ */}
-        <div className={ADMIN_STYLES.CARD}>
-          <h3 className={ADMIN_STYLES.SECTION_TITLE}>할인 설정</h3>
-          <div className="p-6 bg-neutral-50/50 border border-neutral-200">
-            <div className="flex flex-col gap-6">
-              <div>
-                <label className={ADMIN_STYLES.SECTION_LABEL}>정기주문 할인 설정</label>
-                <div className="flex gap-6 mt-3">
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input type="radio" name="useSubscriptionDiscount" checked={!formData.useSubscriptionDiscount} onChange={() => setFormData((p) => ({ ...p, useSubscriptionDiscount: false }))} className="w-4 h-4 accent-neutral-900 cursor-pointer" />
-                    <span className="text-sm text-neutral-700 group-hover:text-black font-medium">미사용</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer group">
-                    <input type="radio" name="useSubscriptionDiscount" checked={formData.useSubscriptionDiscount} onChange={() => setFormData((p) => ({ ...p, useSubscriptionDiscount: true }))} className="w-4 h-4 accent-neutral-900 cursor-pointer" />
-                    <span className="text-sm text-neutral-700 group-hover:text-black font-medium">사용</span>
-                  </label>
-                </div>
-              </div>
-              {formData.useSubscriptionDiscount && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className={ADMIN_STYLES.SECTION_LABEL}>정기주문 할인율 (%)</label>
-                  <div className="relative w-40 mt-2">
-                    <input type="text" name="subscriptionDiscount" value={formData.subscriptionDiscount} onChange={handleInputChange} placeholder="0" className={ADMIN_STYLES.INPUT + ' text-right pr-16 font-bold text-blue-600'} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-blue-500 font-bold">%</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* ══════ 수량 구간별 할인율 설정 ══════ */}
         <div className={ADMIN_STYLES.CARD}>
