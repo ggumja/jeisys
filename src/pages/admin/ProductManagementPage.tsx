@@ -113,6 +113,7 @@ export function ProductManagementPage() {
     quantityOptions: p.options || [],
     selectableCount: p.selectable_count || 1,
     salesUnit: p.sales_unit || 1,
+    productType: (p as any).product_type ?? null,  // 구독 상품 구분 
   }));
 
   // Helper to get full category path (e.g., Parent > Child)
@@ -136,6 +137,9 @@ export function ProductManagementPage() {
   const categories = ['all', ...dbCategories.map(cat => cat.name)];
 
   const filteredProducts = products.filter((product) => {
+    // 정기구독 전용 상품은 일반 상품관리에서 제외
+    if ((product as any).productType === 'subscription') return false;
+
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.productCode && product.productCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -178,6 +182,8 @@ export function ProductManagementPage() {
 
   // Stats Logic
   const currentViewProducts = products.filter(p => {
+    // 정기구독 상품 제외
+    if ((p as any).productType === 'subscription') return false;
     if (isPackageView) return !!p.isPackage && !p.isPromotion;
     if (isPromotionView) return !!p.isPromotion;
     if (isSetView) return !p.isPackage && !p.isPromotion && (p.quantityOptions?.length || 0) > 0;
