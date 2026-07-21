@@ -33,6 +33,7 @@ export interface ProductInput {
   get_quantity?: number;
   promotion_item_ids?: string[];
   product_type?: 'single' | 'set' | 'package' | 'promotion' | 'subscription';
+  quantity_discount_tiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
 }
 
 export interface PricingTierInput {
@@ -152,6 +153,7 @@ export const productService = {
         stock_multiplier: productData.stock_multiplier || 1,
         is_subscription_product: productData.is_subscription_product ?? false,
         product_type: productData.product_type ?? 'single',
+        quantity_discount_tiers: productData.quantity_discount_tiers ?? [],
       })
       .select()
       .single();
@@ -197,6 +199,7 @@ export const productService = {
         ...(productData.stock_multiplier !== undefined && { stock_multiplier: productData.stock_multiplier }),
         ...(productData.is_subscription_product !== undefined && { is_subscription_product: productData.is_subscription_product }),
         ...(productData.product_type !== undefined && { product_type: productData.product_type }),
+        ...(productData.quantity_discount_tiers !== undefined && { quantity_discount_tiers: productData.quantity_discount_tiers }),
       })
       .eq('id', id)
       .select()
@@ -378,6 +381,7 @@ export const productService = {
         displayOrder: opt.display_order ?? 0,
         isActive: opt.is_active ?? true,
       })),
+      quantityDiscountTiers: item.quantity_discount_tiers ?? [],
       minOrderQuantity: item.min_order_quantity || 1,
       maxOrderQuantity: item.max_order_quantity || undefined,
       quantityInputType: item.quantity_input_type || 'button',

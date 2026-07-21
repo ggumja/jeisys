@@ -7,7 +7,7 @@ import { useProduct, useProducts, useCreateProduct, useUpdateProduct } from '../
 import { useCategories } from '../../hooks/useCategories';
 import { productService, ProductInput } from '../../services/productService';
 import { equipmentService, EquipmentModel } from '../../services/equipmentService';
-import { Product, RoundCombination, SubscriptionProductOption } from '../../types';
+import { Product, RoundCombination, SubscriptionProductOption, QuantityDiscountTier } from '../../types';
 import { ADMIN_STYLES } from '../../constants/adminStyles';
 import {
   subscriptionProductOptionService,
@@ -69,6 +69,22 @@ function newOption(): OptionDraft {
     selectedCombinations: [],
     isExpanded: true,
   };
+}
+
+// 기본 구간 할인율
+const DEFAULT_TIERS: QuantityDiscountTier[] = [
+  { minQty: 0,   maxQty: 49,  discountRate: 0  },
+  { minQty: 50,  maxQty: 99,  discountRate: 10 },
+  { minQty: 100, maxQty: 199, discountRate: 15 },
+  { minQty: 200, maxQty: 299, discountRate: 18 },
+];
+
+// 수량으로 해당 구간 할인율 조회
+function getDiscountRateForQty(qty: number, tiers: QuantityDiscountTier[]): number {
+  if (!qty || tiers.length === 0) return 0;
+  const tier = [...tiers].sort((a, b) => a.minQty - b.minQty)
+    .find(t => qty >= t.minQty && qty <= t.maxQty);
+  return tier?.discountRate ?? 0;
 }
 
 interface FormData {
@@ -140,6 +156,9 @@ export function SubscriptionProductRegisterPage() {
 
   // 구독 옵션
   const [subOptions, setSubOptions] = useState<OptionDraft[]>([newOption()]);
+
+  // 수량 구간별 할인율
+  const [discountTiers, setDiscountTiers] = useState<QuantityDiscountTier[]>(DEFAULT_TIERS);
 
   const [resultModal, setResultModal] = useState<{
     isOpen: boolean;
@@ -213,6 +232,28 @@ export function SubscriptionProductRegisterPage() {
       }).catch(console.error);
     }
   }, [isEditMode, id]);
+
+  // 수정 모드: 기존 수량 구간 할인율 로드
+  useEffect(() => {
+    if (isEditMode && existingProduct?.quantityDiscountTiers && existingProduct.quantityDiscountTiers.length > 0) {
+      setDiscountTiers(existingProduct.quantityDiscountTiers);
+    }
+  }, [isEditMode, existingProduct]);
+
+  // 구간 할인율 CRUD
+  const addTier = () => setDiscountTiers(prev => [...prev, { minQty: 0, maxQty: 999, discountRate: 0 }]);
+  const removeTier = (idx: number) => setDiscountTiers(prev => prev.filter((_, i) => i !== idx));
+  const updateTier = (idx: number, key: keyof QuantityDiscountTier, val: number) =>
+    setDiscountTiers(prev => prev.map((t, i) => i === idx ? { ...t, [key]: val } : t));
+
+  // 총수량 변경 핸들러: 구간 할인율 자동 계산 후 옵션 업데이트
+  const handleTotalQtyChange = (optId: string, qty: number | '') => {
+    const numQty = typeof qty === 'number' ? qty : 0;
+    const autoRate = numQty > 0 ? getDiscountRateForQty(numQty, discountTiers) : 0;
+    setSubOptions(prev => prev.map(o =>
+      o.id === optId ? { ...o, totalQuantity: qty, discountRate: autoRate, selectedCombinations: [] } : o
+    ));
+  };
 
   // ─── 상품 검색 ───
   const filteredSearchProducts = (allProducts || []).filter((p) => {
@@ -395,6 +436,7 @@ export function SubscriptionProductRegisterPage() {
         max_order_quantity: parseInt(unformat(formData.maxOrderQuantity)) > 0 ? parseInt(unformat(formData.maxOrderQuantity)) : undefined,
         is_subscription_product: true,
         product_type: 'subscription',
+        quantity_discount_tiers: discountTiers,
       };
 
       let productId: string;
@@ -724,6 +766,78 @@ export function SubscriptionProductRegisterPage() {
           </div>
         </div>
 
+        {/* ══════ 수량 구간별 할인율 설정 ══════ */}
+        <div className={ADMIN_STYLES.CARD}>
+          <div className={ADMIN_STYLES.SECTION_TITLE}>
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#21358D]" />
+              <h3 className="text-lg font-bold">구매 수량별 할인율</h3>
+            </div>
+            <button type="button" onClick={addTier} className={ADMIN_STYLES.BTN_PRIMARY}>
+              <Plus className="w-4 h-4" />
+              구간 추가
+            </button>
+          </div>
+
+          <p className="text-[10px] text-neutral-400 italic mb-4">
+            * 구독 옵션의 총 수량 입력 시 해당 구간 할인율이 자동 적용됩니다.<br />
+            * 해지 위약금 계산 시 최종 수령 수량 구간의 할인율로 정가가 재산정됩니다.
+          </p>
+
+          <div className="border border-neutral-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">최소 수량</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">최대 수량</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500">할인율 (%)</th>
+                  <th className="px-3 py-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {discountTiers.map((tier, idx) => (
+                  <tr key={idx}>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number" min="0"
+                        value={tier.minQty}
+                        onChange={(e) => updateTier(idx, 'minQty', Number(e.target.value))}
+                        className={`${ADMIN_STYLES.INPUT} w-24`}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number" min="0"
+                        value={tier.maxQty}
+                        onChange={(e) => updateTier(idx, 'maxQty', Number(e.target.value))}
+                        className={`${ADMIN_STYLES.INPUT} w-24`}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number" min="0" max="100"
+                          value={tier.discountRate}
+                          onChange={(e) => updateTier(idx, 'discountRate', Number(e.target.value))}
+                          className={`${ADMIN_STYLES.INPUT} w-20`}
+                        />
+                        <span className="text-neutral-500 text-xs">%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      {discountTiers.length > 1 && (
+                        <button type="button" onClick={() => removeTier(idx)} className="text-neutral-400 hover:text-red-500">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* ══════ 구독 옵션 설정 ══════ */}
         <div className={ADMIN_STYLES.CARD}>
           <div className={ADMIN_STYLES.SECTION_TITLE}>
@@ -763,21 +877,26 @@ export function SubscriptionProductRegisterPage() {
                           value={opt.totalQuantity}
                           onChange={(e) => {
                             const v = e.target.value.replace(/[^0-9]/g, '');
-                            updateSubOption(opt.id, 'totalQuantity', v === '' ? '' : Number(v));
-                            updateSubOption(opt.id, 'selectedCombinations', []);
+                            handleTotalQtyChange(opt.id, v === '' ? '' : Number(v));
                           }}
                           placeholder="200"
                           className={ADMIN_STYLES.INPUT}
                         />
                       </div>
                       <div>
-                        <label className={ADMIN_STYLES.SECTION_LABEL}>할인율 (%)</label>
-                        <input
-                          value={opt.discountRate}
-                          onChange={(e) => updateSubOption(opt.id, 'discountRate', Number(e.target.value.replace(/[^0-9.]/g, '')) as any)}
-                          placeholder="0"
-                          className={ADMIN_STYLES.INPUT}
-                        />
+                        <label className={ADMIN_STYLES.SECTION_LABEL}>
+                          할인율 (%)
+                          <span className="text-blue-600 font-normal ml-1 text-[10px]">구간 자동계산</span>
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            value={opt.discountRate}
+                            onChange={(e) => updateSubOption(opt.id, 'discountRate', Number(e.target.value.replace(/[^0-9.]/g, '')) as any)}
+                            placeholder="0"
+                            className={`${ADMIN_STYLES.INPUT} bg-blue-50 border-blue-200`}
+                          />
+                          <span className="text-neutral-500 text-xs">%</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 ml-2 flex-shrink-0">

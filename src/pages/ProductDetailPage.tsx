@@ -1371,7 +1371,9 @@ export function ProductDetailPage() {
                             <tr>
                               <td colSpan={2} className="px-4 py-2 text-xs font-semibold text-neutral-600">총계</td>
                               <td className="px-4 py-2 text-right text-xs font-semibold text-neutral-600">{selectedSubOption.totalQuantity}개</td>
-                              <td className="px-4 py-2 text-right text-xs font-semibold text-[#21358D]">{total.toLocaleString()}원</td>
+                              <td className="px-4 py-2 text-right text-xs font-semibold text-[#21358D]">
+                                {(selectedSubOption.totalQuantity * unitPrice).toLocaleString()}원
+                              </td>
                             </tr>
                           </tfoot>
                         </table>
@@ -1438,9 +1440,9 @@ export function ProductDetailPage() {
                       if (!selectedSubOption) {
                         return product.price.toLocaleString();
                       }
-                      // 할인 적용 단가만 표시
+                      // 세트 총 금액 표시 (단가 × 총 수량)
                       const discountedUnitPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
-                      return discountedUnitPrice.toLocaleString();
+                      return (discountedUnitPrice * selectedSubOption.totalQuantity).toLocaleString();
                     }
 
                     // ── 일반 상품 계산 ──

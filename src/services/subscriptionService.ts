@@ -43,6 +43,7 @@ export interface SubscriptionRow {
   // 조인 데이터
   product?: { name: string; imageUrl?: string; sku?: string };
   shipments?: SubscriptionScheduleRow[];
+  quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
 }
 
 export interface CancellationRequest {
@@ -131,23 +132,26 @@ export function calculateSchedule(
 /**
  * 중도해지 위약금 계산
  *
- * 위약금 = (기출고 수량 × 일반 단가) - (기납부 총액)
- * 결과가 0 이하면 위약금 없음 (0으로 처리)
+ * 위약금 = (기출고 수량 × 수령수량 구간 정가) - (기납부 총액)
+ * - quantityDiscountTiers 있으면 shippedQuantity 구간의 할인율로 정가 산정
+ * - 결과가 0 이하면 위약금 없음 (0으로 처리)
  */
 export function calculatePenalty(params: {
   currentRound: number;
   qtyPerRound: number;
   lastRoundQty: number;
   totalRounds: number;
-  unitPrice: number;       // 구독 적용 단가 (회차당)
-  regularUnitPrice: number; // 일반 단가 (개당)
+  unitPrice: number;       // 구독 적용 단가 (회차 결제금액)
+  regularUnitPrice: number; // 일반 단가 (개당, 구간 할인 미적용 기준)
+  quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
 }): {
   shippedQuantity: number;
   paidAmount: number;
   regularAmount: number;
   penaltyAmount: number;
+  appliedDiscountRate: number;
 } {
-  const { currentRound, qtyPerRound, lastRoundQty, totalRounds, unitPrice, regularUnitPrice } = params;
+  const { currentRound, qtyPerRound, lastRoundQty, totalRounds, unitPrice, regularUnitPrice, quantityDiscountTiers } = params;
 
   // 기출고 수량 계산
   let shippedQuantity = 0;
@@ -155,17 +159,27 @@ export function calculatePenalty(params: {
     shippedQuantity += r === totalRounds ? lastRoundQty : qtyPerRound;
   }
 
-  // 기납부 총액 = 완료된 회차 수 × 회차별 결제금액
-  const amountPerRound = unitPrice; // unitPrice는 회차당 결제 금액으로 저장
-  const paidAmount = currentRound * amountPerRound;
+  // 기납부 총액
+  const paidAmount = currentRound * unitPrice;
 
-  // 일반가 재산정 = 기출고 수량 × 일반 단가
-  const regularAmount = shippedQuantity * regularUnitPrice;
+  // 수령 수량 구간의 할인율 조회
+  let appliedDiscountRate = 0;
+  if (quantityDiscountTiers && quantityDiscountTiers.length > 0) {
+    const sorted = [...quantityDiscountTiers].sort((a, b) => a.minQty - b.minQty);
+    const tier = sorted.find(t => shippedQuantity >= t.minQty && shippedQuantity <= t.maxQty);
+    if (tier) appliedDiscountRate = tier.discountRate;
+  }
 
-  // 위약금 (음수이면 0)
+  // 구간 할인율 적용 가격으로 정가 재산정
+  // regularUnitPrice는 개당 원가(할인 전). 구간할인율이 있으면 해당 구간 단가로 산정
+  const effectiveUnitPrice = quantityDiscountTiers && quantityDiscountTiers.length > 0
+    ? Math.round(regularUnitPrice * (1 - appliedDiscountRate / 100))
+    : regularUnitPrice;
+
+  const regularAmount = shippedQuantity * effectiveUnitPrice;
   const penaltyAmount = Math.max(0, regularAmount - paidAmount);
 
-  return { shippedQuantity, paidAmount, regularAmount, penaltyAmount };
+  return { shippedQuantity, paidAmount, regularAmount, penaltyAmount, appliedDiscountRate };
 }
 
 // ─────────────────────────────────────────
@@ -215,6 +229,7 @@ function mapSubscriptionRow(row: any): SubscriptionRow {
       ? { name: row.products.name, imageUrl: row.products.image_url, sku: row.products.sku }
       : undefined,
     shipments: row.subscription_shipments?.map(mapShipmentRow),
+    quantityDiscountTiers: row.products?.quantity_discount_tiers ?? [],
   };
 }
 
@@ -321,7 +336,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .select(`
         *,
-        products (name, image_url, sku),
+        products (name, image_url, sku, quantity_discount_tiers),
         subscription_shipments (*)
       `)
       .eq('user_id', userId)
@@ -339,7 +354,7 @@ export const subscriptionService = {
       .from('subscriptions')
       .select(`
         *,
-        products (name, image_url, sku),
+        products (name, image_url, sku, quantity_discount_tiers),
         subscription_shipments (*)
       `)
       .eq('id', subId)
@@ -360,6 +375,7 @@ export const subscriptionService = {
       totalRounds: sub.totalRounds,
       unitPrice: sub.unitPrice,
       regularUnitPrice: sub.regularUnitPrice,
+      quantityDiscountTiers: sub.quantityDiscountTiers,
     });
   },
 
@@ -398,6 +414,7 @@ export const subscriptionService = {
       totalRounds: params.sub.totalRounds,
       unitPrice: params.sub.unitPrice,
       regularUnitPrice: params.sub.regularUnitPrice,
+      quantityDiscountTiers: params.sub.quantityDiscountTiers,
     });
 
     const { data, error } = await supabase

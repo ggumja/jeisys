@@ -55,7 +55,15 @@ export interface SignupEquipment {
   serialNumber: string;
 }
 
+// 수량 구간별 할인율
+export interface QuantityDiscountTier {
+  minQty: number;
+  maxQty: number;       // 999 등 큰 수 = 상한 없음
+  discountRate: number; // 0~100 (%)
+}
+
 export interface Product {
+
   id: string;
   displayNo?: number;
   sku: string;
@@ -89,6 +97,7 @@ export interface Product {
   subscription_quantities?: number[];
   product_type?: 'single' | 'set' | 'package' | 'promotion' | 'subscription';
   subscriptionOptions?: SubscriptionProductOption[];
+  quantityDiscountTiers?: QuantityDiscountTier[];
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
   quantityInputType?: 'button' | 'list';
