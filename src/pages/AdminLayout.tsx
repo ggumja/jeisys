@@ -500,7 +500,7 @@ export function AdminLayout() {
                   );
                 })()}
 
-                {/* Marketing Menu - Accordion */}
+                {/* TODO: 마케팅관리 메뉴 - 추후 재작업 예정
                 <div>
                   <button
                     className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMarketingActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('marketing') ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -517,49 +517,11 @@ export function AdminLayout() {
                   </button>
                   {isMarketingOpen && hasPermission('marketing') && (
                     <div className="bg-white">
-                      <button
-                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2.5 transition-colors text-sm ${isSmsMktActive ? 'text-neutral-900 font-semibold' : 'text-neutral-600 hover:bg-neutral-50'}`}
-                        onClick={() => setIsSmsMktOpen(!isSmsMktOpen)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Smartphone className="w-4 h-4 shrink-0" />
-                          <span>문자 마케팅</span>
-                        </div>
-                        {isSmsMktOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      </button>
-                      {isSmsMktOpen && (
-                        <div className="bg-neutral-50 border-t border-neutral-100">
-                          {smsSubMenus.map((item) => (
-                            <Link key={item.to} to={item.to} className={`flex items-center gap-2 pl-12 pr-4 py-2.5 transition-colors text-xs font-medium ${location.pathname === item.to ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800'}`}>
-                              <item.icon className="w-3 h-3 shrink-0" />
-                              <span>{item.label}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                      <button
-                        className={`w-full flex items-center justify-between pl-10 pr-4 py-2.5 transition-colors text-sm ${isEmailMktActive ? 'text-neutral-900 font-semibold' : 'text-neutral-600 hover:bg-neutral-50'}`}
-                        onClick={() => setIsEmailMktOpen(!isEmailMktOpen)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 shrink-0" />
-                          <span>이메일 마케팅</span>
-                        </div>
-                        {isEmailMktOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      </button>
-                      {isEmailMktOpen && (
-                        <div className="bg-neutral-50 border-t border-neutral-100">
-                          {emailSubMenus.map((item) => (
-                            <Link key={item.to} to={item.to} className={`flex items-center gap-2 pl-12 pr-4 py-2.5 transition-colors text-xs font-medium ${location.pathname === item.to ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800'}`}>
-                              <item.icon className="w-3 h-3 shrink-0" />
-                              <span>{item.label}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
+                      ... (SMS / Email 서브메뉴)
                     </div>
                   )}
                 </div>
+                */}
 
                 {/* Members Menu - Accordion */}
                 <div>
