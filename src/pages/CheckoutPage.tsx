@@ -45,6 +45,7 @@ export function CheckoutPage() {
     optionId: string;
     optionLabel: string;
     discountRate: number;
+    regularPrice: number;    // 할인 전 원가 (개당)
     discountedPrice: number; // 할인 적용 단가
     totalQuantity: number;
     cycleMonths: number;
@@ -508,6 +509,7 @@ export function CheckoutPage() {
           optionId: subscriptionMeta.optionId,
           optionLabel: subscriptionMeta.optionLabel,
           discountRate: subscriptionMeta.discountRate,
+          regularPrice: subscriptionMeta.regularPrice,
           discountedPrice: subscriptionMeta.discountedPrice,
           totalQuantity: subscriptionMeta.totalQuantity,
           cycleMonths: subscriptionMeta.cycleMonths,
@@ -575,42 +577,6 @@ export function CheckoutPage() {
       }
 
       navigate(`/order-complete/${order.id}`);
-
-      // ── 정기구독 전용 상품 자동 구독 생성 (Mock 결제, 데모) ──
-      const subItems = cart.filter(item => {
-        const p = productsMap[item.productId];
-        return (p as any)?.is_subscription_product || (p as any)?.isSubscriptionProduct;
-      });
-
-      if (subItems.length > 0 && user) {
-        for (const item of subItems) {
-          const p = productsMap[item.productId];
-          if (!p) continue;
-          const subDiscountRate = (p as any).subscriptionDiscount || 0;
-          const regularUnit = p.price || 0;
-          const discountedUnit = Math.round(regularUnit * (1 - (p.discountRate || 0) / 100));
-          const subUnit = Math.round(discountedUnit * (1 - subDiscountRate / 100));
-          const cycleMonths = item.subscriptionCycle
-            ? Math.round(item.subscriptionCycle / 30)
-            : 1;
-          const totalQty = (item.quantity === 200 ? 200 : 100) as 100 | 200;
-          try {
-            await subscriptionService.createSubscription({
-              userId: user.id,
-              productId: p.id,
-              totalQuantity: totalQty,
-              cycleMonths: cycleMonths as 1 | 2 | 3 | 6,
-              unitPrice: subUnit * totalQty,  // 회차당 결제금액
-              regularUnitPrice: regularUnit,
-              discountRate: subDiscountRate,
-              billingKeyId: selectedCardId || undefined,
-            });
-          } catch (subErr) {
-            console.error('정기구독 생성 실패:', subErr);
-          }
-        }
-      }
-    } catch (error: any) {
       console.error('Order failed', error);
       if (error.message && error.message.includes('승인 거절')) {
         setPaymentErrorModal({ isOpen: true, message: error.message });

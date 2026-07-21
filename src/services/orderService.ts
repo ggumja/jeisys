@@ -505,8 +505,11 @@ export const orderService = {
 
         // 3-A. 신규 정기구독 상품 (product_type='subscription') → 완전한 구독 레코드 생성
         if (subscriptionMeta && billingKeyId) {
-            const { cycleMonths, qtyPerRound, totalRounds, totalQuantity, discountedPrice, discountRate, optionId } = subscriptionMeta;
-            const regularUnitPrice = Math.round(discountedPrice / (1 - discountRate / 100));
+            const { cycleMonths, qtyPerRound, totalRounds, totalQuantity, discountedPrice, discountRate, optionId, regularPrice } = subscriptionMeta;
+            // regularPrice(개당 원가)를 직접 사용. 없으면 discountRate 역산 (fallback)
+            const regularUnitPrice = regularPrice
+                ? regularPrice
+                : (discountRate > 0 ? Math.round(discountedPrice / (1 - discountRate / 100)) : discountedPrice);
             const startDate = new Date().toISOString().split('T')[0];
             const nextBillingDate = new Date();
             nextBillingDate.setMonth(nextBillingDate.getMonth() + cycleMonths);

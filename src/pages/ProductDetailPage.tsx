@@ -1511,9 +1511,12 @@ export function ProductDetailPage() {
               </div>
 
               {/* 바로구매 버튼 */}
-              <button
-                disabled={!subTermsAgreed}
-                onClick={async () => {
+              {(() => {
+                const canBuy = !!selectedSubOption && !!selectedCycleMonths && !!selectedCombo && subTermsAgreed;
+                return (
+                <button
+                 disabled={!canBuy}
+                 onClick={async () => {
                   try {
                     if (!selectedSubOption) {
                       toast.error('구독 옵션(수량 세트)을 먼저 선택해주세요.');
@@ -1543,6 +1546,7 @@ export function ProductDetailPage() {
                           optionId: selectedSubOption.id,
                           optionLabel: selectedSubOption.optionLabel,
                           discountRate: selectedSubOption.discountRate,
+                          regularPrice: product.price,  // 할인 전 원가 (개당)
                           discountedPrice,
                           totalQuantity: selectedSubOption.totalQuantity,
                           cycleMonths: selectedCombo.cycleMonths,
@@ -1556,7 +1560,7 @@ export function ProductDetailPage() {
                     toast.error(`구매 처리 중 오류가 발생했습니다: ${err.message || err}`);
                   }
                 }}
-                style={subTermsAgreed
+                style={canBuy
                   ? { backgroundColor: '#21358D', color: '#ffffff', cursor: 'pointer' }
                   : { backgroundColor: '#d1d5db', color: '#9ca3af', cursor: 'not-allowed' }
                 }
@@ -1565,6 +1569,8 @@ export function ProductDetailPage() {
                 <CreditCard className="w-5 h-5" />
                 바로 구매
               </button>
+              );
+              })()}
               <p className="text-xs text-center text-neutral-400">정기구독 상품은 바로 구매만 가능합니다.</p>
             </div>
           ) : (
