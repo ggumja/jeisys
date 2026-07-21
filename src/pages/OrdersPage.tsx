@@ -514,23 +514,28 @@ export function OrdersPage() {
                       </button>
                     ) : null;
                   })()}
-                  {/* 재주문 */}
-                  <button
-                    onClick={() => alert(`재주문: ${order.id}`)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold transition-colors"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    재주문
-                  </button>
-                  {/* 결제 취소 버튼 (입금대기, 결제완료, 상품준비중 상태 && 클레임 없을 때) */}
-                  {['pending', 'paid', 'processing'].includes(order.status) && !hasClaim && (
-                    <button
-                      onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod, status: order.status })}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors"
-                    >
-                      <XCircle className="w-3.5 h-3.5" />
-                      {order.status === 'processing' ? '취소 신청' : '결제 취소'}
-                    </button>
+                  {/* 재주문 & 결제 취소: 정기구독 상품 주문에는 미표시 */}
+                  {!order.items.some(i => (i.product as any)?.product_type === 'subscription' || (i.product as any)?.is_subscription_product) && (
+                    <>
+                      {/* 재주문 */}
+                      <button
+                        onClick={() => alert(`재주문: ${order.id}`)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold transition-colors"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        재주문
+                      </button>
+                      {/* 결제 취소 버튼 (입금대기, 결제완료, 상품준비중 상태 && 클레임 없을 때) */}
+                      {['pending', 'paid', 'processing'].includes(order.status) && !hasClaim && (
+                        <button
+                          onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod, status: order.status })}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          {order.status === 'processing' ? '취소 신청' : '결제 취소'}
+                        </button>
+                      )}
+                    </>
                   )}
                   {/* 반품/교환 버튼 (배송완료 && 클레임 없을 때만) */}
                   {canClaim && !hasClaim && (

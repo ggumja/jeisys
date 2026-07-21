@@ -418,12 +418,18 @@ export function SubscriptionProductRegisterPage() {
       const allBonusItems = formData.bonusProducts.map((bp) => ({
         bonusProductId: bp.productId,
         quantity: parseInt(unformat(bp.quantity)) || 1,
-        priceOverride: Number(unformat(bp.price)) || 0,
+        priceOverride: Number(unformat(bp.price)) || null, // 0이면 null로
         optionId: null,
         calculationMethod: bp.calculationMethod,
         percentage: parseFloat(unformat(bp.percentage)) || 0,
       }));
-      await productService.addBonusItems(productId, allBonusItems);
+      console.log('[SubscriptionRegister] bonusItems to save:', allBonusItems);
+      try {
+        await productService.addBonusItems(productId, allBonusItems);
+      } catch (bonusErr: any) {
+        console.error('[SubscriptionRegister] addBonusItems error:', bonusErr);
+        throw new Error(`추가 증정 상품 저장 실패: ${bonusErr.message || bonusErr}`);
+      }
 
       // 5. 장비 호환성
       await productService.saveProductCompatibility(productId, selectedEquipmentIds);

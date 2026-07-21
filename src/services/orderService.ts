@@ -28,6 +28,18 @@ export interface OrderInput {
     partialAmount?: number; // 카드일부결제 금액
     partialMethod?: 'credit' | 'general';
     partialCardName?: string; // 일부결제 시 카드별명
+    subscriptionDiscountRate?: number; // 정기구독 옵션 할인율 (0~100, e.g. 25)
+    // 정기구독 전용 상품(product_type='subscription') 구독 레코드 생성용 메타
+    subscriptionMeta?: {
+        optionId: string;
+        optionLabel: string;
+        discountRate: number;
+        discountedPrice: number;
+        totalQuantity: number;
+        cycleMonths: number;
+        qtyPerRound: number;
+        totalRounds: number;
+    };
 }
 
 export const orderService = {
@@ -50,7 +62,9 @@ export const orderService = {
                         image_url,
                         is_promotion,
                         buy_quantity,
-                        get_quantity
+                        get_quantity,
+                        product_type,
+                        is_subscription_product
                     )
                 ),
                 payment_history (*)
@@ -218,7 +232,9 @@ export const orderService = {
                         image_url,
                         is_promotion,
                         buy_quantity,
-                        get_quantity
+                        get_quantity,
+                        product_type,
+                        is_subscription_product
                     )
                 ),
                 payment_history (*)
@@ -323,7 +339,7 @@ export const orderService = {
 
     // Create a new order
     async createOrder(orderInput: OrderInput) {
-        const { userId, items, totalAmount, paymentMethod, deliveryAddress, billingKeyId, billingKey, subscriptionCycle, pointsUsed } = orderInput;
+        const { userId, items, totalAmount, paymentMethod, deliveryAddress, billingKeyId, billingKey, subscriptionCycle, pointsUsed, subscriptionDiscountRate, subscriptionMeta } = orderInput;
 
         if (!items || items.length === 0) {
             throw new Error('No items in order');
@@ -486,7 +502,63 @@ export const orderService = {
 
         // 3. Create Subscription Records if applicable
         const hasSubscriptionItems = items.some(i => i.isSubscription);
-        if (hasSubscriptionItems && billingKeyId && subscriptionCycle) {
+
+        // 3-A. 신규 정기구독 상품 (product_type='subscription') → 완전한 구독 레코드 생성
+        if (subscriptionMeta && billingKeyId) {
+            const { cycleMonths, qtyPerRound, totalRounds, totalQuantity, discountedPrice, discountRate, optionId } = subscriptionMeta;
+            const regularUnitPrice = Math.round(discountedPrice / (1 - discountRate / 100));
+            const startDate = new Date().toISOString().split('T')[0];
+            const nextBillingDate = new Date();
+            nextBillingDate.setMonth(nextBillingDate.getMonth() + cycleMonths);
+
+            // subscriptions 레코드
+            const { data: subData, error: subError } = await supabase
+                .from('subscriptions')
+                .insert({
+                    user_id: userId,
+                    product_id: items[0]?.productId ?? null,
+                    original_order_id: order.id,
+                    status: 'active',
+                    billing_key_id: billingKeyId,
+                    cycle_days: cycleMonths * 30,
+                    cycle_months: cycleMonths,
+                    total_quantity: totalQuantity,
+                    total_rounds: totalRounds,
+                    qty_per_round: qtyPerRound,
+                    last_round_qty: totalQuantity - qtyPerRound * (totalRounds - 1),
+                    current_round: 1,
+                    unit_price: discountedPrice * qtyPerRound,   // 회차 결제금액
+                    regular_unit_price: regularUnitPrice,
+                    discount_rate: discountRate,
+                    next_billing_date: nextBillingDate.toISOString().split('T')[0],
+                    last_billing_date: startDate,
+                })
+                .select()
+                .single();
+
+            if (subError) {
+                console.error('Failed to create subscription record:', subError);
+            } else if (subData) {
+                // subscription_shipments 회차별 스케줄 생성
+                const shipments = Array.from({ length: totalRounds }, (_, i) => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() + i * cycleMonths);
+                    return {
+                        subscription_id: subData.id,
+                        round_no: i + 1,
+                        scheduled_date: d.toISOString().split('T')[0],
+                        quantity: qtyPerRound,
+                        amount: discountedPrice * qtyPerRound,
+                        status: i === 0 ? 'paid' : 'pending',
+                        executed_at: i === 0 ? new Date().toISOString() : null,
+                    };
+                });
+                const { error: shipErr } = await supabase.from('subscription_shipments').insert(shipments);
+                if (shipErr) console.error('Failed to create shipments:', shipErr);
+            }
+        }
+        // 3-B. 구버전 플래그형 정기배송 (isSubscription=true, subscriptionCycle 전달)
+        else if (hasSubscriptionItems && billingKeyId && subscriptionCycle) {
             const nextDate = new Date();
             nextDate.setDate(nextDate.getDate() + subscriptionCycle);
 
@@ -598,7 +670,9 @@ export const orderService = {
                 }
             }
 
-            const subscriptionDiscount = item.isSubscription ? 0.95 : 1;
+            // 정기구독 할인율: 전달된 subscriptionDiscountRate 우선, 없으면 product.subscription_discount, 최종 fallback 0
+            const rawSubDiscountRate = subscriptionDiscountRate ?? 0;
+            const subscriptionDiscount = item.isSubscription ? (1 - rawSubDiscountRate / 100) : 1;
             const finalUnitPrice = unitPrice * subscriptionDiscount;
             // 번들: 정가에도 구독 할인 미적용된 원본 사용
             const finalListPrice = isBundle ? listPrice : listPrice;

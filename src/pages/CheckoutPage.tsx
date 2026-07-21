@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check, AlertCircle, Trash2, Coins } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
@@ -39,6 +39,18 @@ declare global {
 
 export function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // 정기구독 바로구매 시 ProductDetailPage에서 전달된 구독 옵션 정보
+  const subscriptionMeta = (location.state as any)?.subscriptionMeta as {
+    optionId: string;
+    optionLabel: string;
+    discountRate: number;
+    discountedPrice: number; // 할인 적용 단가
+    totalQuantity: number;
+    cycleMonths: number;
+    qtyPerRound: number;
+    totalRounds: number;
+  } | undefined;
   const [cart, setCart] = useState<CartItem[]>([]);
   const [productsMap, setProductsMap] = useState<Record<string, Product>>({});
   const [loading, setLoading] = useState(true);
@@ -353,6 +365,11 @@ export function CheckoutPage() {
   const calculateTotal = () => {
     return cart.reduce((sum, item) => {
       const product = productsMap[item.productId];
+      const isSubProduct = (product as any)?.product_type === 'subscription';
+      if (isSubProduct && subscriptionMeta) {
+        // 정기구독 상품: 회차당 수량 × 할인 단가
+        return sum + subscriptionMeta.discountedPrice * subscriptionMeta.qtyPerRound;
+      }
       const unitPrice = getTierPrice(item);
       const subDiscount = (product?.subscriptionDiscount || 0) / 100;
       const discount = item.isSubscription ? (1 - subDiscount) : 1;
@@ -361,7 +378,19 @@ export function CheckoutPage() {
   };
 
   const hasSubscriptionItems = cart.some(i => i.isSubscription);
+  // 정기구독 전용 상품 (product_type='subscription') 포함 여부 → 등록 신용카드만 허용
+  const hasSubscriptionProductItems = cart.some(i => {
+    const p = productsMap[i.productId] as any;
+    return p?.product_type === 'subscription' || p?.isSubscriptionProduct || p?.is_subscription_product;
+  });
   const hasCreditProducts = cart.some(i => productsMap[i.productId]?.creditAvailable);
+
+  // 정기구독 상품이 있으면 결제수단을 항상 등록카드로 강제
+  useEffect(() => {
+    if (hasSubscriptionProductItems && paymentMethod !== 'credit') {
+      setPaymentMethod('credit');
+    }
+  }, [hasSubscriptionProductItems, paymentMethod]);
 
   // 상품별 크레딧 사용 합계
   const totalCreditUsed = Object.values(itemCredits).reduce((a, b) => a + b, 0);
@@ -471,7 +500,20 @@ export function CheckoutPage() {
             billingKey: card?.billingKey,
             cardName: card ? (card.alias ? card.alias : `${card.cardName} (***${card.cardNumberMasked?.slice(-3) || ''})`) : undefined
           };
-        }) : undefined
+        }) : undefined,
+        // 정기구독 옵션 할인율 전달 (주문 아이템 단가 계산에 사용)
+        subscriptionDiscountRate: subscriptionMeta?.discountRate,
+        // 정기구독 전용 상품: 구독 레코드 + 회차 스케줄 생성용 메타
+        subscriptionMeta: subscriptionMeta ? {
+          optionId: subscriptionMeta.optionId,
+          optionLabel: subscriptionMeta.optionLabel,
+          discountRate: subscriptionMeta.discountRate,
+          discountedPrice: subscriptionMeta.discountedPrice,
+          totalQuantity: subscriptionMeta.totalQuantity,
+          cycleMonths: subscriptionMeta.cycleMonths,
+          qtyPerRound: subscriptionMeta.qtyPerRound,
+          totalRounds: subscriptionMeta.totalRounds,
+        } : undefined,
       });
 
       // 크레딧 사용 처리 - 상품별 장비 타입으로 분리 차감
@@ -645,9 +687,17 @@ export function CheckoutPage() {
               {cart.map(item => {
                 const product = productsMap[item.productId];
                 if (!product) return null;
-                const unitPrice = getTierPrice(item);
-                const subDiscount = (product?.subscriptionDiscount || 0) / 100;
-                const itemTotal = unitPrice * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
+                const isSubProduct = (product as any)?.product_type === 'subscription';
+                // 정기구독 상품은 선택한 옵션의 할인 단가 사용
+                const unitPrice = (isSubProduct && subscriptionMeta)
+                  ? subscriptionMeta.discountedPrice
+                  : getTierPrice(item);
+                const itemTotal = (isSubProduct && subscriptionMeta)
+                  ? subscriptionMeta.discountedPrice * subscriptionMeta.qtyPerRound
+                  : (() => {
+                      const subDiscount = (product?.subscriptionDiscount || 0) / 100;
+                      return getTierPrice(item) * item.quantity * (item.isSubscription ? (1 - subDiscount) : 1);
+                    })();
                 return (
                   <CartItemCard
                     key={item.id}
@@ -984,7 +1034,15 @@ export function CheckoutPage() {
 
             {(paymentMode === 'single' || hasSubscriptionItems) && (
               <div className="space-y-4">
+                {/* 정기구독 상품 결제수단 안내 */}
+                {hasSubscriptionProductItems && (
+                  <div className="mb-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2 rounded-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>정기구독 상품은 <strong>등록된 신용카드</strong>로만 결제할 수 있습니다. 다른 결제수단은 사용이 불가합니다.</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* 등록된 신용카드 — 항상 활성 */}
                   <div
                     onClick={() => setPaymentMethod('credit')}
                     className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'credit'
@@ -999,45 +1057,57 @@ export function CheckoutPage() {
                     </div>
                   </div>
 
+                  {/* 일반결제 — 구독 상품 시 비활성 */}
                   <div
-                    onClick={() => setPaymentMethod('general')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'general'
-                      ? 'border-[#D9534F] bg-[#FFF8F5]'
-                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                      }`}
+                    onClick={() => !hasSubscriptionProductItems && setPaymentMethod('general')}
+                    className={`p-4 border-2 rounded-sm transition-all flex items-start gap-3 ${
+                      hasSubscriptionProductItems
+                        ? 'border-neutral-100 bg-neutral-50 opacity-40 cursor-not-allowed'
+                        : paymentMethod === 'general'
+                          ? 'border-[#D9534F] bg-[#FFF8F5] cursor-pointer'
+                          : 'border-neutral-200 bg-white hover:bg-neutral-50 cursor-pointer'
+                    }`}
                   >
-                    <CreditCard className={`w-5 h-5 mt-0.5 ${paymentMethod === 'general' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <CreditCard className={`w-5 h-5 mt-0.5 ${paymentMethod === 'general' && !hasSubscriptionProductItems ? 'text-[#D9534F]' : 'text-neutral-400'}`} />
                     <div>
-                      <h3 className={`font-bold text-sm ${paymentMethod === 'general' ? 'text-neutral-900' : 'text-neutral-700'}`}>일반결제</h3>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">신용카드 결제</p>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'general' && !hasSubscriptionProductItems ? 'text-neutral-900' : 'text-neutral-400'}`}>일반결제</h3>
+                      <p className="text-[11px] text-neutral-400 mt-0.5">{hasSubscriptionProductItems ? '구독 상품 미지원' : '신용카드 결제'}</p>
                     </div>
                   </div>
 
+                  {/* 가상계좌 — 구독 상품 시 비활성 */}
                   <div
-                    onClick={() => setPaymentMethod('virtual')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'virtual'
-                      ? 'border-[#D9534F] bg-[#FFF8F5]'
-                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                      }`}
+                    onClick={() => !hasSubscriptionProductItems && setPaymentMethod('virtual')}
+                    className={`p-4 border-2 rounded-sm transition-all flex items-start gap-3 ${
+                      hasSubscriptionProductItems
+                        ? 'border-neutral-100 bg-neutral-50 opacity-40 cursor-not-allowed'
+                        : paymentMethod === 'virtual'
+                          ? 'border-[#D9534F] bg-[#FFF8F5] cursor-pointer'
+                          : 'border-neutral-200 bg-white hover:bg-neutral-50 cursor-pointer'
+                    }`}
                   >
-                    <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'virtual' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'virtual' && !hasSubscriptionProductItems ? 'text-[#D9534F]' : 'text-neutral-400'}`} />
                     <div>
-                      <h3 className={`font-bold text-sm ${paymentMethod === 'virtual' ? 'text-neutral-900' : 'text-neutral-700'}`}>가상계좌</h3>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">발급된 계좌로 입금</p>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'virtual' && !hasSubscriptionProductItems ? 'text-neutral-900' : 'text-neutral-400'}`}>가상계좌</h3>
+                      <p className="text-[11px] text-neutral-400 mt-0.5">{hasSubscriptionProductItems ? '구독 상품 미지원' : '발급된 계좌로 입금'}</p>
                     </div>
                   </div>
 
+                  {/* 무통장입금 — 구독 상품 시 비활성 */}
                   <div
-                    onClick={() => setPaymentMethod('transfer')}
-                    className={`p-4 border-2 rounded-sm cursor-pointer transition-all flex items-start gap-3 ${paymentMethod === 'transfer'
-                      ? 'border-[#D9534F] bg-[#FFF8F5]'
-                      : 'border-neutral-200 bg-white hover:bg-neutral-50'
-                      }`}
+                    onClick={() => !hasSubscriptionProductItems && setPaymentMethod('transfer')}
+                    className={`p-4 border-2 rounded-sm transition-all flex items-start gap-3 ${
+                      hasSubscriptionProductItems
+                        ? 'border-neutral-100 bg-neutral-50 opacity-40 cursor-not-allowed'
+                        : paymentMethod === 'transfer'
+                          ? 'border-[#D9534F] bg-[#FFF8F5] cursor-pointer'
+                          : 'border-neutral-200 bg-white hover:bg-neutral-50 cursor-pointer'
+                    }`}
                   >
-                    <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'transfer' ? 'text-[#D9534F]' : 'text-neutral-500'}`} />
+                    <Wallet className={`w-5 h-5 mt-0.5 ${paymentMethod === 'transfer' && !hasSubscriptionProductItems ? 'text-[#D9534F]' : 'text-neutral-400'}`} />
                     <div>
-                      <h3 className={`font-bold text-sm ${paymentMethod === 'transfer' ? 'text-neutral-900' : 'text-neutral-700'}`}>무통장입금</h3>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">지정 계좌로 직접 입금</p>
+                      <h3 className={`font-bold text-sm ${paymentMethod === 'transfer' && !hasSubscriptionProductItems ? 'text-neutral-900' : 'text-neutral-400'}`}>무통장입금</h3>
+                      <p className="text-[11px] text-neutral-400 mt-0.5">{hasSubscriptionProductItems ? '구독 상품 미지원' : '지정 계좌로 직접 입금'}</p>
                     </div>
                   </div>
                 </div>

@@ -35,8 +35,10 @@ export function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState<string>('');
   // 정기구독 전용 상품 선택 상태 (product_type === 'subscription')
   const [selectedSubOption, setSelectedSubOption] = useState<SubscriptionProductOption | null>(null);
+  const [selectedCycleMonths, setSelectedCycleMonths] = useState<number | null>(null);
   const [selectedCombo, setSelectedCombo] = useState<RoundCombination | null>(null);
   const [subScheduleOpen, setSubScheduleOpen] = useState(true);
+  const [subTermsAgreed, setSubTermsAgreed] = useState(false);
   // 기존 플래그형 정기배송 (is_subscription_product, 구버전)
   const [subQty, setSubQty] = useState<number>(100);
   const [subCycle, setSubCycle] = useState<1 | 2 | 3 | 6>(1);
@@ -912,8 +914,8 @@ export function ProductDetailPage() {
             </div>
           )}
 
-          {/* Regular Option/Quantity Selectors - Hidden for Promotions */}
-          {!product.isPromotion && (
+          {/* Regular Option/Quantity Selectors - Hidden for Promotions & Subscription products */}
+          {!product.isPromotion && product.product_type !== 'subscription' && (
             <>
               {product.options && product.options.length > 0 ? (
 
@@ -1176,84 +1178,151 @@ export function ProductDetailPage() {
 
           {/* ═══ 정기구독 전용 상품 (product_type='subscription') ═══ */}
           {product.product_type === 'subscription' && (product.subscriptionOptions ?? []).length > 0 ? (
-            <div className="mb-8 space-y-5">
-              <div className="flex items-center gap-2 border-l-4 border-[#21358D] pl-3">
-                <RefreshCw className="w-4 h-4 text-[#21358D]" />
-                <span className="text-sm font-semibold text-neutral-900">구독 옵션 선택</span>
+            <div className="mb-8 space-y-6">
+
+              {/* ① 구매 세트 선택 */}
+              <div>
+                <p className="text-sm font-bold text-neutral-800 mb-1">
+                  구매 세트 선택 <span className="text-red-500">*</span>
+                </p>
+                <div className="border-t-2 border-neutral-900 mt-2">
+                  {(product.subscriptionOptions ?? [])
+                    .sort((a, b) => a.displayOrder - b.displayOrder)
+                    .map((opt) => {
+                      const isSelected = selectedSubOption?.id === opt.id;
+                      const totalPrice = Math.round(product.price * (1 - (opt.discountRate || 0) / 100)) * opt.totalQuantity;
+                      return (
+                        <div
+                          key={opt.id}
+                          onClick={() => {
+                            setSelectedSubOption(opt);
+                            setSelectedCycleMonths(null);
+                            setSelectedCombo(null);
+                          }}
+                          className="flex items-center justify-between px-4 py-4 border-b border-neutral-200 cursor-pointer transition-colors"
+                          style={isSelected
+                            ? { backgroundColor: '#EEF2FF' }
+                            : { backgroundColor: '#ffffff' }
+                          }
+                        >
+                          <div className="flex items-center gap-3">
+                            {/* 라디오 버튼 */}
+                            <div
+                              className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                              style={isSelected
+                                ? { borderColor: '#21358D', backgroundColor: '#21358D' }
+                                : { borderColor: '#9ca3af', backgroundColor: '#ffffff' }
+                              }
+                            >
+                              {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm text-neutral-900">{opt.optionLabel}</p>
+                              {opt.discountRate > 0 && (
+                                <p className="text-xs text-blue-600 mt-0.5">{opt.discountRate}% 할인 적용</p>
+                              )}
+                            </div>
+                          </div>
+                          <p className="font-bold text-base text-red-600 whitespace-nowrap">
+                            ₩{totalPrice.toLocaleString()}
+                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
 
-              {/* 옵션(수량) 선택 */}
-              <div className="grid grid-cols-2 gap-2">
-                {(product.subscriptionOptions ?? []).sort((a, b) => a.displayOrder - b.displayOrder).map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => { setSelectedSubOption(opt); setSelectedCombo(null); }}
-                    className="p-4 border-2 text-sm transition-colors text-left"
-                    style={selectedSubOption?.id === opt.id
-                      ? { borderColor: '#21358D', backgroundColor: '#21358D', color: '#ffffff' }
-                      : { borderColor: '#e5e7eb', backgroundColor: '#ffffff', color: '#111827' }
-                    }
-                  >
-                    <p className="font-semibold">{opt.optionLabel}</p>
-                    <p className="text-xs mt-1" style={{ color: selectedSubOption?.id === opt.id ? 'rgba(255,255,255,0.8)' : '#6b7280' }}>
-                      총 {opt.totalQuantity.toLocaleString()}개
-                      {opt.discountRate > 0 && (
-                        <span className="ml-1.5 font-medium" style={{ color: selectedSubOption?.id === opt.id ? '#ffffff' : '#21358D' }}>{opt.discountRate}% 할인</span>
-                      )}
-                    </p>
-                  </button>
-                ))}
-              </div>
-
-              {/* 회차 조합 선택 (옵션 선택 후 표시) */}
+              {/* ② 결제 주기 선택 */}
               {selectedSubOption && (() => {
-                // cycleMonths 기준으로 그룹화
-                const byMonth = selectedSubOption.roundCombinations.reduce<Record<number, RoundCombination[]>>(
-                  (acc, c) => { (acc[c.cycleMonths] ??= []).push(c); return acc; },
-                  {},
-                );
-                const CYCLE_LABELS: Record<number, string> = { 1: '1개월', 2: '2개월', 3: '3개월', 4: '4개월', 6: '6개월' };
+                const availableCycles = [...new Set(
+                  selectedSubOption.roundCombinations.map(c => c.cycleMonths)
+                )].sort((a, b) => a - b);
+                const CYCLE_LABELS: Record<number, string> = { 1: '1개월마다', 2: '2개월마다', 3: '3개월마다', 4: '4개월마다', 6: '6개월마다' };
                 return (
-                  <div className="border border-neutral-200">
-                    <div className="px-4 py-2.5 bg-neutral-50 border-b border-neutral-200">
-                      <p className="text-xs font-semibold text-neutral-600">결제 주기 &amp; 회차 선택</p>
+                  <div>
+                    <p className="text-sm font-bold text-neutral-800 mb-1">
+                      결제 주기 <span className="text-red-500">*</span>
+                    </p>
+                    <div className="border-t-2 border-neutral-900 mt-2 pt-4">
+                      <div className="flex flex-wrap gap-2">
+                        {availableCycles.map(m => {
+                          const isActive = selectedCycleMonths === m;
+                          return (
+                            <button
+                              key={m}
+                              onClick={() => { setSelectedCycleMonths(m); setSelectedCombo(null); }}
+                              className="px-5 py-2.5 rounded-full border-2 text-sm font-semibold transition-all"
+                              style={isActive
+                                ? { borderColor: '#21358D', backgroundColor: '#21358D', color: '#ffffff' }
+                                : { borderColor: '#d1d5db', backgroundColor: '#ffffff', color: '#374151' }
+                              }
+                            >
+                              {CYCLE_LABELS[m] ?? `${m}개월마다`}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <table className="w-full text-sm">
-                      <tbody className="divide-y divide-neutral-100">
-                        {([1, 2, 3, 4, 6] as const).filter(m => byMonth[m]?.length).map(m => (
-                          <tr key={m}>
-                            <td className="px-4 py-3 text-xs font-medium text-neutral-600 whitespace-nowrap w-16">
-                              {CYCLE_LABELS[m]}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-wrap gap-2">
-                                {(byMonth[m] ?? []).map((c) => {
-                                  const isSelected = selectedCombo?.cycleMonths === c.cycleMonths && selectedCombo?.qtyPerRound === c.qtyPerRound && selectedCombo?.totalRounds === c.totalRounds;
-                                  return (
-                                    <button
-                                      key={`${c.cycleMonths}-${c.qtyPerRound}`}
-                                      onClick={() => setSelectedCombo(c)}
-                                      className="px-3 py-1.5 border-2 text-xs font-medium transition-all"
-                                      style={isSelected
-                                        ? { borderColor: '#21358D', backgroundColor: '#21358D', color: '#ffffff' }
-                                        : { borderColor: '#d1d5db', backgroundColor: '#ffffff', color: '#374151' }
-                                      }
-                                    >
-                                      {c.qtyPerRound}개 × {c.totalRounds}회 (총 {c.totalRounds * c.cycleMonths}개월)
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 );
               })()}
 
-              {/* 출고 스케줄 프리뷰 */}
+              {/* ③ 회차 선택 */}
+              {selectedSubOption && selectedCycleMonths && (() => {
+                const combos = selectedSubOption.roundCombinations
+                  .filter(c => c.cycleMonths === selectedCycleMonths)
+                  .sort((a, b) => a.qtyPerRound - b.qtyPerRound);
+                const unitPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
+                return (
+                  <div>
+                    <p className="text-sm font-bold text-neutral-800 mb-1">
+                      회차 선택 <span className="text-red-500">*</span>
+                    </p>
+                    <div className="border-t-2 border-neutral-900 mt-2">
+                      {combos.map(c => {
+                        const isSelected = selectedCombo?.cycleMonths === c.cycleMonths &&
+                          selectedCombo?.qtyPerRound === c.qtyPerRound &&
+                          selectedCombo?.totalRounds === c.totalRounds;
+                        const roundPrice = unitPrice * c.qtyPerRound;
+                        return (
+                          <div
+                            key={`${c.cycleMonths}-${c.qtyPerRound}`}
+                            onClick={() => setSelectedCombo(c)}
+                            className="flex items-center justify-between px-4 py-4 border-b border-neutral-200 cursor-pointer transition-colors"
+                            style={isSelected ? { backgroundColor: '#EEF2FF' } : { backgroundColor: '#ffffff' }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                                style={isSelected
+                                  ? { borderColor: '#21358D', backgroundColor: '#21358D' }
+                                  : { borderColor: '#9ca3af', backgroundColor: '#ffffff' }
+                                }
+                              >
+                                {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-sm text-neutral-900">
+                                  회당 {c.qtyPerRound}개 × {c.totalRounds}회
+                                </p>
+                                <p className="text-xs text-neutral-500 mt-0.5">
+                                  총 {c.totalRounds * c.cycleMonths}개월분 공급
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-neutral-500">회차</p>
+                              <p className="font-bold text-sm text-neutral-900">₩{roundPrice.toLocaleString()}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ④ 출고 스케줄 프리뷰 */}
               {selectedSubOption && selectedCombo && (() => {
                 const unitPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
                 const rounds = Array.from({ length: selectedCombo.totalRounds }, (_, i) => {
@@ -1310,6 +1379,7 @@ export function ProductDetailPage() {
                   </div>
                 );
               })()}
+
             </div>
 
           ) : (product.is_subscription_product) ? (
@@ -1399,37 +1469,100 @@ export function ProductDetailPage() {
           </div>
 
           {/* Action Buttons */}
-          {product.product_type === 'subscription' ? (
+          {(product.product_type === 'subscription' || product.isSubscriptionProduct) && (product.subscriptionOptions ?? []).length > 0 ? (
             /* 정기구독 전용: 바로구매만 */
             <div className="flex flex-col gap-3 mb-6 mt-4">
+
+              {/* 정기구독 약관 동의 */}
+              <div className="border border-neutral-200 rounded-sm">
+                {/* 약관 내용 영역 */}
+                <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
+                  <p className="text-xs font-bold text-neutral-700 mb-2">정기구독 서비스 이용 약관</p>
+                  <div className="h-28 overflow-y-auto text-[11px] text-neutral-500 leading-relaxed space-y-1.5 pr-1">
+                    <p><strong>제1조 (목적)</strong> 본 약관은 제이시스메디칼(이하 "회사")이 제공하는 정기구독 서비스 이용에 관한 기본적인 사항을 규정합니다.</p>
+                    <p><strong>제2조 (서비스 내용)</strong> 회사는 고객이 선택한 수량 및 결제 주기에 따라 상품을 정기적으로 배송합니다. 구독 계약 기간 동안 매 회차마다 지정된 금액이 등록된 신용카드에서 자동 청구됩니다.</p>
+                    <p><strong>제3조 (결제)</strong> 결제는 등록된 신용카드를 통해 각 회차 배송일 기준으로 자동 청구됩니다. 결제 실패 시 배송이 보류될 수 있습니다.</p>
+                    <p><strong>제4조 (중도해지)</strong> 고객은 언제든지 구독을 해지 신청할 수 있으나, 중도 해지 시 잔여 회차에 대해 위약금이 발생할 수 있습니다. 위약금은 관리자가 심사 후 별도 통보합니다.</p>
+                    <p><strong>제5조 (개인정보)</strong> 회사는 서비스 제공을 위해 필요한 최소한의 개인정보를 수집·이용하며, 관련 법령에 따라 보호합니다.</p>
+                    <p><strong>제6조 (면책)</strong> 천재지변, 제조사 사정 등 불가피한 사유로 인한 배송 지연은 회사의 귀책사유가 아닙니다.</p>
+                  </div>
+                </div>
+                {/* 동의 체크박스 */}
+                <label className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
+                  <div
+                    onClick={() => setSubTermsAgreed(v => !v)}
+                    className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                    style={subTermsAgreed
+                      ? { borderColor: '#21358D', backgroundColor: '#21358D' }
+                      : { borderColor: '#9ca3af', backgroundColor: '#ffffff' }
+                    }
+                  >
+                    {subTermsAgreed && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span
+                    onClick={() => setSubTermsAgreed(v => !v)}
+                    className="text-sm font-medium text-neutral-800"
+                  >
+                    정기구독 서비스 이용 약관에 <span className="text-[#21358D] font-bold">동의합니다</span>
+                  </span>
+                </label>
+              </div>
+
+              {/* 바로구매 버튼 */}
               <button
+                disabled={!subTermsAgreed}
                 onClick={async () => {
-                  if (!selectedSubOption) {
-                    toast.error('구독 옵션을 선택해주세요.'); return;
+                  try {
+                    if (!selectedSubOption) {
+                      toast.error('구독 옵션(수량 세트)을 먼저 선택해주세요.');
+                      return;
+                    }
+                    if (!selectedCombo) {
+                      toast.error('결제 주기 & 회차 조합을 선택해주세요.');
+                      return;
+                    }
+                    const discountedPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
+                    console.log('[바로구매] productId:', product.id, 'qty:', selectedCombo.qtyPerRound);
+
+                    // 장바구니 비우기
+                    try { await cartService.clearCart(); } catch (_) { /* 비로그인 무시 */ }
+
+                    // 장바구니에 추가 (is_subscription=true)
+                    await cartService.addToCart(
+                      product.id,
+                      selectedCombo.qtyPerRound,
+                      true, // isSubscription
+                    );
+
+                    // 구독 세부 정보는 navigate state로 전달
+                    navigate('/checkout', {
+                      state: {
+                        subscriptionMeta: {
+                          optionId: selectedSubOption.id,
+                          optionLabel: selectedSubOption.optionLabel,
+                          discountRate: selectedSubOption.discountRate,
+                          discountedPrice,
+                          totalQuantity: selectedSubOption.totalQuantity,
+                          cycleMonths: selectedCombo.cycleMonths,
+                          qtyPerRound: selectedCombo.qtyPerRound,
+                          totalRounds: selectedCombo.totalRounds,
+                        },
+                      },
+                    });
+                  } catch (err: any) {
+                    console.error('[바로구매] error:', err);
+                    toast.error(`구매 처리 중 오류가 발생했습니다: ${err.message || err}`);
                   }
-                  if (!selectedCombo) {
-                    toast.error('회차 조합을 선택해주세요.'); return;
-                  }
-                  const item = {
-                    productId: product.id,
-                    productName: product.name,
-                    price: Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100)),
-                    quantity: selectedCombo.qtyPerRound,
-                    imageUrl: product.imageUrl,
-                    isSubscription: true,
-                    subscriptionOptionId: selectedSubOption.id,
-                    subscriptionCombination: {
-                      cycleMonths: selectedCombo.cycleMonths,
-                      qtyPerRound: selectedCombo.qtyPerRound,
-                      totalRounds: selectedCombo.totalRounds,
-                    },
-                  };
-                  await cartService.clearCart();
-                  await cartService.addItem(item as any);
-                  navigate('/cart');
                 }}
-                style={{ backgroundColor: '#21358D', color: '#ffffff' }}
-                className="w-full py-4 font-bold text-sm tracking-wide cursor-pointer flex items-center justify-center gap-2"
+                style={subTermsAgreed
+                  ? { backgroundColor: '#21358D', color: '#ffffff', cursor: 'pointer' }
+                  : { backgroundColor: '#d1d5db', color: '#9ca3af', cursor: 'not-allowed' }
+                }
+                className="w-full py-4 font-bold text-sm tracking-wide flex items-center justify-center gap-2 transition-all"
               >
                 <CreditCard className="w-5 h-5" />
                 바로 구매
