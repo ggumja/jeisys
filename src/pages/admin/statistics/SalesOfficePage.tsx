@@ -60,7 +60,7 @@ export function SalesOfficePage() {
         : dateRange;
 
       const titleRows = [
-        ['영업처별 매출 기여도'],
+        ['판매영업점별 매출 기여도'],
         [`분석 기간: ${label}`],
         []
       ];
@@ -80,13 +80,13 @@ export function SalesOfficePage() {
       ws['!cols'] = [{ wch: 8 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 20 }, { wch: 12 }];
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '영업처별 매출 기여도');
+      XLSX.utils.book_append_sheet(wb, ws, '판매영업점별 매출 기여도');
 
       const now = new Date();
       const dateSuffix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-      XLSX.writeFile(wb, `영업처별_기여도_${dateSuffix}.xlsx`);
+      XLSX.writeFile(wb, `판매영업점별_기여도_${dateSuffix}.xlsx`);
     } catch (error) {
-      console.error('영업처별 기여도 엑셀 다운로드 실패:', error);
+      console.error('판매영업점별 기여도 엑셀 다운로드 실패:', error);
     }
   }, [offices, label]);
 
@@ -147,7 +147,7 @@ export function SalesOfficePage() {
           <div>
             <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-[#21358D]" />
-              <span>영업처별 매출 비중</span>
+              <span>판매영업점별 매출 비중</span>
             </h3>
             <p className="text-xs text-neutral-500 mb-6">각 지점/영업처가 전체 매출에서 기여하는 비중입니다.</p>
           </div>
