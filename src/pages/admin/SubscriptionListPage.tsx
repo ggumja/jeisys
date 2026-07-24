@@ -67,6 +67,7 @@ function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; has
         </td>
         <td className="px-4 py-3 text-sm text-right text-neutral-700">{sub.unitPrice.toLocaleString()}원</td>
         <td className="px-4 py-3 text-sm text-center text-neutral-600">{formatDate(sub.nextBillingDate)}</td>
+        <td className="px-4 py-3 text-sm text-center text-neutral-500">{formatDate(sub.createdAt)}</td>
         <td className="px-4 py-3 text-center">
           {hasPendingCancel ? (
             <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
@@ -81,7 +82,7 @@ function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; has
       {/* 회차 상세 */}
       {open && sub.shipments && sub.shipments.length > 0 && (
         <tr>
-          <td colSpan={8} className="px-6 py-3 bg-neutral-50 border-t border-neutral-100">
+          <td colSpan={9} className="px-6 py-3 bg-neutral-50 border-t border-neutral-100">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
@@ -207,7 +208,7 @@ export function SubscriptionListPage() {
             placeholder="고객명, 병원명, 상품명, 구독ID 검색"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="w-full pl-10 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
           />
         </div>
       </div>
@@ -267,6 +268,7 @@ export function SubscriptionListPage() {
                   <th className="px-4 py-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">진행회차</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider">회차금액</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">다음결제일</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">신청일</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-neutral-600 uppercase tracking-wider">상태</th>
                 </tr>
               </thead>

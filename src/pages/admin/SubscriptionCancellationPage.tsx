@@ -134,7 +134,7 @@ export function SubscriptionCancellationPage() {
 
   const [requests, setRequests] = useState<CancellationRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'pending' | 'processed'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [modalState, setModalState] = useState<{
@@ -144,18 +144,18 @@ export function SubscriptionCancellationPage() {
   }>({ open: false, request: null, action: 'charge' });
   const [processing, setProcessing] = useState(false);
 
-  // ── 데이터 로드 ──
+  // ── 데이터 로드 (항상 전체 로드 → 클라이언트 필터링) ──
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await subscriptionService.getCancellationRequests(statusFilter);
+      const data = await subscriptionService.getCancellationRequests(undefined);
       setRequests(data);
     } catch (e: any) {
       console.error('[SubscriptionCancellationPage] 해지신청 목록 로드 실패:', e?.message, e?.code, e?.details, e?.hint, e);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -182,8 +182,11 @@ export function SubscriptionCancellationPage() {
     }
   };
 
-  // ── 필터 ──
+  // ── 필터 (탭 + 검색 클라이언트 필터링) ──
   const filtered = requests.filter((r) => {
+    const matchStatus =
+      statusFilter === 'all' ? true : r.status === statusFilter;
+    if (!matchStatus) return false;
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -193,6 +196,7 @@ export function SubscriptionCancellationPage() {
     );
   });
 
+  const totalCount = requests.length;
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const processedCount = requests.filter((r) => r.status === 'processed').length;
 
@@ -227,7 +231,7 @@ export function SubscriptionCancellationPage() {
             placeholder="고객명, 병원명, 구독번호 검색"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="w-full pl-10 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
           />
         </div>
       </div>
@@ -236,6 +240,7 @@ export function SubscriptionCancellationPage() {
       <div className="bg-white border border-neutral-200">
         <div className="flex border-b border-neutral-200 px-4">
           {([
+            { key: 'all' as const, label: '전체', activeColor: 'border-neutral-900 text-neutral-900', count: totalCount },
             { key: 'pending' as const, label: '처리대기', activeColor: 'border-amber-500 text-amber-600', count: pendingCount },
             { key: 'processed' as const, label: '처리완료', activeColor: 'border-green-600 text-green-600', count: processedCount },
           ]).map(tab => (

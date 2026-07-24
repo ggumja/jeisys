@@ -284,9 +284,19 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
 // 회차 스케줄 아코디언
 // ─────────────────────────────────────────
 
-function ShipmentSchedule({ shipments }: { shipments: SubscriptionScheduleRow[] }) {
+function ShipmentSchedule({
+  shipments,
+  isPendingCancellation = false,
+}: {
+  shipments: SubscriptionScheduleRow[];
+  isPendingCancellation?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const sorted = [...shipments].sort((a, b) => a.roundNo - b.roundNo);
+
+  // 해지신청 처리대기 중이면 cancelled → pending으로 표시
+  const displayStatus = (s: SubscriptionScheduleRow) =>
+    isPendingCancellation && s.status === 'cancelled' ? 'pending' : s.status;
 
   return (
     <div className="border border-neutral-200 rounded">
@@ -316,12 +326,12 @@ function ShipmentSchedule({ shipments }: { shipments: SubscriptionScheduleRow[] 
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {sorted.map((s) => (
-                  <tr key={s.id} className={s.status === 'cancelled' ? 'opacity-40' : ''}>
+                  <tr key={s.id} className={displayStatus(s) === 'cancelled' ? 'opacity-40' : ''}>
                     <td className="px-4 py-2 text-neutral-900 font-medium">{s.roundNo}회차</td>
                     <td className="px-4 py-2 text-neutral-700">{formatDate(s.scheduledDate)}</td>
                     <td className="px-4 py-2 text-right text-neutral-700">{s.quantity}개</td>
                     <td className="px-4 py-2 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
-                    <td className="px-4 py-2 text-center">{getShipmentStatusBadge(s.status)}</td>
+                    <td className="px-4 py-2 text-center">{getShipmentStatusBadge(displayStatus(s))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -359,7 +369,13 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
             <h4 className="text-base font-medium text-neutral-900">
               {sub.product?.name ?? '상품명 로딩 중'}
             </h4>
-            {getStatusBadge(sub.status)}
+            {cancellationRequest?.status === 'pending' ? (
+              <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+                <AlertTriangle className="w-3 h-3 mr-1" />해지신청중
+              </Badge>
+            ) : (
+              getStatusBadge(sub.status)
+            )}
           </div>
           <p className="text-sm text-neutral-500">
             총 {sub.totalQuantity}개 · {sub.cycleMonths}개월 주기 · 총 {sub.totalRounds}회
@@ -416,7 +432,10 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
 
       {/* 회차 스케줄 */}
       {sub.shipments && sub.shipments.length > 0 && (
-        <ShipmentSchedule shipments={sub.shipments} />
+        <ShipmentSchedule
+          shipments={sub.shipments}
+          isPendingCancellation={cancellationRequest?.status === 'pending'}
+        />
       )}
 
       {/* 해지 안내 */}
@@ -538,35 +557,46 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
 
       {/* 버튼 */}
       {!isCancelled && (
-        <div className="flex flex-wrap gap-2 pt-2">
-          {isActive && (
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          {/* 처리대기 중인 해지신청이 있을 때 */}
+          {cancellationRequest?.status === 'pending' ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded text-sm text-amber-700">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-medium">해지신청 처리대기 중</span>
+              <span className="text-xs text-amber-500">· 관리자 검토 후 처리됩니다</span>
+            </div>
+          ) : (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onPause(sub)}
-                className="border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-              >
-                <Pause className="w-3.5 h-3.5 mr-1" />일시정지
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onCancel(sub)}
-                className="border-red-300 text-red-600 hover:bg-red-50"
-              >
-                <XCircle className="w-3.5 h-3.5 mr-1" />해지 신청
-              </Button>
+              {isActive && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPause(sub)}
+                    className="border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                  >
+                    <Pause className="w-3.5 h-3.5 mr-1" />일시정지
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onCancel(sub)}
+                    className="border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    <XCircle className="w-3.5 h-3.5 mr-1" />해지 신청
+                  </Button>
+                </>
+              )}
+              {isPaused && (
+                <Button
+                  size="sm"
+                  onClick={() => onResume(sub)}
+                  className="bg-green-600 text-white hover:bg-green-700"
+                >
+                  <Play className="w-3.5 h-3.5 mr-1" />재개하기
+                </Button>
+              )}
             </>
-          )}
-          {isPaused && (
-            <Button
-              size="sm"
-              onClick={() => onResume(sub)}
-              className="bg-green-600 text-white hover:bg-green-700"
-            >
-              <Play className="w-3.5 h-3.5 mr-1" />재개하기
-            </Button>
           )}
         </div>
       )}
