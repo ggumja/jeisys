@@ -103,11 +103,23 @@ function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; has
                       <td className="py-1 pr-4 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
                       <td className="py-1 text-center">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          s.status === 'paid' ? 'bg-green-100 text-green-700' :
-                          s.status === 'pending' ? 'bg-blue-100 text-blue-700' :
+                          s.status === 'paid'      ? 'bg-green-100 text-green-700' :
+                          s.status === 'pending'   ? 'bg-blue-100 text-blue-700' :
+                          s.status === 'shipped'   ? 'bg-emerald-100 text-emerald-700' :
+                          s.status === 'failed'    ? 'bg-red-100 text-red-700' :
+                          s.status === 'skipped'   ? 'bg-neutral-100 text-neutral-500' :
                           s.status === 'cancelled' ? 'bg-neutral-100 text-neutral-400' :
                           'bg-neutral-100 text-neutral-600'
-                        }`}>{s.status}</span>
+                        }`}>
+                          {{
+                            paid: '결제완료',
+                            pending: '예정',
+                            shipped: '출고완료',
+                            failed: '결제실패',
+                            skipped: '건너뜀',
+                            cancelled: '취소',
+                          }[s.status] ?? s.status}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -158,6 +170,7 @@ export function SubscriptionListPage() {
     const matchStatus =
       statusFilter === 'pending_cancel' ? pendingCancelIds.has(s.id) :
       statusFilter === 'completed' ? (s.status === 'completed' || s.status === 'expired') :
+      statusFilter === 'cancelled' ? (s.status === 'cancelled' && !pendingCancelIds.has(s.id)) :
       s.status === statusFilter;
     const term = searchTerm.toLowerCase();
     const matchSearch = !term ||
@@ -174,7 +187,7 @@ export function SubscriptionListPage() {
     active: subscriptions.filter(s => s.status === 'active').length,
     paused: subscriptions.filter(s => s.status === 'paused').length,
     completed: subscriptions.filter(s => s.status === 'completed' || s.status === 'expired').length,
-    cancelled: subscriptions.filter(s => s.status === 'cancelled').length,
+    cancelled: subscriptions.filter(s => s.status === 'cancelled' && !pendingCancelIds.has(s.id)).length,
     pending_cancel: pendingCancelIds.size,
   };
 
