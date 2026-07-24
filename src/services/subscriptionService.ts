@@ -42,6 +42,7 @@ export interface SubscriptionRow {
   updatedAt: string;
   // 조인 데이터
   product?: { name: string; imageUrl?: string; sku?: string };
+  user?: { name: string; hospitalName?: string };
   shipments?: SubscriptionScheduleRow[];
   quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
 }
@@ -227,6 +228,9 @@ function mapSubscriptionRow(row: any): SubscriptionRow {
     updatedAt: row.updated_at,
     product: row.products
       ? { name: row.products.name, imageUrl: row.products.image_url, sku: row.products.sku }
+      : undefined,
+    user: row.users
+      ? { name: row.users.name, hospitalName: row.users.hospital_name }
       : undefined,
     shipments: row.subscription_shipments?.map(mapShipmentRow),
     quantityDiscountTiers: row.products?.quantity_discount_tiers ?? [],
