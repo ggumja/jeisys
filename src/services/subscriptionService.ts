@@ -21,7 +21,7 @@ export interface SubscriptionRow {
   userId: string;
   productId?: string;
   originalOrderId?: string;
-  status: 'active' | 'paused' | 'cancelled' | 'expired';
+  status: 'active' | 'paused' | 'cancelled' | 'expired' | 'completed';
   billingKeyId?: string;
   cycleDays: number;
   cycleMonths: number;
@@ -480,7 +480,7 @@ export const subscriptionService = {
       .from('subscription_cancellation_requests')
       .select(`
         *,
-        users (name, hospital_name),
+        users!subscription_cancellation_requests_user_id_fkey (name, hospital_name),
         subscriptions (id, total_quantity, cycle_months, product_id)
       `)
       .order('created_at', { ascending: false });
@@ -490,6 +490,20 @@ export const subscriptionService = {
     }
 
     const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []).map(mapCancellationRow);
+  },
+
+  // ──────────────────────────────
+  // 사용자: 내 해지신청 목록
+  // ──────────────────────────────
+  async getMyCancellationRequests(userId: string): Promise<CancellationRequest[]> {
+    const { data, error } = await supabase
+      .from('subscription_cancellation_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     if (error) throw error;
     return (data ?? []).map(mapCancellationRow);
   },

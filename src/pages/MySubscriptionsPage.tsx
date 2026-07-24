@@ -20,6 +20,7 @@ import {
   subscriptionService,
   SubscriptionRow,
   SubscriptionScheduleRow,
+  CancellationRequest,
 } from '../services/subscriptionService';
 
 // ─────────────────────────────────────────
@@ -52,16 +53,22 @@ function getStatusBadge(status: SubscriptionRow['status']) {
           만료
         </Badge>
       );
+    case 'completed':
+      return (
+        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+          <CheckCircle className="w-3 h-3 mr-1" />정기구독완료
+        </Badge>
+      );
   }
 }
 
 function getShipmentStatusBadge(status: SubscriptionScheduleRow['status']) {
   const map: Record<string, { label: string; className: string }> = {
-    pending:   { label: '예정', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-    paid:      { label: '결제완료', className: 'bg-green-100 text-green-700 border-green-200' },
-    shipped:   { label: '출고완료', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    failed:    { label: '결제실패', className: 'bg-red-100 text-red-700 border-red-200' },
-    skipped:   { label: '건너뜀', className: 'bg-neutral-100 text-neutral-600 border-neutral-200' },
+    pending: { label: '예정', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    paid: { label: '결제완료', className: 'bg-green-100 text-green-700 border-green-200' },
+    shipped: { label: '출고완료', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    failed: { label: '결제실패', className: 'bg-red-100 text-red-700 border-red-200' },
+    skipped: { label: '건너뜀', className: 'bg-neutral-100 text-neutral-600 border-neutral-200' },
     cancelled: { label: '취소', className: 'bg-neutral-100 text-neutral-500 border-neutral-200 line-through' },
   };
   const s = map[status] ?? { label: status, className: 'bg-neutral-100 text-neutral-600' };
@@ -82,9 +89,10 @@ interface PenaltyModalProps {
   sub: SubscriptionRow;
   onConfirm: (reason: string) => void;
   onClose: () => void;
+  processing?: boolean;
 }
 
-function PenaltyModal({ open, sub, onConfirm, onClose }: PenaltyModalProps) {
+function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: PenaltyModalProps) {
   const [reason, setReason] = useState('');
   const penalty = subscriptionService.calculatePenaltyPreview(sub);
 
@@ -107,7 +115,7 @@ function PenaltyModal({ open, sub, onConfirm, onClose }: PenaltyModalProps) {
           {/* 위약금 안내 */}
           <div className={`rounded border p-4 ${hasPenalty ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
             <p className={`text-sm font-medium mb-3 ${hasPenalty ? 'text-red-700' : 'text-green-700'}`}>
-              {hasPenalty ? '⚠️ 해지 위약금이 발생합니다' : '✅ 위약금이 없습니다'}
+              {hasPenalty ? '⚠️ 중도 해지시 추가정산이 필요합니다' : '✅ 추가정산이 없습니다'}
             </p>
 
             {/* 요약 */}
@@ -122,13 +130,15 @@ function PenaltyModal({ open, sub, onConfirm, onClose }: PenaltyModalProps) {
               </div>
               <div className="flex justify-between text-neutral-700">
                 <span>
-                  일반가 재산정액 ({penalty.shippedQuantity}개 기준
-                  {penalty.appliedDiscountRate > 0 ? `, ${penalty.appliedDiscountRate}% 구간` : ''})
+                  단가 재산정액 ({penalty.shippedQuantity}개 기준, 단가{' '}
+                  {penalty.shippedQuantity > 0
+                    ? Math.round(penalty.regularAmount / penalty.shippedQuantity).toLocaleString()
+                    : 0}원)
                 </span>
                 <span className="font-medium">{penalty.regularAmount.toLocaleString()}원</span>
               </div>
               <div className={`flex justify-between font-semibold border-t pt-1 mt-1 ${hasPenalty ? 'text-red-700' : 'text-green-700'}`}>
-                <span>위약금</span>
+                <span>추가정산금액</span>
                 <span>{hasPenalty ? `${penalty.penaltyAmount.toLocaleString()}원` : '없음'}</span>
               </div>
             </div>
@@ -163,70 +173,70 @@ function PenaltyModal({ open, sub, onConfirm, onClose }: PenaltyModalProps) {
                             <td className={`px-2 py-1.5 text-right ${isApplied ? 'font-semibold text-blue-800' : 'text-neutral-600'}`}>
                               {tier.discountRate}%
                             </td>
-                             <td className="px-2 py-1.5 text-right">
-                               {isApplied ? (
-                                 <span className="text-blue-700 text-[11px] font-semibold">적용구간</span>
-                               ) : (
-                                 <span className="text-neutral-300">—</span>
-                               )}
+                            <td className="px-2 py-1.5 text-right">
+                              {isApplied ? (
+                                <span className="text-blue-700 text-[11px] font-semibold">적용구간</span>
+                              ) : (
+                                <span className="text-neutral-300">—</span>
+                              )}
                             </td>
                           </tr>
                         );
                       })}
                   </tbody>
                 </table>
-                {penalty.appliedDiscountRate > 0 && (
-                  <p className="text-[10px] text-blue-500 mt-1.5">
-                    ※ 기출고 {penalty.shippedQuantity}개 → {penalty.appliedDiscountRate}% 할인 구간 단가로 위약금 산정
+                {penalty.shippedQuantity > 0 && (
+                  <p className="text-xs text-red-600 mt-2">
+                    ※ 기출고 {penalty.shippedQuantity}개 → {penalty.appliedDiscountRate > 0 ? `${penalty.appliedDiscountRate}% 할인 구간` : '기본'} 단가로 결제 금액 추가정산 필요
                   </p>
                 )}
               </div>
             )}
 
-            {/* 위약금 계산식 */}
+            {/* 추가정산 계산식 */}
             {hasPenalty && (() => {
-              // 개당 구독 실제 납부 단가
-              const subscriptionUnitPricePerItem = sub.qtyPerRound > 0
-                ? Math.round(sub.unitPrice / sub.qtyPerRound)
-                : sub.regularUnitPrice;
-              // ① 기존 받은 할인금액 = 기출고 × (원가 − 구독단가)
-              const receivedDiscount = penalty.shippedQuantity * (sub.regularUnitPrice - subscriptionUnitPricePerItem);
-              // ② 갯수구간 기준 할인금액 = 기출고 × 원가 × 갯수구간 할인율
-              const tierDiscount = Math.round(penalty.shippedQuantity * sub.regularUnitPrice * penalty.appliedDiscountRate / 100);
+              // ① 실제 납부 단가 (개당)
+              const paidUnitPrice = penalty.shippedQuantity > 0
+                ? Math.round(penalty.paidAmount / penalty.shippedQuantity)
+                : 0;
+              // ② 재산정 단가 (개당)
+              const regularUnitPrice = penalty.shippedQuantity > 0
+                ? Math.round(penalty.regularAmount / penalty.shippedQuantity)
+                : 0;
               return (
                 <div className="mt-3 p-3 bg-white border border-red-100 rounded text-xs text-neutral-600 space-y-2">
-                  <p className="font-semibold text-neutral-700 mb-2">📐 위약금 계산식</p>
+                  <p className="font-semibold text-neutral-700 mb-2">📐 추가정산 계산식</p>
 
-                  {/* ① 기존 받은 할인금액 */}
+                  {/* ① 실제 납부금액 */}
                   <div>
-                    <p className="text-neutral-500 mb-0.5">① 기존 받은 할인금액 (구독 혜택, {sub.discountRate}%)</p>
+                    <p className="text-neutral-500 mb-0.5">① 실제 납부금액 (단가 {paidUnitPrice.toLocaleString()}원)</p>
                     <div className="flex items-center justify-between pl-2">
                       <span className="text-neutral-400">
-                        {penalty.shippedQuantity}개 × {sub.regularUnitPrice?.toLocaleString()}원 × {sub.discountRate}%
+                        {penalty.shippedQuantity}개 × {paidUnitPrice.toLocaleString()}원
                       </span>
-                      <span className="font-medium text-neutral-800">{receivedDiscount.toLocaleString()}원</span>
+                      <span className="font-medium text-neutral-800">{penalty.paidAmount.toLocaleString()}원</span>
                     </div>
                   </div>
 
-                  {/* ② 갯수구간 기준 할인금액 */}
+                  {/* ② 단가 재산정액 */}
                   <div>
-                    <p className="text-neutral-500 mb-0.5">② 갯수구간 기준 할인금액 ({penalty.appliedDiscountRate}%)</p>
+                    <p className="text-neutral-500 mb-0.5">② 단가 재산정액 (단가 {regularUnitPrice.toLocaleString()}원)</p>
                     <div className="flex items-center justify-between pl-2">
                       <span className="text-neutral-400">
-                        {penalty.shippedQuantity}개 × {sub.regularUnitPrice?.toLocaleString()}원 × {penalty.appliedDiscountRate}%
+                        {penalty.shippedQuantity}개 × {regularUnitPrice.toLocaleString()}원
                       </span>
-                      <span className="font-medium text-neutral-800">{tierDiscount.toLocaleString()}원</span>
+                      <span className="font-medium text-neutral-800">{penalty.regularAmount.toLocaleString()}원</span>
                     </div>
                   </div>
 
-                  {/* 위약금 */}
+                  {/* 추가정산 */}
                   <div className="border-t border-dashed border-red-200 pt-1.5 flex items-center justify-between font-semibold">
-                    <span className="text-red-700">위약금 (① − ②)</span>
+                    <span className="text-red-700">추가정산금액 (② − ①)</span>
                     <span className="text-red-700">{penalty.penaltyAmount.toLocaleString()}원</span>
                   </div>
 
                   <p className="text-[11px] text-neutral-400 pt-0.5">
-                    * 구독으로 받은 할인({receivedDiscount.toLocaleString()}원) 중 갯수구간 혜택({tierDiscount.toLocaleString()}원)을 초과한 금액
+                    * 정기공급으로 적용된 단가를 기존 구간별 단가로 재 정산한 차액
                   </p>
                 </div>
               );
@@ -234,7 +244,7 @@ function PenaltyModal({ open, sub, onConfirm, onClose }: PenaltyModalProps) {
 
             {hasPenalty && (
               <p className="text-xs text-red-600 mt-2">
-                * 위약금은 관리자 검토 후 실제 청구 여부가 결정됩니다.
+                * 추가 정산 금액은 해지 신청 후 승인 시 청구될 수 있습니다.
               </p>
             )}
           </div>
@@ -254,15 +264,15 @@ function PenaltyModal({ open, sub, onConfirm, onClose }: PenaltyModalProps) {
         </div>
 
         <DialogFooter className="flex gap-2">
-          <Button variant="outline" onClick={onClose} className="border-neutral-300">
+          <Button variant="outline" onClick={onClose} disabled={processing} className="border-neutral-300">
             취소
           </Button>
           <Button
-            onClick={() => reason.trim() && onConfirm(reason.trim())}
-            disabled={!reason.trim()}
+            onClick={() => !processing && reason.trim() && onConfirm(reason.trim())}
+            disabled={!reason.trim() || processing}
             className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
           >
-            해지 신청
+            {processing ? '신청 중...' : '해지 신청'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -329,12 +339,13 @@ function ShipmentSchedule({ shipments }: { shipments: SubscriptionScheduleRow[] 
 
 interface SubscriptionCardProps {
   sub: SubscriptionRow;
+  cancellationRequest?: CancellationRequest;
   onPause: (sub: SubscriptionRow) => void;
   onResume: (sub: SubscriptionRow) => void;
   onCancel: (sub: SubscriptionRow) => void;
 }
 
-function SubscriptionCard({ sub, onPause, onResume, onCancel }: SubscriptionCardProps) {
+function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCancel }: SubscriptionCardProps) {
   const isActive = sub.status === 'active';
   const isPaused = sub.status === 'paused';
   const isCancelled = sub.status === 'cancelled' || sub.status === 'expired';
@@ -419,6 +430,112 @@ function SubscriptionCard({ sub, onPause, onResume, onCancel }: SubscriptionCard
         </div>
       )}
 
+      {/* 추가정산 안내 */}
+      {isCancelled && cancellationRequest && (
+        <div className={`p-4 rounded border space-y-3 ${
+          cancellationRequest.status === 'pending'
+            ? 'bg-amber-50 border-amber-200'
+            : cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0
+            ? 'bg-red-50 border-red-200'
+            : 'bg-green-50 border-green-200'
+        }`}>
+          <p className={`text-sm font-medium flex items-center gap-1.5 ${
+            cancellationRequest.status === 'pending'
+              ? 'text-amber-700'
+              : cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0
+              ? 'text-red-700'
+              : 'text-green-700'
+          }`}>
+            {cancellationRequest.status === 'pending' && (
+              <><AlertTriangle className="w-4 h-4" />추가정산 검토 중</>)}
+            {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0 && (
+              <><AlertTriangle className="w-4 h-4" />추가정산 청구됨</>)}
+            {cancellationRequest.status === 'processed' && (cancellationRequest.adminAction === 'waive' || cancellationRequest.penaltyAmount <= 0) && (
+              <><CheckCircle className="w-4 h-4" />추가정산 없음</>)}
+          </p>
+
+          {/* 산출 근거 */}
+          <div className="space-y-1.5 text-xs text-neutral-600">
+            <div className="flex justify-between">
+              <span>기출고 수량</span>
+              <span className="font-medium">{cancellationRequest.shippedQuantity}개</span>
+            </div>
+            <div className="flex justify-between">
+              <span>실제 납부금액</span>
+              <span className="font-medium">{cancellationRequest.paidAmount.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between">
+              <span>단가 재산정액</span>
+              <span className="font-medium">{cancellationRequest.regularAmount.toLocaleString()}원</span>
+            </div>
+            {cancellationRequest.penaltyAmount > 0 && (
+              <div className="flex justify-between pt-1.5 border-t border-current border-opacity-20">
+                <span className="font-medium">추가정산 금액</span>
+                <span className="font-semibold text-red-600">
+                  {cancellationRequest.penaltyAmount.toLocaleString()}원
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* 결제 스케줄 */}
+          {cancellationRequest.penaltyAmount > 0 && (
+            <div className="border-t border-current border-opacity-20 pt-3">
+              <p className="text-xs font-medium text-neutral-600 mb-2">추가정산 결제 내역</p>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-neutral-500">
+                    <th className="text-left font-medium py-1 pr-3">구분</th>
+                    <th className="text-left font-medium py-1 pr-3">일자</th>
+                    <th className="text-right font-medium py-1 pr-3">금액</th>
+                    <th className="text-center font-medium py-1">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-1.5 pr-3 text-neutral-700">추가정산</td>
+                    <td className="py-1.5 pr-3 text-neutral-600">
+                      {cancellationRequest.status === 'processed' && cancellationRequest.processedAt
+                        ? formatDate(cancellationRequest.processedAt.split('T')[0])
+                        : formatDate(cancellationRequest.createdAt.split('T')[0])}
+                    </td>
+                    <td className="py-1.5 pr-3 text-right font-medium text-red-600">
+                      {cancellationRequest.penaltyAmount.toLocaleString()}원
+                    </td>
+                    <td className="py-1.5 text-center">
+                      {cancellationRequest.status === 'pending' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
+                          청구예정
+                        </span>
+                      )}
+                      {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'charge' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
+                          결제완료
+                        </span>
+                      )}
+                      {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'waive' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                          면제
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {cancellationRequest.status === 'pending' && (
+            <p className="text-xs text-amber-600">
+              * 추가 정산 금액은 해지 신청 후 승인 시 청구될 수 있습니다.
+            </p>
+          )}
+          {cancellationRequest.adminMemo && (
+            <p className="text-xs text-neutral-500">관리자 메모: {cancellationRequest.adminMemo}</p>
+          )}
+        </div>
+      )}
+
       {/* 버튼 */}
       {!isCancelled && (
         <div className="flex flex-wrap gap-2 pt-2">
@@ -465,7 +582,9 @@ export function MySubscriptionsPage() {
   const { alert: globalAlert, confirm: globalConfirm } = useModal();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const [cancellationMap, setCancellationMap] = useState<Record<string, CancellationRequest>>({});
   const [loading, setLoading] = useState(true);
+  const [tabFilter, setTabFilter] = useState<'active' | 'paused' | 'completed' | 'cancelled'>('active');
 
   // 해지 신청 모달
   const [cancelTarget, setCancelTarget] = useState<SubscriptionRow | null>(null);
@@ -477,8 +596,17 @@ export function MySubscriptionsPage() {
       setLoading(true);
       const user = await authService.getCurrentUser();
       if (!user) return;
-      const data = await subscriptionService.getMySubscriptions(user.id);
+      const [data, cancellations] = await Promise.all([
+        subscriptionService.getMySubscriptions(user.id),
+        subscriptionService.getMyCancellationRequests(user.id),
+      ]);
       setSubscriptions(data);
+      // subscriptionId 기준으로 가장 최근 해지신청 1건씩 매핑
+      const map: Record<string, CancellationRequest> = {};
+      cancellations.forEach((c) => {
+        if (!map[c.subscriptionId]) map[c.subscriptionId] = c;
+      });
+      setCancellationMap(map);
     } catch (e) {
       console.error(e);
     } finally {
@@ -544,7 +672,21 @@ export function MySubscriptionsPage() {
   // ── 집계 ──
   const active = subscriptions.filter((s) => s.status === 'active');
   const paused = subscriptions.filter((s) => s.status === 'paused');
-  const cancelled = subscriptions.filter((s) => s.status === 'cancelled' || s.status === 'expired');
+  const cancelled = subscriptions.filter((s) => s.status === 'cancelled');
+  const completed = subscriptions.filter((s) => s.status === 'completed' || s.status === 'expired');
+
+  const tabs = [
+    { key: 'active' as const, label: '진행중', count: active.length, color: 'text-green-600' },
+    { key: 'paused' as const, label: '일시정지', count: paused.length, color: 'text-orange-500' },
+    { key: 'completed' as const, label: '완료', count: completed.length, color: 'text-blue-600' },
+    { key: 'cancelled' as const, label: '해지', count: cancelled.length, color: 'text-red-500' },
+  ];
+
+  const filtered =
+    tabFilter === 'paused' ? paused :
+    tabFilter === 'cancelled' ? cancelled :
+    tabFilter === 'completed' ? completed :
+    active;
 
   if (loading) {
     return (
@@ -562,90 +704,51 @@ export function MySubscriptionsPage() {
         <p className="text-sm text-neutral-500">정기구독 현황과 회차별 출고 스케줄을 확인하세요.</p>
       </div>
 
-      {/* 요약 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: '전체', value: subscriptions.length, color: 'text-neutral-900' },
-          { label: '진행중', value: active.length, color: 'text-green-600' },
-          { label: '일시정지', value: paused.length, color: 'text-orange-500' },
-          { label: '해지', value: cancelled.length, color: 'text-red-500' },
-        ].map((s) => (
-          <div key={s.label} className="bg-white border border-neutral-200 p-4">
-            <p className="text-xs text-neutral-500 mb-1">{s.label}</p>
-            <p className={`text-2xl font-semibold ${s.color}`}>{s.value}</p>
-          </div>
+      {/* 탭 */}
+      <div className="flex border-b border-neutral-200">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setTabFilter(tab.key)}
+            className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              tabFilter === tab.key
+                ? `border-neutral-900 ${tab.color}`
+                : 'border-transparent text-neutral-400 hover:text-neutral-600'
+            }`}
+          >
+            {tab.label}
+            <span className={`ml-1.5 text-xs px-2 py-0.5 rounded-full ${
+              tabFilter === tab.key ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+            }`}>
+              {tab.count}
+            </span>
+          </button>
         ))}
       </div>
 
-      {/* 진행중 */}
-      {active.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-            진행중인 정기구독
-          </h3>
-          <div className="space-y-4">
-            {active.map((sub) => (
-              <SubscriptionCard
-                key={sub.id}
-                sub={sub}
-                onPause={handlePause}
-                onResume={handleResume}
-                onCancel={setCancelTarget}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 일시정지 */}
-      {paused.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-            일시정지된 정기구독
-          </h3>
-          <div className="space-y-4">
-            {paused.map((sub) => (
-              <SubscriptionCard
-                key={sub.id}
-                sub={sub}
-                onPause={handlePause}
-                onResume={handleResume}
-                onCancel={setCancelTarget}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 해지 완료 */}
-      {cancelled.length > 0 && (
-        <section>
-          <h3 className="text-sm font-semibold text-neutral-500 mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-neutral-400 inline-block" />
-            해지 완료
-          </h3>
-          <div className="space-y-4">
-            {cancelled.map((sub) => (
-              <SubscriptionCard
-                key={sub.id}
-                sub={sub}
-                onPause={handlePause}
-                onResume={handleResume}
-                onCancel={setCancelTarget}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 빈 상태 */}
-      {subscriptions.length === 0 && (
+      {/* 목록 */}
+      {filtered.length === 0 ? (
         <div className="bg-white border border-neutral-200 p-16 text-center">
           <RefreshCw className="w-14 h-14 text-neutral-200 mx-auto mb-4" />
-          <h3 className="text-base font-medium text-neutral-700 mb-1">정기구독 내역이 없습니다</h3>
+          <h3 className="text-base font-medium text-neutral-700 mb-1">
+            {tabFilter === 'cancelled' ? '해지된 구독이 없습니다' :
+             tabFilter === 'active' ? '진행중인 구독이 없습니다' :
+             '정기구독 내역이 없습니다'}
+          </h3>
           <p className="text-sm text-neutral-500">자주 사용하는 소모품을 정기구독으로 편리하게 받아보세요.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((sub) => (
+            <SubscriptionCard
+              key={sub.id}
+              sub={sub}
+              cancellationRequest={cancellationMap[sub.id]}
+              onPause={handlePause}
+              onResume={handleResume}
+              onCancel={setCancelTarget}
+            />
+          ))}
         </div>
       )}
 
@@ -656,6 +759,7 @@ export function MySubscriptionsPage() {
           sub={cancelTarget}
           onConfirm={handleCancelConfirm}
           onClose={() => !processing && setCancelTarget(null)}
+          processing={processing}
         />
       )}
     </div>

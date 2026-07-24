@@ -310,7 +310,7 @@ export interface Subscription {
   id: string;
   userId: string;
   originalOrderId?: string;
-  status: 'active' | 'paused' | 'cancelled' | 'expired';
+  status: 'active' | 'paused' | 'cancelled' | 'expired' | 'completed';
   billingKeyId: string;
   cycleDays: number;
   nextBillingDate: string;

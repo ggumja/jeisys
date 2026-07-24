@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Search, Filter, RefreshCw, Play, Pause, XCircle,
+  Search, Filter, RefreshCw, Play, Pause, XCircle, CheckCircle,
   Loader2, AlertTriangle, ChevronDown, ChevronUp, Package,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
@@ -10,6 +10,7 @@ import { useModal } from '../../context/ModalContext';
 import {
   subscriptionService,
   SubscriptionRow,
+  CancellationRequest,
 } from '../../services/subscriptionService';
 
 // ─────────────────────────────────────────
@@ -26,6 +27,8 @@ function getStatusBadge(status: SubscriptionRow['status']) {
       return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />해지</Badge>;
     case 'expired':
       return <Badge variant="outline" className="bg-neutral-200 text-neutral-600">만료</Badge>;
+    case 'completed':
+      return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />정기구독완료</Badge>;
   }
 }
 
@@ -38,7 +41,7 @@ function formatDate(s?: string) {
 // 구독 행 컴포넌트
 // ─────────────────────────────────────────
 
-function SubscriptionRow_({ sub }: { sub: SubscriptionRow }) {
+function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; hasPendingCancel?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -64,7 +67,15 @@ function SubscriptionRow_({ sub }: { sub: SubscriptionRow }) {
         </td>
         <td className="px-4 py-3 text-sm text-right text-neutral-700">{sub.unitPrice.toLocaleString()}원</td>
         <td className="px-4 py-3 text-sm text-center text-neutral-600">{formatDate(sub.nextBillingDate)}</td>
-        <td className="px-4 py-3 text-center">{getStatusBadge(sub.status)}</td>
+        <td className="px-4 py-3 text-center">
+          {hasPendingCancel ? (
+            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+              <AlertTriangle className="w-3 h-3 mr-1" />처리대기
+            </Badge>
+          ) : (
+            getStatusBadge(sub.status)
+          )}
+        </td>
       </tr>
 
       {/* 회차 상세 */}
@@ -117,16 +128,21 @@ export function SubscriptionListPage() {
   const navigate = useNavigate();
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+  const [pendingCancelIds, setPendingCancelIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'cancelled'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'cancelled' | 'completed' | 'pending_cancel'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── 로드 ──
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await subscriptionService.getAllSubscriptions();
+      const [data, cancellations] = await Promise.all([
+        subscriptionService.getAllSubscriptions(),
+        subscriptionService.getCancellationRequests('pending'),
+      ]);
       setSubscriptions(data);
+      setPendingCancelIds(new Set(cancellations.map((c: CancellationRequest) => c.subscriptionId)));
     } catch (e) {
       console.error(e);
     } finally {
@@ -138,7 +154,11 @@ export function SubscriptionListPage() {
 
   // ── 필터 ──
   const filtered = subscriptions.filter(s => {
-    const matchStatus = statusFilter === 'all' || s.status === statusFilter;
+    const matchStatus =
+      statusFilter === 'all' ? true :
+      statusFilter === 'pending_cancel' ? pendingCancelIds.has(s.id) :
+      statusFilter === 'completed' ? (s.status === 'completed' || s.status === 'expired') :
+      s.status === statusFilter;
     const term = searchTerm.toLowerCase();
     const matchSearch = !term ||
       (s as any).user?.name?.toLowerCase().includes(term) ||
@@ -153,11 +173,12 @@ export function SubscriptionListPage() {
     all: subscriptions.length,
     active: subscriptions.filter(s => s.status === 'active').length,
     paused: subscriptions.filter(s => s.status === 'paused').length,
+    completed: subscriptions.filter(s => s.status === 'completed' || s.status === 'expired').length,
     cancelled: subscriptions.filter(s => s.status === 'cancelled').length,
+    pending_cancel: pendingCancelIds.size,
   };
 
-  // 해지신청 대기 건수 (별도 로드 없이 navigate 유도)
-  const pendingCancelCount = 0; // 실제 값은 SubscriptionCancellationPage에서 관리
+  const pendingCancelCount = pendingCancelIds.size;
 
   return (
     <div className="space-y-6">
@@ -179,12 +200,14 @@ export function SubscriptionListPage() {
       </div>
 
       {/* 요약 탭 */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         {([
           { key: 'all', label: '전체', color: 'text-neutral-900' },
           { key: 'active', label: '진행중', color: 'text-green-600' },
           { key: 'paused', label: '일시정지', color: 'text-orange-500' },
+          { key: 'completed', label: '완료', color: 'text-blue-600' },
           { key: 'cancelled', label: '해지', color: 'text-red-500' },
+          { key: 'pending_cancel', label: '처리대기', color: 'text-amber-600' },
         ] as const).map(tab => (
           <button
             key={tab.key}
@@ -243,7 +266,7 @@ export function SubscriptionListPage() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {filtered.map(sub => (
-                  <SubscriptionRow_ key={sub.id} sub={sub} />
+                  <SubscriptionRow_ key={sub.id} sub={sub} hasPendingCancel={pendingCancelIds.has(sub.id)} />
                 ))}
               </tbody>
             </table>

@@ -151,8 +151,8 @@ export function SubscriptionCancellationPage() {
       const filter = statusFilter === 'all' ? undefined : statusFilter;
       const data = await subscriptionService.getCancellationRequests(filter);
       setRequests(data);
-    } catch {
-      // ignore
+    } catch (e: any) {
+      console.error('[SubscriptionCancellationPage] 해지신청 목록 로드 실패:', e?.message, e?.code, e?.details, e?.hint, e);
     } finally {
       setLoading(false);
     }

@@ -585,6 +585,7 @@ export const orderService = {
                 .from('subscriptions')
                 .insert({
                     user_id: userId,
+                    product_id: items[0]?.productId ?? null,
                     original_order_id: order.id,
                     status: 'active',
                     billing_key_id: billingKeyId,
