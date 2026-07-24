@@ -130,7 +130,7 @@ export function SubscriptionListPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [pendingCancelIds, setPendingCancelIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'cancelled' | 'completed' | 'pending_cancel'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'paused' | 'cancelled' | 'completed' | 'pending_cancel'>('active');
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── 로드 ──
@@ -155,7 +155,6 @@ export function SubscriptionListPage() {
   // ── 필터 ──
   const filtered = subscriptions.filter(s => {
     const matchStatus =
-      statusFilter === 'all' ? true :
       statusFilter === 'pending_cancel' ? pendingCancelIds.has(s.id) :
       statusFilter === 'completed' ? (s.status === 'completed' || s.status === 'expired') :
       s.status === statusFilter;
@@ -199,29 +198,6 @@ export function SubscriptionListPage() {
         </Button>
       </div>
 
-      {/* 요약 탭 */}
-      <div className="grid grid-cols-6 gap-3">
-        {([
-          { key: 'all', label: '전체', color: 'text-neutral-900' },
-          { key: 'active', label: '진행중', color: 'text-green-600' },
-          { key: 'paused', label: '일시정지', color: 'text-orange-500' },
-          { key: 'completed', label: '완료', color: 'text-blue-600' },
-          { key: 'cancelled', label: '해지', color: 'text-red-500' },
-          { key: 'pending_cancel', label: '처리대기', color: 'text-amber-600' },
-        ] as const).map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={`bg-white border p-4 text-left transition-colors ${
-              statusFilter === tab.key ? 'border-neutral-900' : 'border-neutral-200 hover:border-neutral-300'
-            }`}
-          >
-            <p className="text-xs text-neutral-500 mb-1">{tab.label}</p>
-            <p className={`text-2xl font-semibold ${tab.color}`}>{counts[tab.key]}</p>
-          </button>
-        ))}
-      </div>
-
       {/* 검색 */}
       <div className="bg-white border border-neutral-200 p-4">
         <div className="relative">
@@ -233,6 +209,36 @@ export function SubscriptionListPage() {
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
           />
+        </div>
+      </div>
+
+      {/* 탭 필터 */}
+      <div className="bg-white border border-neutral-200">
+        <div className="flex border-b border-neutral-200 px-4">
+          {([
+            { key: 'active', label: '진행중', color: 'text-green-600', activeColor: 'border-green-600 text-green-600' },
+            { key: 'paused', label: '일시정지', color: 'text-orange-500', activeColor: 'border-orange-500 text-orange-500' },
+            { key: 'completed', label: '완료', color: 'text-blue-600', activeColor: 'border-blue-600 text-blue-600' },
+            { key: 'cancelled', label: '해지', color: 'text-red-500', activeColor: 'border-red-500 text-red-500' },
+            { key: 'pending_cancel', label: '처리대기', color: 'text-amber-600', activeColor: 'border-amber-500 text-amber-600' },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                statusFilter === tab.key
+                  ? tab.activeColor
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700'
+              }`}
+            >
+              {tab.label}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                statusFilter === tab.key ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+              }`}>
+                {counts[tab.key]}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 

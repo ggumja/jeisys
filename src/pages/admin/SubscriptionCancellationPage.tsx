@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   AlertTriangle, CheckCircle, Clock, XCircle,
-  Search, Filter, Loader2, FileText,
+  Search, Loader2, FileText,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -134,7 +134,7 @@ export function SubscriptionCancellationPage() {
 
   const [requests, setRequests] = useState<CancellationRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'processed'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
 
   const [modalState, setModalState] = useState<{
@@ -148,8 +148,7 @@ export function SubscriptionCancellationPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const filter = statusFilter === 'all' ? undefined : statusFilter;
-      const data = await subscriptionService.getCancellationRequests(filter);
+      const data = await subscriptionService.getCancellationRequests(statusFilter);
       setRequests(data);
     } catch (e: any) {
       console.error('[SubscriptionCancellationPage] 해지신청 목록 로드 실패:', e?.message, e?.code, e?.details, e?.hint, e);
@@ -195,6 +194,7 @@ export function SubscriptionCancellationPage() {
   });
 
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
+  const processedCount = requests.filter((r) => r.status === 'processed').length;
 
   return (
     <div className="space-y-6">
@@ -218,31 +218,44 @@ export function SubscriptionCancellationPage() {
         )}
       </div>
 
-      {/* 필터 */}
+      {/* 검색 */}
       <div className="bg-white border border-neutral-200 p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="고객명, 병원명, 구독번호 검색"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
-            />
-          </div>
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="pl-9 pr-4 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 bg-white"
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="고객명, 병원명, 구독번호 검색"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+          />
+        </div>
+      </div>
+
+      {/* 탭 필터 */}
+      <div className="bg-white border border-neutral-200">
+        <div className="flex border-b border-neutral-200 px-4">
+          {([
+            { key: 'pending' as const, label: '처리대기', activeColor: 'border-amber-500 text-amber-600', count: pendingCount },
+            { key: 'processed' as const, label: '처리완료', activeColor: 'border-green-600 text-green-600', count: processedCount },
+          ]).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                statusFilter === tab.key
+                  ? tab.activeColor
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700'
+              }`}
             >
-              <option value="all">전체 상태</option>
-              <option value="pending">처리 대기</option>
-              <option value="processed">처리 완료</option>
-            </select>
-          </div>
+              {tab.label}
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                statusFilter === tab.key ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-500'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
