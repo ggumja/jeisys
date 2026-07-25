@@ -497,7 +497,7 @@ export function SubscriptionProductRegisterPage() {
       if (isEditMode) {
         navigate('/admin/products/subscription');
       } else {
-        setResultModal({ isOpen: true, title: '등록 완료', description: '정기구독 상품이 등록되었습니다.', type: 'success' });
+        setResultModal({ isOpen: true, title: '등록 완료', description: '정기배송 상품이 등록되었습니다.', type: 'success' });
       }
     } catch (error: any) {
       console.error('[SubscriptionProductRegister] error:', error);
@@ -540,7 +540,7 @@ export function SubscriptionProductRegisterPage() {
         </button>
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-2 font-medium">
-            {isEditMode ? '정기구독 상품 수정' : '정기구독 상품 등록'}
+            {isEditMode ? '정기배송 상품 수정' : '정기배송 상품 등록'}
           </h2>
           <p className="text-sm text-neutral-600">
             {isEditMode ? '기존 구독 상품 정보를 수정합니다' : '구독 옵션과 회차 조합을 설정합니다'}

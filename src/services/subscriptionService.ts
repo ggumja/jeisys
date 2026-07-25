@@ -18,6 +18,7 @@ export interface SubscriptionScheduleRow {
 
 export interface SubscriptionRow {
   id: string;
+  subscriptionNo?: string;
   userId: string;
   productId?: string;
   originalOrderId?: string;
@@ -63,7 +64,7 @@ export interface CancellationRequest {
   createdAt: string;
   // 조인
   user?: { name: string; hospitalName?: string };
-  subscription?: Pick<SubscriptionRow, 'id' | 'totalQuantity' | 'cycleMonths' | 'productId'>;
+  subscription?: Pick<SubscriptionRow, 'id' | 'subscriptionNo' | 'totalQuantity' | 'cycleMonths' | 'productId'>;
 }
 
 export interface CreateSubscriptionParams {
@@ -83,7 +84,7 @@ export interface CreateSubscriptionParams {
 // ─────────────────────────────────────────
 
 /**
- * 결제주기별 정기구독 스케줄 계산
+ * 결제주기별 정기배송 스케줄 계산
  *
  * 규칙:
  *  - 회차별 출고수량은 5개 단위
@@ -204,6 +205,7 @@ function mapShipmentRow(row: any): SubscriptionScheduleRow {
 function mapSubscriptionRow(row: any): SubscriptionRow {
   return {
     id: row.id,
+    subscriptionNo: row.subscription_no ?? undefined,
     userId: row.user_id,
     productId: row.product_id,
     originalOrderId: row.original_order_id,
@@ -258,6 +260,7 @@ function mapCancellationRow(row: any): CancellationRequest {
     subscription: row.subscriptions
       ? {
           id: row.subscriptions.id,
+          subscriptionNo: row.subscriptions.subscription_no ?? undefined,
           totalQuantity: row.subscriptions.total_quantity,
           cycleMonths: row.subscriptions.cycle_months,
           productId: row.subscriptions.product_id,
@@ -485,7 +488,7 @@ export const subscriptionService = {
       .select(`
         *,
         users!subscription_cancellation_requests_user_id_fkey (name, hospital_name),
-        subscriptions (id, total_quantity, cycle_months, product_id)
+        subscriptions (id, subscription_no, total_quantity, cycle_months, product_id)
       `)
       .order('created_at', { ascending: false });
 

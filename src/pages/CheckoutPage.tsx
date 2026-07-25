@@ -40,7 +40,7 @@ declare global {
 export function CheckoutPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  // 정기구독 바로구매 시 ProductDetailPage에서 전달된 구독 옵션 정보
+  // 정기배송 바로구매 시 ProductDetailPage에서 전달된 구독 옵션 정보
   const subscriptionMeta = (location.state as any)?.subscriptionMeta as {
     optionId: string;
     optionLabel: string;
@@ -369,7 +369,7 @@ export function CheckoutPage() {
       const product = productsMap[item.productId];
       const isSubProduct = (product as any)?.product_type === 'subscription';
       if (isSubProduct && subscriptionMeta) {
-        // 정기구독 상품: 회차당 수량 × 할인 단가
+        // 정기배송 상품: 회차당 수량 × 할인 단가
         return sum + subscriptionMeta.discountedPrice * subscriptionMeta.qtyPerRound;
       }
       const unitPrice = getTierPrice(item);
@@ -380,14 +380,14 @@ export function CheckoutPage() {
   };
 
   const hasSubscriptionItems = cart.some(i => i.isSubscription);
-  // 정기구독 전용 상품 (product_type='subscription') 포함 여부 → 등록 신용카드만 허용
+  // 정기배송 전용 상품 (product_type='subscription') 포함 여부 → 등록 신용카드만 허용
   const hasSubscriptionProductItems = cart.some(i => {
     const p = productsMap[i.productId] as any;
     return p?.product_type === 'subscription' || p?.isSubscriptionProduct || p?.is_subscription_product;
   });
   const hasCreditProducts = cart.some(i => productsMap[i.productId]?.creditAvailable);
 
-  // 정기구독 상품이 있으면 결제수단을 항상 등록카드로 강제
+  // 정기배송 상품이 있으면 결제수단을 항상 등록카드로 강제
   useEffect(() => {
     if (hasSubscriptionProductItems && paymentMethod !== 'credit') {
       setPaymentMethod('credit');
@@ -503,9 +503,9 @@ export function CheckoutPage() {
             cardName: card ? (card.alias ? card.alias : `${card.cardName} (***${card.cardNumberMasked?.slice(-3) || ''})`) : undefined
           };
         }) : undefined,
-        // 정기구독 옵션 할인율 전달 (주문 아이템 단가 계산에 사용)
+        // 정기배송 옵션 할인율 전달 (주문 아이템 단가 계산에 사용)
         subscriptionDiscountRate: subscriptionMeta?.discountRate,
-        // 정기구독 전용 상품: 구독 레코드 + 회차 스케줄 생성용 메타
+        // 정기배송 전용 상품: 구독 레코드 + 회차 스케줄 생성용 메타
         subscriptionMeta: subscriptionMeta ? {
           optionId: subscriptionMeta.optionId,
           optionLabel: subscriptionMeta.optionLabel,
@@ -656,7 +656,7 @@ export function CheckoutPage() {
                 const product = productsMap[item.productId];
                 if (!product) return null;
                 const isSubProduct = (product as any)?.product_type === 'subscription';
-                // 정기구독 상품은 선택한 옵션의 할인 단가 사용
+                // 정기배송 상품은 선택한 옵션의 할인 단가 사용
                 const unitPrice = (isSubProduct && subscriptionMeta)
                   ? subscriptionMeta.discountedPrice
                   : getTierPrice(item);
@@ -1002,11 +1002,11 @@ export function CheckoutPage() {
 
             {(paymentMode === 'single' || hasSubscriptionItems) && (
               <div className="space-y-4">
-                {/* 정기구독 상품 결제수단 안내 */}
+                {/* 정기배송 상품 결제수단 안내 */}
                 {hasSubscriptionProductItems && (
                   <div className="mb-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2 rounded-sm">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <p>정기구독 상품은 <strong>등록된 신용카드</strong>로만 결제할 수 있습니다. 다른 결제수단은 사용이 불가합니다.</p>
+                    <p>정기배송 상품은 <strong>등록된 신용카드</strong>로만 결제할 수 있습니다. 다른 결제수단은 사용이 불가합니다.</p>
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1235,13 +1235,13 @@ export function CheckoutPage() {
                   </div>
                 )}
 
-                {/* 정기구독 전용 상품 안내 */}
+                {/* 정기배송 전용 상품 안내 */}
                 {cart.some(i => (productsMap[i.productId] as any)?.is_subscription_product) && (
                   <div className="bg-[#EEF2FF] border border-[#C7D2FE] p-4 mt-4">
-                    <p className="text-xs font-semibold text-[#21358D] mb-1">📋 정기구독 상품이 포함되어 있습니다</p>
+                    <p className="text-xs font-semibold text-[#21358D] mb-1">📋 정기배송 상품이 포함되어 있습니다</p>
                     <p className="text-xs text-[#3730A3]">
-                      결제 완료 후 선택하신 수량·주기 기준으로 정기구독이 자동 생성됩니다.<br />
-                      마이페이지 → 정기구독 관리에서 확인하실 수 있습니다.
+                      결제 완료 후 선택하신 수량·주기 기준으로 정기배송이 자동 생성됩니다.<br />
+                      마이페이지 → 정기배송 관리에서 확인하실 수 있습니다.
                     </p>
                   </div>
                 )}

@@ -108,7 +108,7 @@ export interface Product {
   addOnItems?: AddOnItem[];
 }
 
-// 정기구독 상품 옵션 (회차 조합 포함)
+// 정기배송 상품 옵션 (회차 조합 포함)
 export interface RoundCombination {
   cycleMonths: 1 | 2 | 3 | 4 | 6;
   qtyPerRound: number;

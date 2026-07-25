@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   AlertTriangle, CheckCircle, Clock, XCircle,
-  Search, Loader2, FileText,
+  Search, Loader2, FileText, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -136,6 +136,9 @@ export function SubscriptionCancellationPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processed'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [openRowId, setOpenRowId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const [modalState, setModalState] = useState<{
     open: boolean;
@@ -200,13 +203,20 @@ export function SubscriptionCancellationPage() {
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
   const processedCount = requests.filter((r) => r.status === 'processed').length;
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // 탭·검색 변경 시 첫 페이지로
+  const handleFilterChange = (f: typeof statusFilter) => { setStatusFilter(f); setCurrentPage(1); };
+  const handleSearchChange = (v: string) => { setSearchTerm(v); setCurrentPage(1); };
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">
-            정기구독 해지신청 관리
+            정기배송 해지신청 관리
           </h2>
           <p className="text-sm text-neutral-500">
             고객이 신청한 해지 건을 검토하고 위약금 청구 여부를 결정합니다.
@@ -230,7 +240,7 @@ export function SubscriptionCancellationPage() {
             type="text"
             placeholder="고객명, 병원명, 구독번호 검색"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-3 py-2.5 border border-neutral-300 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900"
           />
         </div>
@@ -246,7 +256,7 @@ export function SubscriptionCancellationPage() {
           ]).map(tab => (
             <button
               key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
+              onClick={() => handleFilterChange(tab.key)}
               className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 statusFilter === tab.key
                   ? tab.activeColor
@@ -277,101 +287,192 @@ export function SubscriptionCancellationPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((req) => {
-            const isPending = req.status === 'pending';
-            return (
-              <div
-                key={req.id}
-                className={`bg-white border p-5 ${isPending ? 'border-amber-200' : 'border-neutral-200'}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  {/* 좌측 정보 */}
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-neutral-900">
+        <div className="bg-white border border-neutral-200">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 border-b border-neutral-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 w-8"></th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">구독번호</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">고객</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">병원명</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">신청일</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">위약금</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500">상태</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {paginated.map((req) => {
+                const isPending = req.status === 'pending';
+                const isOpen = openRowId === req.id;
+                return (
+                  <>
+                    <tr
+                      key={req.id}
+                      className={`hover:bg-neutral-50 cursor-pointer transition-colors ${
+                        isPending ? 'bg-amber-50/40' : ''
+                      }`}
+                      onClick={() => setOpenRowId(isOpen ? null : req.id)}
+                    >
+                      <td className="px-4 py-3 text-neutral-400">
+                        {isOpen
+                          ? <ChevronUp className="w-3.5 h-3.5" />
+                          : <ChevronDown className="w-3.5 h-3.5" />}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-neutral-500">
+                        {req.subscription?.subscriptionNo ?? req.subscriptionId.slice(0, 8)}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-neutral-900">
                         {req.user?.name ?? '-'}
-                      </span>
-                      <span className="text-neutral-400">·</span>
-                      <span className="text-sm text-neutral-600">
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
                         {req.user?.hospitalName ?? '-'}
-                      </span>
-                      {isPending
-                        ? <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200"><Clock className="w-3 h-3 mr-1" />처리 대기</Badge>
-                        : req.adminAction === 'charge'
-                          ? <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200"><AlertTriangle className="w-3 h-3 mr-1" />청구 완료</Badge>
-                          : <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />비청구 처리</Badge>
-                      }
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2 text-sm">
-                      <div>
-                        <p className="text-xs text-neutral-400">신청일</p>
-                        <p className="text-neutral-700">{req.createdAt.split('T')[0]}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-400">기출고 수량</p>
-                        <p className="text-neutral-700">{req.shippedQuantity}개</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-400">기납부 총액</p>
-                        <p className="text-neutral-700">{req.paidAmount.toLocaleString()}원</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-400">위약금</p>
-                        <p className={`font-semibold ${req.penaltyAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {req.createdAt.split('T')[0]}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`font-semibold ${
+                          req.penaltyAmount > 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
                           {req.penaltyAmount > 0
                             ? `${req.penaltyAmount.toLocaleString()}원`
-                            : '없음'
-                          }
-                        </p>
-                      </div>
-                    </div>
+                            : '없음'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {isPending
+                          ? <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 text-xs">
+                              <Clock className="w-3 h-3 mr-1" />처리 대기
+                            </Badge>
+                          : req.adminAction === 'charge'
+                            ? <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200 text-xs">
+                                <AlertTriangle className="w-3 h-3 mr-1" />청구 완료
+                              </Badge>
+                            : <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
+                                <CheckCircle className="w-3 h-3 mr-1" />비청구 처리
+                              </Badge>
+                        }
+                      </td>
+                    </tr>
 
-                    <div className="text-sm">
-                      <p className="text-xs text-neutral-400 mb-0.5">해지 사유</p>
-                      <p className="text-neutral-700 bg-neutral-50 px-3 py-2 rounded border border-neutral-100">
-                        {req.cancelReason}
-                      </p>
-                    </div>
+                    {/* 아코디언 상세 */}
+                    {isOpen && (
+                      <tr key={`${req.id}-detail`}>
+                        <td colSpan={7} className="bg-neutral-50 border-t border-neutral-100 px-6 py-5">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4">
+                            <div>
+                              <p className="text-xs text-neutral-400 mb-1">기출고 수량</p>
+                              <p className="font-medium text-neutral-800">{req.shippedQuantity}개</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-neutral-400 mb-1">기납부 총액</p>
+                              <p className="font-medium text-neutral-800">{req.paidAmount.toLocaleString()}원</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-neutral-400 mb-1">일반가 재산정액</p>
+                              <p className="font-medium text-neutral-800">{req.regularAmount.toLocaleString()}원</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-neutral-400 mb-1">위약금</p>
+                              <p className={`font-semibold ${
+                                req.penaltyAmount > 0 ? 'text-red-600' : 'text-green-600'
+                              }`}>
+                                {req.penaltyAmount > 0
+                                  ? `${req.penaltyAmount.toLocaleString()}원`
+                                  : '없음'}
+                              </p>
+                            </div>
+                          </div>
 
-                    {/* 처리 완료 시 메모 표시 */}
-                    {!isPending && req.adminMemo && (
-                      <div className="text-sm">
-                        <p className="text-xs text-neutral-400 mb-0.5">처리 메모</p>
-                        <p className="text-neutral-700 bg-blue-50 px-3 py-2 rounded border border-blue-100">
-                          {req.adminMemo}
-                        </p>
-                      </div>
+                          <div className="mb-4">
+                            <p className="text-xs text-neutral-400 mb-1">해지 사유</p>
+                            <p className="text-sm text-neutral-700 bg-white px-3 py-2 rounded border border-neutral-200">
+                              {req.cancelReason}
+                            </p>
+                          </div>
+
+                          {!isPending && req.adminMemo && (
+                            <div className="mb-4">
+                              <p className="text-xs text-neutral-400 mb-1">처리 메모</p>
+                              <p className="text-sm text-neutral-700 bg-blue-50 px-3 py-2 rounded border border-blue-100">
+                                {req.adminMemo}
+                              </p>
+                            </div>
+                          )}
+
+                          {isPending && (
+                            <div className="flex gap-2 justify-end pt-2 border-t border-neutral-200">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => { e.stopPropagation(); setModalState({ open: true, request: req, action: 'waive' }); }}
+                                className="border-neutral-300 text-neutral-700 hover:bg-neutral-50 text-xs"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 mr-1" />청구 안 함
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); setModalState({ open: true, request: req, action: 'charge' }); }}
+                                className="bg-red-600 text-white hover:bg-red-700 text-xs"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5 mr-1" />위약금 청구
+                              </Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
                     )}
-                  </div>
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-                  {/* 우측 버튼 */}
-                  {isPending && (
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <Button
-                        size="sm"
-                        onClick={() => setModalState({ open: true, request: req, action: 'charge' })}
-                        className="bg-red-600 text-white hover:bg-red-700 text-xs"
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-                        위약금 청구
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setModalState({ open: true, request: req, action: 'waive' })}
-                        className="border-neutral-300 text-neutral-700 hover:bg-neutral-50 text-xs"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                        청구 안 함
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {/* 페이지네이션 */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-neutral-500 text-xs">
+            총 {filtered.length}건 · {currentPage}/{totalPages} 페이지
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-2 py-1 text-xs border border-neutral-200 rounded disabled:opacity-30 hover:bg-neutral-50"
+            >«</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-2 py-1 text-xs border border-neutral-200 rounded disabled:opacity-30 hover:bg-neutral-50"
+            >‹</button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+              const page = start + i;
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-2.5 py-1 text-xs border rounded ${
+                    page === currentPage
+                      ? 'bg-neutral-900 text-white border-neutral-900'
+                      : 'border-neutral-200 hover:bg-neutral-50'
+                  }`}
+                >{page}</button>
+              );
+            })}
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 text-xs border border-neutral-200 rounded disabled:opacity-30 hover:bg-neutral-50"
+            >›</button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 text-xs border border-neutral-200 rounded disabled:opacity-30 hover:bg-neutral-50"
+            >»</button>
+          </div>
         </div>
       )}
 

@@ -137,7 +137,7 @@ export function ProductManagementPage() {
   const categories = ['all', ...dbCategories.map(cat => cat.name)];
 
   const filteredProducts = products.filter((product) => {
-    // 정기구독 전용 상품은 일반 상품관리에서 제외
+    // 정기배송 전용 상품은 일반 상품관리에서 제외
     if ((product as any).productType === 'subscription') return false;
 
     const matchesSearch =
@@ -182,7 +182,7 @@ export function ProductManagementPage() {
 
   // Stats Logic
   const currentViewProducts = products.filter(p => {
-    // 정기구독 상품 제외
+    // 정기배송 상품 제외
     if ((p as any).productType === 'subscription') return false;
     if (isPackageView) return !!p.isPackage && !p.isPromotion;
     if (isPromotionView) return !!p.isPromotion;
