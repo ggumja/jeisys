@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, BarChart2, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -60,6 +60,7 @@ export function AdminLayout() {
     { to: '/admin/statistics/sales', icon: TrendingUp, label: '매출 분석' },
     { to: '/admin/statistics/products', icon: PieChart, label: '상품 분석' },
     { to: '/admin/statistics/credits', icon: Coins, label: '크레딧 분석' },
+    { to: '/admin/statistics/visit', icon: BarChart2, label: '방문 분석' },
   ];
 
   const communicationSubMenus = [

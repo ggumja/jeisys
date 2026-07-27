@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { ShieldAlert, PhoneCall } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
 export function CreditExpiryPage() {
@@ -8,7 +7,6 @@ export function CreditExpiryPage() {
   const [stats, setStats] = useState<any>(null);
   const [selectedRange, setSelectedRange] = useState<30 | 60 | 90>(30);
   const [equipmentFilter, setEquipmentFilter] = useState('all');
-  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchStats() {
@@ -41,14 +39,6 @@ export function CreditExpiryPage() {
     return inRange && inEquipment;
   });
 
-  const handleSendSingleSms = (row: any) => {
-    navigate('/admin/marketing/sms/send', {
-      state: {
-        receivers: [{ name: row.hospitalName, phone: row.phone }],
-        defaultMessage: `[제이시스 메디컬] 안녕하세요. 보유하신 ${row.equipmentType} 크레딧 잔액 ₩${row.remaining.toLocaleString()}원이 ${row.expiryDate}에 만료 예정입니다.`
-      }
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -148,13 +138,12 @@ export function CreditExpiryPage() {
                 <th className="py-3 px-6 font-semibold text-neutral-700 text-right w-36">남은 크레딧 잔액</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-36">만료 예정일</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-32">연락처</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-28">액션</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 font-sans">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-neutral-400">
+                  <td colSpan={7} className="text-center py-12 text-neutral-400">
                     {selectedRange}일 이내에 만료 예정인 활성 크레딧이 없습니다.
                   </td>
                 </tr>
@@ -168,15 +157,6 @@ export function CreditExpiryPage() {
                     <td className="py-3 px-6 text-right font-bold text-red-600">₩{row.remaining.toLocaleString()}</td>
                     <td className="py-3 px-6 text-center font-semibold text-neutral-800">{row.expiryDate}</td>
                     <td className="py-3 px-6 text-center text-neutral-600 font-semibold">{row.phone}</td>
-                    <td className="py-3 px-6 text-center">
-                      <button
-                        onClick={() => handleSendSingleSms(row)}
-                        className="inline-flex items-center justify-center gap-1 px-2.5 py-1 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-semibold text-xs rounded transition-colors shadow-sm"
-                      >
-                        <PhoneCall className="w-3 h-3" />
-                        <span>안내 발송</span>
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}

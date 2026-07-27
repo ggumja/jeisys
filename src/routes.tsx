@@ -91,6 +91,9 @@ import { EmailSendPage } from "./pages/admin/marketing/EmailSendPage";
 import { EmailHistoryPage } from "./pages/admin/marketing/EmailHistoryPage";
 import { EmailSystemHistoryPage } from "./pages/admin/marketing/EmailSystemHistoryPage";
 import { EquipmentManagementPage } from "./pages/admin/EquipmentManagementPage";
+import { VisitAnalyticsLayout } from "./pages/admin/statistics/VisitAnalyticsLayout";
+import { VisitCountPage } from "./pages/admin/statistics/VisitCountPage";
+import { VisitDurationPage } from "./pages/admin/statistics/VisitDurationPage";
 
 export const router = createBrowserRouter([
     {
@@ -187,6 +190,15 @@ export const router = createBrowserRouter([
                 ]
             },
             { path: "statistics/period-sales", Component: PeriodSalesPage },
+            {
+                path: "statistics/visit",
+                Component: VisitAnalyticsLayout,
+                children: [
+                    { index: true, element: <Navigate to="count" replace /> },
+                    { path: "count", Component: VisitCountPage },
+                    { path: "duration", Component: VisitDurationPage },
+                ]
+            },
             { path: "communication/inquiry", Component: InquiryManagementPage },
             { path: "communication/faq", Component: FaqManagementPage },
             { path: "communication/manual", Component: ManualManagementPage },
