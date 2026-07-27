@@ -64,7 +64,7 @@ function ProcessModal({ open, request, action, onConfirm, onClose, processing }:
               <span className="font-medium">{request.paidAmount.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between text-neutral-700">
-              <span>일반가 재산정액</span>
+              <span>단가 재산정총액</span>
               <span className="font-medium">{request.regularAmount.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between font-semibold border-t pt-2 text-neutral-900">
@@ -295,6 +295,7 @@ export function SubscriptionCancellationPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">구독번호</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">고객</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">병원명</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">상품</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500">신청일</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-neutral-500">위약금</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500">상태</th>
@@ -327,6 +328,16 @@ export function SubscriptionCancellationPage() {
                       <td className="px-4 py-3 text-neutral-600">
                         {req.user?.hospitalName ?? '-'}
                       </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-neutral-800 font-medium">
+                          {req.subscription?.productName ?? '-'}
+                        </p>
+                        {req.subscription && (
+                          <p className="text-xs text-neutral-400 mt-0.5">
+                            {req.subscription.totalQuantity}개 · {req.subscription.cycleMonths}개월 주기 · {req.subscription.currentRound ?? '-'}/{req.subscription.totalRounds}회
+                          </p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-neutral-600">
                         {req.createdAt.split('T')[0]}
                       </td>
@@ -358,7 +369,31 @@ export function SubscriptionCancellationPage() {
                     {/* 아코디언 상세 */}
                     {isOpen && (
                       <tr key={`${req.id}-detail`}>
-                        <td colSpan={7} className="bg-neutral-50 border-t border-neutral-100 px-6 py-5">
+                        <td colSpan={8} className="bg-neutral-50 border-t border-neutral-100 px-6 py-5">
+                          {/* 구독 정보 */}
+                          {req.subscription && (
+                            <div className="mb-4 pb-4 border-b border-neutral-200">
+                              <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">구독 정보</p>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-2 text-sm">
+                                <div>
+                                  <p className="text-xs text-neutral-400 mb-0.5">상품명</p>
+                                  <p className="font-medium text-neutral-800">{req.subscription.productName ?? '-'}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-neutral-400 mb-0.5">총 수량 / 주기</p>
+                                  <p className="font-medium text-neutral-800">{req.subscription.totalQuantity}개 / {req.subscription.cycleMonths}개월</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-neutral-400 mb-0.5">진행 회차</p>
+                                  <p className="font-medium text-neutral-800">{req.subscription.currentRound ?? '-'} / {req.subscription.totalRounds}회</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-neutral-400 mb-0.5">구독번호</p>
+                                  <p className="font-mono text-sm text-neutral-600">{req.subscription.subscriptionNo ?? '-'}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-4 text-sm mb-4">
                             <div>
                               <p className="text-xs text-neutral-400 mb-1">기출고 수량</p>
@@ -369,7 +404,7 @@ export function SubscriptionCancellationPage() {
                               <p className="font-medium text-neutral-800">{req.paidAmount.toLocaleString()}원</p>
                             </div>
                             <div>
-                              <p className="text-xs text-neutral-400 mb-1">일반가 재산정액</p>
+                              <p className="text-xs text-neutral-400 mb-1">단가 재산정총액</p>
                               <p className="font-medium text-neutral-800">{req.regularAmount.toLocaleString()}원</p>
                             </div>
                             <div>
