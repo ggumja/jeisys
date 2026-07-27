@@ -265,7 +265,7 @@ export function VisitAnalyticsLayout() {
 
       {/* 하위 컴포넌트 렌더링 */}
       <div className="min-h-[400px]">
-        <Outlet context={{ dateRange, granularity, onRegisterExport, label } satisfies VisitAnalyticsContext} />
+        <Outlet context={{ dateRange, granularity, onRegisterExport, label } as VisitAnalyticsContext} />
       </div>
     </div>
   );
