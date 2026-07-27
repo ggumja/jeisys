@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check, AlertCircle, Trash2, Coins } from 'lucide-react';
+import { CreditCard, Wallet, Plus, ChevronDown, ArrowLeft, MapPin, Loader2, Package, Check, AlertCircle, Trash2, Coins, Tag } from 'lucide-react';
 import { cartService } from '../services/cartService';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
@@ -20,6 +20,8 @@ import { adminService } from '../services/adminService';
 import { SplitShipmentModal } from '../components/SplitShipmentModal';
 import { creditService, CreditSummary } from '../services/creditService';
 import { pointService } from '../services/pointService';
+import { couponService } from '../services/couponService';
+import { UserCoupon } from '../types/coupon';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,6 +103,10 @@ export function CheckoutPage() {
   // 포인트
   const [availablePoints, setAvailablePoints] = useState<number>(0);
   const [pointsUsed, setPointsUsed] = useState<number | ''>('');
+
+  // 쿠폰
+  const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
+  const [selectedUserCouponId, setSelectedUserCouponId] = useState<string>('');
 
   const splitShipOrder = useMemo(() => {
     if (!userProfile) return null;
@@ -233,6 +239,13 @@ export function CheckoutPage() {
           pointService.getPointSummary(user.id)
             .then(summary => setAvailablePoints(summary.remaining))
             .catch(console.error);
+
+          let coupons = couponService.getUserCoupons(user.id);
+          if (coupons.length === 0) {
+            // 데모/테스트 환경 대응: userId가 일치하는 보유쿠폰이 없으면 전체 보유 쿠폰 로드
+            coupons = couponService.getUserCoupons('');
+          }
+          setUserCoupons(coupons);
         }
       } else {
         navigate('/cart');
@@ -396,7 +409,20 @@ export function CheckoutPage() {
 
   // 상품별 크레딧 사용 합계
   const totalCreditUsed = Object.values(itemCredits).reduce((a, b) => a + b, 0);
-  const finalTotal = Math.max(0, calculateTotal() - totalCreditUsed - (Number(pointsUsed) || 0));
+
+  // 선택된 쿠폰 할인 계산
+  const selectedUserCoupon = useMemo(() => {
+    return userCoupons.find(uc => uc.id === selectedUserCouponId);
+  }, [userCoupons, selectedUserCouponId]);
+
+  const couponDiscountInfo = useMemo(() => {
+    if (!selectedUserCoupon) return { isApplicable: false, discountAmount: 0 };
+    return couponService.calculateDiscount(selectedUserCoupon, cart, productsMap);
+  }, [selectedUserCoupon, cart, productsMap]);
+
+  const couponDiscount = couponDiscountInfo.isApplicable ? couponDiscountInfo.discountAmount : 0;
+
+  const finalTotal = Math.max(0, calculateTotal() - couponDiscount - totalCreditUsed - (Number(pointsUsed) || 0));
 
   const splitTotal = splitMethods.reduce((sum, sm) => sum + (Number(sm.amount) || 0), 0);
   const splitRemaining = Math.max(0, finalTotal - splitTotal);
@@ -519,6 +545,15 @@ export function CheckoutPage() {
           billingDay: subscriptionMeta.billingDay ?? new Date().getDate(),
         } : undefined,
       });
+
+      // 선택한 쿠폰 사용 처리
+      if (selectedUserCouponId && couponDiscount > 0) {
+        try {
+          couponService.markCouponUsed(selectedUserCouponId, order.id);
+        } catch (cpnErr) {
+          console.error('Coupon mark used error:', cpnErr);
+        }
+      }
 
       // 크레딧 사용 처리 - 상품별 장비 타입으로 분리 차감
       if (totalCreditUsed > 0) {
@@ -807,6 +842,82 @@ export function CheckoutPage() {
             </div>
           )}
 
+          {/* Coupon Selection */}
+          <div className="bg-white border border-neutral-200 p-8 shadow-sm">
+            {(() => {
+              const now = new Date().toISOString();
+              const usableCoupons = userCoupons.filter(uc => {
+                if (uc.status !== 'UNUSED' || uc.expiresAt < now) return false;
+                const calc = couponService.calculateDiscount(uc, cart, productsMap);
+                return calc.isApplicable;
+              });
+
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-5 h-5 text-[#D9534F]" />
+                      <h2 className="text-xl tracking-tight text-neutral-900 font-bold">쿠폰 할인</h2>
+                    </div>
+                    <span className="text-xs bg-red-50 text-[#D9534F] border border-red-200 px-2.5 py-1 font-bold rounded-full">
+                      사용가능 쿠폰 {usableCoupons.length}장
+                    </span>
+                  </div>
+
+                  {usableCoupons.length > 0 ? (
+                    <div className="space-y-3">
+                      <select
+                        value={selectedUserCouponId}
+                        onChange={(e) => setSelectedUserCouponId(e.target.value)}
+                        className="w-full px-4 py-3 border border-neutral-200 focus:ring-1 focus:ring-neutral-900 text-sm font-medium bg-neutral-50"
+                      >
+                        <option value="">쿠폰 선택 안 함 (기본)</option>
+                        {usableCoupons.map(uc => {
+                          const calc = couponService.calculateDiscount(uc, cart, productsMap);
+                          const coupon = uc.coupon;
+                          let label = `[${coupon?.name || '쿠폰'}] `;
+                          if (coupon?.discountType === 'PERCENTAGE') {
+                            label += `${coupon.discountValue}% 할인`;
+                            if (coupon.maxDiscountAmount) label += ` (최대 ${coupon.maxDiscountAmount.toLocaleString()}원)`;
+                          } else if (coupon?.discountType === 'FIXED_AMOUNT') {
+                            label += `${coupon.discountValue.toLocaleString()}원 할인`;
+                          }
+                          label += ` → -${calc.discountAmount.toLocaleString()}원 할인 적용`;
+
+                          return (
+                            <option key={uc.id} value={uc.id}>
+                              {label}
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {/* 선택한 쿠폰 상태 및 안내 */}
+                      {selectedUserCoupon && couponDiscountInfo.isApplicable && (
+                        <div className="p-4 border text-xs leading-relaxed rounded-sm bg-emerald-50 border-emerald-200 text-emerald-900">
+                          <div className="flex items-center justify-between mb-1 font-bold">
+                            <span>{selectedUserCoupon.coupon?.name}</span>
+                            <span className="text-[11px] text-neutral-500">
+                              ~{selectedUserCoupon.expiresAt.substring(0, 10)} 만료
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center font-bold text-sm text-emerald-700 mt-2 pt-2 border-t border-emerald-200/60">
+                            <span>적용 할인 금액</span>
+                            <span>- ₩{couponDiscount.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-4 px-4 bg-neutral-50 border border-neutral-100 text-center text-xs text-neutral-400 font-medium">
+                      현재 주문 조건에서 적용 가능한 쿠폰이 없습니다.
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+
           {/* Delivery Address - Hide if split bundles are being registered */}
           {pendingBundles.length === 0 && (
             <div className="bg-white border border-neutral-200 p-8 shadow-sm">
@@ -963,6 +1074,8 @@ export function CheckoutPage() {
               </div>
             </div>
           )}
+
+
 
           {/* Payment Methods */}
           <div className="bg-white border border-neutral-200 p-8 shadow-sm">
@@ -1461,6 +1574,15 @@ export function CheckoutPage() {
                 <span>배송비</span>
                 <span className="text-green-600 font-bold uppercase text-[10px] tracking-tight border border-green-200 px-1.5 py-0.5 bg-green-50">Free Shipping</span>
               </div>
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-sm font-semibold text-[#D9534F]">
+                  <span className="flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" />
+                    쿠폰 할인 차감
+                  </span>
+                  <span>- ₩{couponDiscount.toLocaleString()}</span>
+                </div>
+              )}
               {totalCreditUsed > 0 && (
                 <div className="flex justify-between text-sm font-semibold" style={{ color: '#059669' }}>
                   <span className="flex items-center gap-1">

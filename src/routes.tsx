@@ -16,6 +16,7 @@ import { MySubscriptionsPage } from "./pages/MySubscriptionsPage";
 import { ShippingAddressPage } from "./pages/ShippingAddressPage";
 import { MyCreditsPage } from "./pages/MyCreditsPage";
 import { MyPointsPage } from "./pages/MyPointsPage";
+import { MyCouponsPage } from "./pages/MyCouponsPage";
 import { CommunicationLayout } from "./pages/CommunicationLayout";
 import { InquiryListPage } from "./pages/InquiryListPage";
 import { InquiryWritePage } from "./pages/InquiryWritePage";
@@ -90,6 +91,7 @@ import { SmsSystemHistoryPage } from "./pages/admin/marketing/SmsSystemHistoryPa
 import { EmailSendPage } from "./pages/admin/marketing/EmailSendPage";
 import { EmailHistoryPage } from "./pages/admin/marketing/EmailHistoryPage";
 import { EmailSystemHistoryPage } from "./pages/admin/marketing/EmailSystemHistoryPage";
+import { CouponManagementPage } from "./pages/admin/marketing/CouponManagementPage";
 import { EquipmentManagementPage } from "./pages/admin/EquipmentManagementPage";
 import { VisitAnalyticsLayout } from "./pages/admin/statistics/VisitAnalyticsLayout";
 import { VisitCountPage } from "./pages/admin/statistics/VisitCountPage";
@@ -221,6 +223,7 @@ export const router = createBrowserRouter([
             { path: "marketing/email/send", Component: EmailSendPage },
             { path: "marketing/email/history", Component: EmailHistoryPage },
             { path: "marketing/email/system-history", Component: EmailSystemHistoryPage },
+            { path: "marketing/coupons", Component: CouponManagementPage },
             { path: "equipments", Component: EquipmentManagementPage },
         ],
     },
@@ -246,6 +249,7 @@ export const router = createBrowserRouter([
                     { path: "addresses", Component: ShippingAddressPage },
                     { path: "credits", Component: MyCreditsPage },
                     { path: "points", Component: MyPointsPage },
+                    { path: "coupons", Component: MyCouponsPage },
                 ],
             },
             {

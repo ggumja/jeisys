@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, BarChart2, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, BarChart2, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins, Tag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -84,6 +84,7 @@ export function AdminLayout() {
     { to: '/admin/products/package', icon: Package, label: '복합상품관리' },
     { to: '/admin/products/promotion', icon: Package, label: '프로모션번들관리' },
     { to: '/admin/products/subscription', icon: RefreshCw, label: '정기배송상품관리' },
+    { to: '/admin/equipments', icon: Wrench, label: '장비관리' },
   ];
 
   const smsSubMenus = [
@@ -109,7 +110,7 @@ export function AdminLayout() {
   const isCommunicationActive = location.pathname.startsWith('/admin/communication');
   const isStatisticsActive = location.pathname.startsWith('/admin/statistics');
   const isAdsActive = location.pathname.startsWith('/admin/ads');
-  const isProductsActive = location.pathname.startsWith('/admin/products');
+  const isProductsActive = location.pathname.startsWith('/admin/products') || location.pathname.startsWith('/admin/equipments');
   const isMarketingActive = location.pathname.startsWith('/admin/marketing');
   const isSmsMktActive = location.pathname.startsWith('/admin/marketing/sms');
   const isEmailMktActive = location.pathname.startsWith('/admin/marketing/email');
@@ -152,34 +153,47 @@ export function AdminLayout() {
       setIsMarketingOpen(false);
       setIsMembersOpen(false);
       setIsSubscriptionOpen(false);
-    } else if (isMarketingActive) {
+    } else if (isSmsMktActive) {
       setIsCommunicationOpen(false);
       setIsStatisticsOpen(false);
       setIsAdsOpen(false);
       setIsProductsOpen(false);
-      setIsMarketingOpen(true);
+      setIsSmsMktOpen(true);
+      setIsEmailMktOpen(false);
       setIsMembersOpen(false);
       setIsSubscriptionOpen(false);
-      if (isSmsMktActive) setIsSmsMktOpen(true);
-      if (isEmailMktActive) setIsEmailMktOpen(true);
+    } else if (isEmailMktActive) {
+      setIsCommunicationOpen(false);
+      setIsStatisticsOpen(false);
+      setIsAdsOpen(false);
+      setIsProductsOpen(false);
+      setIsSmsMktOpen(false);
+      setIsEmailMktOpen(true);
+      setIsMembersOpen(false);
+      setIsSubscriptionOpen(false);
     } else if (isMembersActive) {
       setIsCommunicationOpen(false);
       setIsStatisticsOpen(false);
       setIsAdsOpen(false);
       setIsProductsOpen(false);
-      setIsMarketingOpen(false);
+      setIsSmsMktOpen(false);
+      setIsEmailMktOpen(false);
       setIsMembersOpen(true);
       setIsSubscriptionOpen(false);
     }
-  }, [location.pathname, isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isMarketingActive, isSmsMktActive, isEmailMktActive, isMembersActive, isSubscriptionActive]);
+  }, [location.pathname, isOrdersActive, isCommunicationActive, isStatisticsActive, isAdsActive, isProductsActive, isSmsMktActive, isEmailMktActive, isMembersActive, isSubscriptionActive]);
 
-  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'marketing' | 'members' | 'subscription') => {
-    if (!hasPermission(menu)) return;
+  const toggleMenu = (menu: 'communication' | 'statistics' | 'ads' | 'products' | 'smsMkt' | 'emailMkt' | 'members' | 'subscription') => {
+    if (menu === 'smsMkt' || menu === 'emailMkt') {
+      if (!hasPermission('marketing')) return;
+    } else if (!hasPermission(menu)) return;
+
     setIsCommunicationOpen(menu === 'communication' ? !isCommunicationOpen : false);
     setIsStatisticsOpen(menu === 'statistics' ? !isStatisticsOpen : false);
     setIsAdsOpen(menu === 'ads' ? !isAdsOpen : false);
     setIsProductsOpen(menu === 'products' ? !isProductsOpen : false);
-    setIsMarketingOpen(menu === 'marketing' ? !isMarketingOpen : false);
+    setIsSmsMktOpen(menu === 'smsMkt' ? !isSmsMktOpen : false);
+    setIsEmailMktOpen(menu === 'emailMkt' ? !isEmailMktOpen : false);
     setIsMembersOpen(menu === 'members' ? !isMembersOpen : false);
     setIsSubscriptionOpen(menu === 'subscription' ? !isSubscriptionOpen : false);
   };
@@ -489,47 +503,86 @@ export function AdminLayout() {
                   )}
                 </div>
 
-                {/* Equipment Management */}
-                {(() => {
-                  const allowed = hasPermission('equipments');
-                  const isActive = location.pathname.startsWith('/admin/equipments');
-                  return (
-                    <Link
-                      to="/admin/equipments"
-                      onClick={(e) => { if (!allowed) e.preventDefault(); }}
-                      className={`flex items-center justify-between px-4 py-3 transition-colors text-sm ${isActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!allowed ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Wrench className="w-5 h-5 shrink-0" />
-                        <span>장비관리</span>
-                      </div>
-                      {!allowed && <Lock className="w-4 h-4 text-neutral-400" />}
-                    </Link>
-                  );
-                })()}
 
-                {/* TODO: 마케팅관리 메뉴 - 추후 재작업 예정
+
+                {/* Marketing SMS/LMS Menu - Accordion */}
                 <div>
                   <button
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isMarketingActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('marketing') ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={() => toggleMenu('marketing')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isSmsMktActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('marketing') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={() => toggleMenu('smsMkt')}
                   >
                     <div className="flex items-center gap-3">
                       <Megaphone className="w-5 h-5 shrink-0" />
-                      <span>마케팅관리</span>
+                      <span>마케팅(SMS/LMS)관리</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {!hasPermission('marketing') && <Lock className="w-4 h-4 text-neutral-400" />}
-                      {hasPermission('marketing') && (isMarketingOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                      {hasPermission('marketing') && (isSmsMktOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                     </div>
                   </button>
-                  {isMarketingOpen && hasPermission('marketing') && (
+                  {isSmsMktOpen && hasPermission('marketing') && (
                     <div className="bg-white">
-                      ... (SMS / Email 서브메뉴)
+                      {smsSubMenus.map((item) => {
+                        const isActive = location.pathname === item.to;
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive ? 'bg-neutral-900 text-white font-medium' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                          >
+                            <item.icon className="w-4 h-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-                */}
+
+                {/* Marketing Email Menu - Accordion */}
+                <div>
+                  <button
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${isEmailMktActive ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('marketing') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    onClick={() => toggleMenu('emailMkt')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 shrink-0" />
+                      <span>마케팅(Email) 관리</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!hasPermission('marketing') && <Lock className="w-4 h-4 text-neutral-400" />}
+                      {hasPermission('marketing') && (isEmailMktOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
+                    </div>
+                  </button>
+                  {isEmailMktOpen && hasPermission('marketing') && (
+                    <div className="bg-white">
+                      {emailSubMenus.map((item) => {
+                        const isActive = location.pathname === item.to;
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${isActive ? 'bg-neutral-900 text-white font-medium' : 'text-neutral-600 hover:bg-neutral-50'}`}
+                          >
+                            <item.icon className="w-4 h-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Coupon Management Direct Menu */}
+                <Link
+                  to="/admin/marketing/coupons"
+                  className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${location.pathname === '/admin/marketing/coupons' ? 'bg-neutral-900 text-white font-medium' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('marketing') ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Tag className="w-5 h-5 shrink-0" />
+                    <span>쿠폰 관리</span>
+                  </div>
+                </Link>
 
                 {/* Members Menu - Accordion */}
                 <div>

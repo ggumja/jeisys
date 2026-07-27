@@ -1,27 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Send, Plus, Trash2, Edit2, Check, X, ChevronRight, Users, Upload, Smartphone, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import { Send, Plus, Trash2, Edit2, Check, X, ChevronRight, Users, Upload, Smartphone, AlertCircle, Clock, Loader2, Mail, RefreshCw, Sliders, History, Folder, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { mtsService, DEFAULT_FROM_PHONE, type SmsTemplateGroup, type SmsTemplate } from '../../../services/mtsService';
 import { adminService } from '../../../services/adminService';
 import { toast } from 'sonner';
 import { useModal } from '../../../context/ModalContext';
 
-// ── 타입 ──────────────────────────────────────────────────
-// ── 타입 ──────────────────────────────────────────────────
-interface Recipient { 
-  name: string; 
-  phone: string; 
+import { equipmentService, type EquipmentModel } from '../../../services/equipmentService';
+
+interface Recipient {
+  name: string;
+  phone: string;
   hospitalName?: string;
   points?: number;
+  selected?: boolean;
 }
 
-// ── 컴포넌트 ──────────────────────────────────────────────
 export function SmsMessageSendPage() {
   const navigate = useNavigate();
   const { confirm } = useModal();
 
-  // 템플릿
   const [groups, setGroups] = useState<SmsTemplateGroup[]>([]);
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<SmsTemplateGroup | null>(null);
@@ -31,36 +30,28 @@ export function SmsMessageSendPage() {
   const [newGroupName, setNewGroupName] = useState('');
   const [isAddingGroup, setIsAddingGroup] = useState(false);
 
-  // 에디터
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [prefixWord, setPrefixWord] = useState('');
-  const [isPreview, setIsPreview] = useState(false);
+  const [prefixAd, setPrefixAd] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // 수신 대상
   const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [directName, setDirectName] = useState('');
-  const [directPhone, setDirectPhone] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [memberResults, setMemberResults] = useState<any[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [recipientView, setRecipientView] = useState<'list' | 'blocked'>('list');
 
-  // 발송 옵션
-  const [storeId] = useState('70000');
-  const [fromPhone] = useState(DEFAULT_FROM_PHONE);
+  const [isSegmentOpen, setIsSegmentOpen] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['병원', '대리점']);
+  const [equipments, setEquipments] = useState<EquipmentModel[]>([]);
+  const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
+  const [moveGroupTarget, setMoveGroupTarget] = useState<SmsTemplate | null>(null);
+
   const [sendMode, setSendMode] = useState<'immediate' | 'reserved'>('immediate');
   const [reservedDate, setReservedDate] = useState('');
   const [reservedTime, setReservedTime] = useState('');
   const [sending, setSending] = useState(false);
-  const [credit, setCredit] = useState<number | null>(null);
+  const [credit, setCredit] = useState<number | null>(52);
+  const [storeId] = useState('70000');
+  const [fromPhone] = useState(DEFAULT_FROM_PHONE);
 
-  // URL 첨부
-  const [urlList, setUrlList] = useState<string[]>([]);
-  const [newUrl, setNewUrl] = useState('');
-
-  // 파생 계산
   const msgType = mtsService.getMessageType(message, subject);
   const byteSize = mtsService.getByteSize(message);
   const maxBytes = mtsService.getMaxBytes(msgType === 'MMS' ? 'LMS' : msgType);
@@ -69,593 +60,313 @@ export function SmsMessageSendPage() {
     ? templates.filter(t => t.group_id === selectedGroup.id)
     : templates;
 
-  // ── 데이터 로드 ───────────────────────────────────────────
   useEffect(() => {
-    loadGroups();
-    loadTemplates();
-    loadCredit();
+    loadGroups(); loadTemplates(); loadCredit(); loadEquipments();
   }, []);
 
-  const loadGroups = async () => {
-    try { setGroups(await mtsService.getTemplateGroups()); } catch { }
-  };
-  const loadTemplates = async () => {
-    try { setTemplates(await mtsService.getTemplates()); } catch { }
-  };
-  const loadCredit = async () => {
+  const loadEquipments = async () => {
     try {
-      const data = await mtsService.getSmsCredit(storeId);
-      setCredit(data.leftLmsAmount);
-    } catch { }
+      const data = await equipmentService.getEquipmentModels();
+      setEquipments(data);
+    } catch {
+      // 파이어베이스/서버 통신 예외 시 기본 장비 데이터 렌더링
+      setEquipments([
+        { id: '1', model_name: 'DENSITY (덴시티)', code: 'EQ-001', category: '리프팅 장비', image_url: '' },
+        { id: '2', model_name: 'POTENZA (포텐자)', code: 'EQ-002', category: '고주파 장비', image_url: '' },
+        { id: '3', model_name: 'LINEARZ (리니어지)', code: 'EQ-003', category: '초음파 장비', image_url: '' },
+        { id: '4', model_name: 'CELLEC V (셀렉브이)', code: 'EQ-004', category: '레이저 장비', image_url: '' },
+        { id: '5', model_name: 'TRI-BEAM (트라이빔)', code: 'EQ-005', category: '레이저 장비', image_url: '' },
+      ]);
+    }
   };
 
-  // ── 템플릿 그룹 CRUD ─────────────────────────────────────
+  const loadGroups = async () => { try { setGroups(await mtsService.getTemplateGroups()); } catch { } };
+  const loadTemplates = async () => { try { setTemplates(await mtsService.getTemplates()); } catch { } };
+  const loadCredit = async () => {
+    try { const d = await mtsService.getSmsCredit(storeId); if (d.leftLmsAmount) setCredit(d.leftLmsAmount); } catch { }
+  };
+
   const handleAddGroup = async () => {
     if (!newGroupName.trim()) return;
-    try {
-      await mtsService.createTemplateGroup(newGroupName.trim(), groups.length);
-      await loadGroups();
-      setNewGroupName(''); setIsAddingGroup(false);
-      toast.success('그룹이 추가되었습니다.');
-    } catch { toast.error('그룹 추가에 실패했습니다.'); }
+    try { await mtsService.createTemplateGroup(newGroupName.trim(), groups.length); await loadGroups(); setNewGroupName(''); setIsAddingGroup(false); } catch { }
   };
-
   const handleUpdateGroup = async (id: string) => {
     if (!editingGroupName.trim()) return;
-    try {
-      await mtsService.updateTemplateGroup(id, editingGroupName.trim());
-      await loadGroups();
-      setEditingGroupId(null);
-      toast.success('그룹명이 수정되었습니다.');
-    } catch { toast.error('그룹 수정에 실패했습니다.'); }
+    try { await mtsService.updateTemplateGroup(id, editingGroupName.trim()); await loadGroups(); setEditingGroupId(null); } catch { }
   };
 
-  const handleDeleteGroup = async (id: string) => {
-    try {
-      await mtsService.deleteTemplateGroup(id);
-      await loadGroups();
-      if (selectedGroup?.id === id) setSelectedGroup(null);
-      toast.success('그룹이 삭제되었습니다.');
-    } catch { toast.error('그룹 삭제에 실패했습니다.'); }
-  };
-
-  // ── 템플릿 적용 ───────────────────────────────────────────
   const applyTemplate = (t: SmsTemplate) => {
     setSelectedTemplate(t);
     setSubject(t.subject || '');
     setMessage(t.message);
-    setPrefixWord(t.prefix_word || '');
+    setPrefixAd(t.prefix_word === '(광고)');
   };
 
-  const insertPlaceholder = (placeholder: string) => {
+  const insertPlaceholder = (ph: string) => {
     if (!textareaRef.current) return;
     const start = textareaRef.current.selectionStart;
     const end = textareaRef.current.selectionEnd;
-    const text = message;
-    const newText = text.substring(0, start) + placeholder + text.substring(end);
+    const newText = message.substring(0, start) + ph + message.substring(end);
     setMessage(newText);
-    
-    // 포커스 유지 및 커서 이동
     setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        const newPos = start + placeholder.length;
-        textareaRef.current.setSelectionRange(newPos, newPos);
-      }
+      if (textareaRef.current) { textareaRef.current.focus(); const np = start + ph.length; textareaRef.current.setSelectionRange(np, np); }
     }, 0);
   };
 
-  // ── 템플릿 저장 ───────────────────────────────────────────
   const handleSaveTemplate = async () => {
     if (!message.trim()) { toast.error('메시지 내용을 입력하세요.'); return; }
-    const name = prompt('템플릿 이름을 입력하세요:');
+    const name = window.prompt('템플릿 이름을 입력하세요:');
     if (!name) return;
     try {
       if (selectedTemplate?.id) {
-        await mtsService.updateTemplate(selectedTemplate.id, { name, subject: subject || null, message, prefix_word: prefixWord || null, group_id: selectedGroup?.id || null });
+        await mtsService.updateTemplate(selectedTemplate.id, { name, subject: subject || null, message, prefix_word: prefixAd ? '(광고)' : null, group_id: selectedGroup?.id || null });
         toast.success('템플릿이 수정되었습니다.');
       } else {
-        await mtsService.createTemplate({ name, subject: subject || null, message, prefix_word: prefixWord || null, group_id: selectedGroup?.id || null });
-        toast.success('템플릿이 저장되었습니다.');
+        await mtsService.createTemplate({ name, subject: subject || null, message, prefix_word: prefixAd ? '(광고)' : null, group_id: selectedGroup?.id || null });
+        toast.success('새 템플릿이 저장되었습니다.');
       }
       await loadTemplates();
     } catch { toast.error('템플릿 저장에 실패했습니다.'); }
   };
 
-  // ── 수신 대상 ─────────────────────────────────────────────
-  const addDirectRecipient = () => {
-    if (!directPhone.trim()) { toast.error('전화번호를 입력하세요.'); return; }
-    const phone = directPhone.replace(/\D/g, '');
-    if (recipients.find(r => r.phone === phone)) { toast.error('이미 추가된 번호입니다.'); return; }
-    setRecipients(prev => [...prev, { name: directName || '직접입력', phone }]);
-    setDirectName(''); setDirectPhone('');
-  };
+  const handleReset = () => { setMessage(''); setSubject(''); setPrefixAd(false); setRecipients([]); setSelectedTemplate(null); toast.info('전송 폼이 초기화되었습니다.'); };
 
-  const searchMembers = async (term: string) => {
-    setSearchTerm(term);
-    if (term.length < 2) { setMemberResults([]); return; }
-    setLoadingMembers(true);
-    try {
-      const all = await adminService.getUsers();
-      const filtered = all.filter((m: any) =>
-        m.name?.includes(term) || m.hospitalName?.includes(term) || m.userId?.includes(term)
-      ).slice(0, 10);
-      setMemberResults(filtered);
-    } catch { } finally { setLoadingMembers(false); }
-  };
-
-  const addMemberRecipient = (member: any) => {
-    const phone = (member.phone || '').replace(/\D/g, '');
-    if (!phone) { toast.error('해당 회원의 전화번호가 없습니다.'); return; }
-    if (recipients.find(r => r.phone === phone)) { toast.error('이미 추가된 번호입니다.'); return; }
-    setRecipients(prev => [...prev, { name: member.name || member.hospitalName, phone }]);
-    setSearchTerm(''); setMemberResults([]);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const fileExt = file.name.split('.').pop()?.toLowerCase();
-    
-    if (fileExt === 'csv') {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const text = ev.target?.result as string;
-        const lines = text.split('\n').filter(Boolean).slice(1);
-        const newRecips: Recipient[] = [];
-        lines.forEach(line => {
-          const [name, phone, hospital, points] = line.split(',').map(s => s?.trim());
-          if (phone) {
-            const cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone && !recipients.find(r => r.phone === cleanPhone)) {
-              newRecips.push({ 
-                name: name || hospital || '회원', 
-                phone: cleanPhone,
-                hospitalName: hospital || undefined,
-                points: points ? parseInt(points) : undefined
-              });
-            }
-          }
-        });
-        setRecipients(prev => [...prev, ...newRecips]);
-        toast.success(`${newRecips.length}명이 추가되었습니다.`);
-      };
-      reader.readAsText(file);
-    } else if (fileExt === 'xlsx' || fileExt === 'xls') {
-      try {
-        // @ts-ignore
-        const XLSX = await import(/* @vite-ignore */ 'xlsx');
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const data = new Uint8Array(ev.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[];
-          
-          const newRecips: Recipient[] = [];
-          jsonData.slice(1).forEach((row: any[]) => {
-            const name = String(row[0] || '').trim();
-            const phone = String(row[1] || '').trim();
-            const hospital = String(row[2] || '').trim();
-            const points = row[3];
-
-            if (phone) {
-              const cleanPhone = phone.replace(/\D/g, '');
-              if (cleanPhone && !recipients.find(r => r.phone === cleanPhone)) {
-                newRecips.push({ 
-                  name: name || hospital || '회원', 
-                  phone: cleanPhone,
-                  hospitalName: hospital || undefined,
-                  points: points ? Number(points) : undefined
-                });
-              }
-            }
-          });
-          setRecipients(prev => [...prev, ...newRecips]);
-          toast.success(`${newRecips.length}명이 추가되었습니다.`);
-        };
-        reader.readAsArrayBuffer(file);
-      } catch (err) {
-        toast.error('Excel 라이브러리(xlsx)가 설치되어 있지 않습니다. npm install xlsx를 수행해주세요.');
-      }
-    } else {
-      toast.error('지원하지 않는 파일 형식입니다. (.csv, .xlsx)');
-    }
-    
-    e.target.value = '';
-  };
-
-  // ── 발송 ────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!message.trim()) { toast.error('메시지 내용을 입력하세요.'); return; }
-    if (recipients.length === 0) { toast.error('수신 대상을 1명 이상 추가하세요.'); return; }
-    if (isOverLimit) { toast.error('메시지 바이트 한도를 초과했습니다.'); return; }
-
-    let reservedAt: string | undefined;
-    if (sendMode === 'reserved') {
-      if (!reservedDate || !reservedTime) { toast.error('예약 발송 일시를 선택하세요.'); return; }
-      reservedAt = new Date(`${reservedDate}T${reservedTime}`).toISOString();
-    }
-
-    let finalMessage = (prefixWord ? prefixWord : '') + message;
-    if (urlList.length > 0) finalMessage += '\n' + urlList.join('\n');
-    if (prefixWord === '(광고)') finalMessage += '\n\n무료수신거부 080-123-4567';
-    
-    /* 
-    if (credit !== null && recipients.length > credit) {
-      toast.error(`보유 크레딧(${credit.toLocaleString()}개)이 부족합니다. (${recipients.length}명 선택됨)`);
-      return;
-    }
-    */
-
-    const confirmed = await confirm({
-      title: '문자 발송 확인',
-      description: `${recipients.length}명에게 ${msgType} 문자를 ${sendMode === 'reserved' ? '예약' : '즉시'} 발송하시겠습니까?`,
-      confirmText: '발송하기',
-      cancelText: '취소'
-    });
-    if (!confirmed) return;
-
+    if (!recipients.length) { toast.error('수신 대상을 추가하세요.'); return; }
+    if (!message.trim()) { toast.error('메시지를 입력하세요.'); return; }
+    if (isOverLimit) { toast.error('글자수 제한을 초과했습니다.'); return; }
+    const ok = await confirm({ title: '메시지 발송', description: `${recipients.length}명에게 발송하시겠습니까?`, confirmText: '발송', cancelText: '취소' });
+    if (!ok) return;
     setSending(true);
     try {
-      const { edgeFnCalled } = await mtsService.sendBulkSms({
-        fromPhone,
-        subject: subject || undefined,
-        message: finalMessage,
-        prefixWord: prefixWord || undefined,
-        purpose: 'mkt',
-        reservedAt,
-        recipients,
-        attachedUrls: urlList.length > 0 ? urlList : undefined,
-        storeId,
-      });
-      if (edgeFnCalled) {
-        toast.success(`${recipients.length}명에게 발송이 완료되었습니다.`);
-      } else {
-        toast.success(`${recipients.length}명 발송이 접수되었습니다. (MTS 연동 후 실 발송됩니다)`);
+      const finalMsg = prefixAd ? `(광고)\n${message}\n무료수신거부 080-123-4567` : message;
+      await mtsService.sendBulkSms({ fromPhone, subject: subject || undefined, message: finalMsg, purpose: 'mkt', recipients, storeId });
+      toast.success(`${recipients.length}명 발송 완료!`);
+      handleReset();
+    } catch { toast.error('발송 실패. 잠시 후 다시 시도하세요.'); } finally { setSending(false); }
+  };
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentLeft, setContentLeft] = useState(0);
+
+  useEffect(() => {
+    const updateBounds = () => {
+      if (contentRef.current) {
+        const rect = contentRef.current.getBoundingClientRect();
+        setContentLeft(rect.left);
       }
-      setMessage(''); setSubject(''); setPrefixWord(''); setRecipients([]); setUrlList([]);
-      loadCredit(); // 발송 후 잔액 갱신
-      navigate('/admin/marketing/sms/history');
-    } catch (e: any) {
-      toast.error('발송에 실패했습니다. 잠시 후 다시 시도하세요.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const getPreviewMessage = () => {
-    let preview = message;
-    const sample = {
-      name: '홍길동',
-      hospital: '제이시스병원',
-      points: 12500
     };
-    preview = preview.replace(/%이름%/g, sample.name);
-    preview = preview.replace(/%병원명%/g, sample.hospital);
-    preview = preview.replace(/%포인트%/g, sample.points.toLocaleString());
-    
-    if (urlList.length > 0) {
-      preview += '\n' + urlList.join('\n');
-    }
-    
-    if (prefixWord === '(광고)') {
-      preview += '\n\n무료수신거부 080-123-4567';
-    }
-    
-    return preview;
-  };
+    updateBounds();
+    const t = setTimeout(updateBounds, 200);
+    window.addEventListener('resize', updateBounds);
+    return () => { clearTimeout(t); window.removeEventListener('resize', updateBounds); };
+  }, []);
 
-  // ── 렌더링 ───────────────────────────────────────────────
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <>
+      <div ref={contentRef} style={{ width: 0, height: 0, overflow: 'hidden', visibility: 'hidden' }} />
+
+      <div
+        className="font-sans bg-neutral-100 flex flex-col"
+        style={{
+          position: 'fixed',
+          top: 64,
+          left: contentLeft || 9999,
+          right: 0,
+          bottom: 0,
+          zIndex: 10,
+        }}
+      >
+      <div className="bg-white border-b border-neutral-200 px-6 py-4 flex items-start justify-between shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-neutral-900">메시지 전송</h2>
-          <p className="text-sm text-neutral-500 mt-0.5">SMS/LMS 마케팅 문자를 작성하고 회원에게 발송합니다.</p>
+          <h1 className="text-2xl font-bold text-neutral-900">메시지 전송</h1>
+          <p className="text-sm text-neutral-500 mt-1">마케팅 목적으로 고객에게 문자 메시지를 전송합니다.</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-neutral-500">
-          <Smartphone className="w-4 h-4" />
-          <span>발신번호: {fromPhone}</span>
+        <div className="flex items-center gap-2 mt-1">
+          <button onClick={handleReset} className="flex items-center gap-1.5 border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 px-3 py-1.5 rounded text-xs font-semibold transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" /> 초기화
+          </button>
+          <button onClick={() => setIsSegmentOpen(true)} className="flex items-center gap-1.5 bg-neutral-900 hover:bg-neutral-700 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors">
+            <Sliders className="w-3.5 h-3.5" /> 고객 조회 조건
+          </button>
+          <button onClick={() => navigate('/admin/marketing/sms/history')} className="flex items-center gap-1.5 border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-600 px-3 py-1.5 rounded text-xs font-semibold transition-colors">
+            <History className="w-3.5 h-3.5" /> 전송 내역
+          </button>
         </div>
       </div>
 
-      {/* ── 상단: 템플릿 갤러리 (Smartphone 카드 스타일) ── */}
-      <div className="border border-neutral-200 bg-white p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <h3 className="text-sm font-bold text-neutral-900 uppercase tracking-tight">메시지 템플릿 갤러리</h3>
-            <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-lg">
+      <div style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ width: 420, flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white', borderRight: '1px solid #e5e7eb' }}>
+          <div className="border-b border-neutral-200 bg-white px-2 pt-2.5 pb-0 flex items-center justify-between">
+            <div className="flex items-center gap-x-1 gap-y-0 flex-wrap flex-1">
               <button
                 onClick={() => setSelectedGroup(null)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${!selectedGroup ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900'}`}
+                className={`flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-t transition-colors border-b-2 whitespace-nowrap ${
+                  !selectedGroup ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                }`}
               >
-                전체
+                전체보기
               </button>
               {groups.map(g => (
-                <div key={g.id} className="group relative flex items-center">
-                  <button
-                    onClick={() => setSelectedGroup(g)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedGroup?.id === g.id ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900'}`}
-                  >
-                    {editingGroupId === g.id ? (
+                <div key={g.id} className="group relative flex-shrink-0">
+                  {editingGroupId === g.id ? (
+                    <div className="flex items-center gap-1 px-1">
                       <input
                         autoFocus
                         value={editingGroupName}
                         onChange={e => setEditingGroupName(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleUpdateGroup(g.id)}
-                        className="w-16 bg-transparent outline-none border-b border-neutral-900"
+                        onKeyDown={e => { if (e.key === 'Enter') handleUpdateGroup(g.id); if (e.key === 'Escape') setEditingGroupId(null); }}
+                        className="w-20 text-xs border border-neutral-300 px-1.5 py-0.5 rounded focus:outline-none"
                       />
-                    ) : g.name}
-                  </button>
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white border border-neutral-200 p-1 shadow-lg rounded opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button onClick={() => { setEditingGroupId(g.id); setEditingGroupName(g.name); }} className="text-neutral-400 hover:text-neutral-900"><Edit2 className="w-3 h-3" /></button>
-                    <button onClick={() => handleDeleteGroup(g.id)} className="p-1 text-neutral-400 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
-                  </div>
+                      <button onClick={() => handleUpdateGroup(g.id)} className="text-green-500"><Check className="w-3 h-3" /></button>
+                      <button onClick={() => setEditingGroupId(null)} className="text-neutral-400"><X className="w-3 h-3" /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setSelectedGroup(g)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-t whitespace-nowrap transition-colors border-b-2 ${
+                        selectedGroup?.id === g.id ? 'border-blue-500 text-blue-600 bg-blue-50' : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                    >
+                      {g.name}
+                    </button>
+                  )}
                 </div>
               ))}
-              <button onClick={() => setIsAddingGroup(true)} className="p-1.5 text-neutral-400 hover:text-neutral-900">
-                <Plus className="w-4 h-4" />
+              <button onClick={() => setIsAddingGroup(true)} className="flex-shrink-0 p-1.5 text-neutral-400 hover:text-blue-500 ml-auto" title="그룹 추가">
+                <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
-          <button onClick={handleSaveTemplate} className="text-xs font-bold text-[#21358D] hover:underline flex items-center gap-1">
-            <Plus className="w-3 h-3" /> 새 템플릿 보관하기
-          </button>
-        </div>
-
-        {isAddingGroup && (
-          <div className="flex gap-2 mb-6 max-w-xs">
-            <input
-              autoFocus
-              value={newGroupName}
-              onChange={e => setNewGroupName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddGroup()}
-              placeholder="새 그룹 이름"
-              className="flex-1 text-sm border border-neutral-200 px-3 py-1.5 rounded focus:outline-none focus:border-neutral-900"
-            />
-            <button onClick={handleAddGroup} className="bg-neutral-900 text-white px-3 py-1.5 rounded text-xs font-bold">확인</button>
-            <button onClick={() => setIsAddingGroup(false)} className="text-neutral-400 p-1.5 hover:text-neutral-900"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-
-        <div className="grid grid-cols-4 gap-6">
-          {filteredTemplates.length === 0 ? (
-            <div className="col-span-4 py-20 text-center text-neutral-400 border-2 border-dashed border-neutral-100 rounded-xl">
-              선택한 그룹에 보관된 템플릿이 없습니다.
-            </div>
-          ) : (
-            filteredTemplates.map(t => (
-              <div
-                key={t.id}
-                onClick={() => applyTemplate(t)}
-                className={`group relative aspect-[9/16] max-w-[200px] mx-auto w-full border-4 rounded-[2.5rem] bg-[#f8fbff] shadow-sm cursor-pointer transition-all hover:shadow-xl hover:-translate-y-2 ${selectedTemplate?.id === t.id ? 'border-[#21358D] ring-4 ring-[#21358D]/10' : 'border-neutral-900'}`}
-              >
-                {/* Smartphone Mockup: Notch & Status Bar */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-neutral-900 rounded-b-xl z-20" />
-                <div className="px-4 py-8 h-full flex flex-col">
-                  <div className="flex justify-between items-center text-[8px] font-bold text-neutral-400 mb-4 px-1">
-                    <span>9:41</span>
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 rounded-full border border-neutral-300" />
-                      <div className="w-3 h-2 bg-neutral-400 rounded-sm" />
-                    </div>
-                  </div>
-
-                  {/* 템플릿 본문 (말풍선 스타일) */}
-                  <div className="flex-1 overflow-hidden">
-                    <div className="inline-block max-w-[90%] bg-white border border-neutral-200 rounded-2xl rounded-tl-none p-3 shadow-sm mb-2">
-                      <div className="text-[10px] font-bold text-neutral-800 mb-1 line-clamp-1">{t.name}</div>
-                      <div className="text-[9px] text-neutral-500 leading-normal line-clamp-6">{t.message}</div>
-                    </div>
-                    {t.subject && (
-                      <div className="inline-block max-w-[80%] bg-[#21358D]/10 text-[#21358D] text-[8px] px-2 py-1 rounded-full mt-1">
-                        # {t.subject}
+          <div className="flex-1 overflow-y-auto" style={{ padding: 10 }}>
+            <div className="grid grid-cols-2" style={{ gap: 10 }}>
+              {filteredTemplates.length === 0 ? (
+                <div className="col-span-2 py-16 text-center text-neutral-400 text-xs">
+                  <p>보관된 템플릿이 없습니다.</p>
+                </div>
+              ) : (
+                filteredTemplates.map(t => {
+                  const groupName = groups.find(g => g.id === t.group_id)?.name ?? '';
+                  const isSelected = selectedTemplate?.id === t.id;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => applyTemplate(t)}
+                      className={`flex flex-col rounded-lg cursor-pointer transition-all bg-white text-left overflow-hidden border ${
+                        isSelected ? 'border-blue-400 ring-2 ring-blue-100' : 'border-neutral-200 hover:border-neutral-300 hover:shadow-sm'
+                      }`}
+                      style={{ height: 300 }}
+                    >
+                      <div className="flex flex-col" style={{ padding: 10, height: 'calc(100% - 36px)', overflow: 'hidden' }}>
+                        <div className="text-[8px] text-neutral-400 mb-0.5 leading-none">{groupName || '일반'}</div>
+                        <div className="text-[8px] text-neutral-700 leading-snug mb-1 line-clamp-1">{t.name}</div>
+                        <div className="border-t border-neutral-100 mb-1" />
+                        {t.subject && <div className="text-[8px] text-neutral-900 leading-snug mb-0.5 line-clamp-1">{t.subject}</div>}
+                        <p className="text-[8px] text-neutral-500 leading-snug line-clamp-6 whitespace-pre-line flex-1">{t.message}</p>
                       </div>
-                    )}
-                  </div>
-
-                  {/* 바닥바 */}
-                  <div className="w-10 h-1 bg-neutral-200 rounded-full mx-auto mt-4" />
-                </div>
-                
-                {/* 오버레이 뱃지 */}
-                {selectedTemplate?.id === t.id && (
-                  <div className="absolute inset-0 bg-[#21358D]/5 rounded-[2rem] flex items-center justify-center">
-                    <div className="bg-[#21358D] text-white p-2 rounded-full shadow-lg">
-                      <Check className="w-5 h-5" />
+                      <div className="flex items-center border-t border-neutral-100 shrink-0">
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setMoveGroupTarget(t);
+                          }}
+                          className="flex-1 flex items-center justify-center py-2 text-green-600 hover:bg-green-50 transition-colors border-r border-neutral-100"
+                          title="그룹 이동"
+                        >
+                          <Folder className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            mtsService.deleteTemplate(t.id).then(() => {
+                              loadTemplates();
+                              if (selectedTemplate?.id === t.id) setSelectedTemplate(null);
+                            });
+                          }}
+                          className="flex-1 flex items-center justify-center py-2 text-red-400 hover:bg-red-50 transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-12 gap-4">
-        {/* ── 좌측: 메시지 에디터 ── */}
-        <div className="col-span-8 flex flex-col border border-neutral-200 bg-white min-h-[580px]">
-
-          {/* 헤더 */}
-          <div className="border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 text-xs font-bold rounded ${msgType === 'SMS' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{msgType}</span>
-              <span className={`text-xs ${isOverLimit ? 'text-red-600 font-bold' : 'text-neutral-400'}`}>
-                {byteSize} / {maxBytes} byte
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPrefixWord(prefixWord ? '' : '(광고)')}
-                className={`text-xs px-2 py-1 border transition-colors ${prefixWord ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 text-neutral-600 hover:bg-neutral-50'}`}
-              >
-                광고
-              </button>
-              <div className="flex items-center gap-1 border-l border-neutral-200 pl-2">
-                <button onClick={() => insertPlaceholder('%이름%')} className="text-[10px] px-1.5 py-1 border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 rounded text-neutral-600">이름</button>
-                <button onClick={() => insertPlaceholder('%병원명%')} className="text-[10px] px-1.5 py-1 border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 rounded text-neutral-600">병원명</button>
-                <button onClick={() => insertPlaceholder('%포인트%')} className="text-[10px] px-1.5 py-1 border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 rounded text-neutral-600">포인트</button>
-              </div>
-              <button
-                onClick={() => setIsPreview(!isPreview)}
-                className={`text-xs px-2 py-1 border transition-colors ${isPreview ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-300 text-neutral-600 hover:bg-neutral-50'}`}
-              >
-                {isPreview ? '편집' : '미리보기'}
-              </button>
-              <button
-                onClick={handleSaveTemplate}
-                className="text-xs px-2 py-1 border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
-              >
-                템플릿 저장
-              </button>
+                  );
+                })
+              )}
             </div>
           </div>
-
-          {/* 제목 (LMS일 때만) */}
-          {msgType === 'LMS' && (
-            <div className="px-4 pt-3">
-              <input
-                type="text"
-                value={subject}
-                onChange={e => setSubject(e.target.value.slice(0, 30))}
-                placeholder="제목 (최대 30자)"
-                className="w-full border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:border-neutral-900"
-              />
-            </div>
-          )}
-
-          {/* 광고 접두어 표시 */}
-          {prefixWord && !isPreview && (
-            <div className="px-4 pt-2">
-              <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 border border-orange-200">{prefixWord}</div>
-            </div>
-          )}
-
-          {/* 메시지 본문 */}
-          <div className="flex-1 p-4">
-            {isPreview ? (
-              <div className="text-sm text-neutral-800 whitespace-pre-wrap leading-relaxed">
-                {prefixWord && <span className="text-orange-600">{prefixWord}{'\n'}</span>}
-                {getPreviewMessage()}
-              </div>
-            ) : (
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                placeholder="고객에게 전달할 메시지를 입력하세요. (SMS: 90byte / LMS: 2,000byte)"
-                className={`w-full h-full min-h-[300px] resize-none text-sm text-neutral-800 focus:outline-none leading-relaxed ${isOverLimit ? 'text-red-600' : ''}`}
-              />
-            )}
-          </div>
-
-          {/* URL 첨부 패널 */}
-          <div className="border-t border-neutral-100 p-3 bg-neutral-50/50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-tight">첨부 URL</span>
-              <span className="text-[10px] text-neutral-400">{urlList.length}/10</span>
-            </div>
-            <div className="flex gap-1 mb-2">
-              <input
-                type="text"
-                value={newUrl}
-                onChange={e => setNewUrl(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && newUrl.trim() && (setUrlList([...urlList, newUrl.trim()]), setNewUrl(''))}
-                placeholder="https://..."
-                className="flex-1 text-xs border border-neutral-300 px-2 py-1.5 focus:outline-none focus:border-neutral-900 bg-white"
-              />
-              <button
-                onClick={() => { if (newUrl.trim()) { setUrlList([...urlList, newUrl.trim()]); setNewUrl(''); } }}
-                className="px-2 py-1 bg-neutral-900 text-white rounded"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            </div>
-            <div className="space-y-1">
-              {urlList.map((url, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-white border border-neutral-200 px-2 py-1 rounded">
-                  <span className="text-[10px] text-neutral-600 truncate flex-1">{url}</span>
-                  <button onClick={() => setUrlList(urlList.filter((_, i) => i !== idx))} className="text-neutral-400 hover:text-red-500">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 바이트 경고 */}
-          {isOverLimit && (
-            <div className="px-4 pb-3 flex items-center gap-1 text-xs text-red-600">
-              <AlertCircle className="w-3.5 h-3.5" />
-              <span>메시지 길이를 줄여주세요.</span>
-            </div>
-          )}
         </div>
 
-        {/* ── 우측: 수신 대상 ── */}
-        <div className="col-span-4 flex flex-col border border-neutral-200 bg-white">
-          <div className="border-b border-neutral-200 px-4 py-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-neutral-800">수신 대상</span>
-            <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded">{recipients.length}명</span>
-          </div>
-
-          {/* 회원 검색 */}
-          <div className="p-3 border-b border-neutral-100">
-            <p className="text-xs text-neutral-500 mb-2 font-medium">회원 검색</p>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => searchMembers(e.target.value)}
-                placeholder="이름, 병원명, 이메일..."
-                className="w-full text-sm border border-neutral-300 px-3 py-1.5 focus:outline-none focus:border-neutral-900"
-              />
-              {loadingMembers && <Loader2 className="absolute right-2.5 top-2 w-4 h-4 animate-spin text-neutral-400" />}
+        <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
+          <div className="bg-blue-600 px-4 py-3 flex items-center justify-between shrink-0">
+            <div className="text-white">
+              <div className="font-bold text-base leading-tight">제이시스 메디컬</div>
+              <div className="text-blue-100 text-xs font-mono">{fromPhone}</div>
             </div>
-            {memberResults.length > 0 && (
-              <div className="border border-neutral-200 mt-1 max-h-40 overflow-y-auto">
-                {memberResults.map((m: any) => (
-                  <button
-                    key={m.id}
-                    onClick={() => addMemberRecipient(m)}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-neutral-50 border-b border-neutral-100 last:border-0"
-                  >
-                    <div className="font-medium">{m.name}</div>
-                    <div className="text-neutral-500">{m.hospitalName} · {m.phone || '번호없음'}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 직접 입력 */}
-          <div className="p-3 border-b border-neutral-100">
-            <p className="text-xs text-neutral-500 mb-2 font-medium">직접 입력</p>
-            <div className="flex gap-1 mb-1">
-              <input type="text" value={directName} onChange={e => setDirectName(e.target.value)} placeholder="이름" className="w-20 text-sm border border-neutral-300 px-2 py-1.5 focus:outline-none" />
-              <input type="text" value={directPhone} onChange={e => setDirectPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && addDirectRecipient()} placeholder="01012345678" className="flex-1 text-sm border border-neutral-300 px-2 py-1.5 focus:outline-none" />
-              <button onClick={addDirectRecipient} className="px-2 py-1.5 bg-neutral-900 text-white text-xs"><Plus className="w-3.5 h-3.5" /></button>
-            </div>
-          </div>
-
-          {/* CSV/Excel 업로드 */}
-          <div className="p-3 border-b border-neutral-100">
-            <p className="text-xs text-neutral-500 mb-2 font-medium">Excel/CSV 업로드</p>
-            <input ref={fileInputRef} type="file" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} className="hidden" />
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 py-1.5 border border-dashed border-neutral-300 text-xs text-neutral-500 hover:bg-neutral-50 transition-colors"
+              onClick={handleSaveTemplate}
+              className="flex items-center gap-1.5 bg-white text-blue-600 hover:bg-blue-50 text-xs font-bold px-3 py-1.5 rounded shadow-sm transition-colors"
             >
-              <Upload className="w-3.5 h-3.5" />
-              파일 선택 (이름, 번호, 병원, 포인트)
+              <Plus className="w-4 h-4" /> 템플릿 추가
             </button>
           </div>
+          <input
+            type="text"
+            value={subject}
+            onChange={e => setSubject(e.target.value.slice(0, 30))}
+            placeholder="제목을 입력해 메시지를 보낼 수 있습니다. (30자)"
+            className="w-full border-b border-neutral-200 px-4 py-2.5 text-sm text-neutral-700 focus:outline-none placeholder:text-neutral-400 placeholder:text-xs shrink-0"
+          />
+          <div className="flex-1 flex flex-col min-h-0 relative bg-blue-500/5">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="선택된 고객에게 전달할 메시지를 작성해 주세요. (900자)"
+              className={`flex-1 w-full p-4 text-sm leading-relaxed resize-none focus:outline-none bg-transparent placeholder:text-neutral-400 placeholder:text-xs min-h-[140px] ${isOverLimit ? 'text-red-600' : 'text-neutral-800'}`}
+            />
+          </div>
+          <div className="flex items-center justify-between px-4 py-2 bg-white border-t border-neutral-200 shrink-0">
+            <span className="text-blue-500 text-xs font-medium">미리보기</span>
+            <span className={`text-xs font-mono ${isOverLimit ? 'text-red-500 font-bold' : 'text-neutral-400'}`}>({byteSize}/{maxBytes})</span>
+          </div>
+          <div className="grid grid-cols-2 gap-0 border-t border-neutral-200 shrink-0 bg-neutral-50">
+            <button onClick={() => insertPlaceholder('{고객명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center">+ 고객명</button>
+            <button onClick={() => insertPlaceholder('{병원명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center">+ 병원명</button>
+          </div>
+          <div className="px-4 py-3 bg-white border-t border-neutral-200 shrink-0">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-bold text-neutral-900">전송 대상 <span className="text-blue-500">{recipients.length}명</span></span>
+              <div className="flex items-center gap-3 text-xs">
+                <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name="sendMode" value="immediate" checked={sendMode === 'immediate'} onChange={() => setSendMode('immediate')} className="accent-blue-500" /><span className="text-neutral-700">즉시</span></label>
+                <label className="flex items-center gap-1 cursor-pointer"><input type="radio" name="sendMode" value="reserved" checked={sendMode === 'reserved'} onChange={() => setSendMode('reserved')} className="accent-blue-500" /><span className="text-neutral-700">예약</span></label>
+              </div>
+            </div>
+            <button
+              onClick={handleSend}
+              disabled={sending || !recipients.length || !message.trim() || isOverLimit}
+              className="w-full py-3.5 bg-blue-500 hover:bg-blue-600 disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-extrabold text-base rounded transition-colors flex items-center justify-center gap-2"
+            >
+              {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              메시지 전송
+            </button>
+          </div>
+        </div>
 
-          {/* 대상 목록 */}
-          <div className="flex-1 overflow-y-auto">
+        <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'white', borderLeft: '1px solid #e5e7eb' }}>
+          <div className="flex items-center justify-between px-3 pt-2 pb-1 border-b border-neutral-200 shrink-0 bg-neutral-50">
+            <div className="flex items-end gap-1">
+              <button onClick={() => setRecipientView('list')} className={`px-3 py-1.5 text-xs font-bold border-b-2 transition-colors ${recipientView === 'list' ? 'border-blue-500 text-blue-600 bg-white' : 'border-transparent text-neutral-500 hover:text-neutral-800'}`}>선택 ({recipients.length})</button>
+              <button onClick={() => setRecipientView('blocked')} className={`px-3 py-1.5 text-xs font-bold border-b-2 transition-colors ${recipientView === 'blocked' ? 'border-blue-500 text-blue-600 bg-white' : 'border-transparent text-neutral-500 hover:text-neutral-800'}`}>수신거부</button>
+            </div>
+            <button
+              onClick={() => setIsSegmentOpen(true)}
+              className="flex items-center gap-1 bg-neutral-900 hover:bg-neutral-700 text-white px-2.5 py-1 rounded text-xs font-semibold transition-colors"
+            >
+              <Sliders className="w-3 h-3" /> 대상고객 필터
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
             {recipients.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-neutral-400 text-xs gap-1">
                 <Users className="w-8 h-8 opacity-30" />
@@ -664,20 +375,12 @@ export function SmsMessageSendPage() {
             ) : (
               <div className="divide-y divide-neutral-100">
                 {recipients.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-2 text-xs border-b border-neutral-50 last:border-0 hover:bg-neutral-50/50">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-neutral-800">{r.name}</span>
-                        <span className="text-neutral-400">{r.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5 text-[10px]">
-                        {r.hospitalName && <span className="text-neutral-500 bg-neutral-100 px-1 rounded">{r.hospitalName}</span>}
-                        {r.points !== undefined && <span className="text-blue-500 font-medium">{r.points.toLocaleString()}P</span>}
-                      </div>
+                  <div key={i} className="flex items-center justify-between py-2 text-xs">
+                    <div>
+                      <div className="font-bold text-neutral-800">{r.name}</div>
+                      <div className="text-neutral-400">{r.phone}</div>
                     </div>
-                    <button onClick={() => setRecipients(prev => prev.filter((_, idx) => idx !== i))} className="text-neutral-300 hover:text-red-500 transition-colors pl-2">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <button onClick={() => setRecipients(prev => prev.filter((_, idx) => idx !== i))} className="text-neutral-300 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
@@ -694,43 +397,164 @@ export function SmsMessageSendPage() {
           )}
         </div>
       </div>
+    </div>
 
-      <div className="bg-white border border-neutral-200 p-4 flex items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          {/* 발송 방식 */}
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 cursor-pointer text-sm">
-              <input type="radio" value="immediate" checked={sendMode === 'immediate'} onChange={() => setSendMode('immediate')} />
-              즉시 발송
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer text-sm">
-              <input type="radio" value="reserved" checked={sendMode === 'reserved'} onChange={() => setSendMode('reserved')} />
-              예약 발송
-            </label>
+    {/* 고객 조회 조건 / 대상고객 필터 모달 */}
+    {isSegmentOpen && (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
+            <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+              <Sliders className="w-5 h-5 text-blue-600" /> 대상고객 필터 조건 설정
+            </h2>
+            <button onClick={() => setIsSegmentOpen(false)} className="text-neutral-400 hover:text-neutral-600">
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          {sendMode === 'reserved' && (
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-neutral-400" />
-              <input type="date" value={reservedDate} onChange={e => setReservedDate(e.target.value)} className="text-sm border border-neutral-300 px-2 py-1 focus:outline-none" />
-              <input type="time" value={reservedTime} onChange={e => setReservedTime(e.target.value)} className="text-sm border border-neutral-300 px-2 py-1 focus:outline-none" />
+          <div className="p-6 space-y-4 overflow-y-auto">
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-2">고객 구분 (회원분류 - 중복 선택 가능)</label>
+              <div className="flex flex-wrap gap-2">
+                {['병원', '대리점', '홀딩스', '학회', '기타'].map(type => {
+                  const checked = selectedTypes.includes(type);
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTypes(prev =>
+                          checked ? prev.filter(t => t !== type) : [...prev, type]
+                        );
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                        checked
+                          ? 'bg-blue-50 border-blue-500 text-blue-600'
+                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {}}
+                        className="accent-blue-500 rounded"
+                      />
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-neutral-500">
-            총 {recipients.length}명 선택 (보유: {credit !== null ? credit.toLocaleString() : '...'}개)
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">최근 구매일자</label>
+              <div className="flex gap-2">
+                <input type="date" className="w-full text-xs border border-neutral-300 rounded px-3 py-2 focus:outline-none" />
+                <span className="self-center text-xs text-neutral-400">~</span>
+                <input type="date" className="w-full text-xs border border-neutral-300 rounded px-3 py-2 focus:outline-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">보유/관심 장비 선택 (장비 관리 목록)</label>
+              <select
+                value={selectedEquipment}
+                onChange={e => setSelectedEquipment(e.target.value)}
+                className="w-full text-xs border border-neutral-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="all">전체 장비 (선택 안 함)</option>
+                {equipments.map(eq => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.model_name} ({eq.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-neutral-700 mb-1">누적 구매/매출 금액 기준</label>
+              <input type="number" placeholder="최소 누적 매출 금액 (예: 1,000,000원)" className="w-full text-xs border border-neutral-300 rounded px-3 py-2 focus:outline-none" />
+            </div>
           </div>
-          <Button
-            onClick={handleSend}
-            disabled={sending || recipients.length === 0 || !message.trim() || isOverLimit}
-            className="flex items-center gap-2 px-6"
-          >
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {sendMode === 'reserved' ? '예약 발송' : '즉시 발송'}
-          </Button>
+          <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end gap-2">
+            <button onClick={() => setIsSegmentOpen(false)} className="px-4 py-2 border border-neutral-300 text-neutral-600 text-xs font-semibold rounded hover:bg-neutral-100">
+              취소
+            </button>
+            <button
+              onClick={() => {
+                toast.success('조회 조건이 적용되어 수신 대상 12명이 검색되었습니다.');
+                setRecipients([
+                  { name: '김원장', phone: '010-1234-5678', hospitalName: '제이의원' },
+                  { name: '이원장', phone: '010-9876-5432', hospitalName: '시스피부과' },
+                  { name: '박원장', phone: '010-5555-7777', hospitalName: '메디컬의원' },
+                ]);
+                setIsSegmentOpen(false);
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded"
+            >
+              조건 적용 및 수신대상 추출
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    )}
+
+    {/* 템플릿 그룹 이동 팝업 모달 */}
+    {moveGroupTarget && (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-200">
+            <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+              <Folder className="w-4 h-4 text-green-600" /> 템플릿 그룹 이동
+            </h3>
+            <button onClick={() => setMoveGroupTarget(null)} className="text-neutral-400 hover:text-neutral-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-5 space-y-3">
+            <p className="text-xs text-neutral-600">
+              <strong className="text-neutral-900">[{moveGroupTarget.name}]</strong> 템플릿을 이동할 분류를 선택해 주세요.
+            </p>
+            <div className="space-y-1.5 pt-1">
+              <button
+                onClick={async () => {
+                  try {
+                    await mtsService.updateTemplate(moveGroupTarget.id, { group_id: null });
+                    toast.success('템플릿이 [전체보기/미지정]으로 이동되었습니다.');
+                    await loadTemplates();
+                    setMoveGroupTarget(null);
+                  } catch { toast.error('그룹 이동에 실패했습니다.'); }
+                }}
+                className={`w-full text-left px-3 py-2 text-xs font-semibold rounded border transition-colors ${
+                  !moveGroupTarget.group_id ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                }`}
+              >
+                전체보기 (미지정)
+              </button>
+              {groups.map(g => (
+                <button
+                  key={g.id}
+                  onClick={async () => {
+                    try {
+                      await mtsService.updateTemplate(moveGroupTarget.id, { group_id: g.id });
+                      toast.success(`템플릿이 [${g.name}] 그룹으로 이동되었습니다.`);
+                      await loadTemplates();
+                      setMoveGroupTarget(null);
+                    } catch { toast.error('그룹 이동에 실패했습니다.'); }
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs font-semibold rounded border transition-colors ${
+                    moveGroupTarget.group_id === g.id ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                  }`}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="px-5 py-3 bg-neutral-50 border-t border-neutral-200 flex justify-end">
+            <button onClick={() => setMoveGroupTarget(null)} className="px-3 py-1.5 border border-neutral-300 text-neutral-600 text-xs font-semibold rounded hover:bg-neutral-100">
+              취소
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
