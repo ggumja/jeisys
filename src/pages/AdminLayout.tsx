@@ -573,8 +573,8 @@ export function AdminLayout() {
                   )}
                 </div>
 
-                {/* Coupon Management Direct Menu */}
-                <Link
+                {/* Coupon Management Direct Menu (추후 작업을 위해 일시 주석 처리) */}
+                {/* <Link
                   to="/admin/marketing/coupons"
                   className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors text-sm ${location.pathname === '/admin/marketing/coupons' ? 'bg-neutral-900 text-white font-medium' : 'text-neutral-700 hover:bg-neutral-100'} ${!hasPermission('marketing') ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
                 >
@@ -582,7 +582,7 @@ export function AdminLayout() {
                     <Tag className="w-5 h-5 shrink-0" />
                     <span>쿠폰 관리</span>
                   </div>
-                </Link>
+                </Link> */}
 
                 {/* Members Menu - Accordion */}
                 <div>
