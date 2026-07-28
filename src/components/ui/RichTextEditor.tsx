@@ -127,28 +127,33 @@ export const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>
         <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageInsert} />
       </div>
 
-      {/* Editor Area */}
-      <EditorContent
-        editor={editor}
-        className="prose prose-sm max-w-none px-4 py-3 focus-within:outline-none"
-        style={{ minHeight }}
-      />
+      {/* Editor Area (이메일 미리보기와 동일한 600px 캔버스 래퍼) */}
+      <div className="bg-neutral-100 p-4 overflow-y-auto" style={{ minHeight }}>
+        <div className="bg-white rounded-lg shadow-sm max-w-[600px] mx-auto border border-neutral-200 min-h-[300px] p-4">
+          <EditorContent
+            editor={editor}
+            className="prose prose-sm max-w-none focus-within:outline-none"
+          />
+        </div>
+      </div>
 
       <style>{`
-        .tiptap { outline: none; }
+        .tiptap { outline: none; font-family: sans-serif; color: #111827; line-height: 1.6; }
         .tiptap p.is-editor-empty:first-child::before {
-          color: #aaa;
+          color: #9ca3af;
           content: attr(data-placeholder);
           float: left;
           height: 0;
           pointer-events: none;
         }
-        .tiptap img { max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; }
-        .tiptap a { color: #2563eb; text-decoration: underline; }
-        .tiptap h2 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
-        .tiptap h3 { font-size: 1.1rem; font-weight: 700; margin: 0.75rem 0 0.4rem; }
-        .tiptap ul { list-style: disc; padding-left: 1.5rem; }
-        .tiptap ol { list-style: decimal; padding-left: 1.5rem; }
+        .tiptap p { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        .tiptap img { max-width: 100%; height: auto; border-radius: 6px; margin: 12px 0; }
+        .tiptap a { color: #2563eb; text-decoration: underline; font-weight: 500; }
+        .tiptap h1 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 1rem 0 0.5rem; }
+        .tiptap h2 { font-size: 1.25rem; font-weight: 700; color: #111827; margin: 1rem 0 0.5rem; }
+        .tiptap h3 { font-size: 1.1rem; font-weight: 700; color: #111827; margin: 0.75rem 0 0.4rem; }
+        .tiptap ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .tiptap ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
         .tiptap hr { border: none; border-top: 1px solid #e5e7eb; margin: 1rem 0; }
       `}</style>
     </div>
