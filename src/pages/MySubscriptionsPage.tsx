@@ -622,10 +622,10 @@ export function MySubscriptionsPage() {
     try {
       setLoading(true);
       const currentUser = (await authService.getCurrentUser()) || storage.getUser();
-      if (!currentUser) return;
+      const userId = currentUser?.id || '';
       const [data, cancellations] = await Promise.all([
-        subscriptionService.getMySubscriptions(currentUser.id),
-        subscriptionService.getMyCancellationRequests(currentUser.id),
+        subscriptionService.getMySubscriptions(userId),
+        subscriptionService.getMyCancellationRequests(userId),
       ]);
       setSubscriptions(data);
       // subscriptionId 기준으로 가장 최근 해지신청 1건씩 매핑
