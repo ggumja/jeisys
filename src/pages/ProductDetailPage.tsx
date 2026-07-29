@@ -39,6 +39,9 @@ export function ProductDetailPage() {
   const [selectedCombo, setSelectedCombo] = useState<RoundCombination | null>(null);
   const [subScheduleOpen, setSubScheduleOpen] = useState(true);
   const [subTermsAgreed, setSubTermsAgreed] = useState(false);
+  const [isTermsExpanded, setIsTermsExpanded] = useState(false);
+  const [subContractTermsAgreed, setSubContractTermsAgreed] = useState(false);
+  const [isContractTermsExpanded, setIsContractTermsExpanded] = useState(false);
   const [selectedBillingDay, setSelectedBillingDay] = useState<number>(new Date().getDate()); // 결제일 (1~28)
   // 기존 플래그형 정기공급 (is_subscription_product, 구버전)
   const [subQty, setSubQty] = useState<number>(100);
@@ -1504,20 +1507,322 @@ export function ProductDetailPage() {
             /* 정기공급 전용: 바로구매만 */
             <div className="flex flex-col gap-3 mb-6 mt-4">
 
-              {/* 정기공급 약관 동의 */}
+              {/* 1. 정기 공급 서비스 이용 약관 (아코디언 형태) */}
               <div className="border border-neutral-200 rounded-sm">
-                {/* 약관 내용 영역 */}
-                <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
-                  <p className="text-xs font-bold text-neutral-700 mb-2">정기공급 서비스 이용 약관</p>
-                  <div className="h-28 overflow-y-auto text-[11px] text-neutral-500 leading-relaxed space-y-1.5 pr-1">
-                    <p><strong>제1조 (목적)</strong> 본 약관은 제이시스메디칼(이하 "회사")이 제공하는 정기공급 서비스 이용에 관한 기본적인 사항을 규정합니다.</p>
-                    <p><strong>제2조 (서비스 내용)</strong> 회사는 고객이 선택한 수량 및 결제 및 출고 주기에 따라 상품을 정기적으로 배송합니다. 구독 계약 기간 동안 매 회차마다 지정된 금액이 등록된 신용카드에서 자동 청구됩니다.</p>
-                    <p><strong>제3조 (결제)</strong> 결제는 등록된 신용카드를 통해 각 회차 배송일 기준으로 자동 청구됩니다. 결제 실패 시 배송이 보류될 수 있습니다.</p>
-                    <p><strong>제4조 (중도해지)</strong> 고객은 언제든지 구독을 해지 신청할 수 있으나, 중도 해지 시 잔여 회차에 대해 위약금이 발생할 수 있습니다. 위약금은 관리자가 심사 후 별도 통보합니다.</p>
-                    <p><strong>제5조 (개인정보)</strong> 회사는 서비스 제공을 위해 필요한 최소한의 개인정보를 수집·이용하며, 관련 법령에 따라 보호합니다.</p>
-                    <p><strong>제6조 (면책)</strong> 천재지변, 제조사 사정 등 불가피한 사유로 인한 배송 지연은 회사의 귀책사유가 아닙니다.</p>
+                {/* 약관 헤더 */}
+                <button
+                  type="button"
+                  onClick={() => setIsContractTermsExpanded(v => !v)}
+                  className="w-full px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between text-left cursor-pointer hover:bg-neutral-100 transition-colors"
+                >
+                  <span className="text-xs font-bold text-neutral-700">정기 공급 서비스 이용 약관</span>
+                  <div className="flex items-center gap-1 text-xs text-neutral-500">
+                    <span>{isContractTermsExpanded ? '접기' : '자세히 보기'}</span>
+                    {isContractTermsExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-neutral-600" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-neutral-600" />
+                    )}
                   </div>
-                </div>
+                </button>
+
+                {/* 약관 내용 영역 */}
+                {isContractTermsExpanded && (
+                  <div className="px-4 py-3 bg-white border-b border-neutral-200">
+                    <div
+                      style={{ height: '250px', maxHeight: '250px', overflowY: 'scroll' }}
+                      className="text-[11px] text-neutral-600 leading-relaxed space-y-3 pr-2 always-visible-scrollbar"
+                    >
+                      <p className="font-bold text-xs text-neutral-800 border-b pb-1">“제이시스몰” 정기공급(분할결제) 서비스 이용약관</p>
+                      
+                      <div>
+                        <p className="font-semibold text-neutral-700">제1조(목적)</p>
+                        <p>1. 본 약관은 주식회사 제이시스메디칼(이하 “회사”라 합니다)이 운영하는 제이시스 쇼핑몰(이하 “제이시스몰”이라 합니다)을 통해 제공하는 정기공급(분할결제) 서비스의 이용과 관련하여 회사와 회원 간의 권리, 의무, 책임 및 기타 필요한 사항을 정하는 것을 목적으로 합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제2조(용어의 정의)</p>
+                        <p>1. “정기공급 서비스”란 회원이 일정한 총수량의 상품을 구매하기로 약정하고, 그 대금의 지급과 상품의 공급을 여러 회차로 나누어 진행하는 서비스를 말합니다.</p>
+                        <p>2. “정기공급 계약”이란 회원이 상품, 총 약정수량, 계약 적용단가, 공급기간, 결제·출고 주기 및 회차별 출고수량 등을 선택하여 회사와 체결하는 하나의 총수량 공급계약을 말합니다.</p>
+                        <p>3. “회원”이란 “제이시스몰” 회원 중 사업자등록을 보유한 의료기관, 의료기관 개설자 또는 기타 회사가 정한 사업자 회원으로서 본 약관에 동의하고 정기공급 계약을 체결한 자를 말합니다.</p>
+                        <p>4. “총 약정수량”이란 회원이 정기공급 계약에 따라 구매하기로 확정한 전체 상품수량을 말합니다.</p>
+                        <p>5. “기출고수량”이란 정기공급 계약에 따라 회원에게 출고 완료된 상품의 누적수량을 말합니다.</p>
+                        <p>6. “미출고수량”이란 총 약정수량에서 기출고수량을 차감한 미출고 상품수량을 말합니다.</p>
+                        <p>7. “정기공급 적용단가”란 회원이 총 약정수량을 구매하는 조건으로 정기공급 계약에 적용받는 상품 1개당 가격을 말합니다.</p>
+                        <p>8. “수량별 단가”란 회사가 계약 체결 당시 고지한 수량별 단가표에 따라 실제 구매수량 구간별로 적용되는 상품 1개당 가격을 말합니다.</p>
+                        <p>9. “개당 기준단가”란 수량별 단가표가 별도로 운영되지 않는 상품에 대하여 계약 체결 당시 상품페이지 또는 주문서에 별도로 고지된 상품 1개당 기준가격을 말합니다.</p>
+                        <p>10. “재산정 단가”란 중도해지 시 기출고수량에 적용되는 수량별 단가 또는 개당 기준단가를 말합니다.</p>
+                        <p>11. “출고 완료”란 상품이 회사의 물류처리 과정을 거쳐 택배사 또는 운송인에게 인계된 상태를 말합니다.</p>
+                        <p>12. “개별 계약조건”이란 상품페이지, 주문서 또는 계약확인서에 표시된 상품명, 상품코드, 총 약정수량, 가격, 결제·출고 주기, 회차별 출고수량, 총 공급회차 및 중도해지 재산정 기준 등을 말합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제3조(약관의 적용 및 계약조건의 우선순위)</p>
+                        <p>1. 본 약관은 정기공급 서비스를 이용하는 모든 회원에게 적용됩니다.</p>
+                        <p>2. 본 약관에서 정하지 않은 사항은 “제이시스몰” 이용약관, 개별 계약조건, 개인정보처리방침, 관계 법령 및 일반적인 상관례에 따릅니다.</p>
+                        <p>3. 회사와 회원이 본 약관의 내용과 다르게 계약 체결 전에 개별적으로 합의한 사항이 있는 경우 해당 개별 합의가 우선합니다. 다만, 계약 체결 후 제12조 제1항에서 정한 계약조건은 별도의 합의가 있더라도 변경할 수 없습니다.</p>
+                        <p>4. 본 약관과 상품페이지, 주문서 또는 계약확인서의 내용이 다른 경우 계약 체결 당시 확정된 주문서 또는 계약확인서의 내용이 우선합니다.</p>
+                        <p>5. 본 약관의 내용이 명확하지 않은 경우에는 관계 법령과 신의성실의 원칙에 따라 해석합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제4조(이용 대상)</p>
+                        <p>1. 정기공급 서비스는 원칙적으로 “제이시스몰” 회원을 대상으로 합니다.</p>
+                        <p>2. 회원이 허위 또는 부정확한 정보를 제출한 경우 회사는 계약 체결을 거절하거나 서비스 이용을 제한할 수 있습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제5조(서비스의 성격)</p>
+                        <p>1. 본 서비스는 총 약정수량을 확정하여 구매하는 하나의 계약으로서, 상품대금의 지급과 상품의 공급만 여러 회차로 나누어 진행하는 분할결제·분할공급 계약입니다.</p>
+                        <p>2. 계약기간이 종료되거나 총 약정수량의 공급이 완료되더라도 계약은 자동으로 갱신되지 않습니다.</p>
+                        <p>3. 계약 종료 후 정기공급 서비스를 계속 이용하려는 회원은 새로운 계약을 체결하여야 합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제6조(계약 체결 전 고지사항)</p>
+                        <p>1. 회사는 계약 체결 전에 회원이 다음 내용을 확인할 수 있도록 상품페이지, 주문서 또는 계약확인서에 표시합니다.</p>
+                        <p className="pl-2">1) 상품명 및 상품코드<br/>2) 상품의 규격과 포장단위<br/>3) 총 약정수량<br/>4) 정기공급 적용단가<br/>5) 총 계약금액<br/>6) 회차별 결제금액<br/>7) 회차별 출고수량<br/>8) 총 공급회차<br/>9) 결제·출고 주기<br/>10) 전체 공급기간<br/>11) 최초 결제일 및 다음 결제 예정일<br/>12) 자동결제 조건<br/>13) 수량별 단가표 적용 여부<br/>14) 중도해지 시 적용되는 수량별 단가 또는 개당 기준단가<br/>15) 중도해지 정산방법<br/>16) 교환 기준<br/>17) 계약 체결 후 변경할 수 없는 계약조건<br/>18) 계약조건 변경이 필요한 경우 중도해지 후 신규 계약을 체결해야 한다는 사항<br/>19) 기타 계약의 중요한 내용</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제7조(정기공급 계약의 체결)</p>
+                        <p>1. 회원은 “제이시스몰”에서 다음 사항을 선택하거나 확인한 후 계약을 신청합니다.</p>
+                        <p className="pl-2">1) 대상 상품<br/>2) 총 약정수량<br/>3) 공급기간<br/>4) 결제·출고 주기<br/>5) 회차별 출고수량<br/>6) 총 공급회차<br/>7) 결제수단<br/>8) 배송지<br/>9) 본 약관 및 필수동의사항</p>
+                        <p>2. 정기공급 계약은 회원이 계약을 신청하고 최초 결제가 정상적으로 완료된 후 회사가 이를 승인한 때 성립합니다.</p>
+                        <p>3. 회사는 다음의 경우 계약 신청을 승인하지 않거나 승인을 취소할 수 있습니다.</p>
+                        <p className="pl-2">1) 신청내용에 허위, 누락 또는 오류가 있는 경우<br/>2) 유효하지 않은 결제수단을 등록한 경우<br/>3) 상품 공급이 불가능하거나 현저히 곤란한 경우<br/>4) 기존 계약에 따른 미납금액이 있는 경우<br/>5) 회원이 관계 법령 또는 본 약관을 위반한 이력이 있는 경우<br/>6) 정기공급 가격조건을 부당하게 이용할 목적으로 계약을 신청한 것으로 합리적으로 판단되는 경우</p>
+                        <p>4. 회사는 계약 체결 후 주문내역, 결제조건 및 공급계획을 회원에게 전자문서 등의 방법으로 제공합니다.</p>
+                        <p>5. 회원이 선택하거나 확인한 총 약정수량, 결제·출고 주기, 회차별 출고수량, 총 공급회차, 결제일 및 공급기간은 계약 체결과 동시에 확정되며, 계약 체결 이후에는 변경할 수 없습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제8조(상품 및 공급조건)</p>
+                        <p>1. 정기공급 서비스의 대상 상품은 “제이시스몰”에 표시합니다.</p>
+                        <p>2. 상품별 총 약정수량은 상품페이지 또는 주문서에서 정한 수량으로 합니다.</p>
+                        <p>3. 회원은 회사가 제공하는 범위에서 다음 결제·출고 주기 중 하나를 선택할 수 있습니다.</p>
+                        <p className="pl-2">1) 1개월<br/>2) 2개월<br/>3) 3개월<br/>4) 4개월<br/>5) 6개월</p>
+                        <p>4. 전체 공급기간은 최초 결제일로부터 최대 12개월 이내로 합니다.</p>
+                        <p>5. 회차별 출고수량은 계약 체결 당시 확정된 공급계획에 따릅니다.</p>
+                        <p>6. 회차별 출고수량에 총 공급회차를 곱한 수량은 총 약정수량과 일치하여야 하며, 회차 구성상 별도의 미배정 수량은 발생하지 않습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제9조(상품가격 및 준법기준)</p>
+                        <p>1. 정기공급 적용단가와 상품별 가격조건은 관계 법령과 회사의 내부 준법기준에 따라 사전 승인된 범위에서 적용합니다.</p>
+                        <p>2. 정기공급 적용단가는 총 약정수량, 주문·출고 조건, 물류 및 운영조건 등을 반영한 개별 계약상 거래가격입니다.</p>
+                        <p>3. 회사는 동일한 상품과 동일한 거래조건에 대하여 합리적인 이유 없이 회원별로 다른 가격기준을 적용하지 않습니다.</p>
+                        <p>4. 계약 체결 이후 상품가격 또는 가격정책이 변경되더라도 기존 계약에는 계약 체결 당시의 정기공급 적용단가와 중도해지 재산정 기준을 적용합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제10조(결제수단 및 자동결제)</p>
+                        <p>1. 정기공급 서비스의 결제수단은 자동결제를 위해 제이시스몰에 등록한 카드로 제한됩니다.</p>
+                        <p>2. 회원은 계약기간 동안 정상적으로 결제 가능한 결제수단을 등록하고 유지하여야 합니다.</p>
+                        <p>3. 회원은 계약 체결 시 다음 금액이 등록된 결제수단으로 자동결제되는 것에 동의합니다.</p>
+                        <p className="pl-2">1) 각 회차의 상품대금<br/>2) 회원이 별도로 동의한 배송비 또는 기타 비용<br/>3) 제16조에 따라 사전 안내되고 회원이 자동결제에 별도로 동의한 중도해지 정산금액</p>
+                        <p>4. 회사는 각 회차 자동결제 전에 결제 예정일과 예정금액을 문자메시지, 알림톡, 전자우편 또는 “제이시스몰” 내 알림으로 안내합니다.</p>
+                        <p>5. 정기공급 계약이 유지 중이거나 미납 또는 미정산금액이 있는 경우 회원은 등록된 결제수단을 삭제할 수 없습니다.</p>
+                        <p>6. 회원은 기존 결제수단을 다른 유효한 결제수단으로 변경할 수 있습니다.</p>
+                        <p>7. 카드사, 금융기관 또는 결제대행사의 사유로 결제가 승인되지 않은 경우 회사는 책임을 부담하지 않습니다. 다만, 회사의 시스템 오류로 인한 경우는 제외합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제11조(결제 및 상품 출고)</p>
+                        <p>1. 회사는 각 회차의 자동결제가 정상적으로 완료된 후 해당 회차의 상품을 출고합니다.</p>
+                        <p>2. 결제가 완료되지 않은 상품은 출고하지 않는 것을 원칙으로 합니다.</p>
+                        <p>3. 상품의 출고 예정일은 주문내역 또는 회원에게 별도로 안내한 일정에 따릅니다.</p>
+                        <p>4. 재고 부족, 생산 지연, 물류장애, 천재지변 또는 기타 불가피한 사유가 있는 경우 출고일정이 변경될 수 있습니다.</p>
+                        <p>5. 회사는 출고일정이 변경되는 경우 지체 없이 변경사유와 예상 출고일을 회원에게 안내합니다.</p>
+                        <p>6. 회사의 사유로 상품을 공급하기 어려운 경우 회사는 회원과 협의하여 다음 중 하나의 방법으로 처리합니다.</p>
+                        <p className="pl-2">1) 불가피한 사유에 따른 출고일정 조정<br/>2) 해당 회차 결제 승인 취소<br/>3) 정기공급 계약 종료</p>
+                        <p>7. 회사는 회원의 동의 없이 계약상품을 다른 상품으로 임의 변경하지 않습니다.</p>
+                        <p>8. 본 조에 따른 출고일정 조정은 불가피한 공급사유에 따른 일시적인 일정 조정으로서 총 약정수량, 적용단가, 회차별 출고수량 및 총 결제금액을 변경하는 것은 아닙니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제12조(계약조건의 변경 제한)</p>
+                        <p>1. 정기공급 계약 체결 후 총 약정수량, 결제·출고 주기, 회차별 출고수량, 총 공급회차, 결제일 및 공급기간은 변경할 수 없습니다.</p>
+                        <p>2. 회원이 제1항의 계약조건과 다른 조건으로 정기공급 서비스를 이용하려는 경우에는 기존 계약을 중도해지하고, 제20조에서 정한 재가입 및 계약승인 기준에 따라 새로운 정기공급 계약을 신청하여야 합니다.</p>
+                        <p>3. 기존 계약의 중도해지 및 정산은 제14조부터 제16조까지의 기준에 따릅니다.</p>
+                        <p>4. 회사의 귀책사유 또는 재고 부족, 생산 지연, 물류장애 등 불가피한 사유로 출고일정의 조정이 필요한 경우에는 제11조에 따릅니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제13조(자동결제 실패)</p>
+                        <p>1. 자동결제가 실패한 경우 회사는 회원에게 결제 실패 사실을 안내합니다.</p>
+                        <p>2. 회사는 최초 결제 실패일을 기준으로 다음과 같이 총 2회의 재결제를 시도할 수 있습니다.</p>
+                        <p className="pl-2">1) 최초 결제 실패일 다음 날: D+1<br/>2) 최초 결제 실패일로부터 3일째 되는 날: D+3</p>
+                        <p>3. 자동결제가 최종적으로 실패한 경우 해당 회차의 상품 출고는 보류됩니다.</p>
+                        <p>4. 회원은 유효한 결제수단을 등록하거나 회사가 안내한 방법으로 미납금액을 지급하여야 합니다.</p>
+                        <p>5. 최종 결제 실패일로부터 7일 이내에 미납금액이 지급되지 않는 경우 회사는 상당한 기간을 정하여 회원에게 이행을 요청할 수 있습니다.</p>
+                        <p>6. 회원이 회사가 정한 기간 내에도 미납금액을 지급하지 않는 경우 회사는 해당 회차의 출고를 계속 보류하거나 계약을 해지할 수 있습니다.</p>
+                        <p>7. 결제 실패로 계약이 해지되는 경우 기출고 상품의 정산은 제15조에 따릅니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제14조(회원의 중도해지 신청)</p>
+                        <p>1. 회원은 정기공급 계약기간 중 “제이시스몰” 또는 고객센터를 통해 중도해지를 신청할 수 있습니다.</p>
+                        <p>2. 다음 회차의 결제와 출고를 중단하려는 회원은 원칙적으로 다음 결제 예정일 전일까지 중도해지를 신청하여야 합니다.</p>
+                        <p>3. 중도해지 신청이 접수되면 회사는 다음 정보를 확인하여 예상 정산내역을 회원에게 안내합니다.</p>
+                        <p className="pl-2">1) 총 약정수량<br/>2) 기출고수량<br/>3) 미출고수량<br/>4) 결제 완료금액<br/>5) 정기공급 적용단가<br/>6) 중도해지 재산정 단가<br/>7) 예상 추가 납부금액</p>
+                        <p>4. 중도해지 신청 접수 시점 이후 예정된 회차의 결제와 출고는 중단합니다. 다만, 이미 결제가 완료된 회차는 중도해지 대상에서 제외하고 해당 회차 상품을 출고하며, 상품이 택배사 또는 운송인에게 인계된 때 기출고수량에 포함합니다.</p>
+                        <p>5. 중도해지는 회사가 출고상태와 결제상태를 확인하고 최종 정산내역을 확정한 때 완료됩니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제15조(중도해지 시 금액 재산정)</p>
+                        <p>1. 회원의 사유로 정기공급 계약이 중도해지되는 경우 기출고 상품의 대금은 계약 체결 당시 고지된 상품별 재산정 기준에 따라 계산합니다.</p>
+                        <p>2. 중도해지 정산의 기준수량은 중도해지 확정 시점까지 출고 완료된 기출고수량으로 합니다.</p>
+                        <p>3. 상품별 재산정 단가는 다음과 같이 적용합니다.</p>
+                        <p className="pl-2">1) 수량별 단가표가 있는 상품: 기출고수량이 속하는 수량구간의 개당 단가를 적용합니다.<br/>2) 수량별 단가표가 없는 상품: 계약 체결 당시 상품페이지 또는 주문서에 표시된 개당 기준단가를 적용합니다.</p>
+                        <p>4. 규격 또는 상품코드별 가격이 다른 경우에는 각 상품코드별로 재산정합니다.</p>
+                        <p>5. 묶음 또는 포장단위로 판매되는 상품은 계약 체결 당시 고지된 상품 1개당 환산 기준단가를 적용할 수 있습니다.</p>
+                        <p>6. 기출고분 재산정 금액은 기출고수량에 개당 적용 단가를 곱하여 산정합니다.</p>
+                        <p>7. 여러 상품 또는 상품코드가 포함된 경우에는 각 상품별 재산정 금액을 합산합니다.</p>
+                        <p>8. 최종 정산금액은 기출고분 재산정 금액에서 기결제금액을 차감하여 계산합니다.</p>
+                        <p>9. 재산정 결과에 따라 추가 납부액이 발생할 수 있습니다.</p>
+                        <p>10. 추가 납부금액은 회원이 기출고 상품에 대해 실제로 적용받은 정기공급 단가와 재산정 단가의 차액을 초과하지 않습니다.</p>
+                        <p>11. 회사는 미출고수량 상품대금, 예상 이익, 위약금 등을 부과하지 않습니다.</p>
+                        <p>12. 상품가격 정책 변경 시에도 계약 체결일 당시 고지된 단가를 적용합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제16조(중도해지 정산금의 결제)</p>
+                        <p>1. 회사는 중도해지 정산 전에 기출고수량, 재산정 금액, 최종 추가 납부금액 및 결제 예정일을 안내합니다.</p>
+                        <p>2. 추가 납부금액은 등록 카드 또는 계좌이체로 지급할 수 있습니다.</p>
+                        <p>3. 회사는 별도 동의 없이 정산금액을 임의 결제하지 않습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제17조(기출고 상품의 교환)</p>
+                        <p>1. 출고 완료된 상품은 단순변심 사유로 취소/교환이 불가하나 하자, 오배송, 배송 중 파손 등 회사의 귀책 사유 시 교환이 가능합니다.</p>
+                        <p>2. 회사는 교환 대상 확인 후 동일한 상품으로 교환 조치하며 귀책사유 시 회수/재배송 비용을 부담합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제18조(회사의 귀책사유에 따른 계약해지)</p>
+                        <p>1. 회사의 반복적인 공급 지연 또는 중대한 하자 발생 시 회원은 계약을 해지할 수 있습니다.</p>
+                        <p>2. 회사의 귀책사유 해지 시 단가 재산정 차액이나 중도해지 비용은 부과되지 않습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제19조(회사의 공급보류 및 계약해지)</p>
+                        <p>1. 자동결제 최종 실패, 배송정보 불명확 시 출고가 보류될 수 있으며 미납 지속 시 계약이 해지될 수 있습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제20조(재가입)</p>
+                        <p>1. 계약 종료 후 재가입이 가능하나 반복적인 부당 해지/미납 회원에 대해서는 최대 6개월간 재가입이 제한될 수 있습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제21조(회원의 의무)</p>
+                        <p>1. 회원은 정확한 사업자/결제/배송 정보를 유지하고 적법한 의료 및 사업 목적으로 상품을 사용하여야 합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제22조(금지행위)</p>
+                        <p>1. 명의 도용, 부당한 계약 반복 체결/해지, 무단 재판매 및 유통 행위를 금지합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제23조(회원정보 변경)</p>
+                        <p>1. 변경 사항 발생 시 즉시 정보를 수정하여야 하며 미통지로 인한 불이익은 회원이 부담합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제24조(약관의 변경 및 기존 계약의 적용)</p>
+                        <p>1. 약관 변경 시 게시판 고지 및 개별 통지하며, 기존 체결 계약 조건은 소급하여 불리하게 변경되지 않습니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제25조(회사의 책임)</p>
+                        <p>1. 회사는 회사 귀책 사유로 발생한 직접 손해를 배상하며 불가항력적 사유에 대해서는 책임이 제한됩니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제26조(통지)</p>
+                        <p>1. 개별 통지는 문자, 알림톡, 이메일, 쇼핑몰 내 알림을 이용합니다.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-semibold text-neutral-700">제27조(분쟁해결)</p>
+                        <p>1. 본 약관은 대한민국 법률에 따라 해석되며 분쟁 발생 시 관할 법원에 따릅니다.</p>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+                {/* 동의 체크박스 */}
+                <label className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
+                  <div
+                    onClick={() => setSubContractTermsAgreed(v => !v)}
+                    className="w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                    style={subContractTermsAgreed
+                      ? { borderColor: '#21358D', backgroundColor: '#21358D' }
+                      : { borderColor: '#9ca3af', backgroundColor: '#ffffff' }
+                    }
+                  >
+                    {subContractTermsAgreed && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <span
+                    onClick={() => setSubContractTermsAgreed(v => !v)}
+                    className="text-sm font-medium text-neutral-800"
+                  >
+                    정기 공급 서비스 이용 약관에 <span className="text-[#21358D] font-bold">동의합니다</span>
+                  </span>
+                </label>
+              </div>
+
+              {/* 2. 정기공급 계약 필수 확인 및 별도 동의사항 (아코디언 형태) */}
+              <div className="border border-neutral-200 rounded-sm">
+                {/* 약관 헤더 */}
+                <button
+                  type="button"
+                  onClick={() => setIsTermsExpanded(v => !v)}
+                  className="w-full px-4 py-3 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between text-left cursor-pointer hover:bg-neutral-100 transition-colors"
+                >
+                  <span className="text-xs font-bold text-neutral-700">정기공급 계약 필수 확인 및 별도 동의사항</span>
+                  <div className="flex items-center gap-1 text-xs text-neutral-500">
+                    <span>{isTermsExpanded ? '접기' : '자세히 보기'}</span>
+                    {isTermsExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-neutral-600" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-neutral-600" />
+                    )}
+                  </div>
+                </button>
+
+                {/* 약관 내용 영역 */}
+                {isTermsExpanded && (
+                  <div className="px-4 py-3 bg-white border-b border-neutral-200">
+                    <div
+                      style={{ height: '250px', maxHeight: '250px', overflowY: 'scroll' }}
+                      className="text-[11px] text-neutral-600 leading-relaxed space-y-2 pr-2 always-visible-scrollbar"
+                    >
+                      <p>□ 본 상품은 총 약정수량을 확정하고 결제와 상품 공급을 여러 회차로 나누어 진행하는 정기공급·분할결제 계약입니다.</p>
+                      <p>□ 계약 종료 후 자동으로 갱신되지 않으며, 계속 이용하려면 새로운 계약을 체결해야 합니다.</p>
+                      <p>□ 각 회차 결제 예정일에 등록된 결제수단으로 회차별 상품대금이 자동결제됩니다.</p>
+                      <p>□ 자동결제가 실패하면 D+1 및 D+3에 재결제가 진행되며, 최종 결제 실패 시 해당 회차의 출고가 보류될 수 있습니다.</p>
+                      <p>□ 출고 완료된 상품은 단순변심, 주문착오 또는 사용계획 변경 등의 사유로 계약을 취소하거나 교환할 수 없습니다.</p>
+                      <p>□ 상품에 하자, 오배송 또는 배송 중 파손이 있는 경우 회사의 확인 후 동일한 상품으로 교환을 기본으로 합니다.</p>
+                      <p>□ 총 약정수량, 결제·출고 주기, 회차별 출고수량, 총 공급회차, 결제일 및 공급기간은 계약 체결 후 변경할 수 없습니다.</p>
+                      <p>□ 다른 조건으로 정기공급 서비스를 이용하려는 경우 기존 계약을 중도해지하고 새로운 계약을 신청해야 하며, 기존 계약의 기출고 상품은 중도해지 재산정 기준에 따라 정산됩니다.</p>
+                      <p>□ 회원의 사유로 중도해지하는 경우 기출고 상품의 대금은 기출고수량에 따라 다시 계산됩니다.</p>
+                      <p>□ 수량별 단가표가 있는 상품은 기출고수량에 해당하는 구간단가를 적용합니다.</p>
+                      <p>□ 수량별 단가표가 없는 상품은 계약 체결 당시 고지된 개당 기준단가를 적용합니다.</p>
+                      <p>□ 중도해지 시 정기공급 적용단가와 재산정 단가 간의 차액이 추가로 청구될 수 있습니다.</p>
+                      <p>□ 중도해지 후 미출고 수량에 대한 결제와 출고는 중단되며, 해당 미출고 수량의 상품대금은 청구하지 않습니다.</p>
+                      <p>□ 회사의 귀책사유로 계약이 해지되는 경우 단가 재산정 차액 또는 중도해지 비용은 부과되지 않습니다.</p>
+                      <p>□ 중도해지 정산금액은 결제 전에 세부내역과 결제 예정금액을 안내받습니다.</p>
+                      <p>□ 중도해지 정산금액이 발생하는 경우, 확정된 추가 납부금액을 등록된 결제수단으로 자동 결제하는 것에 동의합니다.</p>
+                    </div>
+                  </div>
+                )}
                 {/* 동의 체크박스 */}
                 <label className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none">
                   <div
@@ -1538,14 +1843,14 @@ export function ProductDetailPage() {
                     onClick={() => setSubTermsAgreed(v => !v)}
                     className="text-sm font-medium text-neutral-800"
                   >
-                    정기공급 서비스 이용 약관에 <span className="text-[#21358D] font-bold">동의합니다</span>
+                    정기공급 계약 필수 확인 및 별도 동의사항에 <span className="text-[#21358D] font-bold">동의합니다</span>
                   </span>
                 </label>
               </div>
 
               {/* 바로구매 버튼 */}
               {(() => {
-                const canBuy = !!selectedSubOption && !!selectedCycleMonths && !!selectedCombo && subTermsAgreed;
+                const canBuy = !!selectedSubOption && !!selectedCycleMonths && !!selectedCombo && subTermsAgreed && subContractTermsAgreed;
                 return (
                 <button
                  disabled={!canBuy}

@@ -3955,3 +3955,29 @@ html {
 .max-w-\[1440px\] {
   max-width: 1440px;
 }
+
+/* 정기공급 약관 상시 노출 스크롤바 */
+.always-visible-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: #9ca3af #f3f4f6 !important;
+}
+
+.always-visible-scrollbar::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+  display: block !important;
+}
+
+.always-visible-scrollbar::-webkit-scrollbar-track {
+  background: #f3f4f6 !important;
+  border-radius: 4px !important;
+}
+
+.always-visible-scrollbar::-webkit-scrollbar-thumb {
+  background: #9ca3af !important;
+  border-radius: 4px !important;
+}
+
+.always-visible-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280 !important;
+}
