@@ -25,28 +25,29 @@ function RootLayoutContent() {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const user = storage.getUser();
+  const userId = user?.id;
 
   useEffect(() => {
     // 홈('/')은 비로그인도 허용, 나머지는 로그인 필요
-    if (!user && location.pathname !== '/') {
+    if (!userId && location.pathname !== '/') {
       navigate('/login');
       return;
     }
 
-    if (user) {
+    if (userId) {
       cartService.getCart()
         .then(items => setCartCount(items.length))
         .catch(() => setCartCount(0));
 
       // 크레딧 조회
-      creditService.getCreditSummary(user.id)
+      creditService.getCreditSummary(userId)
         .then(setCreditSummary)
         .catch(() => setCreditSummary([]));
 
       // proxy 모드 배너
       setProxyName(proxyOrderService.getProxyCustomerName());
     }
-  }, [user, navigate, location]);
+  }, [userId, navigate, location.pathname]);
 
   const handleLogout = () => {
     storage.clearAll();
