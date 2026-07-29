@@ -46,6 +46,8 @@ export interface SubscriptionRow {
   // 조인 데이터
   product?: { name: string; imageUrl?: string; sku?: string };
   user?: { name: string; hospitalName?: string };
+  deliveryAddress?: string;        // subscriptions.delivery_address (사용자 변경 시)
+  orderDeliveryAddress?: string;   // orders.delivery_address (주문 시점 원본)
   shipments?: SubscriptionScheduleRow[];
   quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
 }
@@ -240,6 +242,9 @@ function mapSubscriptionRow(row: any): SubscriptionRow {
     user: row.users
       ? { name: row.users.name, hospitalName: row.users.hospital_name }
       : undefined,
+    // 배송지: subscriptions.delivery_address (변경) > orders.delivery_address (원본)
+    deliveryAddress: row.delivery_address ?? undefined,
+    orderDeliveryAddress: row.orders?.delivery_address ?? undefined,
     shipments: row.subscription_shipments?.map(mapShipmentRow),
     quantityDiscountTiers: row.products?.quantity_discount_tiers ?? [],
   };
@@ -354,6 +359,8 @@ export const subscriptionService = {
       .select(`
         *,
         products (name, image_url, sku, quantity_discount_tiers),
+        users (name, hospital_name),
+        orders (delivery_address),
         subscription_shipments (*)
       `)
       .eq('user_id', userId)
@@ -413,6 +420,74 @@ export const subscriptionService = {
       .update({ status: 'active', updated_at: new Date().toISOString() })
       .eq('id', subId);
     if (error) throw error;
+  },
+
+  // ──────────────────────────────
+  // 결제 카드(빌링키) 변경
+  // ──────────────────────────────
+  async updateBillingKey(subId: string, paymentMethodId: string): Promise<void> {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({ billing_key_id: paymentMethodId, updated_at: new Date().toISOString() })
+      .eq('id', subId);
+    if (error) throw error;
+  },
+
+  // ──────────────────────────────
+  // 배송지 변경
+  // ──────────────────────────────
+  async updateDeliveryAddress(subId: string, address: string): Promise<void> {
+    const { error } = await supabase
+      .from('subscriptions')
+      .update({ delivery_address: address, updated_at: new Date().toISOString() })
+      .eq('id', subId);
+    if (error) throw error;
+  },
+
+  // ──────────────────────────────
+  // 결제 재시도 (결제실패 회차)
+  // ──────────────────────────────
+  async retryFailedPayment(sub: SubscriptionRow): Promise<{ success: boolean; message: string }> {
+    // 1. 실패한 회차 조회
+    const failedShipment = (sub.shipments ?? []).find((s) => s.status === 'failed');
+    if (!failedShipment) throw new Error('결제 실패 회차를 찾을 수 없습니다.');
+
+    // 2. 빌링키 확인
+    if (!sub.billingKeyId) throw new Error('결제 수단이 등록되지 않았습니다.');
+
+    // 3. billing_key 조회
+    const { data: paymentMethod, error: pmError } = await supabase
+      .from('user_payment_methods')
+      .select('billing_key')
+      .eq('id', sub.billingKeyId)
+      .single();
+    if (pmError || !paymentMethod) throw new Error('결제 수단 정보를 불러올 수 없습니다.');
+
+    // 4. 결제 시도 (paymentService.requestPayment 시뮬레이션)
+    const orderNumber = `RETRY-${sub.subscriptionNo ?? sub.id.slice(0, 8)}-R${failedShipment.roundNo}-${Date.now()}`;
+    console.log(`[결제 재시도] ${orderNumber}, 금액: ${failedShipment.amount}`);
+
+    // 실제 환경에서는 백엔드 API 호출 → 여기서는 시뮬레이션 (1초 후 성공)
+    await new Promise((res) => setTimeout(res, 1000));
+    const paySuccess = true; // 실 서버 연동 시 응답값으로 대체
+    const tid = `KICC_RETRY_${Date.now()}`;
+
+    if (!paySuccess) {
+      return { success: false, message: '결제가 실패하였습니다. 결제 수단을 확인해 주세요.' };
+    }
+
+    // 5. shipment 상태 → paid 업데이트
+    const { error: shipError } = await supabase
+      .from('subscription_shipments')
+      .update({
+        status: 'paid',
+        pg_tid: tid,
+        executed_at: new Date().toISOString(),
+      })
+      .eq('id', failedShipment.id);
+    if (shipError) throw shipError;
+
+    return { success: true, message: `${failedShipment.roundNo}회차 결제가 완료되었습니다.` };
   },
 
   // ──────────────────────────────
