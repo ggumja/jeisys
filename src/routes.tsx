@@ -96,6 +96,8 @@ import { EquipmentManagementPage } from "./pages/admin/EquipmentManagementPage";
 import { VisitAnalyticsLayout } from "./pages/admin/statistics/VisitAnalyticsLayout";
 import { VisitCountPage } from "./pages/admin/statistics/VisitCountPage";
 import { VisitDurationPage } from "./pages/admin/statistics/VisitDurationPage";
+import { VisitHourlyPage } from "./pages/admin/statistics/VisitHourlyPage";
+import { VisitPopularPagesPage } from "./pages/admin/statistics/VisitPopularPagesPage";
 
 export const router = createBrowserRouter([
     {
@@ -199,6 +201,8 @@ export const router = createBrowserRouter([
                     { index: true, element: <Navigate to="count" replace /> },
                     { path: "count", Component: VisitCountPage },
                     { path: "duration", Component: VisitDurationPage },
+                    { path: "hourly", Component: VisitHourlyPage },
+                    { path: "popular-pages", Component: VisitPopularPagesPage },
                 ]
             },
             { path: "communication/inquiry", Component: InquiryManagementPage },

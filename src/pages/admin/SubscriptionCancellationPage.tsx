@@ -380,8 +380,10 @@ export function SubscriptionCancellationPage() {
                                   <p className="font-medium text-neutral-800">{req.subscription.productName ?? '-'}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-neutral-400 mb-0.5">총 수량 / 주기</p>
-                                  <p className="font-medium text-neutral-800">{req.subscription.totalQuantity}개 / {req.subscription.cycleMonths}개월</p>
+                                  <p className="text-xs text-neutral-400 mb-0.5">총 수량 / 주기 / 회차별 수량</p>
+                                  <p className="font-medium text-neutral-800">
+                                    {req.subscription.totalQuantity}개 / {req.subscription.cycleMonths}개월 / {req.subscription.qtyPerRound ?? Math.floor(req.subscription.totalQuantity / req.subscription.totalRounds)}개
+                                  </p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-neutral-400 mb-0.5">진행 회차</p>

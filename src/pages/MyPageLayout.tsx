@@ -12,7 +12,7 @@ export function MyPageLayout() {
     { to: '/mypage/addresses', icon: MapPin, label: '배송지 관리' },
     { to: '/mypage/credits', icon: Coins, label: '마이 크레딧' },
     { to: '/mypage/points', icon: Award, label: '마이 포인트' },
-    { to: '/mypage/coupons', icon: Tag, label: '마이 쿠폰' },
+    // { to: '/mypage/coupons', icon: Tag, label: '마이 쿠폰' },
     { to: '/mypage/equipment', icon: Stethoscope, label: '보유 장비' },
     { to: '/mypage/profile', icon: UserCog, label: '정보 수정' },
   ];

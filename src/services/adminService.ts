@@ -683,6 +683,8 @@ export const adminService = {
             hospitalName: orderData.user?.hospital_name || '',
             orderDate: new Date(orderData.ordered_at).toLocaleString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             totalAmount: Number(orderData.total_amount),
+            creditUsedAmount: creditsUsed,
+            pointsUsed: pointsUsed,
             status: orderData.status as 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled' | 'partially_shipped' | 'cancel_requested' | 'return_requested' | 'returning' | 'returned' | 'exchange_requested',
             items: itemsData?.length || 0,
             orderItems: itemsData?.map((item: any) => ({
@@ -4329,18 +4331,18 @@ export const adminService = {
             .from('credit_transactions')
             .select(`
                 *,
-                user:users!user_id (
+                user:users (
                     id,
                     name,
                     hospital_name,
                     email,
                     login_id
                 ),
-                order:orders!order_id (
+                order:orders (
                     id,
                     order_number
                 ),
-                credit:user_credits!credit_id (
+                credit:user_credits (
                     equipment_type
                 )
             `, { count: 'exact' });

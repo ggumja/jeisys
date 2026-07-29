@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, Loader2, RefreshCw, Download, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2, RefreshCw, Download, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminService } from '../../services/adminService';
 import { Button } from '../../components/ui/button';
@@ -62,6 +62,45 @@ function formatLabel(mode: ViewMode, s: Date | null, e: Date | null): string {
     return sm === em ? sm : `${sm} ~ ${em}`;
   }
   return s.getFullYear() === e.getFullYear() ? `${s.getFullYear()}년` : `${s.getFullYear()}년 ~ ${e.getFullYear()}년`;
+}
+
+interface OrderItem {
+  id: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  product_name?: string;
+  product?: {
+    name: string;
+  } | null;
+}
+
+interface CreditTransaction {
+  id: string;
+  credit_id: string;
+  user_id: string;
+  amount: number;
+  type: 'issue' | 'use' | 'expire' | 'refund' | 'revoke';
+  order_id: string | null;
+  description: string | null;
+  created_at: string;
+  user: {
+    id: string;
+    name: string;
+    hospital_name: string;
+    email: string;
+    login_id: string;
+  } | null;
+  order: {
+    id: string;
+    order_number: string;
+    total_amount?: number;
+    credit_used_amount?: number;
+    order_items?: OrderItem[];
+  } | null;
+  credit: {
+    equipment_type: 'Density' | 'LinearZ';
+  } | null;
 }
 
 function DailyPicker({ startDate, endDate, onChange }: { startDate: Date; endDate: Date; onChange: (s: Date, e: Date) => void }) {
@@ -318,6 +357,34 @@ export function CreditHistoryPage() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [openRowIds, setOpenRowIds] = useState<Record<string, boolean>>({});
+  const [orderDetailsMap, setOrderDetailsMap] = useState<Record<string, { totalAmount: number; creditUsedAmount: number; itemsSummary: string; loading?: boolean }>>({});
+
+  const toggleRowOpen = async (id: string, orderId?: string | null) => {
+    const nextState = !openRowIds[id];
+    setOpenRowIds(prev => ({ ...prev, [id]: nextState }));
+
+    if (nextState && orderId && !orderDetailsMap[orderId]) {
+      setOrderDetailsMap(prev => ({ ...prev, [orderId]: { totalAmount: 0, creditUsedAmount: 0, itemsSummary: '', loading: true } }));
+      try {
+        const orderData = await adminService.getOrderById(orderId);
+        const items = orderData.orderItems || [];
+        const itemsSummary = items.map((item: any) => `${item.product?.name || '상품'} (${item.quantity}개)`).join(', ') || '-';
+        const totalAmount = orderData.totalAmount || 0;
+        const creditUsedAmount = orderData.creditUsedAmount || 0;
+        setOrderDetailsMap(prev => ({
+          ...prev,
+          [orderId]: { totalAmount, creditUsedAmount, itemsSummary, loading: false }
+        }));
+      } catch (err) {
+        console.error('주문 상세 조회 실패:', err);
+        setOrderDetailsMap(prev => ({
+          ...prev,
+          [orderId]: { totalAmount: 0, creditUsedAmount: 0, itemsSummary: '-', loading: false }
+        }));
+      }
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -671,14 +738,14 @@ export function CreditHistoryPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="py-4 px-6 font-semibold text-neutral-700 w-16 text-center">No.</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">일시</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">회원 정보</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">구분</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">크레딧 종류</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700 text-right">변동 크레딧</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">내용/메모</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">관련 주문</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-12 text-center">No.</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">일시</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">회원 정보</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">구분</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">크레딧 종류</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-right">변동 크레딧</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">내용/메모</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">관련 주문</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -699,36 +766,136 @@ export function CreditHistoryPage() {
                   const rowNo = (currentPage - 1) * pageSize + idx + 1;
                   const date = new Date(tx.created_at);
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
-                  
+                  const isAccordionType = tx.type === 'use' || tx.type === 'refund';
+                  const isOpen = !!openRowIds[tx.id];
+
+                  // 주문 품목 및 수량 가공
+                  const items = tx.order?.order_items || [];
+                  const itemsSummary = items.map(item => {
+                    const name = item.product_name || item.product?.name || '상품';
+                    return `${name} (${item.quantity}개)`;
+                  }).join(', ') || '-';
+
                   return (
-                    <tr key={tx.id} className="hover:bg-neutral-50/50 transition-colors">
-                      <td className="py-4 px-6 text-center text-neutral-400 font-mono">{rowNo}</td>
-                      <td className="py-4 px-6 text-neutral-600 whitespace-nowrap">{dateStr}</td>
-                      <td className="py-4 px-6">
-                        <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
-                        <div className="text-xs text-neutral-500">{tx.user?.name} ({tx.user?.login_id})</div>
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">{getTypeBadge(tx.type)}</td>
-                      <td className="py-4 px-6 font-medium text-neutral-800 whitespace-nowrap">
-                        {tx.credit?.equipment_type || '-'}
-                      </td>
-                      <td className="py-4 px-6 text-right font-medium">{getAmountDisplay(tx)}</td>
-                      <td className="py-4 px-6 text-neutral-700 max-w-xs truncate" title={tx.description || ''}>
-                        {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
-                      </td>
-                      <td className="py-4 px-6 text-neutral-500 font-mono text-xs">
-                        {tx.order_id ? (
-                          <button
-                            onClick={() => navigate(`/admin/orders/${tx.order_id}`)}
-                            className="text-[#21358D] hover:underline"
-                          >
-                            {tx.order?.order_number || tx.order_id}
-                          </button>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                    </tr>
+                    <React.Fragment key={tx.id}>
+                      <tr
+                        className={`hover:bg-neutral-50/50 transition-colors ${isAccordionType ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (isAccordionType) toggleRowOpen(tx.id, tx.order_id);
+                        }}
+                      >
+                        <td className="py-3 px-3 text-center text-neutral-400 font-mono text-xs">
+                          <div className="flex items-center justify-center gap-1">
+                            {isAccordionType && (
+                              <span className="text-neutral-500">
+                                {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </span>
+                            )}
+                            <span>{rowNo}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-neutral-600 whitespace-nowrap text-xs">{dateStr}</td>
+                        <td className="py-3 px-3 text-xs">
+                          <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
+                          <div className="text-[11px] text-neutral-500">{tx.user?.name} ({tx.user?.login_id})</div>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-xs">{getTypeBadge(tx.type)}</td>
+                        <td className="py-3 px-3 font-medium text-neutral-800 whitespace-nowrap text-xs">
+                          {tx.credit?.equipment_type || '-'}
+                        </td>
+                        <td className="py-3 px-3 text-right font-medium text-xs">{getAmountDisplay(tx)}</td>
+                        <td className="py-3 px-3 text-neutral-700 max-w-xs truncate text-xs" title={tx.description || ''}>
+                          {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
+                        </td>
+                        <td className="py-3 px-3 text-neutral-500 font-mono text-xs whitespace-nowrap">
+                          {tx.order_id ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/orders/${tx.order_id}`);
+                              }}
+                              className="text-[#21358D] hover:underline truncate max-w-[140px] block"
+                              title={tx.order?.order_number || tx.order_id}
+                            >
+                              {tx.order?.order_number || tx.order_id}
+                            </button>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* 사용 및 취소환불 구분 건에 대한 아코디언 상세 영역 */}
+                      {isAccordionType && isOpen && (() => {
+                        const orderDetail = tx.order_id ? orderDetailsMap[tx.order_id] : null;
+                        const summaryText = orderDetail?.itemsSummary || (itemsSummary !== '-' ? itemsSummary : '-');
+                        const totalOrderAmount = orderDetail?.totalAmount ?? tx.order?.total_amount ?? 0;
+                        // 해당 거래건에서 사용/환불된 크레딧 금액
+                        const creditAmount = Math.abs(tx.amount) || orderDetail?.creditUsedAmount || tx.order?.credit_used_amount || 0;
+                        const finalPaymentAmount = Math.max(0, totalOrderAmount - creditAmount);
+                        const isRefund = tx.type === 'refund';
+
+                        return (
+                          <tr className="bg-neutral-50/80 border-t border-b border-neutral-200">
+                            <td colSpan={8} className="px-4 py-3">
+                              <div className="p-4 bg-white border border-neutral-200 rounded-md shadow-xs space-y-3">
+                                <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                                  <span className="text-xs font-bold text-[#21358D] uppercase tracking-wider">
+                                    {isRefund ? '주문 취소/환불 상세 정보' : '주문 결제 상세 정보'}
+                                  </span>
+                                  {tx.order_id && (
+                                    <button
+                                      onClick={() => navigate(`/admin/orders/${tx.order_id}`)}
+                                      className="text-xs text-neutral-500 hover:text-[#21358D] underline"
+                                    >
+                                      상세 주문 내역 이동 →
+                                    </button>
+                                  )}
+                                </div>
+                                {orderDetail?.loading ? (
+                                  <div className="flex items-center gap-2 text-xs text-neutral-500 py-2">
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#21358D]" />
+                                    <span>주문 상세 정보를 불러오는 중입니다...</span>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-xs">
+                                    <div>
+                                      <p className="text-neutral-400 font-medium mb-1">주문번호</p>
+                                      <p className="font-mono font-semibold text-neutral-800 break-all">
+                                        {tx.order?.order_number || tx.order_id || '-'}
+                                      </p>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                      <p className="text-neutral-400 font-medium mb-1">주문 품목 및 수량</p>
+                                      <p className="font-medium text-neutral-800 break-words">
+                                        {summaryText}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-neutral-400 font-medium mb-1">
+                                        {isRefund ? '총 주문금액 / 크레딧 환불액' : '총 주문금액 / 크레딧 사용액'}
+                                      </p>
+                                      <p className="font-medium text-neutral-800">
+                                        {totalOrderAmount > 0 ? `${totalOrderAmount.toLocaleString()}원` : '-'}
+                                        <span className={`font-semibold ml-1 ${isRefund ? 'text-blue-600' : 'text-red-600'}`}>
+                                          ({isRefund ? '+' : '-'}{creditAmount.toLocaleString()}원)
+                                        </span>
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-neutral-400 font-medium mb-1">최종 결제금액</p>
+                                      <p className="font-bold text-[#21358D]">
+                                        {totalOrderAmount > 0 ? `${finalPaymentAmount.toLocaleString()}원` : '-'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                    </React.Fragment>
                   );
                 })
               )}

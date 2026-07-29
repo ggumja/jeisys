@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
-import { BarChart2, Clock, Download, CalendarIcon, X } from 'lucide-react';
+import { BarChart2, Clock, Download, CalendarIcon, X, Sun, Eye } from 'lucide-react';
 import { Calendar } from '../../../components/ui/calendar';
 import { ko } from 'date-fns/locale';
 
@@ -122,6 +122,8 @@ export function VisitAnalyticsLayout() {
   const tabs = [
     { path: '/admin/statistics/visit/count', label: '방문숫자', icon: BarChart2 },
     { path: '/admin/statistics/visit/duration', label: '쇼핑몰 체류시간', icon: Clock },
+    { path: '/admin/statistics/visit/hourly', label: '방문시간대 분석', icon: Sun },
+    { path: '/admin/statistics/visit/popular-pages', label: '많이보는페이지(상품포함)', icon: Eye },
   ];
 
   const showDownloadBtn = !!exportFnRef.current;

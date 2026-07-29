@@ -389,9 +389,6 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
           <p className="text-base font-semibold text-neutral-900">
             {sub.unitPrice.toLocaleString()}원
           </p>
-          {sub.discountRate > 0 && (
-            <p className="text-xs text-[#21358D]">{sub.discountRate}% 할인 적용</p>
-          )}
         </div>
       </div>
 
@@ -552,9 +549,6 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
               * 추가 정산 금액은 해지 신청 후 승인 시 청구될 수 있습니다.
             </p>
           )}
-          {cancellationRequest.adminMemo && (
-            <p className="text-xs text-neutral-500">관리자 메모: {cancellationRequest.adminMemo}</p>
-          )}
         </div>
       )}
 
@@ -617,7 +611,7 @@ export function MySubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [cancellationMap, setCancellationMap] = useState<Record<string, CancellationRequest>>({});
   const [loading, setLoading] = useState(true);
-  const [tabFilter, setTabFilter] = useState<'active' | 'paused' | 'completed' | 'cancelled'>('active');
+  const [tabFilter, setTabFilter] = useState<'all' | 'active' | 'paused' | 'completed' | 'cancelled'>('all');
 
   // 해지 신청 모달
   const [cancelTarget, setCancelTarget] = useState<SubscriptionRow | null>(null);
@@ -709,6 +703,7 @@ export function MySubscriptionsPage() {
   const completed = subscriptions.filter((s) => s.status === 'completed' || s.status === 'expired');
 
   const tabs = [
+    { key: 'all' as const, label: '전체', count: subscriptions.length, color: 'text-neutral-900' },
     { key: 'active' as const, label: '진행중', count: active.length, color: 'text-green-600' },
     { key: 'paused' as const, label: '일시정지', count: paused.length, color: 'text-orange-500' },
     { key: 'completed' as const, label: '완료', count: completed.length, color: 'text-blue-600' },
@@ -716,10 +711,11 @@ export function MySubscriptionsPage() {
   ];
 
   const filtered =
+    tabFilter === 'active' ? active :
     tabFilter === 'paused' ? paused :
     tabFilter === 'cancelled' ? cancelled :
     tabFilter === 'completed' ? completed :
-    active;
+    subscriptions;
 
   if (loading) {
     return (
@@ -734,7 +730,6 @@ export function MySubscriptionsPage() {
       {/* 헤더 */}
       <div>
         <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기공급 관리</h2>
-        <p className="text-sm text-neutral-500">정기공급 현황과 회차별 출고 스케줄을 확인하세요.</p>
       </div>
 
       {/* 탭 */}

@@ -64,7 +64,7 @@ export interface CancellationRequest {
   createdAt: string;
   // 조인
   user?: { name: string; hospitalName?: string };
-  subscription?: Pick<SubscriptionRow, 'id' | 'subscriptionNo' | 'totalQuantity' | 'cycleMonths' | 'productId' | 'currentRound' | 'totalRounds'> & {
+  subscription?: Pick<SubscriptionRow, 'id' | 'subscriptionNo' | 'totalQuantity' | 'cycleMonths' | 'productId' | 'currentRound' | 'totalRounds' | 'qtyPerRound'> & {
     productName?: string;
   };
 }
@@ -268,6 +268,7 @@ function mapCancellationRow(row: any): CancellationRequest {
           productId: row.subscriptions.product_id,
           currentRound: row.subscriptions.current_round,
           totalRounds: row.subscriptions.total_rounds,
+          qtyPerRound: row.subscriptions.qty_per_round,
           productName: row.subscriptions.products?.name ?? undefined,
         }
       : undefined,
@@ -493,7 +494,7 @@ export const subscriptionService = {
       .select(`
         *,
         users!subscription_cancellation_requests_user_id_fkey (name, hospital_name),
-        subscriptions (id, subscription_no, total_quantity, cycle_months, product_id, current_round, total_rounds, products (name))
+        subscriptions (id, subscription_no, total_quantity, cycle_months, product_id, current_round, total_rounds, qty_per_round, products (name))
       `)
       .order('created_at', { ascending: false });
 
