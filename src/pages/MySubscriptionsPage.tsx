@@ -621,11 +621,11 @@ export function MySubscriptionsPage() {
   const loadSubscriptions = useCallback(async () => {
     try {
       setLoading(true);
-      const user = await authService.getCurrentUser();
-      if (!user) return;
+      const currentUser = (await authService.getCurrentUser()) || storage.getUser();
+      if (!currentUser) return;
       const [data, cancellations] = await Promise.all([
-        subscriptionService.getMySubscriptions(user.id),
-        subscriptionService.getMyCancellationRequests(user.id),
+        subscriptionService.getMySubscriptions(currentUser.id),
+        subscriptionService.getMyCancellationRequests(currentUser.id),
       ]);
       setSubscriptions(data);
       // subscriptionId 기준으로 가장 최근 해지신청 1건씩 매핑
