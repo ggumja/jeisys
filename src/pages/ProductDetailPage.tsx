@@ -1243,7 +1243,7 @@ export function ProductDetailPage() {
                 return (
                   <div>
                     <p className="text-sm font-bold text-neutral-800 mb-1">
-                      결제 주기 <span className="text-red-500">*</span>
+                      결제 및 출고 주기 <span className="text-red-500">*</span>
                     </p>
                     <div className="border-t-2 border-neutral-900 mt-2 pt-4">
                       <div className="flex flex-wrap gap-2">
@@ -1306,9 +1306,6 @@ export function ProductDetailPage() {
                               <div>
                                 <p className="font-semibold text-sm text-neutral-900">
                                   회당 {c.qtyPerRound}개 × {c.totalRounds}회
-                                </p>
-                                <p className="text-xs text-neutral-500 mt-0.5">
-                                  총 {c.totalRounds * c.cycleMonths}개월분 공급
                                 </p>
                               </div>
                             </div>
