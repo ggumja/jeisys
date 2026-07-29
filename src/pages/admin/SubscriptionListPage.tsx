@@ -202,38 +202,7 @@ export function SubscriptionListPage() {
         subscriptionService.getAllSubscriptions(),
         subscriptionService.getCancellationRequests('pending'),
       ]);
-      setSubscriptions(data && data.length > 0 ? data : [
-        {
-          id: 'sub-sample-card-failed-01',
-          subscriptionNo: 'SUB20260729-009',
-          userId: 'usr-card-fail-sample',
-          productId: 'prod-denshity-100',
-          status: 'active',
-          cycleDays: 30,
-          cycleMonths: 1,
-          totalQuantity: 100,
-          totalRounds: 10,
-          qtyPerRound: 10,
-          lastRoundQty: 10,
-          currentRound: 3,
-          unitPrice: 450000,
-          regularUnitPrice: 500000,
-          discountRate: 10,
-          nextBillingDate: new Date().toISOString().split('T')[0],
-          lastBillingDate: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
-          createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
-          updatedAt: new Date().toISOString(),
-          product: { name: 'DENSHITY 정기공급 팁 100개 패키지' },
-          user: { name: '김카드원장', hospitalName: '카드오류피부과의원' },
-          shipments: [
-            { id: 'shp-1', roundNo: 1, scheduledDate: new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'paid', executedAt: new Date(Date.now() - 60 * 86400000).toISOString(), note: '정상 자동승인' },
-            { id: 'shp-2', roundNo: 2, scheduledDate: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'paid', executedAt: new Date(Date.now() - 30 * 86400000).toISOString(), note: '정상 자동승인' },
-            { id: 'shp-3', roundNo: 3, scheduledDate: new Date().toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'failed', executedAt: new Date().toISOString(), failReason: '고객 카드 승인 거절 (한도초과)', note: '고객 변경카드 등록 안내문자 발송완료' },
-            { id: 'shp-4', roundNo: 4, scheduledDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'pending', note: '결제 예정' },
-            { id: 'shp-5', roundNo: 5, scheduledDate: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'pending', note: '결제 예정' },
-          ]
-        }
-      ]);
+      setSubscriptions(data || []);
       setPendingCancelIds(new Set(cancellations.map((c: CancellationRequest) => c.subscriptionId)));
     } catch (e) {
       console.error(e);
