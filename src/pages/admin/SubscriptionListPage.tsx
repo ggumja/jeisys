@@ -118,59 +118,80 @@ function SubscriptionRow_({ sub, hasPendingCancel, onRetryPayment }: { sub: Subs
                   </tr>
                 </thead>
                 <tbody>
-                  {[...sub.shipments].sort((a, b) => a.roundNo - b.roundNo).map(s => (
-                    <tr key={s.id} className={s.status === 'cancelled' ? 'opacity-40' : ''}>
-                      <td className="py-1 pr-4 text-neutral-700 font-medium">{s.roundNo}회차</td>
-                      <td className="py-1 pr-4 text-neutral-600">{formatDate(s.scheduledDate)}</td>
-                      <td className="py-1 pr-4 text-right text-neutral-700">{s.quantity}개</td>
-                      <td className="py-1 pr-4 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
-                      <td className="py-1 pr-4 text-center">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          s.status === 'paid'      ? 'bg-green-100 text-green-700' :
-                          s.status === 'pending'   ? 'bg-blue-100 text-blue-700' :
-                          s.status === 'shipped'   ? 'bg-emerald-100 text-emerald-700' :
-                          s.status === 'failed'    ? 'bg-rose-100 text-rose-700 font-bold' :
-                          s.status === 'skipped'   ? 'bg-neutral-100 text-neutral-500' :
-                          s.status === 'cancelled' ? 'bg-neutral-100 text-neutral-400' :
-                          'bg-neutral-100 text-neutral-600'
-                        }`}>
-                          {{
-                            paid: '결제완료',
-                            pending: '예정',
-                            shipped: '출고완료',
-                            failed: '결제실패',
-                            skipped: '건너뜀',
-                            cancelled: '취소',
-                          }[s.status] ?? s.status}
-                        </span>
-                      </td>
-                      <td className="py-1 pr-4 text-left text-neutral-600">
-                        {s.status === 'failed' ? (
-                          <span className="text-rose-600 font-medium">
-                            {s.failReason || '고객 카드 승인 오류 (한도초과/카드사 거부)'}
-                          </span>
-                        ) : '-'}
-                      </td>
-                      <td className="py-1 text-center">
-                        {s.status === 'failed' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => handleRetry(e, s.roundNo)}
-                            disabled={retryingRound === s.roundNo}
-                            className="h-6 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
-                          >
-                            {retryingRound === s.roundNo ? (
-                              <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                            ) : (
-                              <RefreshCw className="w-3 h-3 mr-1" />
+                  {(() => {
+                    const isPaused = sub.status === 'paused';
+                    // 마지막 결제완료/출고완료 회차번호
+                    const lastDoneRound = isPaused
+                      ? Math.max(
+                          0,
+                          ...(sub.shipments ?? [])
+                            .filter((s) => s.status === 'paid' || s.status === 'shipped')
+                            .map((s) => s.roundNo)
+                        )
+                      : -1;
+
+                    return [...sub.shipments].sort((a, b) => a.roundNo - b.roundNo).map(s => {
+                      // 일시정지 + 완료 회차 이후 pending → 취소로 표시
+                      const displayStatus =
+                        isPaused && s.status === 'pending' && s.roundNo > lastDoneRound
+                          ? 'cancelled'
+                          : s.status;
+
+                      return (
+                        <tr key={s.id} className={displayStatus === 'cancelled' ? 'opacity-40' : ''}>
+                          <td className="py-1 pr-4 text-neutral-700 font-medium">{s.roundNo}회차</td>
+                          <td className="py-1 pr-4 text-neutral-600">{formatDate(s.scheduledDate)}</td>
+                          <td className="py-1 pr-4 text-right text-neutral-700">{s.quantity}개</td>
+                          <td className="py-1 pr-4 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
+                          <td className="py-1 pr-4 text-center">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              displayStatus === 'paid'      ? 'bg-green-100 text-green-700' :
+                              displayStatus === 'pending'   ? 'bg-blue-100 text-blue-700' :
+                              displayStatus === 'shipped'   ? 'bg-emerald-100 text-emerald-700' :
+                              displayStatus === 'failed'    ? 'bg-rose-100 text-rose-700 font-bold' :
+                              displayStatus === 'skipped'   ? 'bg-neutral-100 text-neutral-500' :
+                              displayStatus === 'cancelled' ? 'bg-neutral-100 text-neutral-400' :
+                              'bg-neutral-100 text-neutral-600'
+                            }`}>
+                              {{
+                                paid: '결제완료',
+                                pending: '예정',
+                                shipped: '출고완료',
+                                failed: '결제실패',
+                                skipped: '건너뜀',
+                                cancelled: '취소',
+                              }[displayStatus] ?? displayStatus}
+                            </span>
+                          </td>
+                          <td className="py-1 pr-4 text-left text-neutral-600">
+                            {s.status === 'failed' ? (
+                              <span className="text-rose-600 font-medium">
+                                {s.failReason || '고객 카드 승인 오류 (한도초과/카드사 거부)'}
+                              </span>
+                            ) : '-'}
+                          </td>
+                          <td className="py-1 text-center">
+                            {s.status === 'failed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => handleRetry(e, s.roundNo)}
+                                disabled={retryingRound === s.roundNo}
+                                className="h-6 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
+                              >
+                                {retryingRound === s.roundNo ? (
+                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                ) : (
+                                  <RefreshCw className="w-3 h-3 mr-1" />
+                                )}
+                                재결제 실행
+                              </Button>
                             )}
-                            재결제 실행
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>

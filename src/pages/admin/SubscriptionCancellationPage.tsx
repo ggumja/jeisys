@@ -78,19 +78,18 @@ function ProcessModal({ open, request, action, onConfirm, onClose, processing }:
             </div>
           </div>
 
-          {/* 메모 (비청구 시 필수, 청구 시 선택) */}
+          {/* 메모 (청구/비청구 모두 필수) */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">
               처리 메모{' '}
-              {isWaive && <span className="text-red-500">* (비청구 시 필수)</span>}
-              {!isWaive && <span className="text-neutral-400">(선택)</span>}
+              <span className="text-red-500">* (필수)</span>
             </label>
             <textarea
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder={isWaive
                 ? '비청구 사유를 반드시 입력해주세요'
-                : '처리 메모를 입력하세요 (선택)'
+                : '위약금 청구 사유 및 처리 내용을 입력해주세요'
               }
               className="w-full h-24 px-3 py-2 border border-neutral-300 text-sm text-neutral-900 resize-none focus:outline-none focus:ring-2 focus:ring-neutral-900"
             />
@@ -108,11 +107,12 @@ function ProcessModal({ open, request, action, onConfirm, onClose, processing }:
           </Button>
           <Button
             onClick={() => onConfirm(memo)}
-            disabled={processing || (isWaive && !memo.trim())}
-            className={isWaive
-              ? 'bg-neutral-800 text-white hover:bg-neutral-700'
-              : 'bg-red-600 text-white hover:bg-red-700'
-            }
+            disabled={processing || !memo.trim()}
+            style={{
+              backgroundColor: isWaive ? '#1f2937' : '#dc2626',
+              color: '#ffffff',
+            }}
+            className="hover:opacity-90"
           >
             {processing
               ? <Loader2 className="w-4 h-4 animate-spin" />
