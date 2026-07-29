@@ -28,8 +28,8 @@ export function SubscriptionProductListPage() {
       {/* 헤더 */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기배송상품관리</h2>
-          <p className="text-sm text-neutral-500">정기배송 전용 상품을 등록하고 옵션(회차 조합)을 설정합니다.</p>
+          <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기공급상품관리</h2>
+          <p className="text-sm text-neutral-500">정기공급 전용 상품을 등록하고 옵션(회차 조합)을 설정합니다.</p>
         </div>
         <button
           onClick={() => navigate('/admin/products/subscription-register')}
@@ -49,7 +49,7 @@ export function SubscriptionProductListPage() {
         ) : products.length === 0 ? (
           <div className="py-16 text-center">
             <RefreshCw className="w-12 h-12 text-neutral-200 mx-auto mb-3" />
-            <p className="text-sm text-neutral-500 mb-4">등록된 정기배송 상품이 없습니다.</p>
+            <p className="text-sm text-neutral-500 mb-4">등록된 정기공급 상품이 없습니다.</p>
             <button
               onClick={() => navigate('/admin/products/subscription-register')}
               className="px-4 py-2 bg-neutral-900 text-white text-sm hover:bg-neutral-800"

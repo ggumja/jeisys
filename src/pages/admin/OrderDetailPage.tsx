@@ -475,23 +475,23 @@ export function OrderDetailPage() {
   };
 
   const handlePauseSubscription = async () => {
-    if (await confirm('정기배송을 일시정지하시겠습니까?')) {
+    if (await confirm('정기공급을 일시정지하시겠습니까?')) {
       setSubscriptionStatus('paused');
-      await alert('정기배송이 일시정지되었습니다.');
+      await alert('정기공급이 일시정지되었습니다.');
     }
   };
 
   const handleResumeSubscription = async () => {
-    if (await confirm('정기배송을 재개하시겠습니까?')) {
+    if (await confirm('정기공급을 재개하시겠습니까?')) {
       setSubscriptionStatus('active');
-      await alert('정기배송이 재개되었습니다.');
+      await alert('정기공급이 재개되었습니다.');
     }
   };
 
   const handleCancelSubscription = async () => {
-    if (await confirm('정기배송을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+    if (await confirm('정기공급을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
       setSubscriptionStatus('cancelled');
-      await alert('정기배송이 취소되었습니다.');
+      await alert('정기공급이 취소되었습니다.');
     }
   };
 
@@ -519,12 +519,12 @@ export function OrderDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h2 className="text-2xl tracking-tight text-neutral-900">
-                {order.isSubscription ? '정기배송 주문 상세정보' : '주문 상세정보'}
+                {order.isSubscription ? '정기공급 주문 상세정보' : '주문 상세정보'}
               </h2>
               {order.isSubscription && (
                 <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  정기배송
+                  정기공급
                 </Badge>
               )}
               {getStatusBadge(order.status, order.paymentMethod)}
@@ -662,13 +662,13 @@ export function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Subscription Info - 정기배송인 경우만 표시 */}
+      {/* Subscription Info - 정기공급인 경우만 표시 */}
       {order.isSubscription && (
         <div className="bg-purple-50 border border-purple-200 p-6">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
               <RefreshCw className="w-5 h-5 text-purple-700" />
-              <h4 className="text-lg font-medium text-purple-900">정기배송 정보</h4>
+              <h4 className="text-lg font-medium text-purple-900">정기공급 정보</h4>
             </div>
             {getSubscriptionStatusBadge(subscriptionStatus as 'active' | 'paused' | 'cancelled')}
           </div>
@@ -679,7 +679,7 @@ export function OrderDetailPage() {
               <dd className="text-sm font-medium text-purple-900">{order.subscriptionCycle}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">정기배송 시작일</dt>
+              <dt className="text-xs font-medium text-purple-700 mb-1">정기공급 시작일</dt>
               <dd className="text-sm text-purple-900">{order.subscriptionStartDate}</dd>
             </div>
             <div>
@@ -705,7 +705,7 @@ export function OrderDetailPage() {
             </div>
           </div>
 
-          {/* 정기배송 관리 버튼 */}
+          {/* 정기공급 관리 버튼 */}
           <div className="flex items-center gap-3 pt-4 border-t border-purple-200">
             {subscriptionStatus === 'active' && (
               <>
@@ -755,7 +755,7 @@ export function OrderDetailPage() {
                 className="border-red-300 text-red-700 hover:bg-red-100 ml-auto"
               >
                 <XCircle className="w-4 h-4 mr-1" />
-                정기배송 취소
+                정기공급 취소
               </Button>
             )}
           </div>
@@ -863,7 +863,7 @@ export function OrderDetailPage() {
             {order.isSubscription && (
               <div className="flex justify-between text-sm">
                 <dt className="text-neutral-600">주문 유형</dt>
-                <dd className="font-medium text-purple-700">정기배송</dd>
+                <dd className="font-medium text-purple-700">정기공급</dd>
               </div>
             )}
           </dl>
@@ -1556,7 +1556,7 @@ export function OrderDetailPage() {
           </div>
         </div>
       )}
-      {/* Delivery History - 정기배송인 경우만 표시 */}
+      {/* Delivery History - 정기공급인 경우만 표시 */}
       {order.isSubscription && order.deliveryHistory && order.deliveryHistory.length > 0 && (
         <div className="bg-white border border-neutral-200">
           <div className="px-6 py-4 border-b border-neutral-200">

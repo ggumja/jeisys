@@ -216,7 +216,7 @@ export function SubscriptionCancellationPage() {
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">
-            정기배송 해지신청 관리
+            정기공급 해지신청 관리
           </h2>
           <p className="text-sm text-neutral-500">
             고객이 신청한 해지 건을 검토하고 위약금 청구 여부를 결정합니다.

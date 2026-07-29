@@ -28,7 +28,7 @@ function getStatusBadge(status: SubscriptionRow['status']) {
     case 'expired':
       return <Badge variant="outline" className="bg-neutral-200 text-neutral-600">만료</Badge>;
     case 'completed':
-      return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />정기배송완료</Badge>;
+      return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />정기공급완료</Badge>;
   }
 }
 
@@ -200,8 +200,8 @@ export function SubscriptionListPage() {
       {/* 헤더 */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기배송 목록</h2>
-          <p className="text-sm text-neutral-500">전체 정기배송 현황을 관리합니다.</p>
+          <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기공급 목록</h2>
+          <p className="text-sm text-neutral-500">전체 정기공급 현황을 관리합니다.</p>
         </div>
         <Button
           variant="outline"
@@ -268,7 +268,7 @@ export function SubscriptionListPage() {
           <div className="py-16 text-center">
             <Package className="w-12 h-12 text-neutral-200 mx-auto mb-3" />
             <p className="text-sm text-neutral-500">
-              {searchTerm ? '검색 결과가 없습니다' : '정기배송 내역이 없습니다'}
+              {searchTerm ? '검색 결과가 없습니다' : '정기공급 내역이 없습니다'}
             </p>
           </div>
         ) : (

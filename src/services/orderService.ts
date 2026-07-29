@@ -28,8 +28,8 @@ export interface OrderInput {
     partialAmount?: number; // 카드일부결제 금액
     partialMethod?: 'credit' | 'general';
     partialCardName?: string; // 일부결제 시 카드별명
-    subscriptionDiscountRate?: number; // 정기배송 옵션 할인율 (0~100, e.g. 25)
-    // 정기배송 전용 상품(product_type='subscription') 구독 레코드 생성용 메타
+    subscriptionDiscountRate?: number; // 정기공급 옵션 할인율 (0~100, e.g. 25)
+    // 정기공급 전용 상품(product_type='subscription') 구독 레코드 생성용 메타
     subscriptionMeta?: {
         optionId: string;
         optionLabel: string;
@@ -503,7 +503,7 @@ export const orderService = {
         // 3. Create Subscription Records if applicable
         const hasSubscriptionItems = items.some(i => i.isSubscription);
 
-        // 3-A. 신규 정기배송 상품 (product_type='subscription') → 완전한 구독 레코드 생성
+        // 3-A. 신규 정기공급 상품 (product_type='subscription') → 완전한 구독 레코드 생성
         if (subscriptionMeta && billingKeyId) {
             const { cycleMonths, qtyPerRound, totalRounds, totalQuantity, discountedPrice, discountRate, optionId, regularPrice, billingDay } = subscriptionMeta;
             // regularPrice(개당 원가)를 직접 사용. 없으면 discountRate 역산 (fallback)
@@ -576,7 +576,7 @@ export const orderService = {
                 if (shipErr) console.error('Failed to create shipments:', shipErr);
             }
         }
-        // 3-B. 구버전 플래그형 정기배송 (isSubscription=true, subscriptionCycle 전달)
+        // 3-B. 구버전 플래그형 정기공급 (isSubscription=true, subscriptionCycle 전달)
         else if (hasSubscriptionItems && billingKeyId && subscriptionCycle) {
             const nextDate = new Date();
             nextDate.setDate(nextDate.getDate() + subscriptionCycle);
@@ -690,7 +690,7 @@ export const orderService = {
                 }
             }
 
-            // 정기배송 할인율: 전달된 subscriptionDiscountRate 우선, 없으면 product.subscription_discount, 최종 fallback 0
+            // 정기공급 할인율: 전달된 subscriptionDiscountRate 우선, 없으면 product.subscription_discount, 최종 fallback 0
             const rawSubDiscountRate = subscriptionDiscountRate ?? 0;
             const subscriptionDiscount = item.isSubscription ? (1 - rawSubDiscountRate / 100) : 1;
             const finalUnitPrice = unitPrice * subscriptionDiscount;

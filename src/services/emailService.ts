@@ -55,7 +55,7 @@ export interface BulkEmailSendParams {
 const DEFAULT_EMAIL_GROUPS: EmailTemplateGroup[] = [
   { id: 'group-promo', name: '프로모션/쿠폰', sort_order: 1, created_at: new Date().toISOString() },
   { id: 'group-device', name: '신제품/데모', sort_order: 2, created_at: new Date().toISOString() },
-  { id: 'group-sub', name: '정기배송 혜택', sort_order: 3, created_at: new Date().toISOString() },
+  { id: 'group-sub', name: '정기공급 혜택', sort_order: 3, created_at: new Date().toISOString() },
   { id: 'group-care', name: '고객케어/안내', sort_order: 4, created_at: new Date().toISOString() },
 ];
 
@@ -79,9 +79,9 @@ const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: 'tmpl-sub-1',
     group_id: 'group-sub',
-    name: '[정기배송] 소모품 정기 점검 및 자동배송 혜택',
-    subject: '[제이시스] {고객명} 원장님, 소모품 정기배송으로 최대 15% 혜택을 받으세요.',
-    message: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;"><div style="background-color: #059669; padding: 24px; text-align: center;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">Jeisys Regular Service</h1></div><div style="padding: 24px; background-color: #ffffff;"><h2 style="color: #111827; font-size: 18px; margin-top: 0;">안정적인 병원 운영을 위한 정기배송 서비스</h2><p style="color: #4b5563; font-size: 14px; line-height: 1.6;">{병원명}의 소모품 재고 걱정 없이, 원하는 날짜에 맞춰 정기적으로 배송받으실 수 있습니다.</p><div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 14px; margin: 20px 0;"><div style="color: #065f46; font-weight: bold; font-size: 14px;">정기배송 회원 전용 혜택</div><div style="color: #047857; font-size: 13px; margin-top: 4px;">• 소모품 전품목 추가 10~15% 할인<br/>• 무료배송 및 정기 점검 서비스 제공</div></div><div style="text-align: center; margin-top: 28px;"><a href="https://jeisys.com" style="background-color: #059669; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">정기배송 신청하기</a></div></div></div>`,
+    name: '[정기공급] 소모품 정기 점검 및 자동배송 혜택',
+    subject: '[제이시스] {고객명} 원장님, 소모품 정기공급으로 최대 15% 혜택을 받으세요.',
+    message: `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;"><div style="background-color: #059669; padding: 24px; text-align: center;"><h1 style="color: #ffffff; margin: 0; font-size: 20px;">Jeisys Regular Service</h1></div><div style="padding: 24px; background-color: #ffffff;"><h2 style="color: #111827; font-size: 18px; margin-top: 0;">안정적인 병원 운영을 위한 정기공급 서비스</h2><p style="color: #4b5563; font-size: 14px; line-height: 1.6;">{병원명}의 소모품 재고 걱정 없이, 원하는 날짜에 맞춰 정기적으로 배송받으실 수 있습니다.</p><div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 14px; margin: 20px 0;"><div style="color: #065f46; font-weight: bold; font-size: 14px;">정기공급 회원 전용 혜택</div><div style="color: #047857; font-size: 13px; margin-top: 4px;">• 소모품 전품목 추가 10~15% 할인<br/>• 무료배송 및 정기 점검 서비스 제공</div></div><div style="text-align: center; margin-top: 28px;"><a href="https://jeisys.com" style="background-color: #059669; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 14px; display: inline-block;">정기공급 신청하기</a></div></div></div>`,
     created_at: new Date().toISOString(),
   },
 ];

@@ -88,7 +88,7 @@ interface FormData {
   description: string;
   useSubscriptionDiscount: boolean;
   subscriptionDiscount: string;
-  isSubscriptionProduct: boolean;       // 정기배송 전용 상품 여부
+  isSubscriptionProduct: boolean;       // 정기공급 전용 상품 여부
   subscriptionQuantities: number[];     // 선택 가능 수량 (100, 200)
   minOrderQuantity: string;
   maxOrderQuantity: string;
@@ -1152,11 +1152,11 @@ export function ProductRegisterPage() {
             </div>
           </div>
 
-          {/* Subscription — 정기배송 설정 통합 */}
+          {/* Subscription — 정기공급 설정 통합 */}
           <div className="mb-8 p-4 bg-neutral-50/50 border border-neutral-100 space-y-5">
-            <p className="text-xs font-bold text-neutral-700 uppercase tracking-widest">정기배송 설정</p>
+            <p className="text-xs font-bold text-neutral-700 uppercase tracking-widest">정기공급 설정</p>
 
-            {/* 정기배송 전용 상품 여부 */}
+            {/* 정기공급 전용 상품 여부 */}
             <div>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -1170,7 +1170,7 @@ export function ProductRegisterPage() {
                   className="mt-0.5 w-4 h-4 text-[#21358D] border-neutral-300 focus:ring-[#21358D]"
                 />
                 <div>
-                  <p className="text-sm font-medium text-neutral-900">정기배송 전용 상품</p>
+                  <p className="text-sm font-medium text-neutral-900">정기공급 전용 상품</p>
                   <p className="text-xs text-neutral-500 mt-0.5">
                     체크 시 상품 상세에서 수량(100/200개)·결제주기 선택 UI와 회차별 출고 스케줄 프리뷰가 표시됩니다.
                   </p>

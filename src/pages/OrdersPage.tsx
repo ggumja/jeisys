@@ -514,7 +514,7 @@ export function OrdersPage() {
                       </button>
                     ) : null;
                   })()}
-                  {/* 재주문 & 결제 취소: 정기배송 상품 주문에는 미표시 */}
+                  {/* 재주문 & 결제 취소: 정기공급 상품 주문에는 미표시 */}
                   {!order.items.some(i => (i.product as any)?.product_type === 'subscription' || (i.product as any)?.is_subscription_product) && (
                     <>
                       {/* 재주문 */}

@@ -483,7 +483,7 @@ export function OrderManagementPage() {
                       {getStatusBadge(order.status, order.paymentMethod)}
                       {order.isSubscription && (
                         <div className="mt-1">
-                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-100">정기배송</Badge>
+                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-100">정기공급</Badge>
                         </div>
                       )}
                     </td>

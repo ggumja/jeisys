@@ -195,7 +195,7 @@ export function CartItemCard({
               </div>
             )}
 
-          {/* 정기배송 토글 — readonly 아닐 때만 */}
+          {/* 정기공급 토글 — readonly 아닐 때만 */}
           {!readonly && (product.subscriptionDiscount ?? 0) > 0 && (
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -216,7 +216,7 @@ export function CartItemCard({
               수량: <strong>{item.quantity}</strong>
               {item.isSubscription && (product.subscriptionDiscount ?? 0) > 0 && (
                 <span className="ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-bold">
-                  정기배송 -{product.subscriptionDiscount}%
+                  정기공급 -{product.subscriptionDiscount}%
                 </span>
               )}
             </p>

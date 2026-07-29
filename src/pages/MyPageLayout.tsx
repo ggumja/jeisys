@@ -8,7 +8,7 @@ export function MyPageLayout() {
 
   const menuItems = [
     { to: '/mypage/orders', icon: ShoppingBag, label: '주문/배송 관리' },
-    { to: '/mypage/subscriptions', icon: RefreshCw, label: '정기배송 관리' },
+    { to: '/mypage/subscriptions', icon: RefreshCw, label: '정기공급 관리' },
     { to: '/mypage/addresses', icon: MapPin, label: '배송지 관리' },
     { to: '/mypage/credits', icon: Coins, label: '마이 크레딧' },
     { to: '/mypage/points', icon: Award, label: '마이 포인트' },

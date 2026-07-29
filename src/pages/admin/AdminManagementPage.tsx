@@ -5,7 +5,7 @@ import { adminService, AdminUser } from '../../services/adminService';
 const ALL_PERMISSIONS = [
   { key: 'dashboard', label: '대시보드' },
   { key: 'orders', label: '주문관리' },
-  { key: 'subscriptions', label: '정기배송목록' },
+  { key: 'subscriptions', label: '정기공급목록' },
   { key: 'communication', label: '커뮤니케이션관리' },
   { key: 'statistics', label: '통계 분석' },
   { key: 'ads', label: '광고/배너 관리' },

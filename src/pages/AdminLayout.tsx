@@ -83,7 +83,7 @@ export function AdminLayout() {
     { to: '/admin/products/set', icon: Layers, label: '셋트상품관리' },
     { to: '/admin/products/package', icon: Package, label: '복합상품관리' },
     { to: '/admin/products/promotion', icon: Package, label: '프로모션번들관리' },
-    { to: '/admin/products/subscription', icon: RefreshCw, label: '정기배송상품관리' },
+    { to: '/admin/products/subscription', icon: RefreshCw, label: '정기공급상품관리' },
     { to: '/admin/equipments', icon: Wrench, label: '장비관리' },
   ];
 
@@ -324,7 +324,7 @@ export function AdminLayout() {
                       >
                         <div className="flex items-center gap-3">
                           <RefreshCw className="w-5 h-5 shrink-0" />
-                          <span>정기배송관리</span>
+                          <span>정기공급관리</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {!allowed && <Lock className="w-4 h-4 text-neutral-400" />}
@@ -334,7 +334,7 @@ export function AdminLayout() {
                       {isSubOpen && allowed && (
                         <div className="bg-white">
                           {[
-                            { to: '/admin/subscriptions', label: '정기배송 목록' },
+                            { to: '/admin/subscriptions', label: '정기공급 목록' },
                             { to: '/admin/subscriptions/cancellations', label: '해지신청 관리' },
                           ].map((item) => {
                             const isItemActive = location.pathname === item.to;
@@ -652,7 +652,7 @@ export function AdminLayout() {
               <div className="grid grid-cols-3 gap-2">
                 {renderMobileMenuLink('/admin/dashboard', BarChart3, '대시보드', 'dashboard', location.pathname === '/admin/dashboard')}
                 {renderMobileMenuLink('/admin/orders', ShoppingCart, '주문관리', 'orders', isOrdersActive)}
-                {renderMobileMenuLink('/admin/subscriptions', RefreshCw, '정기배송', 'subscriptions', location.pathname === '/admin/subscriptions')}
+                {renderMobileMenuLink('/admin/subscriptions', RefreshCw, '정기공급', 'subscriptions', location.pathname === '/admin/subscriptions')}
                 {renderMobileMenuLink('/admin/equipments', Wrench, '장비관리', 'equipments', location.pathname.startsWith('/admin/equipments'))}
                 {renderMobileMenuLink('/admin/products/single', Package, '상품관리', 'products', location.pathname.startsWith('/admin/products'))}
                 {renderMobileMenuLink('/admin/members', Users, '회원관리', 'members', location.pathname === '/admin/members')}

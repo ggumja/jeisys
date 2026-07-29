@@ -95,7 +95,7 @@ function isTableNotFoundError(error: any): boolean {
 // ── 기본 제공 마케팅 템플릿 상체 (Fallback) ────────────────
 export const DEFAULT_SMS_TEMPLATE_GROUPS: SmsTemplateGroup[] = [
   { id: 'group-promo', name: '프로모션/쿠폰', sort_order: 1, created_at: new Date().toISOString() },
-  { id: 'group-sub', name: '정기배송 혜택', sort_order: 2, created_at: new Date().toISOString() },
+  { id: 'group-sub', name: '정기공급 혜택', sort_order: 2, created_at: new Date().toISOString() },
   { id: 'group-credit', name: '크레딧/소멸안내', sort_order: 3, created_at: new Date().toISOString() },
   { id: 'group-product', name: '신제품/장비', sort_order: 4, created_at: new Date().toISOString() },
   { id: 'group-care', name: '고객케어/안내', sort_order: 5, created_at: new Date().toISOString() },
@@ -126,22 +126,22 @@ export const DEFAULT_SMS_TEMPLATES: SmsTemplate[] = [
   {
     id: 'tpl-2',
     group_id: 'group-sub',
-    name: '[정기배송] 소모품 정기배송 특별 혜택 안내',
-    subject: '[제이시스 메디컬] 소모품 정기배송으로 비용 절감과 편의를 누려보세요!',
+    name: '[정기공급] 소모품 정기공급 특별 혜택 안내',
+    subject: '[제이시스 메디컬] 소모품 정기공급으로 비용 절감과 편의를 누려보세요!',
     prefix_word: '[광고]',
-    message: `[광고] [제이시스 메디컬] 정기배송 안내
+    message: `[광고] [제이시스 메디컬] 정기공급 안내
 
 안녕하세요, {병원명} {고객명} 원장님.
 
 병원 운영에 필수적인 소모품, 매번 새로 주문하기 번거로우셨나요?
-제이시스 정기배송 서비스로 편리하게 관리해 보세요!
+제이시스 정기공급 서비스로 편리하게 관리해 보세요!
 
-■ 정기배송 혜택:
-1. 정기배송 전용 단가 할인 적용
+■ 정기공급 혜택:
+1. 정기공급 전용 단가 할인 적용
 2. 지정 날짜에 자동 결제 및 배송
 3. 언제든지 회차 변경 및 해지 가능
 
-자세한 내용은 제이시스 쇼핑몰 정기배송 메뉴에서 확인하실 수 있습니다.
+자세한 내용은 제이시스 쇼핑몰 정기공급 메뉴에서 확인하실 수 있습니다.
 무료거부 080-000-0000`,
     created_at: new Date().toISOString(),
   },

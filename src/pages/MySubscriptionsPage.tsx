@@ -56,7 +56,7 @@ function getStatusBadge(status: SubscriptionRow['status']) {
     case 'completed':
       return (
         <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
-          <CheckCircle className="w-3 h-3 mr-1" />정기배송완료
+          <CheckCircle className="w-3 h-3 mr-1" />정기공급완료
         </Badge>
       );
   }
@@ -104,7 +104,7 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
-            정기배송 해지 신청
+            정기공급 해지 신청
           </DialogTitle>
           <DialogDescription>
             해지 전 아래 내용을 반드시 확인해주세요.
@@ -653,7 +653,7 @@ export function MySubscriptionsPage() {
 
   // ── 일시정지 ──
   const handlePause = async (sub: SubscriptionRow) => {
-    const ok = await globalConfirm('정기배송을 일시정지하시겠습니까?\n다음 결제일이 일시정지됩니다.');
+    const ok = await globalConfirm('정기공급을 일시정지하시겠습니까?\n다음 결제일이 일시정지됩니다.');
     if (!ok) return;
     try {
       await subscriptionService.pauseSubscription(sub.id);
@@ -666,7 +666,7 @@ export function MySubscriptionsPage() {
 
   // ── 재개 ──
   const handleResume = async (sub: SubscriptionRow) => {
-    const ok = await globalConfirm('정기배송을 재개하시겠습니까?');
+    const ok = await globalConfirm('정기공급을 재개하시겠습니까?');
     if (!ok) return;
     try {
       await subscriptionService.resumeSubscription(sub.id);
@@ -733,8 +733,8 @@ export function MySubscriptionsPage() {
     <div className="space-y-6">
       {/* 헤더 */}
       <div>
-        <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기배송 관리</h2>
-        <p className="text-sm text-neutral-500">정기배송 현황과 회차별 출고 스케줄을 확인하세요.</p>
+        <h2 className="text-2xl tracking-tight text-neutral-900 mb-1">정기공급 관리</h2>
+        <p className="text-sm text-neutral-500">정기공급 현황과 회차별 출고 스케줄을 확인하세요.</p>
       </div>
 
       {/* 탭 */}
@@ -766,9 +766,9 @@ export function MySubscriptionsPage() {
           <h3 className="text-base font-medium text-neutral-700 mb-1">
             {tabFilter === 'cancelled' ? '해지된 구독이 없습니다' :
              tabFilter === 'active' ? '진행중인 구독이 없습니다' :
-             '정기배송 내역이 없습니다'}
+             '정기공급 내역이 없습니다'}
           </h3>
-          <p className="text-sm text-neutral-500">자주 사용하는 소모품을 정기배송으로 편리하게 받아보세요.</p>
+          <p className="text-sm text-neutral-500">자주 사용하는 소모품을 정기공급으로 편리하게 받아보세요.</p>
         </div>
       ) : (
         <div className="space-y-4">

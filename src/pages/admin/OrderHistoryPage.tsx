@@ -276,7 +276,7 @@ export function OrderHistoryPage() {
                         배송횟수
                       </th>
                       <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">
-                        정기배송상태
+                        정기공급상태
                       </th>
                     </>
                   ) : (
@@ -459,7 +459,7 @@ export function OrderHistoryPage() {
           주문내역
         </h2>
         <p className="text-sm text-neutral-600">
-          전체 주문 및 정기배송 내역을 조회하고 관리합니다
+          전체 주문 및 정기공급 내역을 조회하고 관리합니다
         </p>
       </div>
 
@@ -476,7 +476,7 @@ export function OrderHistoryPage() {
           </div>
         </div>
         <div className="bg-white border border-neutral-200 p-4 cursor-pointer" onClick={() => handleDashboardClick('subscription')}>
-          <div className="text-xs text-neutral-600 mb-1">정기배송</div>
+          <div className="text-xs text-neutral-600 mb-1">정기공급</div>
           <div className="text-2xl font-medium text-purple-600 flex items-center gap-2">
             {subscriptionOrders.length}
             <RefreshCw className="w-4 h-4" />
@@ -557,7 +557,7 @@ export function OrderHistoryPage() {
           <TabsList className="bg-neutral-100 p-1">
             <TabsTrigger value="all" onClick={() => { setStatusFilter('all'); setActiveTab('all'); }}>전체</TabsTrigger>
             <TabsTrigger value="regular" onClick={() => { setStatusFilter('all'); setActiveTab('regular'); }}>일반주문</TabsTrigger>
-            <TabsTrigger value="subscription" onClick={() => { setStatusFilter('all'); setActiveTab('subscription'); }}>정기배송</TabsTrigger>
+            <TabsTrigger value="subscription" onClick={() => { setStatusFilter('all'); setActiveTab('subscription'); }}>정기공급</TabsTrigger>
           </TabsList>
           
           <div className="flex items-center gap-2">
