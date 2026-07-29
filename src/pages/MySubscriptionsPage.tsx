@@ -380,9 +380,9 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
           <p className="text-sm text-neutral-500">
             총 {sub.totalQuantity}개 · {sub.cycleMonths}개월 주기 · 총 {sub.totalRounds}회
           </p>
-          {sub.subscriptionNo && (
-            <p className="text-xs text-neutral-400 mt-0.5">구독번호: {sub.subscriptionNo}</p>
-          )}
+          <p className="text-xs text-neutral-400 mt-0.5">
+            구독번호: {sub.subscriptionNo || (sub.id ? `SUB-${sub.id.slice(0, 8).toUpperCase()}` : '-')}
+          </p>
         </div>
         <div className="text-right">
           <p className="text-sm text-neutral-500">회차별 결제금액</p>
