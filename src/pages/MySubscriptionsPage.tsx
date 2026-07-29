@@ -636,6 +636,8 @@ export function MySubscriptionsPage() {
       setCancellationMap(map);
     } catch (e) {
       console.error(e);
+      setSubscriptions([]);
+      setCancellationMap({});
     } finally {
       setLoading(false);
     }
