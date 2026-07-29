@@ -1880,6 +1880,7 @@ export function ProductDetailPage() {
                     // 구독 세부 정보는 navigate state로 전달
                     navigate('/checkout', {
                       state: {
+                        productId: product.id,
                         subscriptionMeta: {
                           optionId: selectedSubOption.id,
                           optionLabel: selectedSubOption.optionLabel,

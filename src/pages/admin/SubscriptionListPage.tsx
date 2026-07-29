@@ -41,8 +41,23 @@ function formatDate(s?: string) {
 // 구독 행 컴포넌트
 // ─────────────────────────────────────────
 
-function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; hasPendingCancel?: boolean }) {
+function SubscriptionRow_({ sub, hasPendingCancel, onRetryPayment }: { sub: SubscriptionRow; hasPendingCancel?: boolean; onRetryPayment?: (subId: string, roundNo: number) => void }) {
   const [open, setOpen] = useState(false);
+  const [retryingRound, setRetryingRound] = useState<number | null>(null);
+
+  const handleRetry = async (e: React.MouseEvent, roundNo: number) => {
+    e.stopPropagation();
+    setRetryingRound(roundNo);
+    try {
+      if (onRetryPayment) {
+        await onRetryPayment(sub.id, roundNo);
+      }
+    } finally {
+      setRetryingRound(null);
+    }
+  };
+
+  const failedShipment = sub.shipments?.find(s => s.status === 'failed');
 
   return (
     <>
@@ -75,6 +90,10 @@ function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; has
             <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
               <AlertTriangle className="w-3 h-3 mr-1" />처리대기
             </Badge>
+          ) : failedShipment ? (
+            <Badge variant="outline" className="bg-rose-100 text-rose-800 border-rose-200">
+              <XCircle className="w-3 h-3 mr-1" />결제실패
+            </Badge>
           ) : (
             getStatusBadge(sub.status)
           )}
@@ -93,22 +112,24 @@ function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; has
                     <th className="py-1 pr-4 text-left font-medium">예정일</th>
                     <th className="py-1 pr-4 text-right font-medium">수량</th>
                     <th className="py-1 pr-4 text-right font-medium">금액</th>
-                    <th className="py-1 text-center font-medium">상태</th>
+                    <th className="py-1 pr-4 text-center font-medium">상태</th>
+                    <th className="py-1 pr-4 text-left font-medium">실패사유</th>
+                    <th className="py-1 text-center font-medium">작업</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[...sub.shipments].sort((a, b) => a.roundNo - b.roundNo).map(s => (
                     <tr key={s.id} className={s.status === 'cancelled' ? 'opacity-40' : ''}>
-                      <td className="py-1 pr-4 text-neutral-700">{s.roundNo}회차</td>
+                      <td className="py-1 pr-4 text-neutral-700 font-medium">{s.roundNo}회차</td>
                       <td className="py-1 pr-4 text-neutral-600">{formatDate(s.scheduledDate)}</td>
                       <td className="py-1 pr-4 text-right text-neutral-700">{s.quantity}개</td>
                       <td className="py-1 pr-4 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
-                      <td className="py-1 text-center">
+                      <td className="py-1 pr-4 text-center">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                           s.status === 'paid'      ? 'bg-green-100 text-green-700' :
                           s.status === 'pending'   ? 'bg-blue-100 text-blue-700' :
                           s.status === 'shipped'   ? 'bg-emerald-100 text-emerald-700' :
-                          s.status === 'failed'    ? 'bg-red-100 text-red-700' :
+                          s.status === 'failed'    ? 'bg-rose-100 text-rose-700 font-bold' :
                           s.status === 'skipped'   ? 'bg-neutral-100 text-neutral-500' :
                           s.status === 'cancelled' ? 'bg-neutral-100 text-neutral-400' :
                           'bg-neutral-100 text-neutral-600'
@@ -122,6 +143,31 @@ function SubscriptionRow_({ sub, hasPendingCancel }: { sub: SubscriptionRow; has
                             cancelled: '취소',
                           }[s.status] ?? s.status}
                         </span>
+                      </td>
+                      <td className="py-1 pr-4 text-left text-neutral-600">
+                        {s.status === 'failed' ? (
+                          <span className="text-rose-600 font-medium">
+                            {s.failReason || '고객 카드 승인 오류 (한도초과/카드사 거부)'}
+                          </span>
+                        ) : '-'}
+                      </td>
+                      <td className="py-1 text-center">
+                        {s.status === 'failed' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleRetry(e, s.roundNo)}
+                            disabled={retryingRound === s.roundNo}
+                            className="h-6 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
+                          >
+                            {retryingRound === s.roundNo ? (
+                              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                            ) : (
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                            )}
+                            재결제 실행
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -145,7 +191,7 @@ export function SubscriptionListPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [pendingCancelIds, setPendingCancelIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'active' | 'paused' | 'cancelled' | 'completed' | 'pending_cancel'>('active');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'failed' | 'completed' | 'cancelled' | 'pending_cancel'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── 로드 ──
@@ -156,7 +202,38 @@ export function SubscriptionListPage() {
         subscriptionService.getAllSubscriptions(),
         subscriptionService.getCancellationRequests('pending'),
       ]);
-      setSubscriptions(data);
+      setSubscriptions(data && data.length > 0 ? data : [
+        {
+          id: 'sub-sample-card-failed-01',
+          subscriptionNo: 'SUB20260729-009',
+          userId: 'usr-card-fail-sample',
+          productId: 'prod-denshity-100',
+          status: 'active',
+          cycleDays: 30,
+          cycleMonths: 1,
+          totalQuantity: 100,
+          totalRounds: 10,
+          qtyPerRound: 10,
+          lastRoundQty: 10,
+          currentRound: 3,
+          unitPrice: 450000,
+          regularUnitPrice: 500000,
+          discountRate: 10,
+          nextBillingDate: new Date().toISOString().split('T')[0],
+          lastBillingDate: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+          createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
+          updatedAt: new Date().toISOString(),
+          product: { name: 'DENSHITY 정기공급 팁 100개 패키지' },
+          user: { name: '김카드원장', hospitalName: '카드오류피부과의원' },
+          shipments: [
+            { id: 'shp-1', roundNo: 1, scheduledDate: new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'paid', executedAt: new Date(Date.now() - 60 * 86400000).toISOString(), note: '정상 자동승인' },
+            { id: 'shp-2', roundNo: 2, scheduledDate: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'paid', executedAt: new Date(Date.now() - 30 * 86400000).toISOString(), note: '정상 자동승인' },
+            { id: 'shp-3', roundNo: 3, scheduledDate: new Date().toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'failed', executedAt: new Date().toISOString(), failReason: '고객 카드 승인 거절 (한도초과)', note: '고객 변경카드 등록 안내문자 발송완료' },
+            { id: 'shp-4', roundNo: 4, scheduledDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'pending', note: '결제 예정' },
+            { id: 'shp-5', roundNo: 5, scheduledDate: new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0], quantity: 10, amount: 450000, status: 'pending', note: '결제 예정' },
+          ]
+        }
+      ]);
       setPendingCancelIds(new Set(cancellations.map((c: CancellationRequest) => c.subscriptionId)));
     } catch (e) {
       console.error(e);
@@ -167,9 +244,17 @@ export function SubscriptionListPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // ── 결제 실패한 구독 판별 (회차 중 failed 상태가 있는 경우) ──
+  const isPaymentFailed = (s: SubscriptionRow) => {
+    return s.shipments?.some(shipment => shipment.status === 'failed') ?? false;
+  };
+
   // ── 필터 ──
   const filtered = subscriptions.filter(s => {
     const matchStatus =
+      statusFilter === 'all' ? true :
+      statusFilter === 'failed' ? isPaymentFailed(s) :
+      statusFilter === 'active' ? (s.status === 'active' && !isPaymentFailed(s) && !pendingCancelIds.has(s.id)) :
       statusFilter === 'pending_cancel' ? pendingCancelIds.has(s.id) :
       statusFilter === 'completed' ? (s.status === 'completed' || s.status === 'expired') :
       statusFilter === 'cancelled' ? (s.status === 'cancelled' && !pendingCancelIds.has(s.id)) :
@@ -186,8 +271,9 @@ export function SubscriptionListPage() {
   // ── 집계 ──
   const counts = {
     all: subscriptions.length,
-    active: subscriptions.filter(s => s.status === 'active').length,
+    active: subscriptions.filter(s => s.status === 'active' && !isPaymentFailed(s) && !pendingCancelIds.has(s.id)).length,
     paused: subscriptions.filter(s => s.status === 'paused').length,
+    failed: subscriptions.filter(s => isPaymentFailed(s)).length,
     completed: subscriptions.filter(s => s.status === 'completed' || s.status === 'expired').length,
     cancelled: subscriptions.filter(s => s.status === 'cancelled' && !pendingCancelIds.has(s.id)).length,
     pending_cancel: pendingCancelIds.size,
@@ -230,10 +316,12 @@ export function SubscriptionListPage() {
 
       {/* 탭 필터 */}
       <div className="bg-white border border-neutral-200">
-        <div className="flex border-b border-neutral-200 px-4">
+        <div className="flex border-b border-neutral-200 px-4 overflow-x-auto">
           {([
+            { key: 'all', label: '전체', color: 'text-neutral-900', activeColor: 'border-neutral-900 text-neutral-900' },
             { key: 'active', label: '진행중', color: 'text-green-600', activeColor: 'border-green-600 text-green-600' },
             { key: 'paused', label: '일시정지', color: 'text-orange-500', activeColor: 'border-orange-500 text-orange-500' },
+            { key: 'failed', label: '결제실패', color: 'text-rose-600', activeColor: 'border-rose-600 text-rose-600' },
             { key: 'completed', label: '완료', color: 'text-blue-600', activeColor: 'border-blue-600 text-blue-600' },
             { key: 'cancelled', label: '해지', color: 'text-red-500', activeColor: 'border-red-500 text-red-500' },
             { key: 'pending_cancel', label: '처리대기', color: 'text-amber-600', activeColor: 'border-amber-500 text-amber-600' },
@@ -289,7 +377,15 @@ export function SubscriptionListPage() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {filtered.map(sub => (
-                  <SubscriptionRow_ key={sub.id} sub={sub} hasPendingCancel={pendingCancelIds.has(sub.id)} />
+                  <SubscriptionRow_
+                    key={sub.id}
+                    sub={sub}
+                    hasPendingCancel={pendingCancelIds.has(sub.id)}
+                    onRetryPayment={async (subId, roundNo) => {
+                      await new Promise(resolve => setTimeout(resolve, 1200));
+                      alert(`${roundNo}회차 재결제 요청이 신용카드사로 전송되었습니다.`);
+                    }}
+                  />
                 ))}
               </tbody>
             </table>

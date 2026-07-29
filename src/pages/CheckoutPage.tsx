@@ -205,12 +205,17 @@ export function CheckoutPage() {
         }
       }
 
-      if (items.length > 0) {
+      if (items.length > 0 || subscriptionMeta) {
         const allProductIds = new Set<string>();
         items.forEach(item => {
           allProductIds.add(item.productId);
           item.selectedProductIds?.forEach(id => allProductIds.add(id));
         });
+
+        // subscriptionMeta가 있으면 해당 상품 ID 추가
+        if (subscriptionMeta && (location.state as any)?.productId) {
+          allProductIds.add((location.state as any).productId);
+        }
 
         const productPromises = Array.from(allProductIds).map(id => productService.getProductById(id));
         const products = await Promise.all(productPromises);
@@ -252,7 +257,9 @@ export function CheckoutPage() {
       }
     } catch (error) {
       console.error('Failed to load checkout data', error);
-      navigate('/cart');
+      if (!subscriptionMeta) {
+        navigate('/cart');
+      }
     } finally {
       setLoading(false);
     }
@@ -614,6 +621,7 @@ export function CheckoutPage() {
       }
 
       navigate(`/order-complete/${order.id}`);
+    } catch (error: any) {
       console.error('Order failed', error);
       if (error.message && error.message.includes('승인 거절')) {
         setPaymentErrorModal({ isOpen: true, message: error.message });

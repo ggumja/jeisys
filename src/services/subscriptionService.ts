@@ -14,6 +14,8 @@ export interface SubscriptionScheduleRow {
   pgTid?: string;
   orderId?: string;
   executedAt?: string;
+  failReason?: string;
+  note?: string;
 }
 
 export interface SubscriptionRow {
@@ -201,6 +203,8 @@ function mapShipmentRow(row: any): SubscriptionScheduleRow {
     pgTid: row.pg_tid,
     orderId: row.order_id,
     executedAt: row.executed_at,
+    failReason: row.fail_reason ?? row.failReason,
+    note: row.note,
   };
 }
 
