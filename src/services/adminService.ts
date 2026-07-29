@@ -1517,6 +1517,7 @@ export const adminService = {
                 taxEmail: user.tax_email,
                 memberType: user.member_type || null,
                 approvedAt: user.approved_at || null,
+                sapCustomerCode: user.sap_customer_code || '',
             };
         });
 
@@ -4336,7 +4337,8 @@ export const adminService = {
                     name,
                     hospital_name,
                     email,
-                    login_id
+                    login_id,
+                    sap_customer_code
                 ),
                 order:orders (
                     id,
@@ -4421,7 +4423,8 @@ export const adminService = {
                     name,
                     hospital_name,
                     email,
-                    login_id
+                    login_id,
+                    sap_customer_code
                 ),
                 order:orders!order_id (
                     id,

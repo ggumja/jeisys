@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useOutletContext } from 'react-router';
 import { Search, Loader2, RefreshCw, Download, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminService } from '../../services/adminService';
@@ -343,6 +343,7 @@ interface CreditTransaction {
     hospital_name: string;
     email: string;
     login_id: string;
+    sap_customer_code?: string;
   } | null;
   order: {
     id: string;
@@ -400,6 +401,24 @@ export function CreditHistoryPage() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  const outletContext = useOutletContext<{ setHeaderActions?: (node: React.ReactNode) => void }>();
+
+  useEffect(() => {
+    if (outletContext?.setHeaderActions) {
+      outletContext.setHeaderActions(
+        <>
+          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="flex items-center gap-2 bg-white shadow-sm border-neutral-300">
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />새로고침
+          </Button>
+          <Button variant="outline" onClick={handleExcelDownload} disabled={isDownloading || transactions.length === 0} className="flex items-center gap-2 bg-white shadow-sm border-neutral-300">
+            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>엑셀 다운로드</span>
+          </Button>
+        </>
+      );
+    }
+  }, [outletContext?.setHeaderActions, isRefreshing, isDownloading, transactions.length]);
 
   // 외부 클릭 시 팝오버 닫기
   useEffect(() => {
@@ -481,7 +500,7 @@ export function CreditHistoryPage() {
       const result = await adminService.getAllCreditTransactions(0, 0, searchTerm, typeFilter, startStr, endStr, equipmentFilter);
       const allData = result.data as CreditTransaction[];
       
-      const headers = ['일시', '아이디', '회원명', '병원명', '구분', '크레딧 종류', '변동 크레딧(원)', '상세내용', '관련 주문번호'];
+      const headers = ['일시', '아이디', '회원명', '병원명', 'SAP고객코드', '구분', '크레딧 종류', '변동 크레딧(원)', '상세내용', '관련 주문번호'];
       const body = allData.map(tx => {
         const typeLabels: Record<string, string> = {
           issue: '발급',
@@ -503,6 +522,7 @@ export function CreditHistoryPage() {
           tx.user?.login_id || '-',
           tx.user?.name || '-',
           tx.user?.hospital_name || '-',
+          tx.user?.sap_customer_code || '-',
           typeLabels[tx.type] || tx.type,
           tx.credit?.equipment_type || '-',
           `${sign}${tx.amount.toLocaleString()}`,
@@ -512,7 +532,7 @@ export function CreditHistoryPage() {
       });
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
-      ws['!cols'] = [{ wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 36 }];
+      ws['!cols'] = [{ wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 36 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '크레딧 거래 이력');
       
@@ -562,22 +582,6 @@ export function CreditHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">크레딧 이력 관리</h2>
-          <p className="text-sm text-neutral-600">회원들의 크레딧 충전, 사용, 환불 및 만료 이력을 통합하여 추적합니다.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />새로고침
-          </Button>
-          <Button variant="outline" onClick={handleExcelDownload} disabled={isDownloading || transactions.length === 0} className="flex items-center gap-2">
-            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span>엑셀 다운로드</span>
-          </Button>
-        </div>
-      </div>
-
       {/* 필터 영역 */}
       <div className="bg-white border border-neutral-200 p-6">
         <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
@@ -797,7 +801,7 @@ export function CreditHistoryPage() {
                         <td className="py-3 px-3 text-neutral-600 whitespace-nowrap text-xs">{dateStr}</td>
                         <td className="py-3 px-3 text-xs">
                           <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
-                          <div className="text-[11px] text-neutral-500">{tx.user?.name} ({tx.user?.login_id})</div>
+                          <div className="text-[11px] text-indigo-600 font-mono mt-0.5">SAP: {tx.user?.sap_customer_code || '-'}</div>
                         </td>
                         <td className="py-3 px-3 whitespace-nowrap text-xs">{getTypeBadge(tx.type)}</td>
                         <td className="py-3 px-3 font-medium text-neutral-800 whitespace-nowrap text-xs">

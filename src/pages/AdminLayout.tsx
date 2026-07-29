@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, BarChart2, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins, Tag } from 'lucide-react';
+import { ShoppingCart, Package, MessageSquare, Users, Shield, LogOut, Home, ChevronDown, ChevronUp, HelpCircle, FileText, GraduationCap, Monitor, Newspaper, Video, Building2, BarChart3, BarChart2, TrendingUp, PieChart, Calendar, FileStack, RefreshCw, Truck, Megaphone, LayoutList, Layers, Settings, Smartphone, Mail, Send, History, Inbox, Wrench, Lock, Coins, Tag, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { authService } from '../services/authService';
@@ -60,6 +60,7 @@ export function AdminLayout() {
     { to: '/admin/statistics/sales', icon: TrendingUp, label: '매출 분석' },
     { to: '/admin/statistics/products', icon: PieChart, label: '상품 분석' },
     { to: '/admin/statistics/credits', icon: Coins, label: '크레딧 분석' },
+    { to: '/admin/statistics/points', icon: Sparkles, label: '포인트 분석' },
     { to: '/admin/statistics/visit', icon: BarChart2, label: '방문 분석' },
   ];
 
@@ -114,7 +115,7 @@ export function AdminLayout() {
   const isMarketingActive = location.pathname.startsWith('/admin/marketing');
   const isSmsMktActive = location.pathname.startsWith('/admin/marketing/sms');
   const isEmailMktActive = location.pathname.startsWith('/admin/marketing/email');
-  const isMembersActive = location.pathname.startsWith('/admin/members') || location.pathname.startsWith('/admin/credit-history') || location.pathname.startsWith('/admin/point-history');
+  const isMembersActive = location.pathname.startsWith('/admin/members');
   const isSubscriptionActive = location.pathname.startsWith('/admin/subscriptions');
 
   // Auto-expand menus if active and collapse others
@@ -606,18 +607,6 @@ export function AdminLayout() {
                         className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${location.pathname === '/admin/members' || location.pathname.startsWith('/admin/members/') ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
                       >
                         <span>회원 목록</span>
-                      </Link>
-                      <Link
-                        to="/admin/credit-history"
-                        className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${location.pathname === '/admin/credit-history' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
-                      >
-                        <span>크레딧 이력 관리</span>
-                      </Link>
-                      <Link
-                        to="/admin/point-history"
-                        className={`flex items-center gap-3 pl-12 pr-4 py-2.5 transition-colors text-sm ${location.pathname === '/admin/point-history' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:bg-neutral-50'}`}
-                      >
-                        <span>포인트 이력 관리</span>
                       </Link>
                     </div>
                   )}

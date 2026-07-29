@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
-import { Download, CalendarIcon, Coins, TrendingUp, Award, ShieldAlert, ChevronLeft, ChevronRight, X, FileStack } from 'lucide-react';
+import { TrendingUp, ShieldAlert, Coins, Download, CalendarIcon, ChevronLeft, ChevronRight, FileStack } from 'lucide-react';
 import { Calendar } from '../../../components/ui/calendar';
 import { ko } from 'date-fns/locale';
 
@@ -29,7 +29,7 @@ function weekStartDate(year: number, week: number): Date {
   return monday;
 }
 
-// granularity별 기본값 반환 (Date 객체)
+// granularity별 기본값 반환
 function getDefaults(g: Granularity): { startDate: Date; endDate: Date } {
   const now = new Date();
   if (g === 'daily') {
@@ -48,7 +48,6 @@ function getDefaults(g: Granularity): { startDate: Date; endDate: Date } {
       endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0),
     };
   }
-  // yearly
   return {
     startDate: new Date(now.getFullYear(), 0, 1),
     endDate: new Date(now.getFullYear(), 11, 31),
@@ -120,7 +119,7 @@ function DailyPicker({ startDate, endDate, onChange }: {
   );
 }
 
-// ── 주별 선택기 (월 달력 기반 주 행 선택) ──────────────────────
+// ── 주별 선택기 ──────────────────────────────────────────────
 function WeeklyPicker({ startDate, endDate, onChange }: {
   startDate: Date; endDate: Date;
   onChange: (s: Date, e: Date) => void;
@@ -366,40 +365,41 @@ function YearlyPicker({ startDate, endDate, onChange }: {
   );
 }
 
-export function CreditAnalyticsLayout() {
-  const [granularity, setGranularity] = useState<Granularity>('monthly');
-  const [startDate, setStartDate] = useState<Date>(() => getDefaults('monthly').startDate);
-  const [endDate, setEndDate] = useState<Date>(() => getDefaults('monthly').endDate);
+export type PointAnalyticsContext = {
+  dateRange: string;
+  granularity: Granularity;
+  onRegisterExport: (fn: (() => Promise<void>) | null) => void;
+  label: string;
+};
+
+export function PointAnalyticsLayout() {
+  const location = useLocation();
+  const [granularity, setGranularity] = useState<Granularity>('daily');
+  const [startDate, setStartDate] = useState<Date>(() => getDefaults('daily').startDate);
+  const [endDate, setEndDate] = useState<Date>(() => getDefaults('daily').endDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
-  const location = useLocation();
-  const isFilterVisible = location.pathname === '/admin/statistics/credits/transactions' || location.pathname === '/admin/statistics/credits/overview';
 
   const [headerActions, setHeaderActions] = useState<React.ReactNode>(null);
-  const [showDownloadBtn, setShowDownloadBtn] = useState(false);
-  const [equipmentFilter, setEquipmentFilter] = useState('all');
-  const exportFnRef = useRef<(() => void) | null>(null);
-  const onRegisterExport = useCallback((fn: (() => void) | null) => {
+  const exportFnRef = useRef<(() => Promise<void>) | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const isFilterVisible = location.pathname === '/admin/statistics/points/transactions' || location.pathname === '/admin/statistics/points/overview';
+
+  const onRegisterExport = useCallback((fn: (() => Promise<void>) | null) => {
     exportFnRef.current = fn;
-    setShowDownloadBtn(fn !== null);
   }, []);
 
-  // Clear export fn and header actions when path changes
   useEffect(() => {
-    exportFnRef.current = null;
-    setShowDownloadBtn(false);
     setHeaderActions(null);
   }, [location.pathname]);
 
-  // 외부 클릭 시 팝오버 닫기
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
   const handleGranularityChange = (g: Granularity) => {
@@ -418,7 +418,7 @@ export function CreditAnalyticsLayout() {
     }
   };
 
-  const dateRange = toDateRange(startDate, endDate);
+  const dateRangeStr = toDateRange(startDate, endDate);
   const label = formatLabel(granularity, startDate, endDate);
 
   const granularityOptions: { value: Granularity; label: string }[] = [
@@ -429,25 +429,26 @@ export function CreditAnalyticsLayout() {
   ];
 
   const tabs = [
-    { path: '/admin/statistics/credits/overview', label: '크레딧 개요', icon: TrendingUp },
-    { path: '/admin/statistics/credits/equipment', label: '장비별 통계', icon: Award },
-    { path: '/admin/statistics/credits/expiry', label: '만료 임박 분석', icon: ShieldAlert },
-    { path: '/admin/statistics/credits/transactions', label: '거래 통계', icon: Coins },
-    { path: '/admin/statistics/credits/history', label: '크레딧 이력 관리', icon: FileStack },
+    { path: '/admin/statistics/points/overview', label: '포인트 개요', icon: TrendingUp },
+    { path: '/admin/statistics/points/expiry', label: '만료 임박 분석', icon: ShieldAlert },
+    { path: '/admin/statistics/points/transactions', label: '거래 통계', icon: Coins },
+    { path: '/admin/statistics/points/history', label: '포인트 이력 관리', icon: FileStack },
   ];
+
+  const showDownloadBtn = !!exportFnRef.current;
 
   const handleDownloadReport = async () => {
     if (!exportFnRef.current) return;
+    setIsDownloading(true);
     try {
       await exportFnRef.current();
-    } catch (err) {
-      console.error(err);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
-  // Base path 리다이렉션
-  if (location.pathname === '/admin/statistics/credits' || location.pathname === '/admin/statistics/credits/') {
-    return <Navigate to="/admin/statistics/credits/overview" replace />;
+  if (location.pathname === '/admin/statistics/points' || location.pathname === '/admin/statistics/points/') {
+    return <Navigate to="/admin/statistics/points/overview" replace />;
   }
 
   return (
@@ -455,18 +456,19 @@ export function CreditAnalyticsLayout() {
       {/* 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">크레딧 통계 분석</h1>
-          <p className="text-sm text-neutral-600">장비별 크레딧 발급 및 사용 실적, 만료 예정 잔액을 통합 모니터링합니다.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">포인트 통계 분석</h1>
+          <p className="text-sm text-neutral-600">포인트 지급/적립 및 사용 실적, 만료 예정 잔액을 통합 모니터링합니다.</p>
         </div>
-        <div id="credit-analytics-header-actions" className="flex items-center gap-3">
+        <div id="point-analytics-header-actions" className="flex items-center gap-3">
           {headerActions}
           {showDownloadBtn && (
             <button
               onClick={handleDownloadReport}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-medium text-sm transition-colors shadow-sm"
+              disabled={isDownloading}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50 active:bg-neutral-100 font-medium text-sm transition-colors shadow-sm disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
-              <span>리포트 다운로드</span>
+              <span>{isDownloading ? '다운로드 중...' : '리포트 다운로드'}</span>
             </button>
           )}
         </div>
@@ -498,27 +500,6 @@ export function CreditAnalyticsLayout() {
       {isFilterVisible && (
         <div className="bg-white border border-neutral-200 p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-3">
-            {/* 장비 필터 버튼 그룹 */}
-            <div className="flex gap-1">
-              {[{ value: 'all', label: '전체' }, { value: 'Density', label: 'Density' }, { value: 'POTENZA', label: 'POTENZA' }, { value: 'LinearZ', label: 'LINEARZ' }].map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setEquipmentFilter(opt.value)}
-                  className={`px-3 py-1.5 text-xs font-semibold border transition-all ${
-                    equipmentFilter === opt.value
-                      ? 'text-white border-[#21358D]'
-                      : 'border-neutral-300 text-neutral-600 bg-white hover:border-neutral-400 hover:bg-neutral-50'
-                  }`}
-                  style={equipmentFilter === opt.value ? { backgroundColor: '#21358D' } : undefined}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="w-px h-5 bg-neutral-200" />
-
             {/* Granularity 탭 */}
             <div className="flex bg-neutral-100 p-0.5 rounded border border-neutral-200">
               {granularityOptions.map(opt => (
@@ -545,63 +526,43 @@ export function CreditAnalyticsLayout() {
                 onClick={() => setPickerOpen(o => !o)}
                 className={`flex items-center gap-2 px-4 py-2 rounded border text-sm font-medium transition-all ${
                   pickerOpen
-                    ? 'border-[#21358D] text-[#21358D] bg-blue-50/30'
-                    : 'border-neutral-300 text-neutral-700 bg-white hover:border-neutral-400'
+                    ? 'border-[#21358D] text-[#21358D] bg-blue-50/30 ring-2 ring-[#21358D]/20'
+                    : 'border-neutral-300 text-neutral-700 bg-white hover:border-neutral-400 hover:bg-neutral-50'
                 }`}
               >
-                <CalendarIcon className="w-4 h-4 shrink-0" />
-                <span className="max-w-xs truncate">{label}</span>
+                <CalendarIcon className="w-4 h-4 text-neutral-500" />
+                <span>{label}</span>
               </button>
 
-              {/* 팝오버 */}
               {pickerOpen && (
-                <div className="absolute top-full mt-2 right-0 sm:left-0 z-50 bg-white rounded-lg border border-neutral-200 shadow-xl overflow-hidden animate-fadeIn">
-                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 bg-neutral-50">
-                    <span className="text-xs font-semibold text-neutral-600">
-                      {granularity === 'daily' ? '날짜 범위 선택' : granularity === 'weekly' ? '주차 범위 선택' : granularity === 'monthly' ? '월 범위 선택' : '연도 범위 선택'}
-                    </span>
-                    <button onClick={() => setPickerOpen(false)} className="p-0.5 hover:bg-neutral-200 rounded">
-                      <X className="w-3.5 h-3.5 text-neutral-400" />
-                    </button>
-                  </div>
-
+                <div className="absolute top-full left-0 mt-2 z-50 bg-white border border-neutral-200 rounded-lg shadow-xl">
                   {granularity === 'daily' && (
                     <DailyPicker
                       startDate={startDate}
                       endDate={endDate}
-                      onChange={(s, e) => {
-                        setStartDate(s);
-                        setEndDate(e);
-                      }}
+                      onChange={handleRangeChange}
                     />
                   )}
                   {granularity === 'weekly' && (
-                    <WeeklyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
+                    <WeeklyPicker
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={handleRangeChange}
+                    />
                   )}
                   {granularity === 'monthly' && (
-                    <MonthlyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
+                    <MonthlyPicker
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={handleRangeChange}
+                    />
                   )}
                   {granularity === 'yearly' && (
-                    <YearlyPicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
-                  )}
-
-                  {/* 일별 적용 버튼 */}
-                  {granularity === 'daily' && (
-                    <div className="border-t border-neutral-100 px-4 py-2.5 flex justify-end gap-2">
-                      <button
-                        onClick={() => setPickerOpen(false)}
-                        className="px-4 py-1.5 text-xs font-semibold rounded border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
-                      >
-                        취소
-                      </button>
-                      <button
-                        onClick={() => setPickerOpen(false)}
-                        className="px-4 py-1.5 text-xs font-semibold rounded text-white"
-                        style={{ backgroundColor: '#21358D' }}
-                      >
-                        적용
-                      </button>
-                    </div>
+                    <YearlyPicker
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={handleRangeChange}
+                    />
                   )}
                 </div>
               )}
@@ -610,10 +571,8 @@ export function CreditAnalyticsLayout() {
         </div>
       )}
 
-      {/* 하위 컴포넌트 렌더링 */}
-      <div className="min-h-[400px]">
-        <Outlet context={{ dateRange, granularity, onRegisterExport, label, equipmentFilter, setHeaderActions }} />
-      </div>
+      {/* 하위 페이지 마운트 */}
+      <Outlet context={{ dateRange: dateRangeStr, granularity, onRegisterExport, label, setHeaderActions } as PointAnalyticsContext} />
     </div>
   );
 }

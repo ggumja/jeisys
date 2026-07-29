@@ -82,6 +82,10 @@ import { CreditOverviewPage } from "./pages/admin/statistics/CreditOverviewPage"
 import { CreditEquipmentPage } from "./pages/admin/statistics/CreditEquipmentPage";
 import { CreditExpiryPage } from "./pages/admin/statistics/CreditExpiryPage";
 import { CreditTransactionPage } from "./pages/admin/statistics/CreditTransactionPage";
+import { PointAnalyticsLayout } from "./pages/admin/statistics/PointAnalyticsLayout";
+import { PointOverviewPage } from "./pages/admin/statistics/PointOverviewPage";
+import { PointExpiryPage } from "./pages/admin/statistics/PointExpiryPage";
+import { PointTransactionPage } from "./pages/admin/statistics/PointTransactionPage";
 import { PeriodSalesPage } from "./pages/admin/PeriodSalesPage";
 import { ShopSettingsPage } from "./pages/admin/ShopSettingsPage";
 import { AdminProxyCartPage } from "./pages/admin/AdminProxyCartPage";
@@ -191,6 +195,18 @@ export const router = createBrowserRouter([
                     { path: "equipment", Component: CreditEquipmentPage },
                     { path: "expiry", Component: CreditExpiryPage },
                     { path: "transactions", Component: CreditTransactionPage },
+                    { path: "history", Component: CreditHistoryPage },
+                ]
+            },
+            {
+                path: "statistics/points",
+                Component: PointAnalyticsLayout,
+                children: [
+                    { index: true, element: <Navigate to="overview" replace /> },
+                    { path: "overview", Component: PointOverviewPage },
+                    { path: "expiry", Component: PointExpiryPage },
+                    { path: "transactions", Component: PointTransactionPage },
+                    { path: "history", Component: PointHistoryPage },
                 ]
             },
             { path: "statistics/period-sales", Component: PeriodSalesPage },
@@ -214,8 +230,8 @@ export const router = createBrowserRouter([
             { path: "communication/media", Component: MediaManagementPage },
             { path: "members", Component: MemberManagementPage },
             { path: "members/:id", Component: MemberDetailPage },
-            { path: "credit-history", Component: CreditHistoryPage },
-            { path: "point-history", Component: PointHistoryPage },
+            { path: "credit-history", element: <Navigate to="/admin/statistics/credits/history" replace /> },
+            { path: "point-history", element: <Navigate to="/admin/statistics/points/history" replace /> },
             { path: "admins", Component: AdminManagementPage },
             { path: "adstats", Component: AdManagementPage },
             { path: "ads", Component: AdManagementPage },

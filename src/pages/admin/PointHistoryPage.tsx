@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
-import { Search, Loader2, RefreshCw, Download, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useOutletContext } from 'react-router';
+import { Search, Loader2, RefreshCw, Download, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { adminService } from '../../services/adminService';
 import { Button } from '../../components/ui/button';
@@ -303,6 +303,7 @@ interface PointTransaction {
     hospital_name: string;
     email: string;
     login_id: string;
+    sap_customer_code?: string;
   } | null;
   order: {
     id: string;
@@ -314,6 +315,34 @@ export function PointHistoryPage() {
   const navigate = useNavigate();
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [openRowIds, setOpenRowIds] = useState<Record<string, boolean>>({});
+  const [orderDetailsMap, setOrderDetailsMap] = useState<Record<string, { totalAmount: number; pointUsedAmount: number; itemsSummary: string; loading?: boolean }>>({});
+
+  const toggleRowOpen = async (id: string, orderId?: string | null) => {
+    const nextState = !openRowIds[id];
+    setOpenRowIds(prev => ({ ...prev, [id]: nextState }));
+
+    if (nextState && orderId && !orderDetailsMap[orderId]) {
+      setOrderDetailsMap(prev => ({ ...prev, [orderId]: { totalAmount: 0, pointUsedAmount: 0, itemsSummary: '', loading: true } }));
+      try {
+        const orderData = await adminService.getOrderById(orderId);
+        const items = orderData.orderItems || [];
+        const itemsSummary = items.map((item: any) => `${item.product?.name || '상품'} (${item.quantity}개)`).join(', ') || '-';
+        const totalAmount = orderData.totalAmount || 0;
+        const pointUsedAmount = orderData.pointsUsed || 0;
+        setOrderDetailsMap(prev => ({
+          ...prev,
+          [orderId]: { totalAmount, pointUsedAmount, itemsSummary, loading: false }
+        }));
+      } catch (err) {
+        console.error('주문 상세 조회 실패:', err);
+        setOrderDetailsMap(prev => ({
+          ...prev,
+          [orderId]: { totalAmount: 0, pointUsedAmount: 0, itemsSummary: '-', loading: false }
+        }));
+      }
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -358,6 +387,24 @@ export function PointHistoryPage() {
     setCurrentPage(1);
     if (viewMode !== 'daily') setTimeout(() => setPickerOpen(false), 150);
   };
+
+  const outletContext = useOutletContext<{ setHeaderActions?: (node: React.ReactNode) => void }>();
+
+  useEffect(() => {
+    if (outletContext?.setHeaderActions) {
+      outletContext.setHeaderActions(
+        <>
+          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="flex items-center gap-2 bg-white shadow-sm border-neutral-300">
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />새로고침
+          </Button>
+          <Button variant="outline" onClick={handleExcelDownload} disabled={isDownloading || transactions.length === 0} className="flex items-center gap-2 bg-white shadow-sm border-neutral-300">
+            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span>엑셀 다운로드</span>
+          </Button>
+        </>
+      );
+    }
+  }, [outletContext?.setHeaderActions, isRefreshing, isDownloading, transactions.length]);
 
   const handlePresetDate = (days: number) => {
     const today = new Date();
@@ -408,7 +455,7 @@ export function PointHistoryPage() {
       const result = await adminService.getAllPointTransactions(0, 0, searchTerm, typeFilter, startStr, endStr);
       const allData = result.data as PointTransaction[];
       
-      const headers = ['일시', '아이디', '회원명', '병원명', '구분', '변동 포인트(P)', '상세내용', '관련 주문번호'];
+      const headers = ['일시', '아이디', '회원명', '병원명', 'SAP고객코드', '구분', '변동 포인트(P)', '상세내용', '관련 주문번호'];
       const body = allData.map(tx => {
         const typeLabels: Record<string, string> = {
           issue: '지급',
@@ -430,6 +477,7 @@ export function PointHistoryPage() {
           tx.user?.login_id || '-',
           tx.user?.name || '-',
           tx.user?.hospital_name || '-',
+          tx.user?.sap_customer_code || '-',
           typeLabels[tx.type] || tx.type,
           `${sign}${tx.amount.toLocaleString()} P`,
           cleanedDesc,
@@ -438,7 +486,7 @@ export function PointHistoryPage() {
       });
 
       const ws = XLSX.utils.aoa_to_sheet([headers, ...body]);
-      ws['!cols'] = [{ wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 36 }];
+      ws['!cols'] = [{ wch: 22 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 12 }, { wch: 18 }, { wch: 30 }, { wch: 36 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, '포인트 거래 이력');
       
@@ -488,22 +536,6 @@ export function PointHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">포인트 이력 관리</h2>
-          <p className="text-sm text-neutral-600">회원들의 포인트 지급, 사용, 환불 및 만료 이력을 통합하여 추적합니다.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />새로고침
-          </Button>
-          <Button variant="outline" onClick={handleExcelDownload} disabled={isDownloading || transactions.length === 0} className="flex items-center gap-2">
-            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <span>엑셀 다운로드</span>
-          </Button>
-        </div>
-      </div>
-
       {/* 필터 영역 */}
       <div className="bg-white border border-neutral-200 p-6">
         <form onSubmit={handleSearchSubmit} className="flex flex-col gap-4">
@@ -639,13 +671,13 @@ export function PointHistoryPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="py-4 px-6 font-semibold text-neutral-700 w-16 text-center">No.</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">일시</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">회원 정보</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">구분</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700 text-right">변동 포인트</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">내용/메모</th>
-                <th className="py-4 px-6 font-semibold text-neutral-700">관련 주문</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-12 text-center">No.</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">일시</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">회원 정보</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">구분</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-right">변동 포인트</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">내용/메모</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">관련 주문</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -666,33 +698,118 @@ export function PointHistoryPage() {
                   const rowNo = (currentPage - 1) * pageSize + idx + 1;
                   const date = new Date(tx.created_at);
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
-                  
+                  const isAccordionType = tx.type === 'use' || tx.type === 'refund';
+                  const isOpen = !!openRowIds[tx.id];
+
                   return (
-                    <tr key={tx.id} className="hover:bg-neutral-50/50 transition-colors">
-                      <td className="py-4 px-6 text-center text-neutral-400 font-mono">{rowNo}</td>
-                      <td className="py-4 px-6 text-neutral-600 whitespace-nowrap">{dateStr}</td>
-                      <td className="py-4 px-6">
-                        <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
-                        <div className="text-xs text-neutral-500">{tx.user?.name} ({tx.user?.login_id})</div>
-                      </td>
-                      <td className="py-4 px-6 whitespace-nowrap">{getTypeBadge(tx.type)}</td>
-                      <td className="py-4 px-6 text-right font-medium">{getAmountDisplay(tx)}</td>
-                      <td className="py-4 px-6 text-neutral-700 max-w-xs truncate" title={tx.description || ''}>
-                        {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
-                      </td>
-                      <td className="py-4 px-6 text-neutral-500 font-mono text-xs">
-                        {tx.order_id ? (
-                          <button
-                            onClick={() => navigate(`/admin/orders/${tx.order_id}`)}
-                            className="text-[#21358D] hover:underline"
-                          >
-                            {tx.order?.order_number || tx.order_id}
-                          </button>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                    </tr>
+                    <React.Fragment key={tx.id}>
+                      <tr
+                        className={`hover:bg-neutral-50/50 transition-colors ${isAccordionType ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (isAccordionType) toggleRowOpen(tx.id, tx.order_id);
+                        }}
+                      >
+                        <td className="py-3 px-3 text-center text-neutral-400 font-mono text-xs">
+                          <div className="flex items-center justify-center gap-1">
+                            {isAccordionType && (
+                              <span className="text-neutral-500">
+                                {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </span>
+                            )}
+                            <span>{rowNo}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-neutral-600 whitespace-nowrap text-xs">{dateStr}</td>
+                        <td className="py-3 px-3 text-xs">
+                          <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
+                          <div className="text-[11px] text-indigo-600 font-mono mt-0.5">SAP: {tx.user?.sap_customer_code || '-'}</div>
+                        </td>
+                        <td className="py-3 px-3 whitespace-nowrap text-xs">{getTypeBadge(tx.type)}</td>
+                        <td className="py-3 px-3 text-right font-medium text-xs">{getAmountDisplay(tx)}</td>
+                        <td className="py-3 px-3 text-neutral-700 max-w-xs truncate text-xs" title={tx.description || ''}>
+                          {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
+                        </td>
+                        <td className="py-3 px-3 text-neutral-500 font-mono text-xs whitespace-nowrap">
+                          {tx.order_id ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/orders/${tx.order_id}`);
+                              }}
+                              className="text-[#21358D] hover:underline truncate max-w-[140px] block"
+                              title={tx.order?.order_number || tx.order_id}
+                            >
+                              {tx.order?.order_number || tx.order_id}
+                            </button>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* 사용 및 취소환불 구분 건에 대한 아코디언 상세 영역 */}
+                      {isAccordionType && isOpen && (() => {
+                        const orderDetail = tx.order_id ? orderDetailsMap[tx.order_id] : null;
+                        const summaryText = orderDetail?.itemsSummary || '-';
+                        const totalOrderAmount = orderDetail?.totalAmount ?? 0;
+                        const pointAmount = Math.abs(tx.amount) || orderDetail?.pointUsedAmount || 0;
+                        const isRefund = tx.type === 'refund';
+
+                        return (
+                          <tr className="bg-neutral-50/80 border-t border-b border-neutral-200">
+                            <td colSpan={7} className="px-4 py-3">
+                              <div className="p-4 bg-white border border-neutral-200 rounded-md shadow-xs space-y-3">
+                                <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+                                  <span className="text-xs font-bold text-[#21358D] uppercase tracking-wider">
+                                    {isRefund ? '주문 취소/환불 상세 정보' : '주문 결제 상세 정보'}
+                                  </span>
+                                  {tx.order_id && (
+                                    <button
+                                      onClick={() => navigate(`/admin/orders/${tx.order_id}`)}
+                                      className="text-xs text-neutral-500 hover:text-[#21358D] underline"
+                                    >
+                                      상세 주문 내역 이동 →
+                                    </button>
+                                  )}
+                                </div>
+                                {orderDetail?.loading ? (
+                                  <div className="flex items-center gap-2 text-xs text-neutral-500 py-2">
+                                    <Loader2 className="w-4 h-4 animate-spin text-[#21358D]" />
+                                    <span>주문 상세 정보를 불러오는 중입니다...</span>
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                                    <div>
+                                      <p className="text-neutral-400 font-medium mb-1">주문번호</p>
+                                      <p className="font-mono font-semibold text-neutral-800 break-all">
+                                        {tx.order?.order_number || tx.order_id || '-'}
+                                      </p>
+                                    </div>
+                                    <div className="md:col-span-2">
+                                      <p className="text-neutral-400 font-medium mb-1">주문 품목 및 수량</p>
+                                      <p className="font-medium text-neutral-800 break-words">
+                                        {summaryText}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-neutral-400 font-medium mb-1">
+                                        {isRefund ? '총 주문금액 / 포인트 환불' : '총 주문금액 / 포인트 사용'}
+                                      </p>
+                                      <p className="font-medium text-neutral-800">
+                                        {totalOrderAmount > 0 ? `${totalOrderAmount.toLocaleString()}원` : '-'}
+                                        <span className={`font-semibold ml-1 ${isRefund ? 'text-purple-600' : 'text-green-600'}`}>
+                                          ({isRefund ? '+' : '-'}{pointAmount.toLocaleString()} P)
+                                        </span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                    </React.Fragment>
                   );
                 })
               )}

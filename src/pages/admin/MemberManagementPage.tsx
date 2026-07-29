@@ -33,6 +33,7 @@ interface Member {
   hospitalEmail?: string;
   taxEmail?: string;
   memberType?: string | null;
+  sapCustomerCode?: string;
 }
 
 interface MemberType {
