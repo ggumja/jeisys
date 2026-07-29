@@ -1436,7 +1436,7 @@ export function ProductDetailPage() {
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wider">결제 주기</p>
+                <p className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-wider">결제 및 출고 주기</p>
                 <div className="grid grid-cols-4 gap-2">
                   {([1, 2, 3, 6] as const).map((m) => (
                     <button key={m} onClick={() => setSubCycle(m)}
@@ -1511,7 +1511,7 @@ export function ProductDetailPage() {
                   <p className="text-xs font-bold text-neutral-700 mb-2">정기공급 서비스 이용 약관</p>
                   <div className="h-28 overflow-y-auto text-[11px] text-neutral-500 leading-relaxed space-y-1.5 pr-1">
                     <p><strong>제1조 (목적)</strong> 본 약관은 제이시스메디칼(이하 "회사")이 제공하는 정기공급 서비스 이용에 관한 기본적인 사항을 규정합니다.</p>
-                    <p><strong>제2조 (서비스 내용)</strong> 회사는 고객이 선택한 수량 및 결제 주기에 따라 상품을 정기적으로 배송합니다. 구독 계약 기간 동안 매 회차마다 지정된 금액이 등록된 신용카드에서 자동 청구됩니다.</p>
+                    <p><strong>제2조 (서비스 내용)</strong> 회사는 고객이 선택한 수량 및 결제 및 출고 주기에 따라 상품을 정기적으로 배송합니다. 구독 계약 기간 동안 매 회차마다 지정된 금액이 등록된 신용카드에서 자동 청구됩니다.</p>
                     <p><strong>제3조 (결제)</strong> 결제는 등록된 신용카드를 통해 각 회차 배송일 기준으로 자동 청구됩니다. 결제 실패 시 배송이 보류될 수 있습니다.</p>
                     <p><strong>제4조 (중도해지)</strong> 고객은 언제든지 구독을 해지 신청할 수 있으나, 중도 해지 시 잔여 회차에 대해 위약금이 발생할 수 있습니다. 위약금은 관리자가 심사 후 별도 통보합니다.</p>
                     <p><strong>제5조 (개인정보)</strong> 회사는 서비스 제공을 위해 필요한 최소한의 개인정보를 수집·이용하며, 관련 법령에 따라 보호합니다.</p>
@@ -1556,7 +1556,7 @@ export function ProductDetailPage() {
                       return;
                     }
                     if (!selectedCombo) {
-                      toast.error('결제 주기 & 회차 조합을 선택해주세요.');
+                      toast.error('결제 및 출고 주기 & 회차 조합을 선택해주세요.');
                       return;
                     }
                     const discountedPrice = Math.round(product.price * (1 - (selectedSubOption.discountRate || 0) / 100));
