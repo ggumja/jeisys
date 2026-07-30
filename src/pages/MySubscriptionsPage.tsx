@@ -726,6 +726,79 @@ function UpdatePaymentModal({ sub, open, onClose, onSaved }: UpdatePaymentModalP
 }
 
 // ─────────────────────────────────────────
+// 일시정지 확인 모달
+// ─────────────────────────────────────────
+
+interface PauseModalProps {
+  open: boolean;
+  sub: SubscriptionRow;
+  pauseMaxCount: number;
+  pauseMaxDays: number;
+  onClose: () => void;
+  onConfirm: () => void;
+  processing?: boolean;
+}
+
+function PauseModal({ open, sub, pauseMaxCount, pauseMaxDays, onClose, onConfirm, processing = false }: PauseModalProps) {
+  // 일시정지 후 자동 재개 예정일 = 오늘 + pauseMaxDays
+  const autoResumeDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + pauseMaxDays);
+    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  })();
+
+  const remaining = pauseMaxCount - sub.pauseCount;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pause className="w-5 h-5 text-amber-500" />
+            정기공급 일시정지
+          </DialogTitle>
+          <DialogDescription>
+            일시정지 전 아래 내용을 확인해주세요.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {/* 횟수 안내 */}
+          <div className={`p-4 rounded border ${remaining <= 1 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+            <div className={`flex items-center justify-between text-sm font-semibold ${remaining <= 1 ? 'text-red-700' : 'text-amber-800'}`}>
+              <span>일시정지 사용 횟수</span>
+              <span>{sub.pauseCount}회 / {pauseMaxCount}회</span>
+            </div>
+            {remaining <= 1 && (
+              <p className="text-xs text-red-600 mt-1">
+                {remaining === 0 ? '사용 가능한 횟수를 모두 소진했습니다.' : '마지막 일시정지 횟수입니다.'}
+              </p>
+            )}
+          </div>
+          {/* 자동 재개 예정일 안내 */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+            <p>일시정지는 도래하는 결제일로부터 최대 <span className="font-semibold">{pauseMaxDays}일</span>간 적용됩니다.</p>
+            <p className="mt-1">자동 재개 예정일: <span className="font-semibold">{autoResumeDate}</span></p>
+          </div>
+        </div>
+        <DialogFooter className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={processing} className="border-neutral-300">
+            취소
+          </Button>
+          <Button
+            onClick={() => !processing && onConfirm()}
+            disabled={processing}
+            style={{ backgroundColor: '#d97706', color: '#fff' }}
+            className="hover:opacity-90 disabled:opacity-50"
+          >
+            {processing ? '처리 중...' : '일시정지'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────
 // 재개 옵션 모달
 // ─────────────────────────────────────────
 
@@ -1144,7 +1217,7 @@ function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDay
                   })()}
                   <Button
                     size="sm"
-                    onClick={() => onResume(sub)}
+                    onClick={() => hasFailedPayment ? onRetryPayment(sub) : onResume(sub)}
                     className="bg-green-600 text-white hover:bg-green-700"
                   >
                     <Play className="w-3.5 h-3.5 mr-1" />재개하기
@@ -1176,6 +1249,9 @@ export function MySubscriptionsPage() {
   const [processing, setProcessing] = useState(false);
   const [pauseMaxCount, setPauseMaxCount] = useState(2);
   const [pauseMaxDays, setPauseMaxDays] = useState(30);
+  // 일시정지 모달
+  const [pauseTarget, setPauseTarget] = useState<SubscriptionRow | null>(null);
+  const [pauseProcessing, setPauseProcessing] = useState(false);
   // 재개 모달
   const [resumeTarget, setResumeTarget] = useState<SubscriptionRow | null>(null);
   const [resumeProcessing, setResumeProcessing] = useState(false);
@@ -1215,6 +1291,8 @@ export function MySubscriptionsPage() {
 
   const handleRetryPayment = useCallback(async (sub: SubscriptionRow) => {
     if (retryingSubId) return;
+    const ok = await globalConfirm('변경된 결제수단으로 결제를 진행합니다.\n진행하시겠습니까?');
+    if (!ok) return;
     setRetryingSubId(sub.id);
     try {
       const result = await subscriptionService.retryFailedPayment(sub);
@@ -1229,7 +1307,7 @@ export function MySubscriptionsPage() {
     } finally {
       setRetryingSubId(null);
     }
-  }, [retryingSubId, loadSubscriptions]);
+  }, [retryingSubId, loadSubscriptions, globalConfirm]);
 
   useEffect(() => {
     loadSubscriptions();
@@ -1242,16 +1320,23 @@ export function MySubscriptionsPage() {
     }).catch(() => {});
   }, [loadSubscriptions]);
 
-  // ── 일시정지 ──
-  const handlePause = async (sub: SubscriptionRow) => {
-    const ok = await globalConfirm('정기공급을 일시정지하시겠습니까?\n다음 결제일이 일시정지됩니다.');
-    if (!ok) return;
+  // ── 일시정지 (모달에서 확인 후 호출) ──
+  const handlePause = (sub: SubscriptionRow) => {
+    setPauseTarget(sub);
+  };
+
+  const handlePauseConfirm = async () => {
+    if (!pauseTarget) return;
+    setPauseProcessing(true);
     try {
-      await subscriptionService.pauseSubscription(sub.id);
+      await subscriptionService.pauseSubscription(pauseTarget.id);
+      setPauseTarget(null);
       await globalAlert('일시정지되었습니다.');
       loadSubscriptions();
     } catch {
       await globalAlert('처리 중 오류가 발생했습니다.');
+    } finally {
+      setPauseProcessing(false);
     }
   };
 
@@ -1398,6 +1483,19 @@ export function MySubscriptionsPage() {
             />
           ))}
         </div>
+      )}
+
+      {/* 일시정지 확인 모달 */}
+      {pauseTarget && (
+        <PauseModal
+          open={!!pauseTarget}
+          sub={pauseTarget}
+          pauseMaxCount={pauseMaxCount}
+          pauseMaxDays={pauseMaxDays}
+          onClose={() => !pauseProcessing && setPauseTarget(null)}
+          onConfirm={handlePauseConfirm}
+          processing={pauseProcessing}
+        />
       )}
 
       {/* 위약금 확인 + 해지신청 모달 */}
