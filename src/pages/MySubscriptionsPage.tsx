@@ -146,15 +146,15 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
               </div>
             </div>
 
-            {/* 갯수별 할인표 */}
+            {/* 구간별 단가표 */}
             {sub.quantityDiscountTiers && sub.quantityDiscountTiers.length > 0 && (
               <div className="mt-3 p-3 bg-white border border-neutral-200 rounded">
-                <p className="text-xs font-semibold text-neutral-700 mb-2">📊 갯수별 할인율 기준표</p>
+                <p className="text-xs font-semibold text-neutral-700 mb-2">📊 구간별 단가표</p>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-neutral-50">
                       <th className="px-2 py-1.5 text-left font-medium text-neutral-500 border-b border-neutral-100">수량 구간</th>
-                      <th className="px-2 py-1.5 text-right font-medium text-neutral-500 border-b border-neutral-100">할인율</th>
+                      <th className="px-2 py-1.5 text-right font-medium text-neutral-500 border-b border-neutral-100">단가 (개당)</th>
                       <th className="px-2 py-1.5 text-right font-medium text-neutral-500 border-b border-neutral-100">적용 구간</th>
                     </tr>
                   </thead>
@@ -165,6 +165,8 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
                         const isApplied =
                           penalty.shippedQuantity >= tier.minQty &&
                           penalty.shippedQuantity <= tier.maxQty;
+                        // 구간 단가 = 원가 × (1 - 할인율/100)
+                        const tierUnitPrice = Math.round(sub.regularUnitPrice * (1 - tier.discountRate / 100));
                         return (
                           <tr
                             key={idx}
@@ -173,8 +175,8 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
                             <td className={`px-2 py-1.5 ${isApplied ? 'font-semibold text-blue-800' : 'text-neutral-600'}`}>
                               {tier.minQty} ~ {tier.maxQty}개
                             </td>
-                            <td className={`px-2 py-1.5 text-right ${isApplied ? 'font-semibold text-blue-800' : 'text-neutral-600'}`}>
-                              {tier.discountRate}%
+                            <td className={`px-2 py-1.5 text-right font-medium ${isApplied ? 'text-blue-800' : 'text-neutral-600'}`}>
+                              {tierUnitPrice.toLocaleString()}원
                             </td>
                             <td className="px-2 py-1.5 text-right">
                               {isApplied ? (
@@ -190,7 +192,7 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
                 </table>
                 {penalty.shippedQuantity > 0 && (
                   <p className="text-xs text-red-600 mt-2">
-                    ※ 기출고 {penalty.shippedQuantity}개 → {penalty.appliedDiscountRate > 0 ? `${penalty.appliedDiscountRate}% 할인 구간` : '기본'} 단가로 결제 금액 추가정산 필요
+                    ※ 기출고 {penalty.shippedQuantity}개 → {penalty.appliedDiscountRate > 0 ? `${penalty.appliedDiscountRate}% 할인 구간 (${Math.round(sub.regularUnitPrice * (1 - penalty.appliedDiscountRate / 100)).toLocaleString()}원/개)` : `기본 단가 (${sub.regularUnitPrice.toLocaleString()}원/개)`} 적용
                   </p>
                 )}
               </div>
@@ -223,7 +225,9 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
 
                   {/* ② 단가 재산정액 */}
                   <div>
-                    <p className="text-neutral-500 mb-0.5">② 단가 재산정액 (단가 {regularUnitPrice.toLocaleString()}원)</p>
+                    <p className="text-neutral-500 mb-0.5">
+                      ② 단가 재산정액 ({penalty.shippedQuantity}개 기준 단가 {regularUnitPrice.toLocaleString()}원)
+                    </p>
                     <div className="flex items-center justify-between pl-2">
                       <span className="text-neutral-400">
                         {penalty.shippedQuantity}개 × {regularUnitPrice.toLocaleString()}원
@@ -247,7 +251,7 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
 
             {hasPenalty && (
               <p className="text-xs text-red-600 mt-2">
-                * 추가 정산 금액은 해지 신청 후 승인 시 청구될 수 있습니다.
+                * 추가 정산 금액은 해지 신청 승인 시 청구될 수 있습니다.
               </p>
             )}
           </div>
