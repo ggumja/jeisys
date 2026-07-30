@@ -50,6 +50,8 @@ export interface SubscriptionRow {
   orderDeliveryAddress?: string;   // orders.delivery_address (주문 시점 원본)
   shipments?: SubscriptionScheduleRow[];
   quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
+  pauseCount: number; // 일시정지 사용 횟수
+  pausedAt?: string;  // 일시정지 시작 시각
 }
 
 export interface CancellationRequest {
@@ -247,6 +249,8 @@ function mapSubscriptionRow(row: any): SubscriptionRow {
     orderDeliveryAddress: row.orders?.delivery_address ?? undefined,
     shipments: row.subscription_shipments?.map(mapShipmentRow),
     quantityDiscountTiers: row.products?.quantity_discount_tiers ?? [],
+    pauseCount: row.pause_count ?? 0,
+    pausedAt: row.status === 'paused' ? (row.paused_at ?? row.updated_at) : undefined,
   };
 }
 
@@ -407,19 +411,41 @@ export const subscriptionService = {
   // 일시정지 / 재개
   // ──────────────────────────────
   async pauseSubscription(subId: string): Promise<void> {
+    // 현재 pause_count 조회 후 +1
+    const { data: current } = await supabase
+      .from('subscriptions')
+      .select('pause_count')
+      .eq('id', subId)
+      .single();
+    const newCount = (current?.pause_count ?? 0) + 1;
     const { error } = await supabase
       .from('subscriptions')
-      .update({ status: 'paused', updated_at: new Date().toISOString() })
+      .update({ status: 'paused', pause_count: newCount, updated_at: new Date().toISOString() })
       .eq('id', subId);
     if (error) throw error;
   },
 
-  async resumeSubscription(subId: string): Promise<void> {
-    const { error } = await supabase
-      .from('subscriptions')
-      .update({ status: 'active', updated_at: new Date().toISOString() })
-      .eq('id', subId);
-    if (error) throw error;
+  async resumeSubscription(subId: string, immediate = false): Promise<void> {
+    if (immediate) {
+      // 즉시 재개: 다음 결제일을 오늘로 설정
+      const today = new Date().toISOString().split('T')[0];
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          next_billing_date: today,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', subId);
+      if (error) throw error;
+    } else {
+      // 다음 결제일에 재개: status만 active로
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({ status: 'active', updated_at: new Date().toISOString() })
+        .eq('id', subId);
+      if (error) throw error;
+    }
   },
 
   // ──────────────────────────────

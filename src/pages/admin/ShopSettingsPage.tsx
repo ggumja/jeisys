@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 import { useModal } from '../../context/ModalContext';
 import { shopSettingsService } from '../../services/shopSettingsService';
 import { RichTextEditor, RichTextEditorRef } from '../../components/ui/RichTextEditor';
-type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'member_type' | 'notification' | 'payment';
+import { RefreshCw } from 'lucide-react';
+type TabId = 'delivery' | 'order' | 'company' | 'bank' | 'credit' | 'grade' | 'member_type' | 'notification' | 'payment' | 'subscription';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'delivery', label: '배송 정책', icon: Truck },
   { id: 'order', label: '주문/운영', icon: Clock },
+  { id: 'subscription', label: '정기공급 설정', icon: RefreshCw },
   { id: 'company', label: '회사 정보', icon: Building2 },
   { id: 'bank', label: '입금 계좌', icon: CreditCard },
   { id: 'credit', label: '적립금', icon: Star },
@@ -83,9 +85,13 @@ const TAB_FIELDS: Record<TabId, FieldDef[]> = {
     { key: 'pg_kicc_test_site_key', label: '테스트 사이트 키', type: 'text' },
     { key: 'pg_kicc_test_mode', label: '테스트 모드', type: 'boolean' },
   ],
-  // notification, member_type tab은 별도 렌더링
+  // notification, member_type, subscription tab은 별도 렌더링
   member_type: [],
   notification: [],
+  subscription: [
+    { key: 'sub_pause_max_count', label: '일시정지 최대 횟수', type: 'number', suffix: '회' },
+    { key: 'sub_pause_max_days', label: '일시정지 최대 기간', type: 'number', suffix: '일' },
+  ],
 };
 
 // 알림 설정 구조 정의

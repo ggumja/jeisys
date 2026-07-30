@@ -24,6 +24,7 @@ import {
 } from '../services/subscriptionService';
 import { paymentService } from '../services/paymentService';
 import { addressService } from '../services/addressService';
+import { shopSettingsService } from '../services/shopSettingsService';
 import { PaymentMethod, ShippingAddress } from '../types';
 
 // ─────────────────────────────────────────
@@ -725,12 +726,86 @@ function UpdatePaymentModal({ sub, open, onClose, onSaved }: UpdatePaymentModalP
 }
 
 // ─────────────────────────────────────────
+// 재개 옵션 모달
+// ─────────────────────────────────────────
+
+interface ResumeModalProps {
+  open: boolean;
+  sub: SubscriptionRow;
+  pauseMaxDays: number;
+  onClose: () => void;
+  onResume: (immediate: boolean) => void;
+  processing?: boolean;
+}
+
+function ResumeModal({ open, sub, pauseMaxDays, onClose, onResume, processing = false }: ResumeModalProps) {
+  // 자동 재개 예정일 계산: pausedAt + pauseMaxDays
+  const autoResumeDate = (() => {
+    if (!sub.pausedAt) return null;
+    const d = new Date(sub.pausedAt);
+    d.setDate(d.getDate() + pauseMaxDays);
+    return d;
+  })();
+  const autoResumeDateStr = autoResumeDate
+    ? `${autoResumeDate.getFullYear()}.${String(autoResumeDate.getMonth()+1).padStart(2,'0')}.${String(autoResumeDate.getDate()).padStart(2,'0')}`
+    : null;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Play className="w-5 h-5 text-green-600" />
+            정기공급 재개
+          </DialogTitle>
+          <DialogDescription>
+            재개 방식을 선택해주세요.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          {/* 자동 재개 안내 */}
+          {autoResumeDateStr && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+              현재 자동 재개 예정일: <span className="font-semibold">{autoResumeDateStr}</span>
+            </div>
+          )}
+          {/* 옵션 카드 */}
+          <button
+            onClick={() => !processing && onResume(false)}
+            disabled={processing}
+            className="w-full text-left p-4 border border-neutral-200 rounded hover:border-neutral-400 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+          >
+            <p className="font-medium text-neutral-900 mb-0.5">📅 다음 결제일에 재개</p>
+            <p className="text-xs text-neutral-500">도래하는 정기 결제일부터 정상 진행됩니다.</p>
+          </button>
+          <button
+            onClick={() => !processing && onResume(true)}
+            disabled={processing}
+            className="w-full text-left p-4 border border-green-200 rounded hover:border-green-400 hover:bg-green-50 transition-colors disabled:opacity-50"
+          >
+            <p className="font-medium text-green-700 mb-0.5">⚡ 즉시 결제 후 재개</p>
+            <p className="text-xs text-neutral-500">지금 바로 다음 회차 결제를 진행하고 정기공급을 재개합니다.</p>
+          </button>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={processing} className="border-neutral-300 w-full">
+            {processing ? '처리 중...' : '취소'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────
 // 구독 카드
 // ─────────────────────────────────────────
 
 interface SubscriptionCardProps {
   sub: SubscriptionRow;
   cancellationRequest?: CancellationRequest;
+  pauseMaxCount: number;
+  pauseMaxDays: number;
   onPause: (sub: SubscriptionRow) => void;
   onResume: (sub: SubscriptionRow) => void;
   onCancel: (sub: SubscriptionRow) => void;
@@ -739,7 +814,7 @@ interface SubscriptionCardProps {
   onRetryPayment: (sub: SubscriptionRow) => void;
 }
 
-function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCancel, onUpdatePayment, onChangeAddress, onRetryPayment }: SubscriptionCardProps) {
+function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDays, onPause, onResume, onCancel, onUpdatePayment, onChangeAddress, onRetryPayment }: SubscriptionCardProps) {
   const isActive = sub.status === 'active';
   const isPaused = sub.status === 'paused';
   const isCancelled = sub.status === 'cancelled' || sub.status === 'expired';
@@ -1016,14 +1091,33 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onPause(sub)}
-                      className="border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-                    >
-                      <Pause className="w-3.5 h-3.5 mr-1" />일시정지
-                    </Button>
+                    <>
+                      {/* 일시정지 안내 */}
+                      <div className="w-full mb-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 space-y-1">
+                        <p>
+                          일시정지는 도래하는 결제일로부터 최대 {pauseMaxDays}일간 가능하며,
+                          일시정지 후 자동으로 다시 재개됩니다.
+                        </p>
+                        <div className="flex items-center gap-1 font-semibold">
+                          <span>일시정지 횟수:</span>
+                          <span className={sub.pauseCount >= pauseMaxCount ? 'text-red-600' : 'text-amber-700'}>
+                            {sub.pauseCount}회 / {pauseMaxCount}회
+                          </span>
+                          {sub.pauseCount >= pauseMaxCount && (
+                            <span className="text-red-600 font-medium">(사용 횟수 초과)</span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPause(sub)}
+                        disabled={sub.pauseCount >= pauseMaxCount}
+                        className="border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <Pause className="w-3.5 h-3.5 mr-1" />일시정지
+                      </Button>
+                    </>
                   )}
                   <Button
                     variant="outline"
@@ -1036,13 +1130,26 @@ function SubscriptionCard({ sub, cancellationRequest, onPause, onResume, onCance
                 </>
               )}
               {isPaused && (
-                <Button
-                  size="sm"
-                  onClick={() => onResume(sub)}
-                  className="bg-green-600 text-white hover:bg-green-700"
-                >
-                  <Play className="w-3.5 h-3.5 mr-1" />재개하기
-                </Button>
+                <>
+                  {/* 자동 재개일 안내 */}
+                  {sub.pausedAt && (() => {
+                    const d = new Date(sub.pausedAt);
+                    d.setDate(d.getDate() + pauseMaxDays);
+                    const str = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+                    return (
+                      <div className="w-full mb-2 p-4 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                        자동 재개 예정일: <span className="font-semibold">{str}</span>
+                      </div>
+                    );
+                  })()}
+                  <Button
+                    size="sm"
+                    onClick={() => onResume(sub)}
+                    className="bg-green-600 text-white hover:bg-green-700"
+                  >
+                    <Play className="w-3.5 h-3.5 mr-1" />재개하기
+                  </Button>
+                </>
               )}
             </>
           )}
@@ -1067,6 +1174,11 @@ export function MySubscriptionsPage() {
   // 해지 신청 모달
   const [cancelTarget, setCancelTarget] = useState<SubscriptionRow | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [pauseMaxCount, setPauseMaxCount] = useState(2);
+  const [pauseMaxDays, setPauseMaxDays] = useState(30);
+  // 재개 모달
+  const [resumeTarget, setResumeTarget] = useState<SubscriptionRow | null>(null);
+  const [resumeProcessing, setResumeProcessing] = useState(false);
 
   // 결제정보 업데이트 모달
   const [updatePaymentTarget, setUpdatePaymentTarget] = useState<SubscriptionRow | null>(null);
@@ -1121,6 +1233,13 @@ export function MySubscriptionsPage() {
 
   useEffect(() => {
     loadSubscriptions();
+    // 정기공급 설정 로드
+    shopSettingsService.getAll().then((settings) => {
+      const count = Number(settings['sub_pause_max_count'] ?? 2);
+      const days = Number(settings['sub_pause_max_days'] ?? 30);
+      if (!isNaN(count) && count > 0) setPauseMaxCount(count);
+      if (!isNaN(days) && days > 0) setPauseMaxDays(days);
+    }).catch(() => {});
   }, [loadSubscriptions]);
 
   // ── 일시정지 ──
@@ -1136,16 +1255,27 @@ export function MySubscriptionsPage() {
     }
   };
 
-  // ── 재개 ──
-  const handleResume = async (sub: SubscriptionRow) => {
-    const ok = await globalConfirm('정기공급을 재개하시겠습니까?');
-    if (!ok) return;
+  // ── 재개 (모달에서 옵션 선택 후 호출) ──
+  const handleResume = (sub: SubscriptionRow) => {
+    setResumeTarget(sub);
+  };
+
+  const handleResumeConfirm = async (immediate: boolean) => {
+    if (!resumeTarget) return;
+    setResumeProcessing(true);
     try {
-      await subscriptionService.resumeSubscription(sub.id);
-      await globalAlert('재개되었습니다. 다음 결제일부터 진행됩니다.');
+      await subscriptionService.resumeSubscription(resumeTarget.id, immediate);
+      setResumeTarget(null);
+      await globalAlert(
+        immediate
+          ? '즉시 재개되었습니다. 다음 회차 결제를 진행합니다.'
+          : '재개되었습니다. 다음 결제일부터 진행됩니다.'
+      );
       loadSubscriptions();
     } catch {
       await globalAlert('처리 중 오류가 발생했습니다.');
+    } finally {
+      setResumeProcessing(false);
     }
   };
 
@@ -1257,6 +1387,8 @@ export function MySubscriptionsPage() {
               key={sub.id}
               sub={sub}
               cancellationRequest={cancellationMap[sub.id]}
+              pauseMaxCount={pauseMaxCount}
+              pauseMaxDays={pauseMaxDays}
               onPause={handlePause}
               onResume={handleResume}
               onCancel={setCancelTarget}
@@ -1296,6 +1428,18 @@ export function MySubscriptionsPage() {
           sub={updateAddressTarget}
           onClose={() => setUpdateAddressTarget(null)}
           onSaved={loadSubscriptions}
+        />
+      )}
+
+      {/* 재개 옵션 모달 */}
+      {resumeTarget && (
+        <ResumeModal
+          open={!!resumeTarget}
+          sub={resumeTarget}
+          pauseMaxDays={pauseMaxDays}
+          onClose={() => !resumeProcessing && setResumeTarget(null)}
+          onResume={handleResumeConfirm}
+          processing={resumeProcessing}
         />
       )}
     </div>
