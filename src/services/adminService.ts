@@ -4207,7 +4207,31 @@ export const adminService = {
         if (error) throw error;
     },
 
+    /**
+     * 일정 완료처리: 일정 상태를 'completed'로 변경하고,
+     * 해당 일정의 모든 'scheduled' 상태 신청자도 'completed'로 일괄 처리
+     */
+    async completeScheduleWithRequests(scheduleId: string) {
+        // 1) 일정 자체 완료
+        const { error: schedErr } = await supabase
+            .from('education_schedules')
+            .update({ status: 'completed' })
+            .eq('id', scheduleId);
+
+        if (schedErr) throw schedErr;
+
+        // 2) 해당 일정의 확정된 신청자 일괄 완료
+        const { error: reqErr } = await supabase
+            .from('education_requests')
+            .update({ status: 'completed' })
+            .eq('schedule_id', scheduleId)
+            .eq('status', 'scheduled');
+
+        if (reqErr) throw reqErr;
+    },
+
     /** 교육 일정 삭제 */
+
     async deleteEducationSchedule(id: string) {
         const { error } = await supabase
             .from('education_schedules')
@@ -4215,6 +4239,66 @@ export const adminService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    /**
+     * 기간이 지난 '예정' 일정을 자동으로 '완료' 처리
+     * 페이지 로드 시 호출하여 상태를 동기화
+     */
+    async autoCompleteExpiredSchedules() {
+        const today = new Date().toISOString().split('T')[0];
+        const { error } = await supabase
+            .from('education_schedules')
+            .update({ status: 'completed' })
+            .eq('status', 'scheduled')
+            .lt('date', today);
+
+        if (error) console.warn('[autoComplete] 자동 완료 처리 실패:', error);
+    },
+
+    /**
+     * 기간이 지난 '일정확정' 상태 교육 신청을 자동으로 '완료' 처리
+     * scheduled_date 가 오늘보다 이전인 경우 completed 로 변경
+     */
+    async autoCompleteExpiredRequests() {
+        const today = new Date().toISOString().split('T')[0];
+        const { error } = await supabase
+            .from('education_requests')
+            .update({ status: 'completed' })
+            .eq('status', 'scheduled')
+            .lt('scheduled_date', today)
+            .not('scheduled_date', 'is', null);
+
+        if (error) console.warn('[autoComplete] 신청 자동 완료 처리 실패:', error);
+    },
+
+    /**
+     * 프론트 캘린더용: scheduled 상태만 반환 (취소/완료 제외)
+     */
+    async getPublicEducationSchedules() {
+        const today = new Date().toISOString().split('T')[0];
+        const { data, error } = await supabase
+            .from('education_schedules')
+            .select('*')
+            .eq('status', 'scheduled')
+            .gte('date', today)
+            .order('date', { ascending: true });
+
+        if (error) throw error;
+
+        return (data || []).map((row: any) => ({
+            id: row.id as string,
+            date: row.date as string,
+            equipment: row.equipment as string,
+            time: row.time as string,
+            location: row.location as string,
+            capacity: Number(row.capacity),
+            enrolled: Number(row.enrolled),
+            instructor: row.instructor as string,
+            status: row.status as 'scheduled' | 'completed' | 'cancelled',
+            type: row.type as 'education' | 'seminar',
+            description: (row.description || '') as string,
+        }));
     },
 
     // =========================================================
@@ -4228,7 +4312,16 @@ export const adminService = {
 
         const { data, error } = await supabase
             .from('education_requests')
-            .select('*')
+            .select(`
+                *,
+                schedule:education_schedules (
+                    date,
+                    time,
+                    equipment,
+                    type,
+                    location
+                )
+            `)
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
@@ -4242,6 +4335,13 @@ export const adminService = {
             scheduledDate: row.scheduled_date as string | undefined,
             content: row.content as string,
             status: row.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
+            schedule: row.schedule ? {
+                date: row.schedule.date as string,
+                time: row.schedule.time as string,
+                equipment: row.schedule.equipment as string,
+                type: row.schedule.type as 'education' | 'seminar',
+                location: row.schedule.location as string,
+            } : null,
         }));
     },
 
@@ -4280,6 +4380,19 @@ export const adminService = {
             });
 
         if (error) throw error;
+
+        // ✅ #5: enrolled 자동 증가
+        const { data: current } = await supabase
+            .from('education_schedules')
+            .select('enrolled')
+            .eq('id', data.schedule_id)
+            .single();
+        if (current) {
+            await supabase
+                .from('education_schedules')
+                .update({ enrolled: (current.enrolled ?? 0) + 1 })
+                .eq('id', data.schedule_id);
+        }
     },
 
     /** [관리자] 전체 교육 신청 내역 조회 */
@@ -4329,6 +4442,41 @@ export const adminService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    /** [관리자] 특정 일정의 신청자 목록 조회 */
+    async getEducationRequestsBySchedule(scheduleId: string) {
+        const { data, error } = await supabase
+            .from('education_requests')
+            .select(`
+                *,
+                user:users (
+                    name,
+                    hospital_name,
+                    phone,
+                    email
+                )
+            `)
+            .eq('schedule_id', scheduleId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        return (data || []).map((row: any) => ({
+            id: row.id as string,
+            equipment: row.equipment as string,
+            requestDate: (row.created_at as string).split('T')[0],
+            preferredDate: row.preferred_date as string | null,
+            scheduledDate: row.scheduled_date as string | undefined,
+            content: row.content as string,
+            status: row.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
+            user: row.user ? {
+                name: row.user.name as string,
+                hospitalName: row.user.hospital_name as string,
+                phone: row.user.phone as string,
+                email: row.user.email as string,
+            } : null,
+        }));
     },
 
     /** [관리자] 전체 크레딧 거래 내역 조회 (페이징, 검색, 필터 포함) */

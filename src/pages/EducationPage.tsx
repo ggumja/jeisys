@@ -9,6 +9,13 @@ interface EducationRequest {
   status: 'pending' | 'scheduled' | 'completed' | 'cancelled';
   scheduledDate?: string;
   content: string;
+  schedule?: {
+    date: string;
+    time: string;
+    equipment: string;
+    type: 'education' | 'seminar';
+    location: string;
+  } | null;
 }
 
 interface EducationSchedule {
@@ -39,17 +46,27 @@ export function EducationPage() {
   const [requests, setRequests] = useState<EducationRequest[]>([]);
   const [isRequestsLoading, setIsRequestsLoading] = useState(false);
 
-  // 교육 일정 로드
+  // 교육 일정 로드 (취소/완료 제외, 기간 만료 자동 실행)
   useEffect(() => {
-    adminService.getEducationSchedules()
-      .then((data) => setEducationSchedules(data))
-      .catch((err) => console.error('교육 일정 로드 실패:', err));
+    // 기간이 지난 일정 자동 완료 처리
+    adminService.autoCompleteExpiredSchedules().then(() => {
+      // 프론트용: scheduled + 오늘 이후 날짜만 표시
+      adminService.getPublicEducationSchedules()
+        .then((data) => setEducationSchedules(data))
+        .catch((err) => console.error('교육 일정 로드 실패:', err));
+    }).catch(() => {
+      adminService.getPublicEducationSchedules()
+        .then((data) => setEducationSchedules(data))
+        .catch((err) => console.error('교육 일정 로드 실패:', err));
+    });
   }, []);
 
-  // 교육 신청 내역 로드
+  // 교육 신청 내역 로드 (기간 만료 자동 완료 포함)
   const loadRequests = async () => {
     try {
       setIsRequestsLoading(true);
+      // 기간 지난 확정 신청 자동 완료 처리
+      await adminService.autoCompleteExpiredRequests().catch(() => {});
       const data = await adminService.getMyEducationRequests();
       setRequests(data);
     } catch (err) {
@@ -167,9 +184,12 @@ export function EducationPage() {
                       }}
                       className="text-xs text-white px-1 py-0.5 truncate w-full text-left hover:opacity-80 transition-opacity cursor-pointer"
                       style={{ backgroundColor: isSeminar ? '#9333ea' : '#21358d' }}
-                      title={`${isSeminar ? '[세미나]' : '[교육]'} ${schedule.equipment} ${schedule.time}`}
+                      title={`${isSeminar ? '[세미나]' : '[교육]'} ${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : '공통'} ${schedule.time}`}
                     >
-                      {isSeminar ? '★ ' : ''}{schedule.equipment}
+                      {isSeminar ? '★ ' : ''}
+                      {schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : ''}
+                      {schedule.equipment && schedule.equipment !== 'none' ? ' ' : ''}
+                      {isSeminar ? '세미나' : '교육'}
                     </button>
                   );
                 })}
@@ -405,16 +425,25 @@ export function EducationPage() {
                   >
                     닫기
                   </button>
-                  <button
-                    onClick={() => setShowEnrollForm(true)}
-                    disabled={selectedSchedule.capacity - selectedSchedule.enrolled === 0}
-                    className="flex-1 px-6 py-4 text-white hover:opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: '#21358d' }}
-                  >
-                    {selectedSchedule.capacity - selectedSchedule.enrolled === 0
-                      ? '신청 마감'
-                      : selectedSchedule.type === 'seminar' ? '세미나 신청하기' : '교육 신청하기'}
-                  </button>
+                  {selectedSchedule.date >= new Date().toISOString().split('T')[0] ? (
+                    <button
+                      onClick={() => setShowEnrollForm(true)}
+                      disabled={selectedSchedule.capacity - selectedSchedule.enrolled === 0}
+                      className="flex-1 px-6 py-4 text-white hover:opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: '#21358d' }}
+                    >
+                      {selectedSchedule.capacity - selectedSchedule.enrolled === 0
+                        ? '신청 마감'
+                        : selectedSchedule.type === 'seminar' ? '세미나 신청하기' : '교육 신청하기'}
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="flex-1 px-6 py-4 bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                    >
+                      신청 마감 (기간 종료)
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -440,25 +469,43 @@ export function EducationPage() {
               <p className="text-sm text-neutral-400">위 캘린더에서 원하는 일정을 클릭해 신청하세요.</p>
             </div>
           ) : (
-            requests.map((request) => (
-              <div key={request.id} className="px-6 py-5">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-3">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg tracking-tight text-neutral-900">{request.equipment}</h3>
-                    {getStatusBadge(request.status)}
+            requests.map((request) => {
+              // 교육 제목: schedule 정보가 있으면 조합, 없으면 equipment 폴백
+              const sc = request.schedule;
+              const isSeminar = sc?.type === 'seminar';
+              const titleEq = sc?.equipment && sc.equipment !== 'none' ? sc.equipment : '';
+              const titleType = isSeminar ? '세미나' : '교육';
+              const educationTitle = titleEq ? `${titleEq} ${titleType}` : titleType;
+
+              return (
+                <div key={request.id} className="px-6 py-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-3">
+                    <div className="flex items-start gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold tracking-tight text-neutral-900">
+                          {sc ? educationTitle : request.equipment}
+                        </h3>
+                        {sc && (
+                          <p className="text-xs text-neutral-500 mt-0.5">
+                            {sc.date} {sc.time} · {sc.location}
+                          </p>
+                        )}
+                      </div>
+                      {getStatusBadge(request.status)}
+                    </div>
+                    <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 text-sm text-neutral-600">
+                      <span>신청일: {request.requestDate}</span>
+                      {request.scheduledDate && (
+                        <span className="font-medium text-blue-600">교육일: {request.scheduledDate}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 text-sm text-neutral-600">
-                    <span>신청일: {request.requestDate}</span>
-                    {request.scheduledDate && (
-                      <span className="font-medium text-blue-600">교육일: {request.scheduledDate}</span>
-                    )}
-                  </div>
+                  {request.content && (
+                    <p className="text-sm text-neutral-700 leading-relaxed">{request.content}</p>
+                  )}
                 </div>
-                {request.content && (
-                  <p className="text-sm text-neutral-700 leading-relaxed">{request.content}</p>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

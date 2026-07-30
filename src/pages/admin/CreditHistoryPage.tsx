@@ -750,18 +750,19 @@ export function CreditHistoryPage() {
                 <th className="py-3 px-3 font-semibold text-neutral-700 w-24">크레딧 종류</th>
                 <th className="py-3 px-3 font-semibold text-neutral-700 text-right w-32">변동 크레딧</th>
                 <th className="py-3 px-3 font-semibold text-neutral-700">내용/메모</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-20 text-center">상세</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16">
+                  <td colSpan={9} className="text-center py-16">
                     <Loader2 className="w-8 h-8 animate-spin text-[#21358D] mx-auto" />
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16 text-neutral-400">
+                  <td colSpan={9} className="text-center py-16 text-neutral-400">
                     등록된 크레딧 거래 이력이 없습니다.
                   </td>
                 </tr>
@@ -783,20 +784,10 @@ export function CreditHistoryPage() {
                   return (
                     <React.Fragment key={tx.id}>
                       <tr
-                        className={`hover:bg-neutral-50/50 transition-colors ${isAccordionType ? 'cursor-pointer' : ''}`}
-                        onClick={() => {
-                          if (isAccordionType) toggleRowOpen(tx.id, tx.order_id);
-                        }}
+                        className="hover:bg-neutral-50/50 transition-colors"
                       >
                         <td className="py-3 px-3 text-center text-neutral-400 font-mono text-xs">
-                          <div className="flex items-center justify-center gap-1">
-                            {isAccordionType && (
-                              <span className="text-neutral-500">
-                                {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                              </span>
-                            )}
-                            <span>{rowNo}</span>
-                          </div>
+                          {rowNo}
                         </td>
                         <td className="py-3 px-3 text-neutral-600 whitespace-nowrap text-xs">{dateStr}</td>
                         <td className="py-3 px-3 font-semibold text-neutral-900 text-xs">
@@ -813,6 +804,21 @@ export function CreditHistoryPage() {
                         <td className="py-3 px-3 text-neutral-700 max-w-xs truncate text-xs" title={tx.description || ''}>
                           {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
                         </td>
+                        <td className="py-3 px-3 text-center">
+                          {isAccordionType && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleRowOpen(tx.id, tx.order_id); }}
+                              className={`inline-flex items-center gap-1 px-2 py-1 text-xs border rounded transition-colors ${
+                                isOpen
+                                  ? 'bg-neutral-100 border-neutral-300 text-neutral-700'
+                                  : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50'
+                              }`}
+                            >
+                              {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              {isOpen ? '닫기' : '상세'}
+                            </button>
+                          )}
+                        </td>
                       </tr>
 
                       {/* 사용 및 취소환불 구분 건에 대한 아코디언 상세 영역 */}
@@ -827,7 +833,7 @@ export function CreditHistoryPage() {
 
                         return (
                           <tr className="bg-neutral-50/80 border-t border-b border-neutral-200">
-                            <td colSpan={8} className="px-4 py-3">
+                            <td colSpan={9} className="px-4 py-3">
                               <div className="p-4 bg-white border border-neutral-200 rounded-md shadow-xs space-y-3">
                                 <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
                                   <span className="text-xs font-bold text-[#21358D] uppercase tracking-wider">
