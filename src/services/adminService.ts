@@ -3795,7 +3795,8 @@ export const adminService = {
                 user:users!user_id (
                     id,
                     name,
-                    hospital_name
+                    hospital_name,
+                    sap_customer_code
                 )
             `);
 
@@ -3820,7 +3821,8 @@ export const adminService = {
                     hospitalMap[eq][uId] = {
                         remaining: 0,
                         hospitalName: userInfo.hospital_name || '일반고객',
-                        userName: userInfo.name
+                        userName: userInfo.name,
+                        sapCode: userInfo.sap_customer_code || '-'
                     };
                 }
                 hospitalMap[eq][uId].remaining += remaining;
@@ -3833,6 +3835,7 @@ export const adminService = {
                 userId,
                 hospitalName: h.hospitalName,
                 userName: h.userName,
+                sapCode: (h as any).sapCode ?? '-',
                 remaining: h.remaining
             })).sort((a, b) => b.remaining - a.remaining); // 전체 리스트 (프론트에서 페이징)
 
@@ -3869,7 +3872,8 @@ export const adminService = {
                 user:users!user_id (
                     name,
                     hospital_name,
-                    phone
+                    phone,
+                    sap_customer_code
                 )
             `);
 
@@ -3928,6 +3932,7 @@ export const adminService = {
                     detailedList.push({
                         id: c.id,
                         hospitalName: c.user?.hospital_name || '일반고객',
+                        sapCode: c.user?.sap_customer_code || '-',
                         userName: c.user?.name || '비회원',
                         equipmentType: c.equipment_type,
                         remaining,

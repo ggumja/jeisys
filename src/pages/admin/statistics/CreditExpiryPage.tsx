@@ -131,11 +131,12 @@ export function CreditExpiryPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="py-3 px-6 font-semibold text-neutral-700 w-16 text-center">No.</th>
+                <th className="py-3 px-6 font-semibold text-neutral-700 w-12 text-center">No.</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700">병원명</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 w-32">대표자명</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 w-32">장비 모델</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 text-right w-36">남은 크레딧 잔액</th>
+                <th className="py-3 px-6 font-semibold text-neutral-700 w-32">SAP코드</th>
+                <th className="py-3 px-6 font-semibold text-neutral-700 w-32">고객명</th>
+                <th className="py-3 px-6 font-semibold text-neutral-700 w-32">장비모델</th>
+                <th className="py-3 px-6 font-semibold text-neutral-700 text-right w-36">만료예정 크레딧</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-36">만료 예정일</th>
                 <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-32">연락처</th>
               </tr>
@@ -143,7 +144,7 @@ export function CreditExpiryPage() {
             <tbody className="divide-y divide-neutral-100 font-sans">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-neutral-400">
+                  <td colSpan={8} className="text-center py-12 text-neutral-400">
                     {selectedRange}일 이내에 만료 예정인 활성 크레딧이 없습니다.
                   </td>
                 </tr>
@@ -152,6 +153,7 @@ export function CreditExpiryPage() {
                   <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
                     <td className="py-3 px-6 text-center text-neutral-500 font-semibold">{idx + 1}</td>
                     <td className="py-3 px-6 font-semibold text-neutral-900">{row.hospitalName}</td>
+                    <td className="py-3 px-6 text-neutral-500 font-mono text-xs">{row.sapCode ?? '-'}</td>
                     <td className="py-3 px-6 text-neutral-600 font-semibold">{row.userName}</td>
                     <td className="py-3 px-6 text-neutral-600 font-semibold">{row.equipmentType}</td>
                     <td className="py-3 px-6 text-right font-bold text-red-600">₩{row.remaining.toLocaleString()}</td>

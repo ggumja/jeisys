@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Award, Landmark, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Award, Landmark, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
 export function CreditEquipmentPage() {
   // 장비별 통계는 전체 기간 고정 - 기간 필터 미사용
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [selectedEq, setSelectedEq] = useState<string>('');
@@ -143,9 +145,10 @@ export function CreditEquipmentPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr>
-                  <th className="py-3 px-6 font-semibold text-neutral-700 w-20 text-center">번호</th>
+                  <th className="py-3 px-6 font-semibold text-neutral-700 w-12 text-center">번호</th>
+                  <th className="py-3 px-6 font-semibold text-neutral-700">병원명</th>
+                  <th className="py-3 px-6 font-semibold text-neutral-700">SAP코드</th>
                   <th className="py-3 px-6 font-semibold text-neutral-700">고객명</th>
-                  <th className="py-3 px-6 font-semibold text-neutral-700">대표자명</th>
                   <th className="py-3 px-6 font-semibold text-neutral-700 text-right">보유 잔액</th>
                 </tr>
               </thead>
@@ -158,11 +161,19 @@ export function CreditEquipmentPage() {
                   </tr>
                 ) : (
                   paginatedHospitals.map((h: any, idx: number) => (
-                    <tr key={h.userId} className="hover:bg-neutral-50/50 transition-colors">
+                    <tr
+                      key={h.userId}
+                      onClick={() => navigate(`/admin/members/${h.userId}?tab=credit`)}
+                      className="hover:bg-blue-50/30 transition-colors cursor-pointer group"
+                    >
                       <td className="py-2.5 px-6 text-center text-neutral-500">
                         {(currentPage - 1) * itemsPerPage + idx + 1}
                       </td>
-                      <td className="py-2.5 px-6 font-semibold text-neutral-900">{h.hospitalName}</td>
+                      <td className="py-2.5 px-6 font-semibold text-neutral-900 flex items-center gap-1.5">
+                        {h.hospitalName}
+                        <ExternalLink className="w-3 h-3 text-neutral-300 group-hover:text-[#21358D] transition-colors" />
+                      </td>
+                      <td className="py-2.5 px-6 text-neutral-500 font-mono text-xs">{h.sapCode ?? '-'}</td>
                       <td className="py-2.5 px-6 text-neutral-600">{h.userName}</td>
                       <td className="py-2.5 px-6 text-right font-bold text-[#21358D]">₩{h.remaining.toLocaleString()}</td>
                     </tr>

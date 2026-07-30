@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import {
   ArrowLeft, User, Building2, Settings, Loader2,
   UserCheck, UserX, Clock, ShoppingCart, Tag, Check, Edit2, Save,
@@ -78,7 +78,9 @@ export function MemberDetailPage() {
   const [orderTotal, setOrderTotal] = useState(0);
   const ORDER_PAGE_SIZE = 10;
   const [inquiries, setInquiries] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'equipment' | 'orders' | 'credit' | 'points'>('info');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'info' | 'equipment' | 'orders' | 'credit' | 'points') ?? 'info';
+  const [activeTab, setActiveTab] = useState<'info' | 'equipment' | 'orders' | 'credit' | 'points'>(initialTab);
 
   // 크레딧
   const [credits, setCredits] = useState<UserCredit[]>([]);

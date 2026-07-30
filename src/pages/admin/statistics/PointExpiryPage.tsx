@@ -135,36 +135,35 @@ export function PointExpiryPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="py-3 px-6 font-semibold text-neutral-700 w-16 text-center">No.</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700">병원명 / SAP고객코드</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 w-32">회원명</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 text-right w-36">만료 예정 포인트</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-36">만료 예정일</th>
-                <th className="py-3 px-6 font-semibold text-neutral-700 text-center w-32">연락처</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-10 text-center whitespace-nowrap">No.</th>
+                <th className="py-3 px-4 font-semibold text-neutral-700">병원명</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-28">SAP코드</th>
+                <th className="py-3 px-4 font-semibold text-neutral-700 w-28">고객명</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-right w-36 whitespace-nowrap">만료예정 포인트</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-center w-32 whitespace-nowrap">만료 예정일</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-center w-28 whitespace-nowrap">연락처</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 font-sans">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-neutral-400">
+                  <td colSpan={7} className="text-center py-12 text-neutral-400">
                     {selectedRange}일 이내에 만료 예정인 활성 포인트가 없습니다.
                   </td>
                 </tr>
               ) : (
                 filteredList.map((row, idx) => (
                   <tr key={row.id} className="hover:bg-neutral-50/50 transition-colors">
-                    <td className="py-3.5 px-6 text-center text-neutral-400 font-mono text-xs">{idx + 1}</td>
-                    <td className="py-3.5 px-6">
-                      <div className="font-semibold text-neutral-900">{row.hospitalName}</div>
-                      <div className="text-xs text-indigo-600 font-mono">SAP: {row.sapCustomerCode}</div>
-                    </td>
-                    <td className="py-3.5 px-6 text-neutral-800">{row.userName}</td>
-                    <td className="py-3.5 px-6 text-right font-bold text-red-600">{row.remaining.toLocaleString()} P</td>
-                    <td className="py-3.5 px-6 text-center text-neutral-600 text-xs font-mono">
+                    <td className="py-3.5 px-3 text-center text-neutral-400 font-mono text-xs">{idx + 1}</td>
+                    <td className="py-3.5 px-4 font-semibold text-neutral-900">{row.hospitalName}</td>
+                    <td className="py-3.5 px-3 text-indigo-600 font-mono text-xs">{row.sapCustomerCode}</td>
+                    <td className="py-3.5 px-4 text-neutral-800">{row.userName}</td>
+                    <td className="py-3.5 px-3 text-right font-bold text-red-600 whitespace-nowrap">{row.remaining.toLocaleString()} P</td>
+                    <td className="py-3.5 px-3 text-center text-neutral-600 text-xs font-mono whitespace-nowrap">
                       {row.expiryDate}
                       <span className="block text-[11px] text-red-500 font-sans mt-0.5">({row.daysRemaining}일 남음)</span>
                     </td>
-                    <td className="py-3.5 px-6 text-center text-neutral-500 text-xs font-mono">{row.phone}</td>
+                    <td className="py-3.5 px-3 text-center text-neutral-500 text-xs font-mono whitespace-nowrap">{row.phone}</td>
                   </tr>
                 ))
               )}

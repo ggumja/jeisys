@@ -743,13 +743,13 @@ export function CreditHistoryPage() {
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
                 <th className="py-3 px-3 font-semibold text-neutral-700 w-12 text-center">No.</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">일시</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">회원 정보</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">구분</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">크레딧 종류</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700 text-right">변동 크레딧</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 whitespace-nowrap">일시</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">병원명</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-32">SAP코드</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-20">구분</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-24">크레딧 종류</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-right w-32">변동 크레딧</th>
                 <th className="py-3 px-3 font-semibold text-neutral-700">내용/메모</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">관련 주문</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -799,9 +799,11 @@ export function CreditHistoryPage() {
                           </div>
                         </td>
                         <td className="py-3 px-3 text-neutral-600 whitespace-nowrap text-xs">{dateStr}</td>
-                        <td className="py-3 px-3 text-xs">
-                          <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
-                          <div className="text-[11px] text-indigo-600 font-mono mt-0.5">SAP: {tx.user?.sap_customer_code || '-'}</div>
+                        <td className="py-3 px-3 font-semibold text-neutral-900 text-xs">
+                          {tx.user?.hospital_name || '-'}
+                        </td>
+                        <td className="py-3 px-3 text-indigo-600 font-mono text-xs">
+                          {tx.user?.sap_customer_code || '-'}
                         </td>
                         <td className="py-3 px-3 whitespace-nowrap text-xs">{getTypeBadge(tx.type)}</td>
                         <td className="py-3 px-3 font-medium text-neutral-800 whitespace-nowrap text-xs">
@@ -810,22 +812,6 @@ export function CreditHistoryPage() {
                         <td className="py-3 px-3 text-right font-medium text-xs">{getAmountDisplay(tx)}</td>
                         <td className="py-3 px-3 text-neutral-700 max-w-xs truncate text-xs" title={tx.description || ''}>
                           {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
-                        </td>
-                        <td className="py-3 px-3 text-neutral-500 font-mono text-xs whitespace-nowrap">
-                          {tx.order_id ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/orders/${tx.order_id}`);
-                              }}
-                              className="text-[#21358D] hover:underline truncate max-w-[140px] block"
-                              title={tx.order?.order_number || tx.order_id}
-                            >
-                              {tx.order?.order_number || tx.order_id}
-                            </button>
-                          ) : (
-                            '-'
-                          )}
                         </td>
                       </tr>
 
