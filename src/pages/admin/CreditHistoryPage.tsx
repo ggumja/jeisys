@@ -767,7 +767,7 @@ export function CreditHistoryPage() {
                 </tr>
               ) : (
                 transactions.map((tx, idx) => {
-                  const rowNo = (currentPage - 1) * pageSize + idx + 1;
+                  const rowNo = totalCount - (currentPage - 1) * pageSize - idx;
                   const date = new Date(tx.created_at);
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
                   const isAccordionType = tx.type === 'use' || tx.type === 'refund';

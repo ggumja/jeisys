@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, AlertTriangle, Loader2, CheckCircle2 } from 'lucide-react';
 import { ADMIN_STYLES } from '../../constants/adminStyles';
 import { paymentService } from '../../services/paymentService';
+import { creditService } from '../../services/creditService';
+import { pointService } from '../../services/pointService';
 import { supabase } from '../../lib/supabaseClient';
 import { useModal } from '../../context/ModalContext';
 
@@ -89,6 +91,26 @@ export function OrderCancelModal({ order, onClose, onSuccess }: OrderCancelModal
         method: order.paymentMethod || (order.pgTid ? 'credit' : 'virtual'), 
         reason: reason
       });
+
+      // 4. 크레딧 환불 처리
+      try {
+        const creditsRefunded = await creditService.refundOrderCredits(order.id);
+        if (creditsRefunded > 0) {
+          console.log(`크레딧 환불 완료: ₩${creditsRefunded.toLocaleString()}`);
+        }
+      } catch (creditError) {
+        console.error('크레딧 환불 중 오류 (주문 취소는 유지):', creditError);
+      }
+
+      // 5. 포인트 환불 처리
+      try {
+        const pointsRefunded = await pointService.refundOrderPoints(order.id);
+        if (pointsRefunded > 0) {
+          console.log(`포인트 환불 완료: ${pointsRefunded.toLocaleString()} P`);
+        }
+      } catch (pointError) {
+        console.error('포인트 환불 중 오류 (주문 취소는 유지):', pointError);
+      }
 
       setIsSuccess(true);
       setTimeout(() => {

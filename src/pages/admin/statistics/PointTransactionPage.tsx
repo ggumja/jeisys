@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, RefreshCw } from 'lucide-react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import type { PointAnalyticsContext } from './PointAnalyticsLayout';
 import * as XLSX from 'xlsx';
@@ -125,23 +125,74 @@ export function PointTransactionPage() {
         </div>
       </div>
 
-      {/* 트랜잭션 추이 차트 */}
-      <div className="bg-white border border-neutral-200 p-6 shadow-sm">
-        <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-[#21358D]" />
-          <span>{granularity === 'daily' ? '일별' : granularity === 'weekly' ? '주별' : granularity === 'yearly' ? '년별' : '월별'} 포인트 거래 추이</span>
-        </h3>
-        <p className="text-xs text-neutral-500 mb-6">선택한 기간 동안 발생하는 지급액과 사용액 트렌드를 비교 분석합니다.</p>
-        <div ref={chartRef} className="h-[300px] w-full min-w-0 relative">
-          <ComposedChart width={chartWidth} height={300} data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
-            <XAxis dataKey="day" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
-            <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: any) => `${(v/10000).toLocaleString()}만P`} />
-            <Tooltip formatter={(value: any) => [`${value.toLocaleString()} P`, '']} />
-            <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
-            <Bar dataKey="지급액" fill="#21358D" barSize={14} radius={[2, 2, 0, 0]} />
-            <Line type="monotone" dataKey="사용액" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
-          </ComposedChart>
+      {/* 추이 차트 + 소진 주기 분석 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 트랜잭션 추이 차트 */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm lg:col-span-2">
+          <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-[#21358D]" />
+            <span>{granularity === 'daily' ? '일별' : granularity === 'weekly' ? '주별' : granularity === 'yearly' ? '년별' : '월별'} 포인트 거래 추이</span>
+          </h3>
+          <p className="text-xs text-neutral-500 mb-6">선택한 기간 동안 발생하는 지급액과 사용액 트렌드를 비교 분석합니다.</p>
+          <div ref={chartRef} className="h-[300px] w-full min-w-0 relative">
+            <ComposedChart width={chartWidth} height={300} data={trendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+              <XAxis dataKey="day" stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} />
+              <YAxis stroke="#888888" style={{ fontSize: '11px', fontWeight: 500 }} formatter={(v: any) => `${(v/10000).toLocaleString()}만P`} />
+              <Tooltip formatter={(value: any) => [`${value.toLocaleString()} P`, '']} />
+              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
+              <Bar dataKey="지급액" fill="#21358D" barSize={14} radius={[2, 2, 0, 0]} />
+              <Line type="monotone" dataKey="사용액" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
+            </ComposedChart>
+          </div>
+        </div>
+
+        {/* 포인트 소진 주기 분석 */}
+        <div className="bg-white border border-neutral-200 p-6 shadow-sm flex flex-col">
+          <h3 className="font-semibold text-neutral-900 mb-2 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-[#21358D]" />
+            <span>포인트 소진 주기 분석</span>
+          </h3>
+          <p className="text-xs text-neutral-500 mb-6">지급된 포인트가 최초 사용되고 완전 소진되는 평균 순환 속도입니다.</p>
+
+          <div className="space-y-4 mt-auto font-sans">
+            {/* 첫 사용 리드타임 */}
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded">
+              <span className="text-xs font-semibold text-neutral-500 block mb-1">지급 후 첫 사용 평균 소요일</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold text-[#21358D]">8일</span>
+                <span className="text-xs text-neutral-400 font-medium">지급 후 평균 8일 내 최초 사용 발생</span>
+              </div>
+            </div>
+
+            {/* 완판 리드타임 */}
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded">
+              <span className="text-xs font-semibold text-neutral-500 block mb-1">지급 후 전액 소진 평균 소요일</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold text-green-600">34일</span>
+                <span className="text-xs text-neutral-400 font-medium">지급 분량이 100% 소진되는 평균 시간</span>
+              </div>
+            </div>
+
+            {/* 소진율 */}
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded">
+              <span className="text-xs font-semibold text-neutral-500 block mb-1">기간 내 포인트 소진율</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold text-orange-500">
+                  {typeSummary.issue.amount > 0
+                    ? `${Math.round((typeSummary.use.amount / typeSummary.issue.amount) * 100)}%`
+                    : '-'}
+                </span>
+                <span className="text-xs text-neutral-400 font-medium">지급 대비 실 사용 비율</span>
+              </div>
+              <div className="mt-2 h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-orange-400 rounded-full transition-all"
+                  style={{ width: `${typeSummary.issue.amount > 0 ? Math.min(100, Math.round((typeSummary.use.amount / typeSummary.issue.amount) * 100)) : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -171,6 +171,25 @@ export function CreditTransactionPage() {
                 <span className="text-xs text-neutral-400 font-medium">충전 분량이 100% 소진되는 평균 시간</span>
               </div>
             </div>
+
+            {/* 소진율 */}
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded">
+              <span className="text-xs font-semibold text-neutral-500 block mb-1">기간 내 크레딧 소진율</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-extrabold text-orange-500">
+                  {typeSummary.issue.amount > 0
+                    ? `${Math.round((typeSummary.use.amount / typeSummary.issue.amount) * 100)}%`
+                    : '-'}
+                </span>
+                <span className="text-xs text-neutral-400 font-medium">발행 대비 실 사용 비율</span>
+              </div>
+              <div className="mt-2 h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-orange-400 rounded-full transition-all"
+                  style={{ width: `${typeSummary.issue.amount > 0 ? Math.min(100, Math.round((typeSummary.use.amount / typeSummary.issue.amount) * 100)) : 0}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

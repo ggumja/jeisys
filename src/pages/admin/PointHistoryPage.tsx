@@ -672,12 +672,12 @@ export function PointHistoryPage() {
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
                 <th className="py-3 px-3 font-semibold text-neutral-700 w-12 text-center">No.</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">일시</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">회원 정보</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">구분</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700 text-right">변동 포인트</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 whitespace-nowrap">일시</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700">병원명</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-32">SAP코드</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 w-20">구분</th>
+                <th className="py-3 px-3 font-semibold text-neutral-700 text-right w-32">변동 포인트</th>
                 <th className="py-3 px-3 font-semibold text-neutral-700">내용/메모</th>
-                <th className="py-3 px-3 font-semibold text-neutral-700">관련 주문</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
@@ -695,10 +695,10 @@ export function PointHistoryPage() {
                 </tr>
               ) : (
                 transactions.map((tx, idx) => {
-                  const rowNo = (currentPage - 1) * pageSize + idx + 1;
+                  const rowNo = totalCount - (currentPage - 1) * pageSize - idx;
                   const date = new Date(tx.created_at);
                   const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}:${String(date.getSeconds()).padStart(2,'0')}`;
-                  const isAccordionType = tx.type === 'use' || tx.type === 'refund';
+                  const isAccordionType = (tx.type === 'use' || tx.type === 'refund') && !!tx.order_id;
                   const isOpen = !!openRowIds[tx.id];
 
                   return (
@@ -720,30 +720,16 @@ export function PointHistoryPage() {
                           </div>
                         </td>
                         <td className="py-3 px-3 text-neutral-600 whitespace-nowrap text-xs">{dateStr}</td>
-                        <td className="py-3 px-3 text-xs">
-                          <div className="font-semibold text-neutral-900">{tx.user?.hospital_name || '-'}</div>
-                          <div className="text-[11px] text-indigo-600 font-mono mt-0.5">SAP: {tx.user?.sap_customer_code || '-'}</div>
+                        <td className="py-3 px-3 font-semibold text-neutral-900 text-xs">
+                          {tx.user?.hospital_name || '-'}
+                        </td>
+                        <td className="py-3 px-3 text-indigo-600 font-mono text-xs">
+                          {tx.user?.sap_customer_code || '-'}
                         </td>
                         <td className="py-3 px-3 whitespace-nowrap text-xs">{getTypeBadge(tx.type)}</td>
                         <td className="py-3 px-3 text-right font-medium text-xs">{getAmountDisplay(tx)}</td>
                         <td className="py-3 px-3 text-neutral-700 max-w-xs truncate text-xs" title={tx.description || ''}>
                           {tx.description ? tx.description.replace(/\s*\(ORD-[^)]+\)/g, '') : '-'}
-                        </td>
-                        <td className="py-3 px-3 text-neutral-500 font-mono text-xs whitespace-nowrap">
-                          {tx.order_id ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/admin/orders/${tx.order_id}`);
-                              }}
-                              className="text-[#21358D] hover:underline truncate max-w-[140px] block"
-                              title={tx.order?.order_number || tx.order_id}
-                            >
-                              {tx.order?.order_number || tx.order_id}
-                            </button>
-                          ) : (
-                            '-'
-                          )}
                         </td>
                       </tr>
 
@@ -763,14 +749,17 @@ export function PointHistoryPage() {
                                   <span className="text-xs font-bold text-[#21358D] uppercase tracking-wider">
                                     {isRefund ? '주문 취소/환불 상세 정보' : '주문 결제 상세 정보'}
                                   </span>
-                                  {tx.order_id && (
-                                    <button
-                                      onClick={() => navigate(`/admin/orders/${tx.order_id}`)}
-                                      className="text-xs text-neutral-500 hover:text-[#21358D] underline"
-                                    >
-                                      상세 주문 내역 이동 →
-                                    </button>
-                                  )}
+                                  {(() => {
+                                    const targetOrderId = tx.order_id;
+                                    return targetOrderId ? (
+                                      <button
+                                        onClick={() => navigate(`/admin/orders/${targetOrderId}`)}
+                                        className="text-xs font-semibold text-[#21358D] hover:underline flex items-center gap-1 border border-[#21358D] rounded px-2 py-0.5"
+                                      >
+                                        상세 주문 내역 이동 →
+                                      </button>
+                                    ) : null;
+                                  })()}
                                 </div>
                                 {orderDetail?.loading ? (
                                   <div className="flex items-center gap-2 text-xs text-neutral-500 py-2">

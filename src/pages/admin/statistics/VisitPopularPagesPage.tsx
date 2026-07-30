@@ -110,7 +110,7 @@ export function VisitPopularPagesPage() {
       {/* 필터 탭 & 상위 인기 페이지 리스트 */}
       <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
         <div className="px-5 py-4 border-b border-neutral-200 flex flex-wrap items-center justify-between gap-4">
-          <h3 className="text-sm font-semibold text-neutral-800">많이 보는 페이지 (상품 포함) 순위 TOP</h3>
+          <h3 className="text-sm font-semibold text-neutral-800">페이지별 방문(상품 포함) 순위 TOP</h3>
           
           <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-md text-xs font-medium">
             <button

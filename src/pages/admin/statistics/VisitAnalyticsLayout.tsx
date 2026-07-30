@@ -123,7 +123,7 @@ export function VisitAnalyticsLayout() {
     { path: '/admin/statistics/visit/count', label: '방문숫자', icon: BarChart2 },
     { path: '/admin/statistics/visit/duration', label: '쇼핑몰 체류시간', icon: Clock },
     { path: '/admin/statistics/visit/hourly', label: '방문시간대 분석', icon: Sun },
-    { path: '/admin/statistics/visit/popular-pages', label: '많이보는페이지(상품포함)', icon: Eye },
+    { path: '/admin/statistics/visit/popular-pages', label: '페이지별 방문 통계', icon: Eye },
   ];
 
   const showDownloadBtn = !!exportFnRef.current;
