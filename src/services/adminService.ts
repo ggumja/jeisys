@@ -4631,7 +4631,7 @@ export const adminService = {
         };
     },
 
-    /** [관리자] 크레딧 월마감 (특정 일자 기준 합계 및 고객사별 보유 현황) 조회 */
+    /** [관리자] 크레딧 월마감 (특정 일자 기준 합계, 장비별 요약, 고객사별 보유 현황) 조회 */
     async getCreditClosingStats(targetDateStr: string, equipmentFilter?: string) {
         const endOfDayIso = new Date(`${targetDateStr}T23:59:59.999`).toISOString();
 
@@ -4663,6 +4663,9 @@ export const adminService = {
         let totalUsed = 0;
         let totalExpired = 0;
 
+        // 장비별 집계 (덴서티, 포텐자, 리니어지 등)
+        const eqMap: Record<string, { issued: number; used: number; expired: number }> = {};
+
         const customerMap: Record<string, {
             userId: string;
             hospitalName: string;
@@ -4675,14 +4678,25 @@ export const adminService = {
 
         (txs || []).forEach((tx: any) => {
             const eqType = tx.credit?.equipment_type || '기타';
+
+            // 장비별 요약 집계 (전체 기준)
+            if (!eqMap[eqType]) {
+                eqMap[eqType] = { issued: 0, used: 0, expired: 0 };
+            }
+
+            const amt = Number(tx.amount || 0);
+            const type = tx.type;
+
+            if (type === 'issue') eqMap[eqType].issued += amt;
+            else if (type === 'use') eqMap[eqType].used += amt;
+            else if (type === 'expire') eqMap[eqType].expired += amt;
+
+            // 선택 장비 필터링 (고객사 리스트 & 헤더 요약 지표용)
             if (equipmentFilter && equipmentFilter !== 'all') {
                 if (eqType.toUpperCase() !== equipmentFilter.toUpperCase()) {
                     return;
                 }
             }
-
-            const amt = Number(tx.amount || 0);
-            const type = tx.type;
 
             if (type === 'issue') totalIssued += amt;
             else if (type === 'use') totalUsed += amt;
@@ -4708,7 +4722,19 @@ export const adminService = {
             }
         });
 
-        // 2. 기준일 시점 잔액 계산
+        // 2. 장비별 매핑 배열 생성
+        const equipmentBreakdown: CreditEquipmentSummary[] = Object.entries(eqMap).map(([eqName, val]) => {
+            const remaining = val.issued - (val.used + val.expired);
+            return {
+                equipmentType: eqName,
+                totalIssued: val.issued,
+                totalUsed: val.used,
+                totalExpired: val.expired,
+                remainingAmount: Math.max(0, remaining),
+            };
+        });
+
+        // 3. 고객사별 목록 및 잔액 계산
         const customerList: CreditClosingRow[] = Object.values(customerMap).map(c => {
             const remainingAmount = c.issued - (c.used + c.expired);
             return {
@@ -4732,10 +4758,19 @@ export const adminService = {
                 totalExpired,
                 totalRemaining: Math.max(0, totalRemaining),
             },
+            equipmentBreakdown,
             customerList,
         };
     },
 };
+
+export interface CreditEquipmentSummary {
+    equipmentType: string;
+    totalIssued: number;
+    totalUsed: number;
+    totalExpired: number;
+    remainingAmount: number;
+}
 
 export interface CreditClosingRow {
     userId: string;
@@ -4747,5 +4782,6 @@ export interface CreditClosingRow {
     totalExpired: number;
     remainingAmount: number;
 }
+
 
 

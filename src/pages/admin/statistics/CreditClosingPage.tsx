@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router';
-import { CalendarIcon, CalendarCheck, Coins, TrendingUp, Sparkles, Building2, Search, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarIcon, CalendarCheck, Coins, TrendingUp, Sparkles, Building2, Search, ExternalLink, ChevronLeft, ChevronRight, Award } from 'lucide-react';
 import { Calendar } from '../../../components/ui/calendar';
 import { ko } from 'date-fns/locale';
-import { adminService, CreditClosingRow } from '../../../services/adminService';
+import { adminService, CreditClosingRow, CreditEquipmentSummary } from '../../../services/adminService';
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -26,8 +26,13 @@ export function CreditClosingPage() {
 
   // 데이터
   const [isLoading, setIsLoading] = useState(true);
-  const [closingData, setClosingData] = useState<{ summary: any; customerList: CreditClosingRow[] }>({
+  const [closingData, setClosingData] = useState<{
+    summary: any;
+    equipmentBreakdown: CreditEquipmentSummary[];
+    customerList: CreditClosingRow[];
+  }>({
     summary: { totalIssued: 0, totalUsed: 0, totalRemaining: 0, totalExpired: 0 },
+    equipmentBreakdown: [],
     customerList: [],
   });
 
@@ -94,7 +99,7 @@ export function CreditClosingPage() {
     };
   }, [onRegisterExport, exportToCSV]);
 
-  const { summary, customerList } = closingData;
+  const { summary, equipmentBreakdown, customerList } = closingData;
 
   // 검색 필터링
   const filteredCustomers = customerList.filter(item => {
@@ -194,58 +199,94 @@ export function CreditClosingPage() {
         </div>
       ) : (
         <>
-          {/* 기준일자 누적 지표 카드 */}
-          <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
-            {/* 기준일 기준 누적 발행액 */}
-            <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="p-1.5 bg-blue-50 text-[#21358D] rounded">
-                  <Coins className="w-4 h-4" />
-                </div>
-                <span className="text-xs text-neutral-600 font-semibold">기준일 누적 발행액</span>
-              </div>
-              <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalIssued.toLocaleString()}</p>
-              <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">{toDateStr(closingDate)} 이전 누적 충전</p>
-              <div className="absolute top-0 right-0 w-16 h-16 bg-[#21358D]/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
+          {/* 기준일자 장비별 마감 합계표 (전체 선택 시 장비별 집계 + 전체 합계표 표시) */}
+          <div className="bg-white border border-neutral-200 shadow-sm overflow-hidden p-6">
+            <div className="mb-4">
+              <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
+                <Award className="w-4 h-4 text-[#21358D]" />
+                <span>기준일자 장비별 마감 합계표 ({toDateStr(closingDate)} 기준)</span>
+              </h3>
+              <p className="text-xs text-neutral-500 mt-1">
+                {equipmentFilter === 'all'
+                  ? '모든 장비 모델별 크레딧 발행액, 차감액, 만료액, 최종 잔액과 총 합계 현황입니다.'
+                  : `'${equipmentFilter}' 장비에 대한 크레딧 마감 현황입니다.`}
+              </p>
             </div>
 
-            {/* 기준일 기준 누적 사용액 */}
-            <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="p-1.5 bg-green-50 text-green-600 rounded">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
-                <span className="text-xs text-neutral-600 font-semibold">기준일 누적 차감액</span>
-              </div>
-              <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalUsed.toLocaleString()}</p>
-              <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">{toDateStr(closingDate)} 이전 누적 소진</p>
-              <div className="absolute top-0 right-0 w-16 h-16 bg-green-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
-            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse border border-neutral-200">
+                <thead className="bg-neutral-100 border-b border-neutral-200">
+                  <tr>
+                    <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 w-44">장비 구분</th>
+                    <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">발행액</th>
+                    <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">차감액</th>
+                    <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">만료액</th>
+                    <th className="py-3 px-5 font-semibold text-neutral-800 text-right">잔액</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200">
+                  {(() => {
+                    const displayedRows = equipmentFilter === 'all'
+                      ? equipmentBreakdown
+                      : equipmentBreakdown.filter(r => r.equipmentType.toUpperCase() === equipmentFilter.toUpperCase());
 
-            {/* 기준일 기준 누적 만료액 */}
-            <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="p-1.5 bg-red-50 text-red-600 rounded">
-                  <Coins className="w-4 h-4" />
-                </div>
-                <span className="text-xs text-neutral-600 font-semibold">기준일 누적 만료액</span>
-              </div>
-              <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalExpired.toLocaleString()}</p>
-              <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">{toDateStr(closingDate)} 이전 누적 소멸</p>
-              <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
-            </div>
+                    if (displayedRows.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-neutral-400 text-xs">
+                            해당 기준일의 장비 마감 집계 데이터가 없습니다.
+                          </td>
+                        </tr>
+                      );
+                    }
 
-            {/* 기준일 시점 보유 잔액 */}
-            <div className="bg-white border border-neutral-200 p-5 shadow-sm relative overflow-hidden group hover:border-[#21358D]/30 transition-all flex-1 min-w-[200px]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <div className="p-1.5 bg-purple-50 text-purple-600 rounded">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <span className="text-xs text-neutral-600 font-semibold">기준일 시점 보유 잔액</span>
-              </div>
-              <p className="text-lg font-bold text-neutral-900 leading-tight">₩{summary.totalRemaining.toLocaleString()}</p>
-              <p className="text-xs text-neutral-400 mt-1 font-medium whitespace-nowrap">발행액 - (차감액 + 만료액)</p>
-              <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/5 rounded-full translate-x-5 -translate-y-5 group-hover:scale-110 transition-transform" />
+                    return (
+                      <>
+                        {displayedRows.map((row) => (
+                          <tr key={row.equipmentType} className="hover:bg-neutral-50/60 transition-colors">
+                            <td className="py-3.5 px-5 font-medium text-neutral-900 border-r border-neutral-200 bg-neutral-50/30">
+                              {row.equipmentType}
+                            </td>
+                            <td className="py-3.5 px-5 text-right font-medium text-neutral-900 border-r border-neutral-200">
+                              ₩{row.totalIssued.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-5 text-right font-medium text-green-600 border-r border-neutral-200">
+                              ₩{row.totalUsed.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-5 text-right font-medium text-red-500 border-r border-neutral-200">
+                              ₩{row.totalExpired.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-5 text-right font-bold text-[#21358D]">
+                              ₩{row.remainingAmount.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {/* 전체 합계 행 ('전체' 선택 시에만 표시) */}
+                        {equipmentFilter === 'all' && (
+                          <tr className="bg-blue-50/40 border-t-2 border-[#21358D]/30 font-bold">
+                            <td className="py-3.5 px-5 text-neutral-900 border-r border-neutral-200">
+                              전체 합계
+                            </td>
+                            <td className="py-3.5 px-5 text-right text-neutral-900 border-r border-neutral-200">
+                              ₩{summary.totalIssued.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-5 text-right text-green-700 border-r border-neutral-200">
+                              ₩{summary.totalUsed.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-5 text-right text-red-600 border-r border-neutral-200">
+                              ₩{summary.totalExpired.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-5 text-right text-[#21358D] text-base">
+                              ₩{summary.totalRemaining.toLocaleString()}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
             </div>
           </div>
 
