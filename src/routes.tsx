@@ -81,6 +81,7 @@ import { CreditAnalyticsLayout } from "./pages/admin/statistics/CreditAnalyticsL
 import { CreditOverviewPage } from "./pages/admin/statistics/CreditOverviewPage";
 import { CreditEquipmentPage } from "./pages/admin/statistics/CreditEquipmentPage";
 import { CreditExpiryPage } from "./pages/admin/statistics/CreditExpiryPage";
+import { CreditClosingPage } from "./pages/admin/statistics/CreditClosingPage";
 import { CreditTransactionPage } from "./pages/admin/statistics/CreditTransactionPage";
 import { PointAnalyticsLayout } from "./pages/admin/statistics/PointAnalyticsLayout";
 import { PointOverviewPage } from "./pages/admin/statistics/PointOverviewPage";
@@ -194,6 +195,7 @@ export const router = createBrowserRouter([
                     { path: "overview", Component: CreditOverviewPage },
                     { path: "equipment", Component: CreditEquipmentPage },
                     { path: "expiry", Component: CreditExpiryPage },
+                    { path: "closing", Component: CreditClosingPage },
                     { path: "transactions", Component: CreditTransactionPage },
                     { path: "history", Component: CreditHistoryPage },
                 ]

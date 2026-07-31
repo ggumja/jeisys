@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router';
-import { Download, CalendarIcon, Coins, TrendingUp, Award, ShieldAlert, ChevronLeft, ChevronRight, X, FileStack } from 'lucide-react';
+import { Download, CalendarIcon, Coins, TrendingUp, Award, ShieldAlert, ChevronLeft, ChevronRight, X, FileStack, CalendarCheck } from 'lucide-react';
 import { Calendar } from '../../../components/ui/calendar';
 import { ko } from 'date-fns/locale';
 
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -432,6 +433,7 @@ export function CreditAnalyticsLayout() {
     { path: '/admin/statistics/credits/overview', label: '크레딧 개요', icon: TrendingUp },
     { path: '/admin/statistics/credits/equipment', label: '장비별 통계', icon: Award },
     { path: '/admin/statistics/credits/expiry', label: '만료 임박 분석', icon: ShieldAlert },
+    { path: '/admin/statistics/credits/closing', label: '크레딧월마감', icon: CalendarCheck },
     { path: '/admin/statistics/credits/transactions', label: '거래 통계', icon: Coins },
     { path: '/admin/statistics/credits/history', label: '크레딧 이력 관리', icon: FileStack },
   ];

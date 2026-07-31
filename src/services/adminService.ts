@@ -4630,5 +4630,122 @@ export const adminService = {
             total: count || 0
         };
     },
+
+    /** [관리자] 크레딧 월마감 (특정 일자 기준 합계 및 고객사별 보유 현황) 조회 */
+    async getCreditClosingStats(targetDateStr: string, equipmentFilter?: string) {
+        const endOfDayIso = new Date(`${targetDateStr}T23:59:59.999`).toISOString();
+
+        // 1. targetDateStr 23:59:59 시점까지의 거래 내역 조회
+        let txQuery = supabase
+            .from('credit_transactions')
+            .select(`
+                id,
+                user_id,
+                amount,
+                type,
+                created_at,
+                credit:user_credits!credit_id (
+                    equipment_type
+                ),
+                user:users!user_id (
+                    id,
+                    name,
+                    hospital_name,
+                    sap_customer_code
+                )
+            `)
+            .lte('created_at', endOfDayIso);
+
+        const { data: txs, error: txErr } = await txQuery;
+        if (txErr) throw txErr;
+
+        let totalIssued = 0;
+        let totalUsed = 0;
+        let totalExpired = 0;
+
+        const customerMap: Record<string, {
+            userId: string;
+            hospitalName: string;
+            userName: string;
+            sapCode: string;
+            issued: number;
+            used: number;
+            expired: number;
+        }> = {};
+
+        (txs || []).forEach((tx: any) => {
+            const eqType = tx.credit?.equipment_type || '기타';
+            if (equipmentFilter && equipmentFilter !== 'all') {
+                if (eqType.toUpperCase() !== equipmentFilter.toUpperCase()) {
+                    return;
+                }
+            }
+
+            const amt = Number(tx.amount || 0);
+            const type = tx.type;
+
+            if (type === 'issue') totalIssued += amt;
+            else if (type === 'use') totalUsed += amt;
+            else if (type === 'expire') totalExpired += amt;
+
+            const userInfo = tx.user;
+            if (userInfo) {
+                const uId = userInfo.id;
+                if (!customerMap[uId]) {
+                    customerMap[uId] = {
+                        userId: uId,
+                        hospitalName: userInfo.hospital_name || '일반고객',
+                        userName: userInfo.name || '-',
+                        sapCode: userInfo.sap_customer_code || '-',
+                        issued: 0,
+                        used: 0,
+                        expired: 0,
+                    };
+                }
+                if (type === 'issue') customerMap[uId].issued += amt;
+                else if (type === 'use') customerMap[uId].used += amt;
+                else if (type === 'expire') customerMap[uId].expired += amt;
+            }
+        });
+
+        // 2. 기준일 시점 잔액 계산
+        const customerList: CreditClosingRow[] = Object.values(customerMap).map(c => {
+            const remainingAmount = c.issued - (c.used + c.expired);
+            return {
+                userId: c.userId,
+                hospitalName: c.hospitalName,
+                userName: c.userName,
+                sapCode: c.sapCode,
+                totalIssued: c.issued,
+                totalUsed: c.used,
+                totalExpired: c.expired,
+                remainingAmount: Math.max(0, remainingAmount),
+            };
+        }).sort((a, b) => b.remainingAmount - a.remainingAmount);
+
+        const totalRemaining = totalIssued - (totalUsed + totalExpired);
+
+        return {
+            summary: {
+                totalIssued,
+                totalUsed,
+                totalExpired,
+                totalRemaining: Math.max(0, totalRemaining),
+            },
+            customerList,
+        };
+    },
 };
+
+export interface CreditClosingRow {
+    userId: string;
+    hospitalName: string;
+    userName: string;
+    sapCode: string;
+    totalIssued: number;
+    totalUsed: number;
+    totalExpired: number;
+    remainingAmount: number;
+}
+
 
