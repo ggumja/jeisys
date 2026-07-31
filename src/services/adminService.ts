@@ -3984,13 +3984,16 @@ export const adminService = {
             }
         }
 
-        // 전체 트랜잭션 조회
+        // 전체 트랜잭션 조회 (credit_id가 있고 user_credits의 equipment_type 조인)
         let txQuery = supabase
             .from('credit_transactions')
             .select(`
                 amount,
                 type,
                 created_at,
+                credit:user_credits!credit_id (
+                    equipment_type
+                ),
                 user:users!user_id (
                     hospital_name
                 )
@@ -4014,6 +4017,15 @@ export const adminService = {
             expire: { amount: 0, count: 0 }
         };
 
+        // 장비별 거래 집계
+        const eqTxMap: Record<string, {
+            issue: { amount: number; count: number };
+            use: { amount: number; count: number };
+            refund: { amount: number; count: number };
+            expire: { amount: number; count: number };
+            revoke: { amount: number; count: number };
+        }> = {};
+
         const resolvedGranularity = granularity || (
             (dateRange === '7days' || dateRange === '30days') ? 'daily' :
             (dateRange === '3months') ? 'weekly' : 'monthly'
@@ -4021,9 +4033,26 @@ export const adminService = {
 
         const trendMap: Record<string, Record<string, number>> = {};
 
-        (txs || []).forEach(tx => {
+        (txs || []).forEach((tx: any) => {
+            const eqType = tx.credit?.equipment_type || '기타';
             const amt = Number(tx.amount || 0);
             const type = tx.type;
+
+            if (!eqTxMap[eqType]) {
+                eqTxMap[eqType] = {
+                    issue: { amount: 0, count: 0 },
+                    use: { amount: 0, count: 0 },
+                    refund: { amount: 0, count: 0 },
+                    expire: { amount: 0, count: 0 },
+                    revoke: { amount: 0, count: 0 },
+                };
+            }
+
+            if (eqTxMap[eqType][type]) {
+                eqTxMap[eqType][type].amount += amt;
+                eqTxMap[eqType][type].count += 1;
+            }
+
             if (typeMap[type]) {
                 typeMap[type].amount += amt;
                 typeMap[type].count += 1;
@@ -4032,19 +4061,15 @@ export const adminService = {
             const date = new Date(tx.created_at);
             let dateKey = '';
             if (resolvedGranularity === 'daily') {
-                // 일별: MM/DD
                 dateKey = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
             } else if (resolvedGranularity === 'weekly') {
-                // 주별: YYYY-Www
                 const oneJan = new Date(date.getFullYear(), 0, 1);
                 const numberOfDays = Math.floor((date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000));
                 const weekNum = Math.ceil((numberOfDays + oneJan.getDay() + 1) / 7);
                 dateKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
             } else if (resolvedGranularity === 'yearly') {
-                // 년별: YYYY
                 dateKey = `${date.getFullYear()}`;
             } else {
-                // 월별: YYYY-MM
                 dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             }
 
@@ -4056,7 +4081,15 @@ export const adminService = {
             }
         });
 
-        // dateRange 및 granularity에 따라 X축 레이블 목록 생성
+        const equipmentBreakdown = Object.entries(eqTxMap).map(([eqType, data]) => ({
+            equipmentType: eqType,
+            issue: data.issue,
+            use: data.use,
+            refund: data.refund,
+            expire: data.expire,
+            revoke: data.revoke,
+        }));
+
         const activeKeys: string[] = [];
         const rangeStart = new Date(startDateIso);
         const rangeEnd = new Date(endDateIso);
@@ -4124,6 +4157,7 @@ export const adminService = {
                 revoke: typeMap.revoke,
                 expire: typeMap.expire
             },
+            equipmentBreakdown,
             trendData,
             leadTimeAnalysis: {
                 avgUseDays: 12.4,

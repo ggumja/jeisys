@@ -67,60 +67,94 @@ export function CreditTransactionPage() {
     );
   }
 
-  const { typeSummary, trendData, leadTimeAnalysis } = stats;
+  const { typeSummary, equipmentBreakdown = [], trendData, leadTimeAnalysis } = stats;
+
+  const displayedRows = equipmentFilter === 'all'
+    ? equipmentBreakdown
+    : equipmentBreakdown.filter((r: any) => r.equipmentType.toUpperCase() === equipmentFilter.toUpperCase());
 
   return (
     <div className="space-y-6">
-      {/* 거래 유형별 집계 그리드 */}
-      <div className="flex flex-row flex-nowrap overflow-x-auto pb-1 gap-3 scrollbar-thin">
-        {/* 발급 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#21358D]" />
-            <span className="text-xs text-neutral-500 font-semibold">크레딧 충전(발행)</span>
-          </div>
-          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.issue.amount.toLocaleString()}</p>
-          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.issue.count}건</span>
-        </div>
-
-        {/* 사용 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-xs text-neutral-500 font-semibold">크레딧 차감(사용)</span>
-          </div>
-          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.use.amount.toLocaleString()}</p>
-          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.use.count}건</span>
-        </div>
-
-        {/* 환불 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-400" />
-            <span className="text-xs text-neutral-500 font-semibold">취소 환불(refund)</span>
-          </div>
-          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.refund.amount.toLocaleString()}</p>
-          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.refund.count}건</span>
-        </div>
-
-        {/* 만료 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            <span className="text-xs text-neutral-500 font-semibold">기간 만료(expire)</span>
-          </div>
-          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.expire.amount.toLocaleString()}</p>
-          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.expire.count}건</span>
-        </div>
-
-        {/* 회수 */}
-        <div className="bg-white border border-neutral-200 p-5 shadow-sm flex-1 min-w-[180px]">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-neutral-400" />
-            <span className="text-xs text-neutral-500 font-semibold">관리자 회수(revoke)</span>
-          </div>
-          <p className="text-lg font-bold text-neutral-900 leading-tight">₩{typeSummary.revoke.amount.toLocaleString()}</p>
-          <span className="text-xs text-neutral-400 font-medium whitespace-nowrap">거래 건수: {typeSummary.revoke.count}건</span>
+      {/* 거래 유형별 집계 표 (장비별 행 + 전체 선택 시 합계 행) */}
+      <div className="bg-white border border-neutral-200 shadow-sm overflow-hidden p-5">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse border border-neutral-200">
+            <thead className="bg-neutral-100 border-b border-neutral-200">
+              <tr>
+                <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 w-44">장비 구분</th>
+                <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">크레딧 충전(발행)</th>
+                <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">크레딧 차감(사용)</th>
+                <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">취소 환불(refund)</th>
+                <th className="py-3 px-5 font-semibold text-neutral-800 border-r border-neutral-200 text-right">기간 만료(expire)</th>
+                <th className="py-3 px-5 font-semibold text-neutral-800 text-right">관리자 회수(revoke)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-200">
+              {displayedRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-neutral-400 text-xs">
+                    거래 통계 데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                displayedRows.map((row: any) => (
+                  <tr key={row.equipmentType} className="hover:bg-neutral-50/60 transition-colors">
+                    <td className="py-3.5 px-5 font-medium text-neutral-900 border-r border-neutral-200 bg-neutral-50/30">
+                      {row.equipmentType}
+                    </td>
+                    <td className="py-3.5 px-5 text-right font-medium text-neutral-900 border-r border-neutral-200">
+                      ₩{row.issue.amount.toLocaleString()}
+                      <span className="block text-[11px] font-normal text-neutral-400">({row.issue.count}건)</span>
+                    </td>
+                    <td className="py-3.5 px-5 text-right font-medium text-green-600 border-r border-neutral-200">
+                      ₩{row.use.amount.toLocaleString()}
+                      <span className="block text-[11px] font-normal text-neutral-400">({row.use.count}건)</span>
+                    </td>
+                    <td className="py-3.5 px-5 text-right font-medium text-blue-500 border-r border-neutral-200">
+                      ₩{row.refund.amount.toLocaleString()}
+                      <span className="block text-[11px] font-normal text-neutral-400">({row.refund.count}건)</span>
+                    </td>
+                    <td className="py-3.5 px-5 text-right font-medium text-red-500 border-r border-neutral-200">
+                      ₩{row.expire.amount.toLocaleString()}
+                      <span className="block text-[11px] font-normal text-neutral-400">({row.expire.count}건)</span>
+                    </td>
+                    <td className="py-3.5 px-5 text-right font-medium text-neutral-600">
+                      ₩{row.revoke.amount.toLocaleString()}
+                      <span className="block text-[11px] font-normal text-neutral-400">({row.revoke.count}건)</span>
+                    </td>
+                  </tr>
+                ))
+              )}
+              {/* '전체' 선택 시 합계 행 표시 */}
+              {equipmentFilter === 'all' && (
+                <tr className="bg-blue-50/40 border-t-2 border-[#21358D]/30 font-bold">
+                  <td className="py-3.5 px-5 text-neutral-900 border-r border-neutral-200">
+                    전체 합계
+                  </td>
+                  <td className="py-3.5 px-5 text-right text-neutral-900 border-r border-neutral-200">
+                    ₩{typeSummary.issue.amount.toLocaleString()}
+                    <span className="block text-[11px] font-normal text-neutral-500">({typeSummary.issue.count}건)</span>
+                  </td>
+                  <td className="py-3.5 px-5 text-right text-green-700 border-r border-neutral-200">
+                    ₩{typeSummary.use.amount.toLocaleString()}
+                    <span className="block text-[11px] font-normal text-neutral-500">({typeSummary.use.count}건)</span>
+                  </td>
+                  <td className="py-3.5 px-5 text-right text-blue-600 border-r border-neutral-200">
+                    ₩{typeSummary.refund.amount.toLocaleString()}
+                    <span className="block text-[11px] font-normal text-neutral-500">({typeSummary.refund.count}건)</span>
+                  </td>
+                  <td className="py-3.5 px-5 text-right text-red-600 border-r border-neutral-200">
+                    ₩{typeSummary.expire.amount.toLocaleString()}
+                    <span className="block text-[11px] font-normal text-neutral-500">({typeSummary.expire.count}건)</span>
+                  </td>
+                  <td className="py-3.5 px-5 text-right text-neutral-800">
+                    ₩{typeSummary.revoke.amount.toLocaleString()}
+                    <span className="block text-[11px] font-normal text-neutral-500">({typeSummary.revoke.count}건)</span>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
