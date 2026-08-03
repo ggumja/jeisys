@@ -517,7 +517,7 @@ export function SmsMarketingHistoryPage() {
       {/* 수신 대상 상세보기 모달 */}
       {selectedDetailItem && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 bg-neutral-50">
               <h3 className="text-base font-bold text-neutral-900 flex items-center gap-2">
                 <Mail className="w-4 h-4 text-blue-600" /> 수신 대상 및 발송 상세 내역
