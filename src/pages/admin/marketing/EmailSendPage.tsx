@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Send, Plus, Trash2, Edit2, Check, X, Users, Upload, Clock, Loader2, RefreshCw, Sliders, History, Folder, Save } from 'lucide-react';
+import { Send, Plus, Trash2, Edit2, Check, X, Users, Upload, Clock, Loader2, RefreshCw, Sliders, History, Folder, Save, Search } from 'lucide-react';
 import { emailService, DEFAULT_FROM_EMAIL, type EmailTemplateGroup, type EmailTemplate } from '../../../services/emailService';
 import { equipmentService, type EquipmentModel } from '../../../services/equipmentService';
+import { productService } from '../../../services/productService';
+import type { Product } from '../../../types';
 import { RichTextEditor, type RichTextEditorRef } from '../../../components/ui/RichTextEditor';
 import { toast } from 'sonner';
 import { useModal } from '../../../context/ModalContext';
@@ -34,12 +36,24 @@ export function EmailSendPage() {
 
   const [recipients, setRecipients] = useState<Recipient[]>([]);
 
+  const KOREA_REGIONS = [
+    '서울', '경기', '인천', '강원',
+    '충북', '충남', '대전', '세종',
+    '전북', '전남', '광주',
+    '경북', '경남', '대구', '울산', '부산', '제주'
+  ];
+
   const [isSegmentOpen, setIsSegmentOpen] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>(['병원', '대리점', '홀딩스', '학회', '기타']);
   const [selectedDaysAgo, setSelectedDaysAgo] = useState<number | null>(null);
   const [selectedMinAmount, setSelectedMinAmount] = useState<number | null>(null);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [equipments, setEquipments] = useState<EquipmentModel[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductCondition, setSelectedProductCondition] = useState<'all' | 'purchased' | 'not_purchased'>('all');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [productSearchQuery, setProductSearchQuery] = useState<string>('');
   const [moveGroupTarget, setMoveGroupTarget] = useState<EmailTemplate | null>(null);
 
   const [sendMode, setSendMode] = useState<'immediate' | 'reserved'>('immediate');
@@ -59,7 +73,31 @@ export function EmailSendPage() {
     loadGroups();
     loadTemplates();
     loadEquipments();
+    loadProducts();
   }, []);
+
+  const loadProducts = async () => {
+    try {
+      const data = await productService.getProducts();
+      if (data && data.length > 0) {
+        setProducts(data);
+      } else {
+        setProducts([
+          { id: 'p1', name: '덴시티 HIGH 팁 300샷', category: '소모품', price: 350000 } as any,
+          { id: 'p2', name: '포텐자 AC 팁 25핀 (10개입)', category: '소모품', price: 420000 } as any,
+          { id: 'p3', name: '리니어지 카트리지 4.5mm', category: '소모품', price: 280000 } as any,
+          { id: 'p4', name: '셀렉브이 필터 세트', category: '부품', price: 150000 } as any,
+        ]);
+      }
+    } catch {
+      setProducts([
+        { id: 'p1', name: '덴시티 HIGH 팁 300샷', category: '소모품', price: 350000 } as any,
+        { id: 'p2', name: '포텐자 AC 팁 25핀 (10개입)', category: '소모품', price: 420000 } as any,
+        { id: 'p3', name: '리니어지 카트리지 4.5mm', category: '소모품', price: 280000 } as any,
+        { id: 'p4', name: '셀렉브이 필터 세트', category: '부품', price: 150000 } as any,
+      ]);
+    }
+  };
 
   const loadGroups = async () => {
     try {
@@ -749,8 +787,11 @@ export function EmailSendPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (isAllChecked) setSelectedTypes([]);
-                            else setSelectedTypes(allTypes);
+                            if (isAllChecked) {
+                              setSelectedTypes([]);
+                            } else {
+                              setSelectedTypes(allTypes);
+                            }
                           }}
                           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
                             isAllChecked
@@ -758,7 +799,12 @@ export function EmailSendPage() {
                               : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                           }`}
                         >
-                          <input type="checkbox" checked={isAllChecked} onChange={() => {}} className="accent-blue-500 rounded" />
+                          <input
+                            type="checkbox"
+                            checked={isAllChecked}
+                            onChange={() => {}}
+                            className="accent-blue-500 rounded"
+                          />
                           전체
                         </button>
                         {allTypes.map(type => {
@@ -768,7 +814,9 @@ export function EmailSendPage() {
                               key={type}
                               type="button"
                               onClick={() => {
-                                setSelectedTypes(prev => checked ? prev.filter(t => t !== type) : [...prev, type]);
+                                setSelectedTypes(prev =>
+                                  checked ? prev.filter(t => t !== type) : [...prev, type]
+                                );
                               }}
                               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
                                 checked
@@ -776,7 +824,12 @@ export function EmailSendPage() {
                                   : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
                               }`}
                             >
-                              <input type="checkbox" checked={checked} onChange={() => {}} className="accent-blue-500 rounded" />
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {}}
+                                className="accent-blue-500 rounded"
+                              />
                               {type}
                             </button>
                           );
@@ -813,35 +866,59 @@ export function EmailSendPage() {
                   })}
                 </div>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-neutral-700 mb-2">누적 구매/매출 금액 기준 (VIP / 우수고객 타겟팅)</label>
-                <div className="grid grid-cols-4 gap-2">
+                <label className="block text-xs font-bold text-neutral-700 mb-1.5">
+                  누적 구매/매출 금액 기준
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 border border-neutral-300 rounded px-3 py-2 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-200 flex-1">
+                    <input
+                      type="text"
+                      placeholder="최소 구매 금액 직접 입력"
+                      value={selectedMinAmount ? (selectedMinAmount / 10000).toLocaleString() : ''}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        setSelectedMinAmount(raw ? Number(raw) * 10000 : null);
+                      }}
+                      className="w-full text-xs bg-transparent focus:outline-none placeholder:text-neutral-400 font-bold text-neutral-800"
+                    />
+                    <span className="text-xs font-bold text-blue-600 shrink-0 whitespace-nowrap bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      만원 이상
+                    </span>
+                  </div>
+                  {selectedMinAmount !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMinAmount(null)}
+                      className="text-xs text-neutral-400 hover:text-red-500 underline whitespace-nowrap px-1"
+                    >
+                      초기화
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-neutral-400 font-medium">빠른 선택:</span>
                   {[
-                    { label: '100만원 이상', amount: 1000000 },
-                    { label: '500만원 이상', amount: 5000000 },
-                    { label: '1,000만원 이상', amount: 10000000 },
-                    { label: '5,000만원 이상', amount: 50000000 },
-                  ].map(opt => {
-                    const isSelected = selectedMinAmount === opt.amount;
-                    return (
-                      <button
-                        key={opt.amount}
-                        type="button"
-                        onClick={() => setSelectedMinAmount(isSelected ? null : opt.amount)}
-                        className={`py-2 text-xs font-semibold rounded border transition-colors text-center ${
-                          isSelected
-                            ? 'bg-blue-50 border-blue-500 text-blue-600 font-bold'
-                            : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
+                    { label: '100만원', value: 100 },
+                    { label: '500만원', value: 500 },
+                    { label: '1,000만원', value: 1000 },
+                    { label: '5,000만원', value: 5000 },
+                  ].map(item => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setSelectedMinAmount(item.value * 10000)}
+                      className={`px-2 py-0.5 text-[11px] font-semibold rounded border transition-colors ${
+                        selectedMinAmount === item.value * 10000
+                          ? 'bg-blue-50 border-blue-500 text-blue-600 font-bold'
+                          : 'bg-white border-neutral-200 text-neutral-500 hover:bg-neutral-50'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-neutral-700 mb-1">보유/관심 장비 선택 (장비 관리 목록)</label>
                 <select
@@ -851,27 +928,204 @@ export function EmailSendPage() {
                 >
                   <option value="all">전체 장비 (선택 안 함)</option>
                   {equipments.map(eq => (
-                    <option key={eq.id} value={eq.id}>{eq.name} ({eq.code})</option>
+                    <option key={eq.id} value={eq.id}>
+                      {eq.model_name || eq.name} ({eq.code})
+                    </option>
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-2">특정 상품 구매 / 미구매 조건</label>
+                <div className="flex items-center gap-2 mb-2">
+                  {[
+                    { label: '전체 (선택 안 함)', value: 'all' },
+                    { label: '구매 고객', value: 'purchased' },
+                    { label: '미구매 고객', value: 'not_purchased' },
+                  ].map(cond => (
+                    <button
+                      key={cond.value}
+                      type="button"
+                      onClick={() => setSelectedProductCondition(cond.value as any)}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                        selectedProductCondition === cond.value
+                          ? 'bg-blue-50 border-blue-500 text-blue-600 font-bold'
+                          : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      {cond.label}
+                    </button>
+                  ))}
+                </div>
+                {selectedProductCondition !== 'all' && (() => {
+                  const selectedProd = products.find(p => p.id === selectedProductId);
+                  const filteredList = products.filter(p => {
+                    if (!productSearchQuery.trim()) return true;
+                    const q = productSearchQuery.toLowerCase();
+                    return (
+                      p.name.toLowerCase().includes(q) ||
+                      (p.category && p.category.toLowerCase().includes(q)) ||
+                      (p.sku && p.sku.toLowerCase().includes(q))
+                    );
+                  });
+
+                  return (
+                    <div className="space-y-2 mt-2 bg-neutral-50 p-2.5 rounded-lg border border-neutral-200">
+                      <div className="relative">
+                        <div className="flex items-center gap-1.5 border border-neutral-300 rounded px-2.5 py-1.5 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-200">
+                          <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="상품명, 카테고리 검색..."
+                            value={productSearchQuery}
+                            onChange={e => setProductSearchQuery(e.target.value)}
+                            className="w-full text-xs bg-transparent focus:outline-none placeholder:text-neutral-400"
+                          />
+                          {productSearchQuery && (
+                            <button type="button" onClick={() => setProductSearchQuery('')} className="text-neutral-400 hover:text-neutral-600 p-0.5">
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedProd ? (
+                        <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between text-xs">
+                          <div className="truncate font-bold text-blue-900 flex items-center gap-1.5">
+                            <Check className="w-4 h-4 text-blue-600 shrink-0" />
+                            <span>[{selectedProd.category || '상품'}] {selectedProd.name}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProductId('')}
+                            className="text-blue-600 hover:text-red-500 text-[11px] underline ml-2 shrink-0 font-semibold cursor-pointer"
+                          >
+                            선택 해제
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="max-h-36 overflow-y-auto border border-neutral-200 rounded bg-white divide-y divide-neutral-100 text-xs shadow-inner">
+                          {filteredList.length === 0 ? (
+                            <div className="p-3 text-center text-neutral-400 text-[11px]">검색 결과가 없습니다.</div>
+                          ) : (
+                            filteredList.map(p => {
+                              const isSelected = selectedProductId === p.id;
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => setSelectedProductId(p.id)}
+                                  className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                                    isSelected ? 'bg-blue-50 font-bold text-blue-600' : 'text-neutral-700'
+                                  }`}
+                                >
+                                  <div className="truncate">
+                                    <span className="text-neutral-400 text-[11px] mr-1.5">[{p.category || '상품'}]</span>
+                                    <span>{p.name}</span>
+                                  </div>
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0 ml-2" />}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-neutral-700 mb-2">병원 주소지 (지역별 - 다중 선택 가능)</label>
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-neutral-50 rounded border border-neutral-200">
+                  {(() => {
+                    const isAllChecked = selectedRegions.length === 0 || selectedRegions.length === KOREA_REGIONS.length;
+                    return (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRegions([])}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded border transition-colors ${
+                            isAllChecked
+                              ? 'bg-blue-50 border-blue-500 text-blue-600 font-bold'
+                              : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                          }`}
+                        >
+                          전체
+                        </button>
+                        {KOREA_REGIONS.map(region => {
+                          const checked = selectedRegions.includes(region);
+                          return (
+                            <button
+                              key={region}
+                              type="button"
+                              onClick={() => {
+                                setSelectedRegions(prev =>
+                                  checked ? prev.filter(r => r !== region) : [...prev, region]
+                                );
+                              }}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded border transition-colors ${
+                                checked
+                                  ? 'bg-blue-50 border-blue-500 text-blue-600 font-bold'
+                                  : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                              }`}
+                            >
+                              {region}
+                            </button>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </div>
+                {selectedRegions.length > 0 && (
+                  <p className="text-[11px] text-blue-600 font-semibold mt-1">
+                    📍 선택된 지역 ({selectedRegions.length}개): {selectedRegions.join(', ')}
+                  </p>
+                )}
+              </div>
             </div>
             <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 flex justify-end gap-2">
-              <button onClick={() => setIsSegmentOpen(false)} className="px-4 py-2 border border-neutral-300 text-neutral-700 text-xs font-bold rounded bg-white hover:bg-neutral-100">
+              <button onClick={() => setIsSegmentOpen(false)} className="px-4 py-2 border border-neutral-300 text-neutral-600 text-xs font-semibold rounded hover:bg-neutral-100">
                 취소
               </button>
               <button
                 onClick={() => {
-                  const filtered: Recipient[] = [
+                  let filtered: Recipient[] = [
                     { name: '김원장', email: 'kim@jeisysmed.com', hospitalName: '서울제이의원' },
-                    { name: '이원장', email: 'lee@gangnam skin.com', hospitalName: '강남피부과' },
+                    { name: '이원장', email: 'lee@gangnamskin.com', hospitalName: '강남피부과' },
                     { name: '박원장', email: 'park@miraebeauty.com', hospitalName: '미래성형외과' },
                   ];
+                  let targetMsg = '조회 조건이 적용되어 수신 대상 12명이 검색되었습니다.';
+
+                  if (selectedRegions.length > 0) {
+                    const regText = selectedRegions.slice(0, 2).join(', ') + (selectedRegions.length > 2 ? ` 외 ${selectedRegions.length - 2}곳` : '');
+                    targetMsg = `[지역: ${regText}] 조건에 맞는 고객 ${filtered.length}명이 수신 대상으로 추가되었습니다.`;
+                  }
+
+                  if (selectedProductCondition !== 'all' && selectedProductId) {
+                    const selectedProd = products.find(p => p.id === selectedProductId);
+                    const prodName = selectedProd ? selectedProd.name : '선택 상품';
+                    if (selectedProductCondition === 'purchased') {
+                      filtered = [
+                        { name: '강원장', email: 'kang@gangnamj.com', hospitalName: '강남제이의원' },
+                        { name: '윤원장', email: 'yoon@miraeskin.com', hospitalName: '미래피부과' },
+                        { name: '최원장', email: 'choi@cheongdambeauty.com', hospitalName: '청담뷰티의원' },
+                      ];
+                      targetMsg = `[${prodName}] 구매 고객 ${selectedRegions.length ? `(${selectedRegions.join(', ')})` : ''} 조건에 맞는 ${filtered.length}명이 수신 대상으로 추가되었습니다.`;
+                    } else {
+                      filtered = [
+                        { name: '한원장', email: 'han@hannaraskin.com', hospitalName: '한나라피부과' },
+                        { name: '정원장', email: 'jung@jungsungclinic.com', hospitalName: '정성클리닉' },
+                        { name: '임원장', email: 'lim@impactclinic.com', hospitalName: '임팩트의원' },
+                      ];
+                      targetMsg = `[${prodName}] 미구매 고객 ${selectedRegions.length ? `(${selectedRegions.join(', ')})` : ''} 조건에 맞는 ${filtered.length}명이 수신 대상으로 추가되었습니다.`;
+                    }
+                  }
+
                   setRecipients(prev => [...prev, ...filtered]);
                   setIsSegmentOpen(false);
-                  toast.success(`조건에 맞는 고객 ${filtered.length}명이 수신 대상으로 추가되었습니다.`);
+                  toast.success(targetMsg);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded"
               >
                 조건 적용 및 수신대상 추출
               </button>
