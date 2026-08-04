@@ -81,12 +81,13 @@ function ScheduleFormView({
           <h4 className="text-sm font-semibold text-neutral-700 mb-4 pb-2 border-b border-neutral-100">기본 정보</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-semibold text-neutral-700">일정 제목 <span className="text-neutral-400 font-normal">(선택)</span></label>
+              <label className="text-xs font-semibold text-neutral-700">일정 제목 <span className="text-red-500">*</span></label>
               <Input
                 type="text"
                 placeholder="예) [덴시티] 유저 특별 세미나 & 핸즈온 교육"
                 value={formData.title || ''}
                 onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+                required
               />
             </div>
             <div className="space-y-1.5">
@@ -410,7 +411,7 @@ export function EducationManagementPage() {
   };
 
   const handleSave = async (data: Omit<EducationSchedule, 'id'>) => {
-    if (!data.date || !data.location || !data.instructor) {
+    if (!data.title?.trim() || !data.date || !data.location || !data.instructor) {
       globalAlert({ title: '입력 오류', description: '필수 정보를 모두 입력해 주세요.' });
       return;
     }
@@ -507,25 +508,25 @@ export function EducationManagementPage() {
 
       <div className="bg-white border border-neutral-200">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px]">
+          <table className="w-full min-w-[1280px]">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-14 whitespace-nowrap">No.</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-20 whitespace-nowrap">구분</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">제목</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">일정</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[100px] whitespace-nowrap">장비</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[140px] whitespace-nowrap">장소</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[120px] whitespace-nowrap">강사</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[110px] whitespace-nowrap">신청현황</th>
-                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[80px] whitespace-nowrap">상태</th>
-                <th className="px-4 py-3.5 text-center text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[140px] whitespace-nowrap">관리</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-12 whitespace-nowrap">No.</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-16 whitespace-nowrap">구분</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[180px] whitespace-nowrap">제목</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">일정</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[90px] whitespace-nowrap">장비</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[140px] whitespace-nowrap">장소</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[110px] whitespace-nowrap">강사</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[100px] whitespace-nowrap">신청현황</th>
+                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[70px] whitespace-nowrap">상태</th>
+                <th className="px-3 py-3.5 text-center text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center">
+                  <td colSpan={10} className="px-3 py-12 text-center">
                     <div className="flex items-center justify-center gap-2 text-neutral-500">
                       <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">데이터를 불러오는 중...</span>
                     </div>
@@ -533,24 +534,24 @@ export function EducationManagementPage() {
                 </tr>
               ) : pagedSchedules.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-neutral-500 font-medium italic">등록된 일정이 없습니다.</td>
+                  <td colSpan={10} className="px-3 py-12 text-center text-sm text-neutral-500 font-medium italic">등록된 일정이 없습니다.</td>
                 </tr>
               ) : (
                 pagedSchedules.map((schedule, idx) => {
                   const rowNo = (currentPage - 1) * pageSize + (idx + 1);
                   return (
                     <tr key={schedule.id} className="hover:bg-neutral-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500 font-mono">{rowNo}</td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-neutral-500 font-mono">{rowNo}</td>
+                      <td className="px-3 py-4 whitespace-nowrap">
                         {schedule.type === 'education'
                           ? <span className="inline-flex px-2 py-1 text-xs font-semibold" style={{ backgroundColor: 'rgba(33, 53, 141, 0.1)', color: '#21358d' }}>교육</span>
                           : <span className="inline-flex px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold">세미나</span>
                         }
                       </td>
-                      <td className="px-4 py-4 text-sm font-medium text-neutral-900 max-w-xs truncate whitespace-nowrap">
+                      <td className="px-3 py-4 text-sm font-medium text-neutral-900 max-w-xs truncate whitespace-nowrap">
                         {schedule.title || '-'}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-neutral-500 shrink-0" />
                           <div className="whitespace-nowrap">
@@ -559,12 +560,12 @@ export function EducationManagementPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-4 whitespace-nowrap">
                         <span className="inline-flex px-3 py-1 bg-neutral-100 text-neutral-800 text-xs font-medium">{schedule.equipment}</span>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.location}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.instructor}</td>
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.location}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.instructor}</td>
+                      <td className="px-3 py-4 whitespace-nowrap">
                         {/* 신청현황 — 클릭 시 신청자 관리 진입 */}
                         <button
                           onClick={() => { setApplicantsSchedule(schedule); setViewMode('applicants'); }}
@@ -577,12 +578,12 @@ export function EducationManagementPage() {
                           {schedule.enrolled >= schedule.capacity && <span className="text-xs text-red-600">(마감)</span>}
                         </button>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap">{getStatusBadge(schedule.status)}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="px-3 py-4 whitespace-nowrap">{getStatusBadge(schedule.status)}</td>
+                      <td className="px-3 py-4 whitespace-nowrap text-center">
+                        <div className="inline-flex items-center justify-center gap-1 shrink-0">
                           <button
                             onClick={() => { setApplicantsSchedule(schedule); setViewMode('applicants'); }}
-                            className="p-1.5 border border-neutral-300 text-blue-600 hover:bg-blue-50 transition-colors rounded"
+                            className="p-1.5 border border-neutral-300 text-blue-600 hover:bg-blue-50 transition-colors rounded shrink-0"
                             title="신청자 관리"
                           >
                             <ClipboardList className="w-4 h-4" />
@@ -590,7 +591,7 @@ export function EducationManagementPage() {
                           {schedule.status === 'scheduled' && (
                             <button
                               onClick={() => handleComplete(schedule.id)}
-                              className="p-1.5 border border-green-300 text-green-700 hover:bg-green-50 transition-colors rounded"
+                              className="p-1.5 border border-green-300 text-green-700 hover:bg-green-50 transition-colors rounded shrink-0"
                               title="완료처리"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -598,14 +599,14 @@ export function EducationManagementPage() {
                           )}
                           <button
                             onClick={() => { setEditingSchedule(schedule); setViewMode('edit'); }}
-                            className="p-1.5 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors rounded"
+                            className="p-1.5 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors rounded shrink-0"
                             title="수정"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(schedule.id)}
-                            className="p-1.5 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors rounded"
+                            className="p-1.5 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors rounded shrink-0"
                             title="삭제"
                           >
                             <Trash2 className="w-4 h-4" />
