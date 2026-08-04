@@ -4309,34 +4309,39 @@ export const adminService = {
     },
 
     /**
-     * 기간이 지난 '예정' 일정을 자동으로 '완료' 처리
+     * 기간이 지난 '예정' 일정 및 승인된 신청 건을 자동으로 '완료' 처리
      * 페이지 로드 시 호출하여 상태를 동기화
      */
     async autoCompleteExpiredSchedules() {
-        const today = new Date().toISOString().split('T')[0];
-        const { error } = await supabase
-            .from('education_schedules')
-            .update({ status: 'completed' })
-            .eq('status', 'scheduled')
-            .lt('date', today);
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            
+            // 1) 지난 예정 일정 ID 목록 조회
+            const { data: expiredSchedules } = await supabase
+                .from('education_schedules')
+                .select('id')
+                .eq('status', 'scheduled')
+                .lt('date', today);
 
-        if (error) console.warn('[autoComplete] 자동 완료 처리 실패:', error);
-    },
+            if (expiredSchedules && expiredSchedules.length > 0) {
+                const expiredIds = expiredSchedules.map(s => s.id);
 
-    /**
-     * 기간이 지난 '일정확정' 상태 교육 신청을 자동으로 '완료' 처리
-     * scheduled_date 가 오늘보다 이전인 경우 completed 로 변경
-     */
-    async autoCompleteExpiredRequests() {
-        const today = new Date().toISOString().split('T')[0];
-        const { error } = await supabase
-            .from('education_requests')
-            .update({ status: 'completed' })
-            .eq('status', 'scheduled')
-            .lt('scheduled_date', today)
-            .not('scheduled_date', 'is', null);
+                // 2) 일정 상태를 'completed'로 자동 업데이트
+                await supabase
+                    .from('education_schedules')
+                    .update({ status: 'completed' })
+                    .in('id', expiredIds);
 
-        if (error) console.warn('[autoComplete] 신청 자동 완료 처리 실패:', error);
+                // 3) 연관된 승인('scheduled') 신청 건들도 'completed'로 자동 일괄 업데이트
+                await supabase
+                    .from('education_requests')
+                    .update({ status: 'completed' })
+                    .in('schedule_id', expiredIds)
+                    .eq('status', 'scheduled');
+            }
+        } catch (error) {
+            console.warn('[autoComplete] 지난 일정 자동 완료 처리 실패:', error);
+        }
     },
 
     /**
@@ -4398,6 +4403,7 @@ export const adminService = {
 
         return (data || []).map((row: any) => ({
             id: row.id as string,
+            scheduleId: row.schedule_id as string | null,
             equipment: row.equipment as string,
             requestDate: (row.created_at as string).split('T')[0],
             preferredDate: row.preferred_date as string | null,
@@ -4497,12 +4503,19 @@ export const adminService = {
         }));
     },
 
-    /** [관리자] 교육 신청 상태 업데이트 */
+    /** [관리자] 교육 신청 상태 업데이트 및 신청 인원 수 자동 동기화 */
     async updateEducationRequestStatus(
         id: string,
         status: 'pending' | 'scheduled' | 'completed' | 'cancelled',
         scheduledDate?: string
     ) {
+        // 기존 상태 및 schedule_id 확인
+        const { data: currentReq } = await supabase
+            .from('education_requests')
+            .select('status, schedule_id')
+            .eq('id', id)
+            .single();
+
         const { error } = await supabase
             .from('education_requests')
             .update({
@@ -4512,6 +4525,20 @@ export const adminService = {
             .eq('id', id);
 
         if (error) throw error;
+
+        // 일정 인원 수(enrolled) 자동 동기화
+        if (currentReq && currentReq.schedule_id) {
+            const { count } = await supabase
+                .from('education_requests')
+                .select('*', { count: 'exact', head: true })
+                .eq('schedule_id', currentReq.schedule_id)
+                .in('status', ['scheduled', 'completed']);
+
+            await supabase
+                .from('education_schedules')
+                .update({ enrolled: count || 0 })
+                .eq('id', currentReq.schedule_id);
+        }
     },
 
     /** [관리자] 특정 일정의 신청자 목록 조회 */

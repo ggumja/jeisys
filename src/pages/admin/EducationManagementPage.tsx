@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Plus, Edit, Trash2, Users, ChevronLeft, ChevronRight, Loader2, ArrowLeft, FileText, ClipboardList, CheckCircle, Clock, XCircle, UserCheck, X } from 'lucide-react';
+import { Calendar, CalendarX, Plus, Edit, Trash2, Users, ChevronLeft, ChevronRight, Loader2, ArrowLeft, FileText, ClipboardList, CheckCircle, Clock, XCircle, UserCheck, X } from 'lucide-react';
 import { useModal } from '../../context/ModalContext';
 import { adminService } from '../../services/adminService';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
@@ -274,24 +274,23 @@ function ApplicantsView({
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 w-12 whitespace-nowrap">No.</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">병원명</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">담당자</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">연락처</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">이메일</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">신청일</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">메모</th>
-                <th className="px-6 py-3.5 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">상태</th>
-                <th className="px-6 py-3.5 text-center text-xs font-medium text-neutral-700 whitespace-nowrap">처리</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 w-10 whitespace-nowrap">No.</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">병원명</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">담당자</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">연락처</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">신청일</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">메모</th>
+                <th className="px-3.5 py-3 text-left text-xs font-medium text-neutral-700 whitespace-nowrap">상태</th>
+                <th className="px-3.5 py-3 text-center text-xs font-medium text-neutral-700 whitespace-nowrap min-w-[110px]">처리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-2 text-neutral-500">
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span className="text-sm">불러오는 중...</span>
@@ -300,7 +299,7 @@ function ApplicantsView({
                 </tr>
               ) : applicants.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <Users className="w-10 h-10 text-neutral-300 mx-auto mb-3" />
                     <p className="text-sm text-neutral-500 font-medium">아직 신청자가 없습니다.</p>
                   </td>
@@ -308,27 +307,48 @@ function ApplicantsView({
               ) : (
                 applicants.map((req, idx) => (
                   <tr key={req.id} className="hover:bg-neutral-50 transition-colors">
-                    <td className="px-6 py-4 text-xs text-neutral-500 font-mono whitespace-nowrap">{idx + 1}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-neutral-900 whitespace-nowrap">{req.user?.hospitalName ?? '-'}</td>
-                    <td className="px-6 py-4 text-sm text-neutral-700 whitespace-nowrap">{req.user?.name ?? '-'}</td>
-                    <td className="px-6 py-4 text-sm text-neutral-700 whitespace-nowrap">{req.user?.phone ?? '-'}</td>
-                    <td className="px-6 py-4 text-xs text-neutral-600 whitespace-nowrap">{req.user?.email ?? '-'}</td>
-                    <td className="px-6 py-4 text-xs text-neutral-600 whitespace-nowrap">{req.requestDate}</td>
-                    <td className="px-6 py-4 text-sm text-neutral-600 max-w-xs truncate">{req.content || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(req.status)}</td>
-                    <td className="px-6 py-4 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center justify-center gap-1">
-                        {req.status === 'pending' ? (
+                    <td className="px-3.5 py-3.5 text-xs text-neutral-500 font-mono whitespace-nowrap">{idx + 1}</td>
+                    <td className="px-3.5 py-3.5 text-sm font-medium text-neutral-900 whitespace-nowrap">{req.user?.hospitalName ?? '-'}</td>
+                    <td className="px-3.5 py-3.5 text-sm text-neutral-700 whitespace-nowrap">{req.user?.name ?? '-'}</td>
+                    <td className="px-3.5 py-3.5 text-sm text-neutral-700 whitespace-nowrap">{req.user?.phone ?? '-'}</td>
+                    <td className="px-3.5 py-3.5 text-xs text-neutral-600 whitespace-nowrap">{req.requestDate}</td>
+                    <td className="px-3.5 py-3.5 text-xs text-neutral-600 max-w-[200px] truncate">{req.content || '-'}</td>
+                    <td className="px-3.5 py-3.5 whitespace-nowrap">{getStatusBadge(req.status)}</td>
+                    <td className="px-3.5 py-3.5 text-center whitespace-nowrap">
+                      <div className="inline-flex items-center justify-center gap-1.5">
+                        {req.status === 'pending' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusUpdate(req.id, 'scheduled')}
+                              disabled={updatingId === req.id}
+                              className="px-3 py-1 text-xs font-bold text-white rounded hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+                              style={{ backgroundColor: '#21358d' }}
+                            >
+                              승인
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStatusUpdate(req.id, 'cancelled')}
+                              disabled={updatingId === req.id}
+                              className="px-3 py-1 text-xs font-semibold border border-red-300 text-red-600 hover:bg-red-50 rounded disabled:opacity-50 transition-all cursor-pointer"
+                            >
+                              거절
+                            </button>
+                          </>
+                        )}
+                        {req.status === 'scheduled' && (
                           <button
                             type="button"
-                            onClick={() => handleStatusUpdate(req.id, 'scheduled')}
+                            onClick={() => handleStatusUpdate(req.id, 'pending')}
                             disabled={updatingId === req.id}
-                            className="px-3 py-1 text-xs font-semibold bg-[#21358d] text-white rounded hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+                            className="px-2.5 py-1 text-xs font-medium border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded disabled:opacity-50 transition-all cursor-pointer"
                           >
-                            승인
+                            승인 취소
                           </button>
-                        ) : (
-                          <span className="text-xs text-neutral-400">-</span>
+                        )}
+                        {(req.status === 'completed' || req.status === 'cancelled') && (
+                          <span className="text-xs text-neutral-400 font-mono">-</span>
                         )}
                         {updatingId === req.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400 ml-1" />}
                       </div>
@@ -445,14 +465,21 @@ export function EducationManagementPage() {
     }
   };
 
-  const handleComplete = async (id: string) => {
+  const handleComplete = async (schedule: EducationSchedule) => {
+    const today = new Date().toISOString().split('T')[0];
+    const isBeforeDate = schedule.date > today;
+
+    const description = isBeforeDate
+      ? '일정이 도래하기 전입니다. 이 일정을 완료 처리하면 승인된 신청자도 모두 완료 처리됩니다. 진행하시겠습니까?'
+      : '이 일정을 완료 처리하면 승인된 신청자도 모두 완료 처리됩니다. 진행하시겠습니까?';
+
     const confirmed = await globalConfirm({
       title: '일정 완료처리',
-      description: '이 일정을 완료 처리하면 승인된 신청자도 모두 완료 처리됩니다. 진행하시겠습니까?',
+      description,
     });
     if (confirmed) {
       try {
-        await adminService.completeScheduleWithRequests(id);
+        await adminService.completeScheduleWithRequests(schedule.id);
         await loadSchedules();
       } catch {
         globalAlert({ title: '완료처리 실패', description: '일정 완료처리 중 오류가 발생했습니다.' });
@@ -604,7 +631,6 @@ export function EducationManagementPage() {
                 <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">일정</th>
                 <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[90px] whitespace-nowrap">장비</th>
                 <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[140px] whitespace-nowrap">장소</th>
-                <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[110px] whitespace-nowrap">강사</th>
                 <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[100px] whitespace-nowrap">신청현황</th>
                 <th className="px-3 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[70px] whitespace-nowrap">상태</th>
                 <th className="px-3 py-3.5 text-center text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">관리</th>
@@ -613,7 +639,7 @@ export function EducationManagementPage() {
             <tbody className="divide-y divide-neutral-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-12 text-center">
+                  <td colSpan={9} className="px-3 py-12 text-center">
                     <div className="flex items-center justify-center gap-2 text-neutral-500">
                       <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">데이터를 불러오는 중...</span>
                     </div>
@@ -621,7 +647,7 @@ export function EducationManagementPage() {
                 </tr>
               ) : pagedSchedules.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-12 text-center text-sm text-neutral-500 font-medium italic">등록된 일정이 없습니다.</td>
+                  <td colSpan={9} className="px-3 py-12 text-center text-sm text-neutral-500 font-medium italic">등록된 일정이 없습니다.</td>
                 </tr>
               ) : (
                 pagedSchedules.map((schedule, idx) => {
@@ -651,7 +677,6 @@ export function EducationManagementPage() {
                         <span className="inline-flex px-3 py-1 bg-neutral-100 text-neutral-800 text-xs font-medium">{schedule.equipment}</span>
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.location}</td>
-                      <td className="px-3 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.instructor}</td>
                       <td className="px-3 py-4 whitespace-nowrap">
                         {/* 신청현황 — 클릭 시 신청자 관리 진입 */}
                         <button
@@ -688,7 +713,7 @@ export function EducationManagementPage() {
                           </button>
                           {schedule.status === 'scheduled' && (
                             <button
-                              onClick={() => handleComplete(schedule.id)}
+                              onClick={() => handleComplete(schedule)}
                               className="p-1.5 border border-green-300 text-green-700 hover:bg-green-50 transition-colors rounded shrink-0"
                               title="완료처리"
                             >
@@ -708,7 +733,7 @@ export function EducationManagementPage() {
                               className="p-1.5 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors rounded shrink-0"
                               title="일정 취소"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <CalendarX className="w-4 h-4" />
                             </button>
                           )}
                         </div>
