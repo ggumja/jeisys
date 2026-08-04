@@ -4172,14 +4172,24 @@ export const adminService = {
 
     /** 교육 일정 목록 조회 */
     async getEducationSchedules() {
-        const { data, error } = await supabase
+        const { data: schedules, error: schedErr } = await supabase
             .from('education_schedules')
             .select('*')
             .order('date', { ascending: false });
 
-        if (error) throw error;
+        if (schedErr) throw schedErr;
 
-        return (data || []).map((row: any) => ({
+        // 미승인(pending) 상태의 신청 내역 schedule_id 수집
+        const { data: pendingRequests } = await supabase
+            .from('education_requests')
+            .select('schedule_id')
+            .eq('status', 'pending');
+
+        const pendingScheduleIds = new Set(
+            (pendingRequests || []).map((r: any) => r.schedule_id).filter(Boolean)
+        );
+
+        return (schedules || []).map((row: any) => ({
             id: row.id as string,
             title: (row.title || '') as string,
             date: row.date as string,
@@ -4192,6 +4202,7 @@ export const adminService = {
             status: row.status as 'scheduled' | 'completed' | 'cancelled',
             type: row.type as 'education' | 'seminar',
             description: (row.description || '') as string,
+            hasPendingApplicants: pendingScheduleIds.has(row.id),
         }));
     },
 
@@ -4267,8 +4278,27 @@ export const adminService = {
         if (reqErr) throw reqErr;
     },
 
-    /** 교육 일정 삭제 */
+    /**
+     * 일정 취소 처리: 일정 상태를 'cancelled'로 변경하고,
+     * 해당 일정의 모든 신청자 상태도 'cancelled'로 일괄 변경
+     */
+    async cancelEducationScheduleWithRequests(scheduleId: string) {
+        const { error: schedErr } = await supabase
+            .from('education_schedules')
+            .update({ status: 'cancelled' })
+            .eq('id', scheduleId);
 
+        if (schedErr) throw schedErr;
+
+        const { error: reqErr } = await supabase
+            .from('education_requests')
+            .update({ status: 'cancelled' })
+            .eq('schedule_id', scheduleId);
+
+        if (reqErr) throw reqErr;
+    },
+
+    /** 교육 일정 삭제 */
     async deleteEducationSchedule(id: string) {
         const { error } = await supabase
             .from('education_schedules')

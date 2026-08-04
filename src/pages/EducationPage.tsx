@@ -46,7 +46,7 @@ export function EducationPage() {
   // 교육 신청 내역 (DB)
   const [requests, setRequests] = useState<EducationRequest[]>([]);
   const [isRequestsLoading, setIsRequestsLoading] = useState(false);
-  const [requestTab, setRequestTab] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
+  const [requestTab, setRequestTab] = useState<'upcoming' | 'completed'>('upcoming');
 
   // 교육 일정 로드 (취소/완료 제외, 기간 만료 자동 실행)
   useEffect(() => {
@@ -174,9 +174,13 @@ export function EducationPage() {
               <div className="mt-1 flex-1 flex flex-col gap-1">
                 {schedules.map((schedule, idx) => {
                   const isSeminar = schedule.type === 'seminar';
-                  const displayTitle = schedule.title 
+                  const isFull = schedule.enrolled >= schedule.capacity;
+                  const baseTitle = schedule.title 
                     ? schedule.title 
                     : `${isSeminar ? '★ ' : ''}${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment + ' ' : ''}${isSeminar ? '세미나' : '교육'}`;
+                  const displayTitle = isFull ? `[마감] ${baseTitle}` : baseTitle;
+                  const bgColor = isFull ? '#6b7280' : isSeminar ? '#9333ea' : '#21358d';
+
                   return (
                     <button
                       key={idx}
@@ -187,9 +191,11 @@ export function EducationPage() {
                         setShowEnrollForm(false);
                         setEnrollContent('');
                       }}
-                      className="text-xs text-white px-1 py-0.5 truncate w-full text-left hover:opacity-80 transition-opacity cursor-pointer"
-                      style={{ backgroundColor: isSeminar ? '#9333ea' : '#21358d' }}
-                      title={schedule.title ? `[${isSeminar ? '세미나' : '교육'}] ${schedule.title} (${schedule.time})` : `${isSeminar ? '[세미나]' : '[교육]'} ${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : '공통'} ${schedule.time}`}
+                      className={`text-xs text-white px-1 py-0.5 truncate w-full text-left hover:opacity-80 transition-opacity cursor-pointer ${
+                        isFull ? 'opacity-90 font-normal' : ''
+                      }`}
+                      style={{ backgroundColor: bgColor }}
+                      title={`${isFull ? '[마감] ' : ''}${schedule.title ? `[${isSeminar ? '세미나' : '교육'}] ${schedule.title}` : `${isSeminar ? '[세미나]' : '[교육]'} ${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : '공통'}`} (${schedule.time})`}
                     >
                       {displayTitle}
                     </button>
@@ -284,7 +290,7 @@ export function EducationPage() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-6 mt-4 pt-4 border-t border-neutral-100">
+        <div className="flex flex-wrap items-center gap-6 mt-4 pt-4 border-t border-neutral-100">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4" style={{ backgroundColor: '#21358d' }}></div>
             <span className="text-xs text-neutral-600">교육 일정</span>
@@ -292,6 +298,10 @@ export function EducationPage() {
           <div className="flex items-center gap-2">
             <div className="w-4 h-4" style={{ backgroundColor: '#9333ea' }}></div>
             <span className="text-xs text-neutral-600">세미나 일정</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-500"></div>
+            <span className="text-xs text-neutral-600">신청 마감</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-neutral-900 bg-white"></div>
@@ -466,18 +476,14 @@ export function EducationPage() {
         const completedRequests = requests.filter((r) => r.status === 'completed' || r.status === 'cancelled');
 
         const filteredRequests =
-          requestTab === 'upcoming'
-            ? upcomingRequests
-            : requestTab === 'completed'
-            ? completedRequests
-            : requests;
+          requestTab === 'upcoming' ? upcomingRequests : completedRequests;
 
         return (
           <div className="bg-white border border-neutral-200">
             {/* 탭 헤더 */}
             <div className="px-6 pt-4 border-b border-neutral-200 bg-neutral-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h2 className="text-lg tracking-tight text-neutral-900 font-semibold mb-2 sm:mb-0">
-                교육 신청 내역
+                내 교육 신청 내역
               </h2>
               <div className="flex gap-1">
                 <button
@@ -510,22 +516,6 @@ export function EducationPage() {
                     requestTab === 'completed' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'
                   }`}>
                     {completedRequests.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRequestTab('all')}
-                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                    requestTab === 'all'
-                      ? 'border-neutral-900 text-neutral-900 font-bold'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700'
-                  }`}
-                >
-                  <span>전체</span>
-                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                    requestTab === 'all' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'
-                  }`}>
-                    {requests.length}
                   </span>
                 </button>
               </div>
