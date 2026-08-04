@@ -4181,6 +4181,7 @@ export const adminService = {
 
         return (data || []).map((row: any) => ({
             id: row.id as string,
+            title: (row.title || '') as string,
             date: row.date as string,
             equipment: row.equipment as string,
             time: row.time as string,
@@ -4196,6 +4197,7 @@ export const adminService = {
 
     /** 교육 일정 등록 */
     async createEducationSchedule(data: {
+        title?: string;
         date: string;
         equipment: string;
         time: string;
@@ -4221,6 +4223,7 @@ export const adminService = {
     async updateEducationSchedule(
         id: string,
         data: Partial<{
+            title: string;
             date: string;
             equipment: string;
             time: string;
@@ -4322,6 +4325,7 @@ export const adminService = {
 
         return (data || []).map((row: any) => ({
             id: row.id as string,
+            title: (row.title || '') as string,
             date: row.date as string,
             equipment: row.equipment as string,
             time: row.time as string,
@@ -4349,6 +4353,7 @@ export const adminService = {
             .select(`
                 *,
                 schedule:education_schedules (
+                    title,
                     date,
                     time,
                     equipment,
@@ -4370,6 +4375,7 @@ export const adminService = {
             content: row.content as string,
             status: row.status as 'pending' | 'scheduled' | 'completed' | 'cancelled',
             schedule: row.schedule ? {
+                title: row.schedule.title as string | undefined,
                 date: row.schedule.date as string,
                 time: row.schedule.time as string,
                 equipment: row.schedule.equipment as string,

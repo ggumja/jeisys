@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
-import { Package, Copy, Loader2, AlertTriangle, RefreshCw, Truck, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Package, Copy, Loader2, AlertTriangle, RefreshCw, Truck, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Plus, FileText, Printer } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
+import { useShopSettings } from '../hooks/useShopSettings';
 import { ProductImage } from '../components/ui/ProductImage';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
-import { Product, ClaimInfo, User } from '../types';
+import { Product, ClaimInfo, User, Order } from '../types';
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
 import { creditService } from '../services/creditService';
 import { paymentService } from '../services/paymentService';
 import { PaymentMethod } from '../types';
+import { printReceipt } from '../utils/printUtils';
 
 import { toast } from 'sonner';
 
@@ -264,6 +266,203 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
   );
 }
 
+// ─── 영수증 모달 ──────────────────────────────────────────────────────────────
+interface ReceiptModalProps {
+  order: Order;
+  userProfile: User | null;
+  creditUsed?: number;
+  subProductsMap: Record<string, Product>;
+  shopSettings?: Record<string, string>;
+  onClose: () => void;
+}
+
+function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shopSettings, onClose }: ReceiptModalProps) {
+  const companyName = shopSettings?.company_name || '(주)제이시스메디칼';
+  const businessNumber = shopSettings?.business_number || '424-87-00852';
+  const ceoName = shopSettings?.ceo_name || '이라미';
+  const phone = shopSettings?.cs_phone || shopSettings?.as_phone || '070-7435-4927';
+  const companyAddress = shopSettings?.company_address || '서울특별시 금천구 가마산로 96';
+
+  let paidTotal = 0;
+  order.items.forEach(it => {
+    const isBundle = (it.selectedProductIds || []).length > 0;
+    if (isBundle) {
+      const buyQty = it.product?.buyQuantity ?? 0;
+      let paidSub = 0;
+      const grouped: Record<string, { count: number; isPaid: boolean }> = {};
+      (it.selectedProductIds || []).forEach((id: string, idx: number) => {
+        const isPaid = buyQty === 0 || idx < buyQty;
+        if (!grouped[id]) grouped[id] = { count: 0, isPaid };
+        grouped[id].count += 1;
+      });
+      Object.entries(grouped).forEach(([id, { count, isPaid }]) => {
+        const subP = subProductsMap[id];
+        if (isPaid && subP?.price) paidSub += subP.price * count;
+      });
+      const bundleOrig = (it as any).originalPrice;
+      const dispOrig = paidSub > 0 ? paidSub : (bundleOrig ?? null);
+      const rate = (it as any).discountRate || 0;
+      const dRate = rate > 0 ? rate : (dispOrig && dispOrig > it.price ? Math.round((1 - it.price / dispOrig) * 100) : 0);
+      const effTotal = (dispOrig && dRate > 0) ? Math.round(dispOrig * (1 - dRate / 100)) : (paidSub > 0 ? paidSub : it.price);
+      paidTotal += effTotal;
+    } else {
+      const unitPrice = it.price ?? it.product?.price ?? 0;
+      paidTotal += it.quantity * unitPrice;
+    }
+  });
+
+  const pointsUsed = order.pointsUsed || 0;
+  const finalTotal = Math.max(0, Math.round(paidTotal) - creditUsed - pointsUsed);
+  const vat = Math.round(finalTotal - (finalTotal / 1.1));
+  const taxable = finalTotal - vat;
+
+  const isCard = ['credit', 'split', 'partial_card'].includes(order.paymentMethod);
+  const receiptTypeTitle = isCard ? '신용카드 매출전표' : '영 수 증';
+
+  const paymentMethodMap: Record<string, string> = {
+    virtual: '가상계좌',
+    credit: '신용카드',
+    bank: '계좌이체',
+    cash: '현금',
+    transfer: '무통장 입금',
+    split: '카드분할결제',
+    partial_card: '카드일부결제',
+  };
+  const paymentMethodText = paymentMethodMap[order.paymentMethod] || order.paymentMethod;
+
+  const handlePrint = () => {
+    printReceipt(order, userProfile, creditUsed, subProductsMap, shopSettings);
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-white w-[400px] max-w-[400px] max-h-[92vh] flex flex-col shadow-2xl border-t-4 border-[#21358D]">
+        {/* Header toolbar */}
+        <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between bg-neutral-900 text-white">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-blue-400" />
+            <h3 className="text-sm font-bold tracking-tight">영수증</h3>
+          </div>
+          <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors text-xl leading-none">&times;</button>
+        </div>
+
+        {/* Receipt Thermal Strip Content */}
+        <div className="p-5 overflow-y-auto flex-1 font-mono text-[11px] leading-relaxed text-neutral-900 bg-white">
+          <div className="text-center mb-3">
+            <h2 className="text-base font-black tracking-tight">[ {receiptTypeTitle} ]</h2>
+            <p className="text-[10px] text-neutral-500">(고객 보관용)</p>
+            <p className="text-xs font-black text-[#21358D] mt-1">{companyName}</p>
+          </div>
+
+          <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
+
+          <div className="space-y-0.5 text-neutral-700">
+            <div className="flex justify-between"><span className="text-neutral-500">사업자번호:</span> <span className="font-bold">{businessNumber}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">대표자명:</span> <span className="font-bold">{ceoName}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">가맹점TEL:</span> <span className="font-bold">{phone}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">주소:</span> <span className="font-bold truncate max-w-[220px]">{companyAddress}</span></div>
+          </div>
+
+          <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
+
+          <div className="space-y-0.5 text-neutral-700">
+            <div className="flex justify-between"><span className="text-neutral-500">주문번호:</span> <span className="font-bold">{order.orderNumber}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">거래일시:</span> <span className="font-bold">{order.date}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">구매자/병원:</span> <span className="font-bold">{userProfile?.hospitalName || userProfile?.name || '회원'}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">결제수단:</span> <span className="font-bold">{paymentMethodText}</span></div>
+            {isCard && (
+              <>
+                <div className="flex justify-between"><span className="text-neutral-500">카드종류:</span> <span className="font-bold">국민카드 (체크/신용)</span></div>
+                <div className="flex justify-between"><span className="text-neutral-500">카드번호:</span> <span className="font-bold">9410-****-****-1234</span></div>
+                <div className="flex justify-between"><span className="text-neutral-500">승인번호:</span> <span className="font-bold">30094182 (일시불)</span></div>
+              </>
+            )}
+          </div>
+
+          <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
+
+          <p className="font-bold mb-1.5 text-neutral-900">[ 구매 상품 내역 ]</p>
+          <div className="space-y-2">
+            {order.items.map((it, idx) => {
+              const unitPrice = it.price ?? it.product?.price ?? 0;
+              const itemTotal = it.quantity * unitPrice;
+              return (
+                <div key={idx} className="space-y-0.5">
+                  <p className="font-bold text-neutral-900 leading-tight">{it.product?.name || '상품 정보 없음'}{it.optionName ? ` (${it.optionName})` : ''}</p>
+                  <div className="flex justify-between text-neutral-600">
+                    <span>{it.quantity} x ₩{Math.round(unitPrice).toLocaleString()}</span>
+                    <span className="font-bold text-neutral-900">₩{Math.round(itemTotal).toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
+
+          <div className="space-y-0.5 text-neutral-700">
+            <div className="flex justify-between"><span>주문 소계</span><span>₩{Math.round(paidTotal).toLocaleString()}</span></div>
+            {creditUsed > 0 && (
+              <div className="flex justify-between text-emerald-600 font-bold">
+                <span>크레딧 차감</span>
+                <span>-₩{creditUsed.toLocaleString()}</span>
+              </div>
+            )}
+            {pointsUsed > 0 && (
+              <div className="flex justify-between text-amber-600 font-bold">
+                <span>포인트 차감</span>
+                <span>-{pointsUsed.toLocaleString()} P</span>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
+
+          <div className="space-y-0.5 text-neutral-600">
+            <div className="flex justify-between"><span>과세 물품 가액</span><span>₩{taxable.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span>부 가 세 (VAT 10%)</span><span>₩{vat.toLocaleString()}</span></div>
+          </div>
+
+          <div className="border-t-2 border-neutral-900 my-2.5"></div>
+
+          <div className="flex justify-between items-center text-sm font-black text-[#21358D]">
+            <span>합계 금액</span>
+            <span className="text-base">₩{finalTotal.toLocaleString()}</span>
+          </div>
+
+          <div className="border-t-2 border-neutral-900 my-2.5"></div>
+
+          <div className="text-center text-[10px] text-neutral-500 leading-relaxed mt-3 space-y-0.5">
+            <p>* 전자상거래 신용카드 매출전표</p>
+            <p>* 부가가치세법 시행령 제57조에 의거 세금계산서의 효력을 가집니다.</p>
+            <p className="font-bold text-neutral-800 mt-1">[ 서명: 본인서명 생략 ]</p>
+            <p className="font-bold text-[#21358D] mt-1">감사합니다. {companyName}</p>
+          </div>
+        </div>
+
+        {/* Footer buttons */}
+        <div className="px-4 py-3 border-t border-neutral-200 bg-neutral-50 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2 border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-100 transition-colors"
+          >
+            닫기
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-white text-xs font-bold transition-opacity hover:opacity-90 shadow-sm"
+            style={{ backgroundColor: '#21358D' }}
+          >
+            <Printer className="w-3.5 h-3.5 text-white" />
+            영수증 인쇄
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── 상태 뱃지 ────────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string; icon?: React.ReactNode }> = {
@@ -327,9 +526,11 @@ function ClaimInfoBanner({ claimInfo, status }: { claimInfo: ClaimInfo; status: 
 // ─── 메인 페이지 ─────────────────────────────────────────────────────────────
 export function OrdersPage() {
   const { data: orders = [], isLoading, refetch } = useOrders();
+  const { settings: shopSettings } = useShopSettings();
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
   const [claimModal, setClaimModal] = useState<{ orderId: string; type: 'RETURN' | 'EXCHANGE' | 'CANCEL'; paymentMethod: string; status: string } | null>(null);
   const [partialPaymentModal, setPartialPaymentModal] = useState<{ orderId: string; remainingAmount: number } | null>(null);
+  const [receiptModalOrder, setReceiptModalOrder] = useState<Order | null>(null);
 
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [expandedShipments, setExpandedShipments] = useState<Set<string>>(new Set());
@@ -449,6 +650,18 @@ export function OrdersPage() {
         />
       )}
 
+      {/* 영수증 모달 */}
+      {receiptModalOrder && (
+        <ReceiptModal
+          order={receiptModalOrder}
+          userProfile={userProfile}
+          creditUsed={orderCreditMap[receiptModalOrder.id] || 0}
+          subProductsMap={subProductsMap}
+          shopSettings={shopSettings}
+          onClose={() => setReceiptModalOrder(null)}
+        />
+      )}
+
 
       <div className="mb-8">
         <h2 className="text-2xl tracking-tight text-neutral-900 mb-2">주문/배송 관리</h2>
@@ -502,6 +715,14 @@ export function OrdersPage() {
                   <p className="text-sm text-neutral-500">{order.date}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {/* 영수증 출력 버튼 */}
+                  <button
+                    onClick={() => setReceiptModalOrder(order)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-neutral-50 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors shadow-sm"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-neutral-600" />
+                    영수증
+                  </button>
                   {(() => {
                     const isPartialCardPending = order.paymentMethod === 'partial_card' && order.status === 'pending';
                     const partialRemaining = isPartialCardPending ? Math.max(0, order.totalAmount - (order.paymentHistory?.reduce((sum, ph) => sum + (ph.status === 'SUCCESS' ? ph.amount : 0), 0) || 0)) : 0;

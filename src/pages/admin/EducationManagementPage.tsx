@@ -14,6 +14,7 @@ import {
 
 interface EducationSchedule {
   id: string;
+  title?: string;
   date: string;
   equipment: string;
   time: string;
@@ -79,6 +80,15 @@ function ScheduleFormView({
         <div className="bg-white border border-neutral-200 p-6">
           <h4 className="text-sm font-semibold text-neutral-700 mb-4 pb-2 border-b border-neutral-100">기본 정보</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-semibold text-neutral-700">일정 제목 <span className="text-neutral-400 font-normal">(선택)</span></label>
+              <Input
+                type="text"
+                placeholder="예) [덴시티] 유저 특별 세미나 & 핸즈온 교육"
+                value={formData.title || ''}
+                onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+              />
+            </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-neutral-700">구분 <span className="text-red-500">*</span></label>
               <Select value={formData.type} onValueChange={(val: 'education' | 'seminar') => setFormData((p) => ({ ...p, type: val }))}>
@@ -251,33 +261,7 @@ function ApplicantsView({
         </div>
       </div>
 
-      {/* 일정 요약 카드 */}
-      <div className="bg-white border border-neutral-200 p-5 grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div>
-          <div className="text-xs text-neutral-500 mb-1">일정 상태</div>
-          <div className="text-sm font-semibold text-neutral-900">
-            {schedule.status === 'scheduled' ? '예정' : schedule.status === 'completed' ? '완료' : '취소'}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-neutral-500 mb-1">모집 정원</div>
-          <div className="text-sm font-semibold text-neutral-900">{schedule.capacity}명</div>
-        </div>
-        <div>
-          <div className="text-xs text-neutral-500 mb-1">신청 / 정원</div>
-          <div className={`text-sm font-semibold ${applicants.length >= schedule.capacity ? 'text-red-600' : 'text-blue-600'}`}>
-            {applicants.length} / {schedule.capacity}명
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-neutral-500 mb-1">대기중</div>
-          <div className="text-sm font-semibold text-yellow-600">{pending}명</div>
-        </div>
-        <div>
-          <div className="text-xs text-neutral-500 mb-1">확정 / 완료</div>
-          <div className="text-sm font-semibold text-green-600">{confirmed + completed}명</div>
-        </div>
-      </div>
+
 
       {/* 신청자 테이블 */}
       <div className="bg-white border border-neutral-200">
@@ -381,6 +365,7 @@ export function EducationManagementPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const emptyFormData: Omit<EducationSchedule, 'id'> = {
+    title: '',
     date: new Date().toISOString().split('T')[0],
     equipment: equipmentOptions[0],
     time: '14:00 - 16:00',
@@ -479,7 +464,7 @@ export function EducationManagementPage() {
       <ScheduleFormView
         mode={viewMode}
         initialData={viewMode === 'edit' && editingSchedule
-          ? { date: editingSchedule.date, equipment: editingSchedule.equipment, time: editingSchedule.time, location: editingSchedule.location, capacity: editingSchedule.capacity, enrolled: editingSchedule.enrolled, instructor: editingSchedule.instructor, status: editingSchedule.status, type: editingSchedule.type, description: editingSchedule.description }
+          ? { title: editingSchedule.title || '', date: editingSchedule.date, equipment: editingSchedule.equipment, time: editingSchedule.time, location: editingSchedule.location, capacity: editingSchedule.capacity, enrolled: editingSchedule.enrolled, instructor: editingSchedule.instructor, status: editingSchedule.status, type: editingSchedule.type, description: editingSchedule.description }
           : emptyFormData}
         onSave={handleSave}
         onCancel={() => setViewMode('list')}
@@ -522,24 +507,25 @@ export function EducationManagementPage() {
 
       <div className="bg-white border border-neutral-200">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[1100px]">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-16">No.</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-24">구분</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">일정</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">장비</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">장소</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">강사</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">신청현황</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">상태</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider">관리</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-14 whitespace-nowrap">No.</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider w-20 whitespace-nowrap">구분</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">제목</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[160px] whitespace-nowrap">일정</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[100px] whitespace-nowrap">장비</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[140px] whitespace-nowrap">장소</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[120px] whitespace-nowrap">강사</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[110px] whitespace-nowrap">신청현황</th>
+                <th className="px-4 py-3.5 text-left text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[80px] whitespace-nowrap">상태</th>
+                <th className="px-4 py-3.5 text-center text-xs font-medium text-neutral-700 uppercase tracking-wider min-w-[140px] whitespace-nowrap">관리</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-4 py-12 text-center">
                     <div className="flex items-center justify-center gap-2 text-neutral-500">
                       <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">데이터를 불러오는 중...</span>
                     </div>
@@ -547,35 +533,38 @@ export function EducationManagementPage() {
                 </tr>
               ) : pagedSchedules.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-sm text-neutral-500 font-medium italic">등록된 일정이 없습니다.</td>
+                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-neutral-500 font-medium italic">등록된 일정이 없습니다.</td>
                 </tr>
               ) : (
                 pagedSchedules.map((schedule, idx) => {
                   const rowNo = (currentPage - 1) * pageSize + (idx + 1);
                   return (
                     <tr key={schedule.id} className="hover:bg-neutral-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500 font-mono">{rowNo}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-500 font-mono">{rowNo}</td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         {schedule.type === 'education'
                           ? <span className="inline-flex px-2 py-1 text-xs font-semibold" style={{ backgroundColor: 'rgba(33, 53, 141, 0.1)', color: '#21358d' }}>교육</span>
                           : <span className="inline-flex px-2 py-1 bg-purple-100 text-purple-800 text-xs font-semibold">세미나</span>
                         }
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 text-sm font-medium text-neutral-900 max-w-xs truncate whitespace-nowrap">
+                        {schedule.title || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-neutral-500" />
-                          <div>
+                          <Calendar className="w-4 h-4 text-neutral-500 shrink-0" />
+                          <div className="whitespace-nowrap">
                             <div className="text-sm font-medium text-neutral-900">{schedule.date}</div>
                             <div className="text-xs text-neutral-500">{schedule.time}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className="inline-flex px-3 py-1 bg-neutral-100 text-neutral-800 text-xs font-medium">{schedule.equipment}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.location}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.instructor}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.location}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-neutral-700">{schedule.instructor}</td>
+                      <td className="px-4 py-4 whitespace-nowrap">
                         {/* 신청현황 — 클릭 시 신청자 관리 진입 */}
                         <button
                           onClick={() => { setApplicantsSchedule(schedule); setViewMode('applicants'); }}
@@ -588,12 +577,12 @@ export function EducationManagementPage() {
                           {schedule.enrolled >= schedule.capacity && <span className="text-xs text-red-600">(마감)</span>}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(schedule.status)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
+                      <td className="px-4 py-4 whitespace-nowrap">{getStatusBadge(schedule.status)}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => { setApplicantsSchedule(schedule); setViewMode('applicants'); }}
-                            className="p-2 border border-neutral-300 text-blue-600 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 border border-neutral-300 text-blue-600 hover:bg-blue-50 transition-colors rounded"
                             title="신청자 관리"
                           >
                             <ClipboardList className="w-4 h-4" />
@@ -601,7 +590,7 @@ export function EducationManagementPage() {
                           {schedule.status === 'scheduled' && (
                             <button
                               onClick={() => handleComplete(schedule.id)}
-                              className="p-2 border border-green-300 text-green-700 hover:bg-green-50 transition-colors"
+                              className="p-1.5 border border-green-300 text-green-700 hover:bg-green-50 transition-colors rounded"
                               title="완료처리"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -609,13 +598,15 @@ export function EducationManagementPage() {
                           )}
                           <button
                             onClick={() => { setEditingSchedule(schedule); setViewMode('edit'); }}
-                            className="p-2 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors"
+                            className="p-1.5 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors rounded"
+                            title="수정"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(schedule.id)}
-                            className="p-2 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1.5 border border-neutral-300 text-red-600 hover:bg-red-50 transition-colors rounded"
+                            title="삭제"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -660,25 +651,7 @@ export function EducationManagementPage() {
         </div>
       )}
 
-      {/* 통계 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">전체 일정</div>
-          <div className="text-2xl font-medium text-neutral-900">{schedules.length}</div>
-        </div>
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">예정</div>
-          <div className="text-2xl font-medium text-blue-600">{schedules.filter((s) => s.status === 'scheduled').length}</div>
-        </div>
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">완료</div>
-          <div className="text-2xl font-medium text-green-600">{schedules.filter((s) => s.status === 'completed').length}</div>
-        </div>
-        <div className="bg-white border border-neutral-200 p-4">
-          <div className="text-xs text-neutral-600 mb-1">총 신청자</div>
-          <div className="text-2xl font-medium text-neutral-900">{schedules.reduce((sum, s) => sum + s.enrolled, 0)}명</div>
-        </div>
-      </div>
+
     </div>
   );
 }

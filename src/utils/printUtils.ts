@@ -438,3 +438,265 @@ export const printPackingList = (order: any, shipment: any, boxCount: number = 1
   }
 };
 
+export const printReceipt = (
+  order: any,
+  userProfile?: any,
+  creditUsed: number = 0,
+  subProductsMap: Record<string, any> = {},
+  shopSettings?: Record<string, string>
+) => {
+  try {
+    if (!order) {
+      alert('오류: 주문 데이터가 없습니다.');
+      return;
+    }
+
+    const companyName = shopSettings?.company_name || '(주)제이시스메디칼';
+    const businessNumber = shopSettings?.business_number || '424-87-00852';
+    const ceoName = shopSettings?.ceo_name || '이라미';
+    const phone = shopSettings?.cs_phone || shopSettings?.as_phone || '070-7435-4927';
+    const companyAddress = shopSettings?.company_address || '서울특별시 금천구 가마산로 96';
+
+    let paidTotal = 0;
+    const itemRowsHtml = (order.items || []).map((it: any) => {
+      const isBundle = (it.selectedProductIds || []).length > 0;
+      const unitPrice = it.price ?? it.product?.price ?? 0;
+      let effectiveTotal = it.quantity * unitPrice;
+
+      if (isBundle) {
+        const buyQty = it.product?.buyQuantity ?? 0;
+        let paidSub = 0;
+        const grouped: Record<string, { count: number; isPaid: boolean }> = {};
+        (it.selectedProductIds || []).forEach((id: string, idx: number) => {
+          const isPaid = buyQty === 0 || idx < buyQty;
+          if (!grouped[id]) grouped[id] = { count: 0, isPaid };
+          grouped[id].count += 1;
+        });
+        Object.entries(grouped).forEach(([id, { count, isPaid }]) => {
+          const subP = subProductsMap[id];
+          if (isPaid && subP?.price) paidSub += subP.price * count;
+        });
+
+        const bundleOrig = it.originalPrice;
+        const dispOrig = paidSub > 0 ? paidSub : (bundleOrig ?? null);
+        const rate = it.discountRate || 0;
+        const dRate = rate > 0 ? rate : (dispOrig && dispOrig > it.price ? Math.round((1 - it.price / dispOrig) * 100) : 0);
+        effectiveTotal = (dispOrig && dRate > 0) ? Math.round(dispOrig * (1 - dRate / 100)) : (paidSub > 0 ? paidSub : it.price);
+      }
+
+      paidTotal += effectiveTotal;
+
+      const productName = it.product?.name || '상품 정보 없음';
+      return `
+        <div style="margin-bottom: 6px;">
+          <div style="font-weight: bold; font-size: 11px; word-break: break-all;">${productName}${it.optionName ? ` (${it.optionName})` : ''}</div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #444;">
+            <span>${it.quantity} x ₩${Math.round(unitPrice).toLocaleString()}</span>
+            <span style="font-weight: bold; color: #000;">₩${Math.round(effectiveTotal).toLocaleString()}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const pointsUsed = order.pointsUsed || 0;
+    const finalTotal = Math.max(0, Math.round(paidTotal) - creditUsed - pointsUsed);
+
+    const vat = Math.round(finalTotal - (finalTotal / 1.1));
+    const taxable = finalTotal - vat;
+
+    const paymentMethodMap: Record<string, string> = {
+      virtual: '가상계좌',
+      credit: '신용카드',
+      bank: '계좌이체',
+      cash: '현금',
+      transfer: '무통장 입금',
+      split: '카드분할결제',
+      partial_card: '카드일부결제',
+    };
+    const paymentMethodText = paymentMethodMap[order.paymentMethod] || order.paymentMethod;
+
+    const isCard = ['credit', 'split', 'partial_card'].includes(order.paymentMethod);
+    const receiptTypeTitle = isCard ? '신용카드 매출전표' : '영 수 증';
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>영수증 - ${order.orderNumber}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+            
+            body {
+              font-family: 'Noto Sans KR', 'Courier New', monospace;
+              margin: 0;
+              padding: 20px 0;
+              background: #f3f4f6;
+              color: #000;
+              font-size: 11px;
+              line-height: 1.4;
+            }
+            .pos-card {
+              width: 400px;
+              margin: 0 auto;
+              background: #fff;
+              padding: 20px 18px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+              box-sizing: border-box;
+              border-top: 4px solid #21358D;
+            }
+            .pos-header {
+              text-align: center;
+              margin-bottom: 10px;
+            }
+            .pos-title {
+              font-size: 15px;
+              font-weight: 900;
+              letter-spacing: 0.5px;
+              margin-bottom: 2px;
+            }
+            .pos-subtitle {
+              font-size: 10px;
+              color: #555;
+              margin-bottom: 6px;
+            }
+            .pos-store {
+              font-size: 13px;
+              font-weight: 900;
+              color: #21358D;
+            }
+            .divider {
+              border-top: 1px dashed #555;
+              margin: 8px 0;
+            }
+            .double-divider {
+              border-top: 2px double #000;
+              margin: 8px 0;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 11px;
+              margin-bottom: 3px;
+            }
+            .info-label { color: #555; }
+            .info-val { font-weight: 700; text-align: right; }
+            .calc-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 11px;
+              margin-bottom: 3px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 15px;
+              font-weight: 900;
+              color: #21358D;
+              margin-top: 4px;
+            }
+            .pos-footer {
+              text-align: center;
+              font-size: 10px;
+              color: #555;
+              margin-top: 12px;
+              line-height: 1.5;
+            }
+            .btn-print {
+              display: block;
+              width: 100%;
+              max-width: 400px;
+              margin: 15px auto 0;
+              padding: 10px 0;
+              background-color: #21358D !important;
+              color: #ffffff !important;
+              border: none;
+              font-size: 13px;
+              font-weight: 700;
+              cursor: pointer;
+              text-align: center;
+            }
+            @media print {
+              body { background: #fff; padding: 0; }
+              .pos-card { width: 100%; max-width: 80mm; box-shadow: none; border-top: none; padding: 0; }
+              .btn-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="pos-card">
+            <div class="pos-header">
+              <div class="pos-title">[ ${receiptTypeTitle} ]</div>
+              <div class="pos-subtitle">(고객 보관용)</div>
+              <div class="pos-store">${companyName}</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="info-row"><span class="info-label">사업자번호:</span><span class="info-val">${businessNumber}</span></div>
+            <div class="info-row"><span class="info-label">대표자명:</span><span class="info-val">${ceoName}</span></div>
+            <div class="info-row"><span class="info-label">가맹점TEL:</span><span class="info-val">${phone}</span></div>
+            <div class="info-row"><span class="info-label">주소:</span><span class="info-val">${companyAddress}</span></div>
+
+            <div class="divider"></div>
+
+            <div class="info-row"><span class="info-label">주문번호:</span><span class="info-val">${order.orderNumber}</span></div>
+            <div class="info-row"><span class="info-label">거래일시:</span><span class="info-val">${order.date}</span></div>
+            <div class="info-row"><span class="info-label">구매자/병원:</span><span class="info-val">${userProfile?.hospitalName || userProfile?.name || '회원'}</span></div>
+            <div class="info-row"><span class="info-label">결제수단:</span><span class="info-val">${paymentMethodText}</span></div>
+            ${isCard ? `
+            <div class="info-row"><span class="info-label">카드종류:</span><span class="info-val">국민카드 (체크/신용)</span></div>
+            <div class="info-row"><span class="info-label">카드번호:</span><span class="info-val">9410-****-****-1234</span></div>
+            <div class="info-row"><span class="info-label">승인번호:</span><span class="info-val">30094182 (일시불)</span></div>
+            ` : ''}
+
+            <div class="divider"></div>
+
+            <div style="font-weight: bold; margin-bottom: 6px;">[ 구매 상품 내역 ]</div>
+            ${itemRowsHtml}
+
+            <div class="divider"></div>
+
+            <div class="calc-row"><span>주문 소계</span><span>₩${Math.round(paidTotal).toLocaleString()}</span></div>
+            ${creditUsed > 0 ? `<div class="calc-row" style="color:#059669;"><span>크레딧 차감</span><span>-₩${creditUsed.toLocaleString()}</span></div>` : ''}
+            ${pointsUsed > 0 ? `<div class="calc-row" style="color:#d97706;"><span>포인트 차감</span><span>-${pointsUsed.toLocaleString()} P</span></div>` : ''}
+
+            <div class="divider"></div>
+
+            <div class="calc-row"><span class="info-label">과세 물품 가액</span><span>₩${taxable.toLocaleString()}</span></div>
+            <div class="calc-row"><span class="info-label">부 가 세 (VAT 10%)</span><span>₩${vat.toLocaleString()}</span></div>
+
+            <div class="double-divider"></div>
+
+            <div class="total-row"><span>합계 금액</span><span>₩${finalTotal.toLocaleString()}</span></div>
+
+            <div class="double-divider"></div>
+
+            <div class="pos-footer">
+              <div>* 전자상거래 신용카드 매출전표</div>
+              <div>* 부가가치세법 시행령 제57조에 의거 세금계산서의 효력을 가집니다.</div>
+              <div style="margin-top:4px; font-weight:bold;">[ 서명: 본인서명 생략 ]</div>
+              <div style="margin-top:6px; color:#21358D; font-weight:bold;">감사합니다. ${companyName}</div>
+            </div>
+          </div>
+
+          <button class="btn-print" onclick="window.print()">영수증 인쇄</button>
+        </body>
+      </html>
+    `;
+
+    const w = window.open('', '_blank', 'width=480,height=800');
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+    } else {
+      alert('팝업 차단이 설정되어 있어 영수증을 출력할 수 없습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+    }
+  } catch (e) {
+    console.error('Print receipt error:', e);
+    alert('영수증 출력 중 오류가 발생했습니다.');
+  }
+};
+
+

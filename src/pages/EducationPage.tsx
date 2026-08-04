@@ -20,6 +20,7 @@ interface EducationRequest {
 
 interface EducationSchedule {
   id: string;
+  title?: string;
   date: string;
   equipment: string;
   time: string;
@@ -45,6 +46,7 @@ export function EducationPage() {
   // 교육 신청 내역 (DB)
   const [requests, setRequests] = useState<EducationRequest[]>([]);
   const [isRequestsLoading, setIsRequestsLoading] = useState(false);
+  const [requestTab, setRequestTab] = useState<'upcoming' | 'completed' | 'all'>('upcoming');
 
   // 교육 일정 로드 (취소/완료 제외, 기간 만료 자동 실행)
   useEffect(() => {
@@ -172,6 +174,9 @@ export function EducationPage() {
               <div className="mt-1 flex-1 flex flex-col gap-1">
                 {schedules.map((schedule, idx) => {
                   const isSeminar = schedule.type === 'seminar';
+                  const displayTitle = schedule.title 
+                    ? schedule.title 
+                    : `${isSeminar ? '★ ' : ''}${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment + ' ' : ''}${isSeminar ? '세미나' : '교육'}`;
                   return (
                     <button
                       key={idx}
@@ -184,12 +189,9 @@ export function EducationPage() {
                       }}
                       className="text-xs text-white px-1 py-0.5 truncate w-full text-left hover:opacity-80 transition-opacity cursor-pointer"
                       style={{ backgroundColor: isSeminar ? '#9333ea' : '#21358d' }}
-                      title={`${isSeminar ? '[세미나]' : '[교육]'} ${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : '공통'} ${schedule.time}`}
+                      title={schedule.title ? `[${isSeminar ? '세미나' : '교육'}] ${schedule.title} (${schedule.time})` : `${isSeminar ? '[세미나]' : '[교육]'} ${schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : '공통'} ${schedule.time}`}
                     >
-                      {isSeminar ? '★ ' : ''}
-                      {schedule.equipment && schedule.equipment !== 'none' ? schedule.equipment : ''}
-                      {schedule.equipment && schedule.equipment !== 'none' ? ' ' : ''}
-                      {isSeminar ? '세미나' : '교육'}
+                      {displayTitle}
                     </button>
                   );
                 })}
@@ -315,22 +317,29 @@ export function EducationPage() {
             </div>
 
             <div className="space-y-6">
-              {/* 장비명 + 타입 뱃지 */}
-              <div className="flex items-center gap-3">
-                <h3 className="text-xl tracking-tight text-neutral-900">
-                  {selectedSchedule.equipment}
-                </h3>
-                {selectedSchedule.type === 'seminar' ? (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold">
-                    <Calendar className="w-3 h-3" />
-                    세미나 예정
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-xs font-semibold" style={{ color: '#21358d' }}>
-                    <Calendar className="w-3 h-3" />
-                    교육 예정
-                  </span>
+              {/* 장비명/제목 + 타입 뱃지 */}
+              <div className="space-y-1.5">
+                {selectedSchedule.title && (
+                  <h3 className="text-xl font-bold tracking-tight text-neutral-900">
+                    {selectedSchedule.title}
+                  </h3>
                 )}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-neutral-600">
+                    장비: {selectedSchedule.equipment && selectedSchedule.equipment !== 'none' ? selectedSchedule.equipment : '공통 / 없음'}
+                  </span>
+                  {selectedSchedule.type === 'seminar' ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-xs font-semibold">
+                      <Calendar className="w-3 h-3" />
+                      세미나 예정
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-xs font-semibold" style={{ color: '#21358d' }}>
+                      <Calendar className="w-3 h-3" />
+                      교육 예정
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* 기본 정보 */}
@@ -452,63 +461,138 @@ export function EducationPage() {
       )}
 
       {/* 교육 신청 내역 */}
-      <div className="bg-white border border-neutral-200">
-        <div className="px-6 py-4 border-b border-neutral-200 bg-neutral-50">
-          <h2 className="text-lg tracking-tight text-neutral-900">교육 신청 내역</h2>
-        </div>
-        <div className="divide-y divide-neutral-200">
-          {isRequestsLoading ? (
-            <div className="py-12 flex items-center justify-center gap-2 text-neutral-500">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm">불러오는 중...</span>
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="py-16 text-center">
-              <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
-              <p className="text-neutral-600 mb-2">신청한 교육 내역이 없습니다.</p>
-              <p className="text-sm text-neutral-400">위 캘린더에서 원하는 일정을 클릭해 신청하세요.</p>
-            </div>
-          ) : (
-            requests.map((request) => {
-              // 교육 제목: schedule 정보가 있으면 조합, 없으면 equipment 폴백
-              const sc = request.schedule;
-              const isSeminar = sc?.type === 'seminar';
-              const titleEq = sc?.equipment && sc.equipment !== 'none' ? sc.equipment : '';
-              const titleType = isSeminar ? '세미나' : '교육';
-              const educationTitle = titleEq ? `${titleEq} ${titleType}` : titleType;
+      {(() => {
+        const upcomingRequests = requests.filter((r) => r.status === 'pending' || r.status === 'scheduled');
+        const completedRequests = requests.filter((r) => r.status === 'completed' || r.status === 'cancelled');
 
-              return (
-                <div key={request.id} className="px-6 py-5">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-3">
-                    <div className="flex items-start gap-3">
-                      <div>
-                        <h3 className="text-base font-semibold tracking-tight text-neutral-900">
-                          {sc ? educationTitle : request.equipment}
-                        </h3>
-                        {sc && (
-                          <p className="text-xs text-neutral-500 mt-0.5">
-                            {sc.date} {sc.time} · {sc.location}
-                          </p>
-                        )}
+        const filteredRequests =
+          requestTab === 'upcoming'
+            ? upcomingRequests
+            : requestTab === 'completed'
+            ? completedRequests
+            : requests;
+
+        return (
+          <div className="bg-white border border-neutral-200">
+            {/* 탭 헤더 */}
+            <div className="px-6 pt-4 border-b border-neutral-200 bg-neutral-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-lg tracking-tight text-neutral-900 font-semibold mb-2 sm:mb-0">
+                교육 신청 내역
+              </h2>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setRequestTab('upcoming')}
+                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    requestTab === 'upcoming'
+                      ? 'border-neutral-900 text-neutral-900 font-bold'
+                      : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                  }`}
+                >
+                  <span>예정된 교육</span>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    requestTab === 'upcoming' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'
+                  }`}>
+                    {upcomingRequests.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequestTab('completed')}
+                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    requestTab === 'completed'
+                      ? 'border-neutral-900 text-neutral-900 font-bold'
+                      : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                  }`}
+                >
+                  <span>완료된 교육</span>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    requestTab === 'completed' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'
+                  }`}>
+                    {completedRequests.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequestTab('all')}
+                  className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                    requestTab === 'all'
+                      ? 'border-neutral-900 text-neutral-900 font-bold'
+                      : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                  }`}
+                >
+                  <span>전체</span>
+                  <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                    requestTab === 'all' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-600'
+                  }`}>
+                    {requests.length}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* 목록 */}
+            <div className="divide-y divide-neutral-200">
+              {isRequestsLoading ? (
+                <div className="py-12 flex items-center justify-center gap-2 text-neutral-500">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">불러오는 중...</span>
+                </div>
+              ) : filteredRequests.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
+                  <p className="text-neutral-600 mb-2">
+                    {requestTab === 'upcoming'
+                      ? '예정된 교육 신청 내역이 없습니다.'
+                      : requestTab === 'completed'
+                      ? '완료된 교육 신청 내역이 없습니다.'
+                      : '신청한 교육 내역이 없습니다.'}
+                  </p>
+                  <p className="text-sm text-neutral-400">위 캘린더에서 원하는 일정을 클릭해 신청하세요.</p>
+                </div>
+              ) : (
+                filteredRequests.map((request) => {
+                  const sc = request.schedule;
+                  const isSeminar = sc?.type === 'seminar';
+                  const titleEq = sc?.equipment && sc.equipment !== 'none' ? sc.equipment : '';
+                  const titleType = isSeminar ? '세미나' : '교육';
+                  const defaultTitle = titleEq ? `${titleEq} ${titleType}` : titleType;
+                  const educationTitle = sc?.title ? sc.title : defaultTitle;
+
+                  return (
+                    <div key={request.id} className="px-6 py-5">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-3">
+                        <div className="flex items-start gap-3">
+                          <div>
+                            <h3 className="text-base font-semibold tracking-tight text-neutral-900">
+                              {sc ? educationTitle : request.equipment}
+                            </h3>
+                            {sc && (
+                              <p className="text-xs text-neutral-500 mt-0.5">
+                                {sc.date} {sc.time} · {sc.equipment && sc.equipment !== 'none' ? `${sc.equipment} · ` : ''}{sc.location}
+                              </p>
+                            )}
+                          </div>
+                          {getStatusBadge(request.status)}
+                        </div>
+                        <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 text-sm text-neutral-600">
+                          <span>신청일: {request.requestDate}</span>
+                          {request.scheduledDate && (
+                            <span className="font-medium text-blue-600">교육일: {request.scheduledDate}</span>
+                          )}
+                        </div>
                       </div>
-                      {getStatusBadge(request.status)}
-                    </div>
-                    <div className="flex flex-col lg:flex-row gap-2 lg:gap-6 text-sm text-neutral-600">
-                      <span>신청일: {request.requestDate}</span>
-                      {request.scheduledDate && (
-                        <span className="font-medium text-blue-600">교육일: {request.scheduledDate}</span>
+                      {request.content && (
+                        <p className="text-sm text-neutral-700 leading-relaxed">{request.content}</p>
                       )}
                     </div>
-                  </div>
-                  {request.content && (
-                    <p className="text-sm text-neutral-700 leading-relaxed">{request.content}</p>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 교육 안내 */}
       <div className="p-6 bg-neutral-50 border border-neutral-200">
