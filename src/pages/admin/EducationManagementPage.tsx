@@ -210,7 +210,7 @@ function ApplicantsView({
   const loadApplicants = useCallback(async () => {
     try {
       setIsLoading(true);
-      await adminService.autoCompleteExpiredRequests().catch(() => {});
+      await adminService.autoCompleteExpiredSchedules().catch(() => {});
       const data = await adminService.getEducationRequestsBySchedule(schedule.id);
       setApplicants(data as EducationRequest[]);
     } catch (err: any) {
@@ -412,11 +412,13 @@ export function EducationManagementPage() {
 
   useEffect(() => { loadSchedules(); }, [loadSchedules]);
 
-  const filteredSchedules = schedules.filter((s) => {
-    const matchStatus = statusFilter === 'all' || s.status === statusFilter;
-    const matchType = typeFilter === 'all' || s.type === typeFilter;
-    return matchStatus && matchType;
-  });
+  const filteredSchedules = schedules
+    .filter((s) => {
+      const matchStatus = statusFilter === 'all' || s.status === statusFilter;
+      const matchType = typeFilter === 'all' || s.type === typeFilter;
+      return matchStatus && matchType;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date));
   const totalPages = Math.ceil(filteredSchedules.length / pageSize);
   const pagedSchedules = filteredSchedules.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
@@ -662,15 +664,17 @@ export function EducationManagementPage() {
                           className="flex items-center gap-1.5 hover:text-blue-600 transition-colors group"
                         >
                           <Users className="w-4 h-4 text-neutral-500 group-hover:text-blue-500" />
-                          <span className={`text-sm font-medium ${schedule.enrolled >= schedule.capacity ? 'text-red-600' : 'text-neutral-900'}`}>
-                            {schedule.enrolled}/{schedule.capacity}명
-                          </span>
-                          {schedule.enrolled >= schedule.capacity && <span className="text-xs text-red-600">(마감)</span>}
-                          {schedule.hasPendingApplicants && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-600 text-white leading-none animate-pulse">
-                              NEW
+                          <div className="flex items-center gap-[6px]">
+                            <span className={`text-sm font-medium ${schedule.enrolled >= schedule.capacity ? 'text-red-600' : 'text-neutral-900'}`}>
+                              {schedule.enrolled}/{schedule.capacity}명
                             </span>
-                          )}
+                            {Boolean((schedule as any).pendingCount) && (
+                              <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0 whitespace-nowrap">
+                                대기 {(schedule as any).pendingCount}명
+                              </span>
+                            )}
+                          </div>
+                          {schedule.enrolled >= schedule.capacity && <span className="text-xs text-red-600">(마감)</span>}
                         </button>
                       </td>
                       <td className="px-3 py-4 whitespace-nowrap">{getStatusBadge(schedule.status)}</td>

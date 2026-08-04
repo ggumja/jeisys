@@ -17,6 +17,7 @@ import { ShippingAddressPage } from "./pages/ShippingAddressPage";
 import { MyCreditsPage } from "./pages/MyCreditsPage";
 import { MyPointsPage } from "./pages/MyPointsPage";
 import { MyCouponsPage } from "./pages/MyCouponsPage";
+import { MyEducationPage } from "./pages/MyEducationPage";
 import { CommunicationLayout } from "./pages/CommunicationLayout";
 import { InquiryListPage } from "./pages/InquiryListPage";
 import { InquiryWritePage } from "./pages/InquiryWritePage";
@@ -272,6 +273,7 @@ export const router = createBrowserRouter([
                     { path: "credits", Component: MyCreditsPage },
                     { path: "points", Component: MyPointsPage },
                     { path: "coupons", Component: MyCouponsPage },
+                    { path: "education", Component: MyEducationPage },
                 ],
             },
             {
