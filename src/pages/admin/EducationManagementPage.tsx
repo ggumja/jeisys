@@ -538,7 +538,7 @@ export function EducationManagementPage() {
                 </tr>
               ) : (
                 pagedSchedules.map((schedule, idx) => {
-                  const rowNo = (currentPage - 1) * pageSize + (idx + 1);
+                  const rowNo = filteredSchedules.length - ((currentPage - 1) * pageSize + idx);
                   return (
                     <tr key={schedule.id} className="hover:bg-neutral-50">
                       <td className="px-3 py-4 whitespace-nowrap text-sm text-neutral-500 font-mono">{rowNo}</td>
