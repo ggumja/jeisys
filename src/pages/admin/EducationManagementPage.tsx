@@ -465,28 +465,6 @@ export function EducationManagementPage() {
     }
   };
 
-  const handleComplete = async (schedule: EducationSchedule) => {
-    const today = new Date().toISOString().split('T')[0];
-    const isBeforeDate = schedule.date > today;
-
-    const description = isBeforeDate
-      ? '일정이 도래하기 전입니다. 이 일정을 완료 처리하면 승인된 신청자도 모두 완료 처리됩니다. 진행하시겠습니까?'
-      : '이 일정을 완료 처리하면 승인된 신청자도 모두 완료 처리됩니다. 진행하시겠습니까?';
-
-    const confirmed = await globalConfirm({
-      title: '일정 완료처리',
-      description,
-    });
-    if (confirmed) {
-      try {
-        await adminService.completeScheduleWithRequests(schedule.id);
-        await loadSchedules();
-      } catch {
-        globalAlert({ title: '완료처리 실패', description: '일정 완료처리 중 오류가 발생했습니다.' });
-      }
-    }
-  };
-
   // ── 폼/신청자 뷰 분기 ──
   if (viewMode === 'create' || viewMode === 'edit') {
     return (
@@ -711,15 +689,6 @@ export function EducationManagementPage() {
                               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
                             )}
                           </button>
-                          {schedule.status === 'scheduled' && (
-                            <button
-                              onClick={() => handleComplete(schedule)}
-                              className="p-1.5 border border-green-300 text-green-700 hover:bg-green-50 transition-colors rounded shrink-0"
-                              title="완료처리"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
                           <button
                             onClick={() => { setEditingSchedule(schedule); setViewMode('edit'); }}
                             className="p-1.5 border border-neutral-300 text-neutral-900 hover:bg-neutral-50 transition-colors rounded shrink-0"

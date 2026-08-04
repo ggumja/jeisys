@@ -48,11 +48,11 @@ async updateEducationRequestStatus(id: string, status: 'pending' | 'scheduled' |
 
 ---
 
-### ③ 일정 일괄 완료 처리 및 일정 취소 (소프트 딜리트)
-- **일정 완료 (`completeScheduleWithRequests`)**:
-  - 관리자가 일정의 🟢 완료 버튼을 누를 때 교육 일자가 오늘 기준 지나지 않은 미래 날짜인 경우 *"일정이 도래하기 전입니다. 이 일정을 완료 처리하면 승인된 신청자도 모두 완료 처리됩니다. 진행하시겠습니까?"* 안내 팝업을 노출하고, 확인 시 해당 일정과 승인된 신청자 전체의 상태를 `'completed'`로 일괄 변경합니다.
+### ③ 지난 일정 자동 완료 동기화 및 일정 취소 (소프트 딜리트)
+- **지난 일정 자동 완료 (`autoCompleteExpiredSchedules`)**:
+  - 교육 일자가 오늘 기준 지나버린 예정 일정 및 승인된 신청 건을 수동 조작 없이 시스템이 자동으로 `'completed'` 상태로 갱신하여 완료 처리합니다.
 - **일정 취소 (`cancelEducationScheduleWithRequests`)**:
-  - 데이터 삭제 대신 일정 및 연관 신청자 전체의 상태를 `'cancelled'`로 전환하여 DB 이력을 안전하게 보존합니다.
+  - 일정 도래 전 행사를 취소하는 경우, 데이터 삭제 대신 일정 및 연관 신청자 전체의 상태를 `'cancelled'`로 전환하여 DB 이력을 안전하게 보존합니다.
 
 ---
 
