@@ -53,6 +53,7 @@ function SubscriptionRow_({
   onRetryPayment,
   onReload,
   onOpenCancelModal,
+  onOpenCancelLastPaymentModal,
   onOpenPauseModal,
 }: {
   sub: SubscriptionRow;
@@ -60,6 +61,7 @@ function SubscriptionRow_({
   onRetryPayment?: (subId: string, roundNo: number) => void;
   onReload?: () => void;
   onOpenCancelModal?: (sub: SubscriptionRow) => void;
+  onOpenCancelLastPaymentModal?: (sub: SubscriptionRow) => void;
   onOpenPauseModal?: (sub: SubscriptionRow) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -242,15 +244,31 @@ function SubscriptionRow_({
                     </Button>
                   )}
                   {sub.status !== 'cancelled' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCancelClick}
-                      className="border-red-300 text-red-700 hover:bg-red-100 font-bold ml-auto"
-                    >
-                      <XCircle className="w-4 h-4 mr-1" />
-                      정기공급 해지
-                    </Button>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onOpenCancelLastPaymentModal) {
+                            onOpenCancelLastPaymentModal(sub);
+                          }
+                        }}
+                        className="border-red-400 text-red-700 bg-red-50 hover:bg-red-100 font-bold"
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        마지막 결제 취소 & 해지
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelClick}
+                        className="border-red-300 text-red-700 hover:bg-red-100 font-bold"
+                      >
+                        <XCircle className="w-4 h-4 mr-1" />
+                        정기공급 해지
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -380,6 +398,7 @@ export function SubscriptionListPage() {
   // 2단계 구독 취소 모달 상태
   const [showSubCancelModeModal, setShowSubCancelModeModal] = useState(false);
   const [showSubPenaltyModal, setShowSubPenaltyModal] = useState(false);
+  const [cancelLastPaymentMode, setCancelLastPaymentMode] = useState(false);
   const [selectedSubForCancel, setSelectedSubForCancel] = useState<SubscriptionRow | null>(null);
 
   // 구독 일시정지 모달 상태
@@ -547,6 +566,12 @@ export function SubscriptionListPage() {
                     }}
                     onOpenCancelModal={(targetSub) => {
                       setSelectedSubForCancel(targetSub);
+                      setCancelLastPaymentMode(false);
+                      setShowSubPenaltyModal(true);
+                    }}
+                    onOpenCancelLastPaymentModal={(targetSub) => {
+                      setSelectedSubForCancel(targetSub);
+                      setCancelLastPaymentMode(true);
                       setShowSubPenaltyModal(true);
                     }}
                     onRetryPayment={async (subId, roundNo) => {
@@ -592,6 +617,7 @@ export function SubscriptionListPage() {
             userId: selectedSubForCancel.userId,
           }}
           sub={selectedSubForCancel}
+          cancelLastPayment={cancelLastPaymentMode}
           onClose={() => {
             setShowSubPenaltyModal(false);
             setSelectedSubForCancel(null);

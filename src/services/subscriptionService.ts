@@ -156,6 +156,7 @@ export function calculatePenalty(params: {
   regularUnitPrice: number; // 일반 단가 (개당, 구간 할인 미적용 기준)
   quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
   isCurrentRoundShipped?: boolean; // 현재 회차 출고 완료 여부 (기본값: true)
+  cancelLastPayment?: boolean;     // 마지막 결제 회차 취소 여부
 }): {
   shippedQuantity: number;
   paidAmount: number;
@@ -170,28 +171,39 @@ export function calculatePenalty(params: {
     lastRoundQty,
     totalRounds,
     unitPrice,
-    regularUnitPrice,
+    regularUnitPrice: rawRegularUnitPrice,
     quantityDiscountTiers,
     isCurrentRoundShipped = true,
+    cancelLastPayment = false,
   } = params;
 
-  // 현재 회차출고 여부에 따른 기출고 회차 수 계산 (발송 전이면 이전 회차까지만 합산)
-  const effectiveShippedRounds = isCurrentRoundShipped ? currentRound : Math.max(0, currentRound - 1);
+  // 개당 정가 자동 계산 (미설정 또는 적용 단가 이하일 경우 정가 1.333배 적용)
+  const basePerItemPrice = qtyPerRound > 0 ? Math.round(unitPrice / qtyPerRound) : unitPrice;
+  const regularUnitPrice = (rawRegularUnitPrice && rawRegularUnitPrice > basePerItemPrice)
+    ? rawRegularUnitPrice
+    : Math.round(basePerItemPrice * 1.3333333);
 
-  // 기출고 수량 계산
+  // 실효 결제/유지 회차 계산
+  // cancelLastPayment = true: 마지막 회차 결제가 취소되므로 (currentRound - 1) 회차 유지
+  // cancelLastPayment = false: 기존 결제 유지이므로 currentRound 회차 전체 유지
+  const effectiveShippedRounds = cancelLastPayment
+    ? Math.max(0, currentRound - 1)
+    : currentRound;
+
+  // 기결제/기유지 수량 계산
   let shippedQuantity = 0;
   for (let r = 1; r <= effectiveShippedRounds; r++) {
     shippedQuantity += r === totalRounds ? lastRoundQty : qtyPerRound;
   }
 
-  // 기납부 총액 (현재 회차까지 결제 완료된 총액)
-  const paidAmount = currentRound * unitPrice;
+  // 기납부 총액 (유지되는 회차까지 결제된 총액)
+  const paidAmount = effectiveShippedRounds * unitPrice;
 
-  // 1회차 발송 전 등 기출고 수량이 0인 경우: 위약금 0원 (전액 환불 대상)
+  // 기결제 수량이 0인 경우 (1회차에서 결제 취소 시)
   if (shippedQuantity === 0) {
     return {
       shippedQuantity: 0,
-      paidAmount,
+      paidAmount: 0,
       regularAmount: 0,
       penaltyAmount: 0,
       appliedDiscountRate: 0,
@@ -220,7 +232,7 @@ export function calculatePenalty(params: {
     regularAmount,
     penaltyAmount,
     appliedDiscountRate,
-    isShipped: isCurrentRoundShipped,
+    isShipped: true,
   };
 }
 
@@ -552,6 +564,8 @@ export const subscriptionService = {
     adminMemo?: string;
     cancelAmount?: number;
     pgTid?: string;
+    cancelLastPayment?: boolean;
+    currentRound?: number;
   }): Promise<void> {
     const {
       orderId,
@@ -566,29 +580,33 @@ export const subscriptionService = {
       adminMemo,
       cancelAmount,
       pgTid,
+      cancelLastPayment = true,
+      currentRound = 1,
     } = params;
 
-    if (pgTid && cancelAmount) {
-      try {
-        await paymentService.requestRefund({
-          tid: pgTid,
-          amount: cancelAmount,
-          reason: `[구독 해지] ${reason}`,
-        });
-      } catch (err) {
-        console.error('PG Refund error during cancel:', err);
+    if (cancelLastPayment) {
+      if (pgTid && cancelAmount) {
+        try {
+          await paymentService.requestRefund({
+            tid: pgTid,
+            amount: cancelAmount,
+            reason: `[구독 해지 및 결제 취소] ${reason}`,
+          });
+        } catch (err) {
+          console.error('PG Refund error during cancel:', err);
+        }
       }
-    }
 
-    await supabase
-      .from('orders')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancel_reason: `[구독 해지] ${reason}`,
-        refunded_amount: cancelAmount,
-      })
-      .eq('id', orderId);
+      await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancel_reason: `[구독 해지 및 결제 취소] ${reason}`,
+          refunded_amount: cancelAmount,
+        })
+        .eq('id', orderId);
+    }
 
     await supabase
       .from('subscription_cancellation_requests')
@@ -616,25 +634,50 @@ export const subscriptionService = {
       })
       .eq('id', subscriptionId);
 
-    await supabase
-      .from('subscription_shipments')
-      .update({ status: 'cancelled' })
-      .or(`subscription_id.eq.${subscriptionId},order_id.eq.${orderId}`);
+    if (cancelLastPayment) {
+      // 마지막 결제 회차 포함 이후 모든 스케줄 취소 (이전 회차는 결제/출고 유지)
+      if (currentRound > 1) {
+        await supabase
+          .from('subscription_shipments')
+          .update({ status: 'cancelled' })
+          .eq('subscription_id', subscriptionId)
+          .gte('round_no', currentRound);
+      } else {
+        await supabase
+          .from('subscription_shipments')
+          .update({ status: 'cancelled' })
+          .eq('subscription_id', subscriptionId);
+      }
+    } else {
+      // 기존 결제는 유효하게 유지하고, 다음 회차(미출고/대기) 스케줄만 취소
+      await supabase
+        .from('subscription_shipments')
+        .update({ status: 'cancelled' })
+        .eq('subscription_id', subscriptionId)
+        .in('status', ['pending', 'paused']);
+    }
   },
 
   // ──────────────────────────────
   // 위약금 계산 (해지 전 미리보기)
   // ──────────────────────────────
-  calculatePenaltyPreview(sub: SubscriptionRow, isCurrentRoundShipped = true): ReturnType<typeof calculatePenalty> {
+  calculatePenaltyPreview(
+    sub: SubscriptionRow,
+    options?: { isCurrentRoundShipped?: boolean; cancelLastPayment?: boolean } | boolean
+  ): ReturnType<typeof calculatePenalty> {
+    const isCurrentRoundShipped = typeof options === 'object' ? (options.isCurrentRoundShipped ?? true) : (options ?? true);
+    const cancelLastPayment = typeof options === 'object' ? (options.cancelLastPayment ?? false) : false;
+
     return calculatePenalty({
       currentRound: sub.currentRound,
       qtyPerRound: sub.qtyPerRound,
       lastRoundQty: sub.lastRoundQty,
       totalRounds: sub.totalRounds,
       unitPrice: sub.unitPrice,
-      regularUnitPrice: sub.regularUnitPrice,
+      regularUnitPrice: sub.regularUnitPrice || 0,
       quantityDiscountTiers: sub.quantityDiscountTiers,
       isCurrentRoundShipped,
+      cancelLastPayment,
     });
   },
 
