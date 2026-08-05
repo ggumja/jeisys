@@ -4657,14 +4657,12 @@ export const adminService = {
             }
         }
 
-        // 3. 로컬 캐시 내역 병합 (schedule_id 일치 건)
+        // 3. 로컬 캐시 내역 병합 (DB 조회가 0건일 때만 Fallback으로 병합하여 중복 제거)
         try {
-            const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
-            const matchingLocal = localReqs.filter((lr: any) => lr.schedule_id === scheduleId);
-            if (matchingLocal.length > 0) {
-                const dbIds = new Set(data.map(r => r.id));
-                const uniqueLocal = matchingLocal.filter((lr: any) => !dbIds.has(lr.id));
-                data = [...data, ...uniqueLocal];
+            if (data.length === 0) {
+                const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
+                const matchingLocal = localReqs.filter((lr: any) => lr.schedule_id === scheduleId);
+                data = [...matchingLocal];
             }
         } catch (e) {}
 
