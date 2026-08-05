@@ -4631,11 +4631,12 @@ export const adminService = {
 
     /** [관리자] 특정 일정의 신청자 목록 조회 */
     async getEducationRequestsBySchedule(scheduleId: string) {
-        // 1. 단일 단순 쿼리로 해당 일정의 신청 내역 전체 조회
+        // 1. 단일 단순 쿼리로 해당 일정의 활성 신청 내역(취소 제외) 조회
         const { data: rawRequests, error: reqErr } = await supabase
             .from('education_requests')
             .select('*')
             .eq('schedule_id', scheduleId)
+            .neq('status', 'cancelled')
             .order('created_at', { ascending: true });
 
         let data: any[] = rawRequests || [];
