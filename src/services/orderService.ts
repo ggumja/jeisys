@@ -911,13 +911,12 @@ export const orderService = {
 
         const { status: currentStatus, payment_method } = orderData;
 
-        // 즉시 취소 조건 처리
+        // 즉시 취소 조건 처리 (상품준비중 전: pending 또는 paid)
         if (type === 'CANCEL') {
-            const isCreditImmediate = ['credit', 'split'].includes(payment_method) && ['pending', 'paid'].includes(currentStatus);
-            const isBankImmediate = ['transfer', 'virtual'].includes(payment_method) && currentStatus === 'pending';
+            const isPreProcessing = ['pending', 'paid'].includes(currentStatus);
 
-            if (isCreditImmediate || isBankImmediate) {
-                // 바로 취소 (cancelOrder 활용)
+            if (isPreProcessing) {
+                // 배송준비중(processing) 전이므로 즉시 결제 취소 진행
                 await this.cancelOrder(orderId);
                 return;
             }

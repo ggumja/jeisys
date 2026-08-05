@@ -519,7 +519,7 @@ export const subscriptionService = {
     await supabase
       .from('subscription_shipments')
       .update({ status: 'cancelled' })
-      .eq('order_id', orderId);
+      .or(`subscription_id.eq.${subscriptionId},order_id.eq.${orderId}`);
   },
 
   async cancelSubscriptionByOrderId(orderId: string, reason?: string): Promise<void> {

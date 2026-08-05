@@ -294,17 +294,26 @@ function PenaltyModal({ open, sub, onConfirm, onClose, processing = false }: Pen
 
 function ShipmentSchedule({
   shipments,
+  subStatus,
   isPendingCancellation = false,
 }: {
   shipments: SubscriptionScheduleRow[];
+  subStatus?: string;
   isPendingCancellation?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const sorted = [...shipments].sort((a, b) => a.roundNo - b.roundNo);
 
-  // 해지신청 처리대기 중이면 cancelled → pending으로 표시
-  const displayStatus = (s: SubscriptionScheduleRow) =>
-    isPendingCancellation && s.status === 'cancelled' ? 'pending' : s.status;
+  // 구독 해지 완료 시 출고완료 제외 모든 회차(1회차 포함) 스케줄 '취소'로 표기
+  const displayStatus = (s: SubscriptionScheduleRow) => {
+    if (subStatus === 'cancelled') {
+      return s.status === 'shipped' ? 'shipped' : 'cancelled';
+    }
+    if (isPendingCancellation && s.status === 'cancelled') {
+      return 'pending';
+    }
+    return s.status;
+  };
 
   return (
     <div className="border border-neutral-200 rounded">
@@ -1009,6 +1018,7 @@ function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDay
       {sub.shipments && sub.shipments.length > 0 && (
         <ShipmentSchedule
           shipments={sub.shipments}
+          subStatus={sub.status}
           isPendingCancellation={cancellationRequest?.status === 'pending'}
         />
       )}

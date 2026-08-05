@@ -277,6 +277,7 @@ function SubscriptionRow_({
                       </thead>
                       <tbody className="divide-y divide-neutral-50">
                         {(() => {
+                          const isCancelled = sub.status === 'cancelled';
                           const isPaused = sub.status === 'paused';
                           const lastDoneRound = isPaused
                             ? Math.max(
@@ -289,9 +290,11 @@ function SubscriptionRow_({
 
                           return [...sub.shipments].sort((a, b) => a.roundNo - b.roundNo).map(s => {
                             const displayStatus =
-                              isPaused && s.status === 'pending' && s.roundNo > lastDoneRound
-                                ? 'cancelled'
-                                : s.status;
+                              isCancelled
+                                ? (s.status === 'shipped' ? 'shipped' : 'cancelled')
+                                : (isPaused && s.status === 'pending' && s.roundNo > lastDoneRound)
+                                  ? 'cancelled'
+                                  : s.status;
 
                             return (
                               <tr key={s.id} className={displayStatus === 'cancelled' ? 'opacity-40' : ''}>

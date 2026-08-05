@@ -126,7 +126,13 @@ function ClaimModal({ orderId, type, paymentMethod, status, onClose, onSuccess }
             </div>
           )}
           <p className="text-[11px] text-neutral-500 leading-relaxed">
-            신청 후 영업일 기준 1~3일 이내 담당자가 확인 후 연락드립니다.
+            {type === 'CANCEL' ? (
+              ['pending', 'paid'].includes(status)
+                ? '* [결제 취소] 클릭 시 결제 카드 승인 취소 및 환불 처리가 즉시 진행됩니다.'
+                : '* 배송준비중 상태의 주문 취소 신청은 담당자가 확인 후 처리해 드립니다.'
+            ) : (
+              '* 신청 후 영업일 기준 1~3일 이내 담당자가 확인 후 연락드립니다.'
+            )}
           </p>
         </div>
         <div className="px-5 py-3 border-t border-neutral-100 flex gap-2">
@@ -683,6 +689,29 @@ export function OrdersPage() {
           const isVact = order.status === 'pending' && !!order.vactNum;
           const canClaim = order.status === 'delivered';
           const isClaimPending = ['cancel_requested', 'return_requested', 'exchange_requested'].includes(order.status);
+          const isSubOrder =
+            Boolean(order.isSubscription) ||
+            Boolean((order as any).is_subscription) ||
+            Boolean((order as any).subscriptionId) ||
+            Boolean((order as any).subscription_id) ||
+            (order as any).orderType === 'subscription' ||
+            (order as any).order_type === 'subscription' ||
+            (order.orderNumber && (order.orderNumber.startsWith('SUB') || order.orderNumber.includes('SUB'))) ||
+            ((order as any).order_number && ((order as any).order_number.startsWith('SUB') || (order as any).order_number.includes('SUB'))) ||
+            (order.items && order.items.some((i: any) =>
+              i.isSubscription ||
+              i.is_subscription ||
+              (i.product as any)?.productType === 'subscription' ||
+              (i.product as any)?.product_type === 'subscription' ||
+              (i.product as any)?.isSubscriptionProduct ||
+              (i.product as any)?.is_subscription_product ||
+              (i.product as any)?.isSubscription ||
+              (i.product as any)?.is_subscription ||
+              (i.productName && (i.productName.includes('정기공급') || i.productName.includes('정기구독') || i.productName.includes('정기'))) ||
+              (i.product_name && (i.product_name.includes('정기공급') || i.product_name.includes('정기구독') || i.product_name.includes('정기'))) ||
+              (i.name && (i.name.includes('정기공급') || i.name.includes('정기구독') || i.name.includes('정기'))) ||
+              (i.product?.name && (i.product.name.includes('정기공급') || i.product.name.includes('정기구독') || i.product.name.includes('정기')))
+            ));
 
           return (
             <div key={order.id} className="bg-white border border-neutral-200 shadow-sm">
@@ -716,7 +745,14 @@ export function OrdersPage() {
               {/* ── 주문 헤더 ── */}
               <div className="px-6 py-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-3 mb-1.5">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                      isSubOrder
+                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                        : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                    }`}>
+                      {isSubOrder ? '정기공급' : '일반'}
+                    </span>
                     <h3 className="text-base font-bold tracking-tight text-neutral-900">{order.orderNumber}</h3>
                     <StatusBadge status={order.status} />
                   </div>
@@ -748,9 +784,13 @@ export function OrdersPage() {
                     const isSubOrder =
                       Boolean(order.isSubscription) ||
                       Boolean((order as any).is_subscription) ||
+                      Boolean((order as any).subscriptionId) ||
+                      Boolean((order as any).subscription_id) ||
                       (order as any).orderType === 'subscription' ||
                       (order as any).order_type === 'subscription' ||
-                      order.items.some((i: any) =>
+                      (order.orderNumber && (order.orderNumber.startsWith('SUB') || order.orderNumber.includes('SUB'))) ||
+                      ((order as any).order_number && ((order as any).order_number.startsWith('SUB') || (order as any).order_number.includes('SUB'))) ||
+                      (order.items && order.items.some((i: any) =>
                         i.isSubscription ||
                         i.is_subscription ||
                         (i.product as any)?.productType === 'subscription' ||
@@ -758,8 +798,12 @@ export function OrdersPage() {
                         (i.product as any)?.isSubscriptionProduct ||
                         (i.product as any)?.is_subscription_product ||
                         (i.product as any)?.isSubscription ||
-                        (i.product as any)?.is_subscription
-                      );
+                        (i.product as any)?.is_subscription ||
+                        (i.productName && (i.productName.includes('정기공급') || i.productName.includes('정기구독') || i.productName.includes('정기'))) ||
+                        (i.product_name && (i.product_name.includes('정기공급') || i.product_name.includes('정기구독') || i.product_name.includes('정기'))) ||
+                        (i.name && (i.name.includes('정기공급') || i.name.includes('정기구독') || i.name.includes('정기'))) ||
+                        (i.product?.name && (i.product.name.includes('정기공급') || i.product.name.includes('정기구독') || i.product.name.includes('정기')))
+                      ));
 
                     if (isSubOrder) {
                       const roundNo = (order as any).roundNo || (order as any).currentRound || 1;

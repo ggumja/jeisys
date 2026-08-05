@@ -481,11 +481,13 @@ export function OrderManagementPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(order.status, order.paymentMethod)}
-                      {order.isSubscription && (
-                        <div className="mt-1">
-                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-100">정기공급</Badge>
-                        </div>
-                      )}
+                      <div className="mt-1 flex items-center gap-1">
+                        {order.isSubscription || (order as any).is_subscription || (order as any).orderType === 'subscription' || (order.orderNumber && order.orderNumber.startsWith('SUB')) ? (
+                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">정기공급</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] bg-neutral-100 text-neutral-600 border-neutral-200">일반</Badge>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
