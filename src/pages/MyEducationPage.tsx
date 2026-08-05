@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Loader2, GraduationCap } from 'lucide-react';
 import { adminService, EducationRequest } from '../services/adminService';
+import { useModal } from '../context/ModalContext';
 
 export function MyEducationPage() {
+  const { confirm: globalConfirm, alert: globalAlert } = useModal();
   const [requests, setRequests] = useState<EducationRequest[]>([]);
   const [isRequestsLoading, setIsRequestsLoading] = useState(true);
   const [requestTab, setRequestTab] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const loadRequests = async () => {
     try {
@@ -23,6 +26,33 @@ export function MyEducationPage() {
   useEffect(() => {
     loadRequests();
   }, []);
+
+  const handleCancelRequest = async (id: string) => {
+    const confirmed = await globalConfirm({
+      title: '신청 취소 확인',
+      description: '신청을 취소하시겠습니까?',
+    });
+
+    if (confirmed) {
+      try {
+        setCancellingId(id);
+        await adminService.updateEducationRequestStatus(id, 'cancelled');
+        await globalAlert({
+          title: '취소 완료',
+          description: '교육 신청이 성공적으로 취소되었습니다.',
+        });
+        await loadRequests();
+      } catch (err) {
+        console.error('신청 취소 실패:', err);
+        await globalAlert({
+          title: '취소 실패',
+          description: '신청 취소 처리 중 오류가 발생했습니다.',
+        });
+      } finally {
+        setCancellingId(null);
+      }
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -165,12 +195,13 @@ export function MyEducationPage() {
                     <th className="px-5 py-4 text-xs font-semibold text-neutral-700 whitespace-nowrap">신청일</th>
                     <th className="px-5 py-4 text-xs font-semibold text-neutral-700 min-w-[140px] whitespace-nowrap">메모</th>
                     <th className="px-5 py-4 text-xs font-semibold text-neutral-700 text-center whitespace-nowrap">상태</th>
+                    <th className="px-5 py-4 text-xs font-semibold text-neutral-700 text-center whitespace-nowrap min-w-[100px]">관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
                   {isRequestsLoading ? (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center">
+                      <td colSpan={9} className="py-16 text-center">
                         <div className="flex items-center justify-center gap-2 text-neutral-500">
                           <Loader2 className="w-5 h-5 animate-spin" />
                           <span className="text-sm">불러오는 중...</span>
@@ -179,7 +210,7 @@ export function MyEducationPage() {
                     </tr>
                   ) : filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-20 text-center">
+                      <td colSpan={9} className="py-20 text-center">
                         <Calendar className="w-12 h-12 text-neutral-300 mx-auto mb-3" />
                         <p className="text-neutral-600 mb-1 font-medium">
                           {requestTab === 'upcoming'
@@ -240,6 +271,25 @@ export function MyEducationPage() {
                           </td>
                           <td className="px-5 py-5 text-center whitespace-nowrap">
                             {getStatusBadge(request.status)}
+                          </td>
+                          <td className="px-5 py-5 text-center whitespace-nowrap">
+                            {(request.status === 'pending' || request.status === 'scheduled') && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelRequest(request.id)}
+                                disabled={cancellingId === request.id}
+                                className="px-3 py-1 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-all cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                              >
+                                {cancellingId === request.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                                신청취소
+                              </button>
+                            )}
+                            {request.status === 'cancelled' && (
+                              <span className="text-xs text-neutral-400 font-medium">취소완료</span>
+                            )}
+                            {request.status === 'completed' && (
+                              <span className="text-xs text-neutral-400 font-medium">-</span>
+                            )}
                           </td>
                         </tr>
                       );

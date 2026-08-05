@@ -54,6 +54,7 @@ function ScheduleFormView({
   onCancel: () => void;
   isSaving: boolean;
 }) {
+  const { alert: globalAlert } = useModal();
   const [formData, setFormData] = useState(initialData);
 
   // 시작/종료 시간 분리
@@ -66,6 +67,13 @@ function ScheduleFormView({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'edit' && formData.capacity < initialData.capacity) {
+      await globalAlert({
+        title: '정원 수정 오류',
+        description: `모집 정원은 기존 정원(${initialData.capacity}명) 미만으로 축소할 수 없습니다.\n정원을 늘리는 증원만 가능합니다.`,
+      });
+      return;
+    }
     await onSave({ ...formData, time: `${timeStart} - ${timeEnd}` });
   };
 
@@ -141,8 +149,23 @@ function ScheduleFormView({
               <Input type="text" placeholder="예) 본사 교육장 (서울 강남)" value={formData.location} onChange={(e) => setFormData((p) => ({ ...p, location: e.target.value }))} required />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-neutral-700">모집 정원 (명) <span className="text-red-500">*</span></label>
-              <Input type="number" min={1} value={formData.capacity} onChange={(e) => setFormData((p) => ({ ...p, capacity: Number(e.target.value) }))} required />
+              <label className="text-xs font-semibold text-neutral-700 flex items-center justify-between">
+                <span>
+                  모집 정원 (명) <span className="text-red-500">*</span>
+                </span>
+                {mode === 'edit' && (
+                  <span className="text-[11px] text-amber-700 font-medium">
+                    ※ 수정 시 인원 추가(증원)만 가능, 축소 불가
+                  </span>
+                )}
+              </label>
+              <Input
+                type="number"
+                min={mode === 'edit' ? initialData.capacity : 1}
+                value={formData.capacity}
+                onChange={(e) => setFormData((p) => ({ ...p, capacity: Number(e.target.value) }))}
+                required
+              />
             </div>
             {/* 신청 인원: 수정 모드에서만 노출 (신규 등록 시 자동 집계) */}
             {mode === 'edit' && (

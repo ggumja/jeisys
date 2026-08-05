@@ -51,18 +51,18 @@ export function EducationPage() {
   const [requests, setRequests] = useState<EducationRequest[]>([]);
 
   // 교육 일정 로드 (취소/완료 제외, 기간 만료 자동 실행)
+  const loadEducationSchedules = async () => {
+    try {
+      await adminService.autoCompleteExpiredSchedules().catch(() => {});
+      const data = await adminService.getPublicEducationSchedules();
+      setEducationSchedules(data);
+    } catch (err) {
+      console.error('교육 일정 로드 실패:', err);
+    }
+  };
+
   useEffect(() => {
-    // 기간이 지난 일정 자동 완료 처리
-    adminService.autoCompleteExpiredSchedules().then(() => {
-      // 프론트용: scheduled + 오늘 이후 날짜만 표시
-      adminService.getPublicEducationSchedules()
-        .then((data) => setEducationSchedules(data))
-        .catch((err) => console.error('교육 일정 로드 실패:', err));
-    }).catch(() => {
-      adminService.getPublicEducationSchedules()
-        .then((data) => setEducationSchedules(data))
-        .catch((err) => console.error('교육 일정 로드 실패:', err));
-    });
+    loadEducationSchedules();
   }, []);
 
   // 교육 신청 내역 로드 (기간 만료 자동 완료 포함)
@@ -104,7 +104,7 @@ export function EducationPage() {
 
       closePopup();
       await loadRequests();
-      await loadSchedules();
+      await loadEducationSchedules();
 
       await globalAlert({
         title: '교육 신청 완료',

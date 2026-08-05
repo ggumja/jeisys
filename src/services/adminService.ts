@@ -4435,12 +4435,16 @@ export const adminService = {
 
         let combinedData = data || [];
 
-        // 3. 로컬 캐시 백업 병합
+        // 3. 로컬 캐시 백업 병합 (DB에 존재하는 schedule_id 건은 중복 제외)
         try {
             const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
             if (localReqs.length > 0) {
                 const dbIds = new Set(combinedData.map(r => r.id));
-                const uniqueLocalReqs = localReqs.filter((lr: any) => !dbIds.has(lr.id));
+                const dbScheduleIds = new Set(combinedData.map(r => r.schedule_id).filter(Boolean));
+
+                const uniqueLocalReqs = localReqs.filter((lr: any) => 
+                    !dbIds.has(lr.id) && (!lr.schedule_id || !dbScheduleIds.has(lr.schedule_id))
+                );
                 
                 if (uniqueLocalReqs.length > 0) {
                     const { data: scheds } = await supabase
@@ -4528,15 +4532,21 @@ export const adminService = {
 
         if (error) {
             console.warn('[createEducationRequest] DB Insert error (falling back to local cache):', error);
-        }
-
-        // 항상 로컬 캐시에도 백업 저장하여 UI 노출 보장
-        try {
-            const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
-            localReqs.unshift(newRequest);
-            localStorage.setItem('my_education_requests', JSON.stringify(localReqs));
-        } catch (e) {
-            console.warn('LocalStorage save failed', e);
+            try {
+                const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
+                const filtered = localReqs.filter((lr: any) => lr.schedule_id !== data.schedule_id);
+                filtered.unshift(newRequest);
+                localStorage.setItem('my_education_requests', JSON.stringify(filtered));
+            } catch (e) {
+                console.warn('LocalStorage save failed', e);
+            }
+        } else {
+            // DB 정상 저장 시 이전 임시 로컬 캐시 항목 제거하여 중복 방지
+            try {
+                const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
+                const filtered = localReqs.filter((lr: any) => lr.schedule_id !== data.schedule_id);
+                localStorage.setItem('my_education_requests', JSON.stringify(filtered));
+            } catch (e) {}
         }
     },
 
@@ -4593,7 +4603,16 @@ export const adminService = {
             })
             .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+            console.warn('[updateEducationRequestStatus] DB update error:', error);
+        }
+
+        // 로컬 캐시 항목도 함께 취소/업데이트
+        try {
+            const localReqs = JSON.parse(localStorage.getItem('my_education_requests') || '[]');
+            const updated = localReqs.map((lr: any) => lr.id === id ? { ...lr, status } : lr);
+            localStorage.setItem('my_education_requests', JSON.stringify(updated));
+        } catch (e) {}
 
         // 일정 인원 수(enrolled) 자동 동기화
         if (currentReq && currentReq.schedule_id) {
