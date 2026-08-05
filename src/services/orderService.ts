@@ -172,6 +172,8 @@ export const orderService = {
             status: order.status,
             totalAmount: parseFloat(order.total_amount),
             paymentMethod: order.payment_method,
+            isSubscription: Boolean(order.is_subscription || order.isSubscription || order.order_type === 'subscription' || order.orderType === 'subscription'),
+            orderType: order.order_type || order.orderType,
             deliveryTrackingNumber: order.tracking_number,
             claimInfo: order.claim_info ? {
                 type: order.claim_info.type,
@@ -190,6 +192,7 @@ export const orderService = {
             pointsUsed: order.points_used || 0,
             paymentHistory: order.payment_history || [],
             items: order.order_items?.map((item: any) => ({
+                isSubscription: Boolean(item.is_subscription || item.isSubscription || item.product?.product_type === 'subscription' || item.product?.is_subscription_product),
                 product: item.product ? {
                     id: item.product.id,
                     name: item.product.name,
@@ -199,6 +202,10 @@ export const orderService = {
                     isPromotion: item.product.is_promotion,
                     buyQuantity: item.product.buy_quantity,
                     getQuantity: item.product.get_quantity,
+                    productType: item.product.product_type,
+                    product_type: item.product.product_type,
+                    isSubscriptionProduct: item.product.is_subscription_product,
+                    is_subscription_product: item.product.is_subscription_product,
                 } : null,
                 quantity: item.quantity,
                 price: parseFloat(item.unit_price),

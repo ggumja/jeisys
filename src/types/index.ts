@@ -260,6 +260,8 @@ export interface Order {
   vactInputDeadline?: string;
   pointsUsed?: number;
   paymentHistory?: any[];
+  isSubscription?: boolean;
+  orderType?: string;
 }
 
 export interface Inquiry {

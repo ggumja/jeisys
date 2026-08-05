@@ -8,6 +8,9 @@ import { adminService } from '../../services/adminService';
 import { toast } from 'sonner';
 import { OrderCancelModal } from '../../components/admin/OrderCancelModal';
 import { OrderClaimModal } from '../../components/admin/OrderClaimModal';
+import { SubscriptionCancelModeModal } from '../../components/admin/SubscriptionCancelModeModal';
+import { SubscriptionPenaltySettlementModal } from '../../components/admin/SubscriptionPenaltySettlementModal';
+import { subscriptionService, type SubscriptionRow } from '../../services/subscriptionService';
 import { ShipAddressPickerModal, SelectedShipAddress } from '../../components/admin/ShipAddressPickerModal';
 import { useModal } from '../../context/ModalContext';
 import { Product } from '../../types';
@@ -140,6 +143,9 @@ export function OrderDetailPage() {
   const [subProductsMap, setSubProductsMap] = useState<Record<string, Product>>({});
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showSubCancelModeModal, setShowSubCancelModeModal] = useState(false);
+  const [showSubPenaltyModal, setShowSubPenaltyModal] = useState(false);
+  const [selectedSubForCancel, setSelectedSubForCancel] = useState<SubscriptionRow | null>(null);
 
   const renderAddress = (shippingInfo: any) => {
     if (!shippingInfo) return '';
@@ -596,6 +602,20 @@ export function OrderDetailPage() {
                     await alert('이미 배송이 진행된 주문입니다. 취소 대신 [클레임(반품/교환) 등록] 버튼을 사용해 주세요.');
                     return;
                   }
+
+                  const isSub = Boolean(order.isSubscription) ||
+                    Boolean((order as any).is_subscription) ||
+                    (order as any).orderType === 'subscription' ||
+                    (order as any).order_type === 'subscription' ||
+                    order.orderItems?.some((i: any) => i.isSubscription || i.product_type === 'subscription' || i.is_subscription_product);
+
+                  if (isSub) {
+                    const sub = await subscriptionService.getSubscriptionByOrderId(order.id);
+                    setSelectedSubForCancel(sub);
+                    setShowSubCancelModeModal(true);
+                    return;
+                  }
+
                   setShowCancelModal(true);
                 }}
               >
@@ -1956,6 +1976,49 @@ export function OrderDetailPage() {
             status: order.status
           }}
           onClose={() => setShowClaimModal(false)}
+          onSuccess={loadOrder}
+        />
+      )}
+
+      {/* Subscription Cancel Mode Selection Modal (Step 1) */}
+      {showSubCancelModeModal && order && (
+        <SubscriptionCancelModeModal
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            pgTid: order.pgTid,
+            paymentMethod: order.paymentInfo?.method || order.paymentMethod,
+            userId: (order as any).userId,
+          }}
+          sub={selectedSubForCancel}
+          onClose={() => setShowSubCancelModeModal(false)}
+          onSelectCancelSubscription={(subRow) => {
+            setSelectedSubForCancel(subRow);
+            setShowSubCancelModeModal(false);
+            setShowSubPenaltyModal(true);
+          }}
+          onSuccess={loadOrder}
+        />
+      )}
+
+      {/* Subscription Penalty Settlement Modal (Step 2) */}
+      {showSubPenaltyModal && order && selectedSubForCancel && (
+        <SubscriptionPenaltySettlementModal
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: order.totalAmount,
+            pgTid: order.pgTid,
+            paymentMethod: order.paymentInfo?.method || order.paymentMethod,
+            userId: (order as any).userId,
+          }}
+          sub={selectedSubForCancel}
+          onClose={() => setShowSubPenaltyModal(false)}
+          onBack={() => {
+            setShowSubPenaltyModal(false);
+            setShowSubCancelModeModal(true);
+          }}
           onSuccess={loadOrder}
         />
       )}
