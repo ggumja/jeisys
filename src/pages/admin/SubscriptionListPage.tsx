@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  Search, Filter, RefreshCw, Play, Pause, XCircle, CheckCircle,
+  Search, RefreshCw, Play, Pause, XCircle, CheckCircle,
   Loader2, AlertTriangle, ChevronDown, ChevronUp, Package,
+  Calendar, Edit2,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { useModal } from '../../context/ModalContext';
+import { toast } from 'sonner';
 import {
   subscriptionService,
   SubscriptionRow,
   CancellationRequest,
 } from '../../services/subscriptionService';
+import { SubscriptionCancelModeModal } from '../../components/admin/SubscriptionCancelModeModal';
+import { SubscriptionPenaltySettlementModal } from '../../components/admin/SubscriptionPenaltySettlementModal';
+import { SubscriptionPauseModal } from '../../components/admin/SubscriptionPauseModal';
 
 // ─────────────────────────────────────────
 // 유틸
@@ -29,6 +33,8 @@ function getStatusBadge(status: SubscriptionRow['status']) {
       return <Badge variant="outline" className="bg-neutral-200 text-neutral-600">만료</Badge>;
     case 'completed':
       return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />정기공급완료</Badge>;
+    default:
+      return <Badge variant="outline" className="bg-neutral-100 text-neutral-700">{status}</Badge>;
   }
 }
 
@@ -41,7 +47,21 @@ function formatDate(s?: string) {
 // 구독 행 컴포넌트
 // ─────────────────────────────────────────
 
-function SubscriptionRow_({ sub, hasPendingCancel, onRetryPayment }: { sub: SubscriptionRow; hasPendingCancel?: boolean; onRetryPayment?: (subId: string, roundNo: number) => void }) {
+function SubscriptionRow_({
+  sub,
+  hasPendingCancel,
+  onRetryPayment,
+  onReload,
+  onOpenCancelModal,
+  onOpenPauseModal,
+}: {
+  sub: SubscriptionRow;
+  hasPendingCancel?: boolean;
+  onRetryPayment?: (subId: string, roundNo: number) => void;
+  onReload?: () => void;
+  onOpenCancelModal?: (sub: SubscriptionRow) => void;
+  onOpenPauseModal?: (sub: SubscriptionRow) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [retryingRound, setRetryingRound] = useState<number | null>(null);
 
@@ -57,7 +77,35 @@ function SubscriptionRow_({ sub, hasPendingCancel, onRetryPayment }: { sub: Subs
     }
   };
 
+  const handlePause = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onOpenPauseModal) {
+      onOpenPauseModal(sub);
+    }
+  };
+
+  const handleResume = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('정기공급을 재개하시겠습니까?')) {
+      try {
+        await subscriptionService.resumeSubscription(sub.id);
+        toast.success('정기공급이 재개 되었습니다.');
+        onReload?.();
+      } catch (err: any) {
+        toast.error(err.message || '재개 처리 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  const handleCancelClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onOpenCancelModal) {
+      onOpenCancelModal(sub);
+    }
+  };
+
   const failedShipment = sub.shipments?.find(s => s.status === 'failed');
+  const totalContractAmount = sub.unitPrice * sub.totalRounds;
 
   return (
     <>
@@ -100,100 +148,211 @@ function SubscriptionRow_({ sub, hasPendingCancel, onRetryPayment }: { sub: Subs
         </td>
       </tr>
 
-      {/* 회차 상세 */}
-      {open && sub.shipments && sub.shipments.length > 0 && (
+      {/* 구독 상세 정보 (정기공급 정보 카드 + 회차 상세 스케줄) */}
+      {open && (
         <tr>
-          <td colSpan={9} className="px-6 py-3 bg-neutral-50 border-t border-neutral-100">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-neutral-500">
-                    <th className="py-1 pr-4 text-left font-medium">회차</th>
-                    <th className="py-1 pr-4 text-left font-medium">예정일</th>
-                    <th className="py-1 pr-4 text-right font-medium">수량</th>
-                    <th className="py-1 pr-4 text-right font-medium">금액</th>
-                    <th className="py-1 pr-4 text-center font-medium">상태</th>
-                    <th className="py-1 pr-4 text-left font-medium">실패사유</th>
-                    <th className="py-1 text-center font-medium">작업</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const isPaused = sub.status === 'paused';
-                    // 마지막 결제완료/출고완료 회차번호
-                    const lastDoneRound = isPaused
-                      ? Math.max(
-                          0,
-                          ...(sub.shipments ?? [])
-                            .filter((s) => s.status === 'paid' || s.status === 'shipped')
-                            .map((s) => s.roundNo)
-                        )
-                      : -1;
+          <td colSpan={9} className="px-6 py-5 bg-neutral-50 border-t border-neutral-200">
+            <div className="space-y-6">
+              {/* 보라색 정기공급 정보 카드 */}
+              <div className="bg-purple-50/90 border border-purple-200 p-6 rounded-xl shadow-sm text-left">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 text-purple-700" />
+                    <h4 className="text-lg font-bold text-purple-900">정기공급 정보</h4>
+                  </div>
+                  {getStatusBadge(sub.status)}
+                </div>
 
-                    return [...sub.shipments].sort((a, b) => a.roundNo - b.roundNo).map(s => {
-                      // 일시정지 + 완료 회차 이후 pending → 취소로 표시
-                      const displayStatus =
-                        isPaused && s.status === 'pending' && s.roundNo > lastDoneRound
-                          ? 'cancelled'
-                          : s.status;
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div>
+                    <dt className="text-xs font-medium text-purple-700 mb-1">배송 주기</dt>
+                    <dd className="text-sm font-semibold text-purple-900">
+                      {sub.cycleMonths ? `${sub.cycleMonths}개월 (${sub.cycleDays || sub.cycleMonths * 30}일)` : '1개월 (30일)'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-purple-700 mb-1">정기공급 시작일</dt>
+                    <dd className="text-sm font-semibold text-purple-900">
+                      {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-purple-700 mb-1">다음 배송 예정일</dt>
+                    <dd className="text-sm font-semibold text-purple-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                      {sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '스케줄 확정 대기'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-purple-700 mb-1">총 배송 횟수</dt>
+                    <dd className="text-sm font-semibold text-purple-900">
+                      {sub.totalRounds}회
+                      <span className="text-xs text-purple-600 font-normal ml-1">
+                        (현재 {sub.currentRound}회차 진행 중)
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-purple-700 mb-1">회당 결제 금액</dt>
+                    <dd className="text-sm font-semibold text-purple-900">
+                      {sub.unitPrice.toLocaleString()}원
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-purple-700 mb-1">총 약정 결제 금액</dt>
+                    <dd className="text-sm font-bold text-purple-900">
+                      {totalContractAmount.toLocaleString()}원
+                    </dd>
+                  </div>
+                </div>
 
-                      return (
-                        <tr key={s.id} className={displayStatus === 'cancelled' ? 'opacity-40' : ''}>
-                          <td className="py-1 pr-4 text-neutral-700 font-medium">{s.roundNo}회차</td>
-                          <td className="py-1 pr-4 text-neutral-600">{formatDate(s.scheduledDate)}</td>
-                          <td className="py-1 pr-4 text-right text-neutral-700">{s.quantity}개</td>
-                          <td className="py-1 pr-4 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
-                          <td className="py-1 pr-4 text-center">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              displayStatus === 'paid'      ? 'bg-green-100 text-green-700' :
-                              displayStatus === 'pending'   ? 'bg-blue-100 text-blue-700' :
-                              displayStatus === 'shipped'   ? 'bg-emerald-100 text-emerald-700' :
-                              displayStatus === 'failed'    ? 'bg-rose-100 text-rose-700 font-bold' :
-                              displayStatus === 'skipped'   ? 'bg-neutral-100 text-neutral-500' :
-                              displayStatus === 'cancelled' ? 'bg-neutral-100 text-neutral-400' :
-                              'bg-neutral-100 text-neutral-600'
-                            }`}>
-                              {{
-                                paid: '결제완료',
-                                pending: '예정',
-                                shipped: '출고완료',
-                                failed: '결제실패',
-                                skipped: '건너뜀',
-                                cancelled: '취소',
-                              }[displayStatus] ?? displayStatus}
-                            </span>
-                          </td>
-                          <td className="py-1 pr-4 text-left text-neutral-600">
-                            {s.status === 'failed' ? (
-                              <span className="text-rose-600 font-medium">
-                                {s.failReason || '고객 카드 승인 오류 (한도초과/카드사 거부)'}
-                              </span>
-                            ) : '-'}
-                          </td>
-                          <td className="py-1 text-center">
-                            {s.status === 'failed' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => handleRetry(e, s.roundNo)}
-                                disabled={retryingRound === s.roundNo}
-                                className="h-6 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
-                              >
-                                {retryingRound === s.roundNo ? (
-                                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                                ) : (
-                                  <RefreshCw className="w-3 h-3 mr-1" />
-                                )}
-                                재결제 실행
-                              </Button>
-                            )}
-                          </td>
+                {/* 정기공급 관리 버튼 */}
+                <div className="flex items-center gap-3 pt-4 border-t border-purple-200" onClick={e => e.stopPropagation()}>
+                  {sub.status === 'active' && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePause}
+                        className="border-purple-300 text-purple-700 hover:bg-purple-100 font-bold"
+                      >
+                        <Pause className="w-4 h-4 mr-1" />
+                        일시정지
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toast.info('배송지 변경 기능이 곧 지원될 예정입니다.')}
+                        className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                      >
+                        <Edit2 className="w-4 h-4 mr-1" />
+                        배송지 변경
+                      </Button>
+                    </>
+                  )}
+                  {sub.status === 'paused' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResume}
+                      className="border-green-300 text-green-700 hover:bg-green-100 font-bold"
+                    >
+                      <Play className="w-4 h-4 mr-1" />
+                      재개
+                    </Button>
+                  )}
+                  {sub.status !== 'cancelled' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelClick}
+                      className="border-red-300 text-red-700 hover:bg-red-100 font-bold ml-auto"
+                    >
+                      <XCircle className="w-4 h-4 mr-1" />
+                      정기공급 해지
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* 회차 상세 스케줄 */}
+              {sub.shipments && sub.shipments.length > 0 && (
+                <div className="bg-white border border-neutral-200 rounded-xl p-4 text-left shadow-sm">
+                  <h5 className="text-xs font-bold text-neutral-800 mb-3 flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-neutral-600" />
+                    <span>회차별 배송 및 결제 스케줄</span>
+                  </h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-neutral-500 border-b border-neutral-100">
+                          <th className="py-2 pr-4 text-left font-medium">회차</th>
+                          <th className="py-2 pr-4 text-left font-medium">예정일</th>
+                          <th className="py-2 pr-4 text-right font-medium">수량</th>
+                          <th className="py-2 pr-4 text-right font-medium">금액</th>
+                          <th className="py-2 pr-4 text-center font-medium">상태</th>
+                          <th className="py-2 pr-4 text-left font-medium">실패사유</th>
+                          <th className="py-2 text-center font-medium">작업</th>
                         </tr>
-                      );
-                    });
-                  })()}
-                </tbody>
-              </table>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-50">
+                        {(() => {
+                          const isPaused = sub.status === 'paused';
+                          const lastDoneRound = isPaused
+                            ? Math.max(
+                                0,
+                                ...(sub.shipments ?? [])
+                                  .filter((s) => s.status === 'paid' || s.status === 'shipped')
+                                  .map((s) => s.roundNo)
+                              )
+                            : -1;
+
+                          return [...sub.shipments].sort((a, b) => a.roundNo - b.roundNo).map(s => {
+                            const displayStatus =
+                              isPaused && s.status === 'pending' && s.roundNo > lastDoneRound
+                                ? 'cancelled'
+                                : s.status;
+
+                            return (
+                              <tr key={s.id} className={displayStatus === 'cancelled' ? 'opacity-40' : ''}>
+                                <td className="py-2 pr-4 text-neutral-700 font-medium">{s.roundNo}회차</td>
+                                <td className="py-2 pr-4 text-neutral-600">{formatDate(s.scheduledDate)}</td>
+                                <td className="py-2 pr-4 text-right text-neutral-700">{s.quantity}개</td>
+                                <td className="py-2 pr-4 text-right text-neutral-700">{s.amount.toLocaleString()}원</td>
+                                <td className="py-2 pr-4 text-center">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    displayStatus === 'paid'      ? 'bg-green-100 text-green-700' :
+                                    displayStatus === 'pending'   ? 'bg-blue-100 text-blue-700' :
+                                    displayStatus === 'shipped'   ? 'bg-emerald-100 text-emerald-700' :
+                                    displayStatus === 'failed'    ? 'bg-rose-100 text-rose-700 font-bold' :
+                                    displayStatus === 'skipped'   ? 'bg-neutral-100 text-neutral-500' :
+                                    displayStatus === 'cancelled' ? 'bg-neutral-100 text-neutral-400' :
+                                    'bg-neutral-100 text-neutral-600'
+                                  }`}>
+                                    {{
+                                      paid: '결제완료',
+                                      pending: '예정',
+                                      shipped: '출고완료',
+                                      failed: '결제실패',
+                                      skipped: '건너뜀',
+                                      cancelled: '취소',
+                                    }[displayStatus] ?? displayStatus}
+                                  </span>
+                                </td>
+                                <td className="py-2 pr-4 text-left text-neutral-600">
+                                  {s.status === 'failed' ? (
+                                    <span className="text-rose-600 font-medium">
+                                      {s.failReason || '고객 카드 승인 오류 (한도초과/카드사 거부)'}
+                                    </span>
+                                  ) : '-'}
+                                </td>
+                                <td className="py-2 text-center">
+                                  {s.status === 'failed' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => handleRetry(e, s.roundNo)}
+                                      disabled={retryingRound === s.roundNo}
+                                      className="h-6 px-2 text-[11px] border-rose-300 text-rose-700 hover:bg-rose-50"
+                                    >
+                                      {retryingRound === s.roundNo ? (
+                                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                                      ) : (
+                                        <RefreshCw className="w-3 h-3 mr-1" />
+                                      )}
+                                      재결제 실행
+                                    </Button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </td>
         </tr>
@@ -215,6 +374,15 @@ export function SubscriptionListPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'failed' | 'completed' | 'cancelled' | 'pending_cancel'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 2단계 구독 취소 모달 상태
+  const [showSubCancelModeModal, setShowSubCancelModeModal] = useState(false);
+  const [showSubPenaltyModal, setShowSubPenaltyModal] = useState(false);
+  const [selectedSubForCancel, setSelectedSubForCancel] = useState<SubscriptionRow | null>(null);
+
+  // 구독 일시정지 모달 상태
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [selectedSubForPause, setSelectedSubForPause] = useState<SubscriptionRow | null>(null);
+
   // ── 로드 ──
   const load = useCallback(async () => {
     setLoading(true);
@@ -234,7 +402,7 @@ export function SubscriptionListPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── 결제 실패한 구독 판별 (회차 중 failed 상태가 있는 경우) ──
+  // ── 결제 실패한 구독 판별 ──
   const isPaymentFailed = (s: SubscriptionRow) => {
     return s.shipments?.some(shipment => shipment.status === 'failed') ?? false;
   };
@@ -268,8 +436,6 @@ export function SubscriptionListPage() {
     cancelled: subscriptions.filter(s => s.status === 'cancelled' && !pendingCancelIds.has(s.id)).length,
     pending_cancel: pendingCancelIds.size,
   };
-
-  const pendingCancelCount = pendingCancelIds.size;
 
   return (
     <div className="space-y-6">
@@ -371,6 +537,15 @@ export function SubscriptionListPage() {
                     key={sub.id}
                     sub={sub}
                     hasPendingCancel={pendingCancelIds.has(sub.id)}
+                    onReload={load}
+                    onOpenPauseModal={(targetSub) => {
+                      setSelectedSubForPause(targetSub);
+                      setShowPauseModal(true);
+                    }}
+                    onOpenCancelModal={(targetSub) => {
+                      setSelectedSubForCancel(targetSub);
+                      setShowSubPenaltyModal(true);
+                    }}
                     onRetryPayment={async (subId, roundNo) => {
                       await new Promise(resolve => setTimeout(resolve, 1200));
                       alert(`${roundNo}회차 재결제 요청이 신용카드사로 전송되었습니다.`);
@@ -388,6 +563,42 @@ export function SubscriptionListPage() {
         <div className="text-right text-xs text-neutral-500">
           총 {filtered.length}건 표시 중 (전체 {subscriptions.length}건)
         </div>
+      )}
+
+      {/* 구독 일시정지 모달 */}
+      {selectedSubForPause && showPauseModal && (
+        <SubscriptionPauseModal
+          sub={selectedSubForPause}
+          onClose={() => {
+            setShowPauseModal(false);
+            setSelectedSubForPause(null);
+          }}
+          onSuccess={load}
+        />
+      )}
+
+      {/* 구독 해지 & 위약금 정산 모달 */}
+      {selectedSubForCancel && showSubPenaltyModal && (
+        <SubscriptionPenaltySettlementModal
+          order={{
+            id: selectedSubForCancel.originalOrderId || selectedSubForCancel.id,
+            orderNumber: selectedSubForCancel.subscriptionNo || selectedSubForCancel.id.slice(0, 8),
+            totalAmount: selectedSubForCancel.unitPrice,
+            pgTid: selectedSubForCancel.pgTid,
+            paymentMethod: selectedSubForCancel.paymentMethod,
+            userId: selectedSubForCancel.userId,
+          }}
+          sub={selectedSubForCancel}
+          onClose={() => {
+            setShowSubPenaltyModal(false);
+            setSelectedSubForCancel(null);
+          }}
+          onBack={() => {
+            setShowSubPenaltyModal(false);
+            setSelectedSubForCancel(null);
+          }}
+          onSuccess={load}
+        />
       )}
     </div>
   );

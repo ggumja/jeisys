@@ -155,23 +155,49 @@ export function calculatePenalty(params: {
   unitPrice: number;       // 구독 적용 단가 (회차 결제금액)
   regularUnitPrice: number; // 일반 단가 (개당, 구간 할인 미적용 기준)
   quantityDiscountTiers?: Array<{ minQty: number; maxQty: number; discountRate: number }>;
+  isCurrentRoundShipped?: boolean; // 현재 회차 출고 완료 여부 (기본값: true)
 }): {
   shippedQuantity: number;
   paidAmount: number;
   regularAmount: number;
   penaltyAmount: number;
   appliedDiscountRate: number;
+  isShipped: boolean;
 } {
-  const { currentRound, qtyPerRound, lastRoundQty, totalRounds, unitPrice, regularUnitPrice, quantityDiscountTiers } = params;
+  const {
+    currentRound,
+    qtyPerRound,
+    lastRoundQty,
+    totalRounds,
+    unitPrice,
+    regularUnitPrice,
+    quantityDiscountTiers,
+    isCurrentRoundShipped = true,
+  } = params;
+
+  // 현재 회차출고 여부에 따른 기출고 회차 수 계산 (발송 전이면 이전 회차까지만 합산)
+  const effectiveShippedRounds = isCurrentRoundShipped ? currentRound : Math.max(0, currentRound - 1);
 
   // 기출고 수량 계산
   let shippedQuantity = 0;
-  for (let r = 1; r <= currentRound; r++) {
+  for (let r = 1; r <= effectiveShippedRounds; r++) {
     shippedQuantity += r === totalRounds ? lastRoundQty : qtyPerRound;
   }
 
-  // 기납부 총액
+  // 기납부 총액 (현재 회차까지 결제 완료된 총액)
   const paidAmount = currentRound * unitPrice;
+
+  // 1회차 발송 전 등 기출고 수량이 0인 경우: 위약금 0원 (전액 환불 대상)
+  if (shippedQuantity === 0) {
+    return {
+      shippedQuantity: 0,
+      paidAmount,
+      regularAmount: 0,
+      penaltyAmount: 0,
+      appliedDiscountRate: 0,
+      isShipped: false,
+    };
+  }
 
   // 수령 수량 구간의 할인율 조회
   let appliedDiscountRate = 0;
@@ -181,8 +207,6 @@ export function calculatePenalty(params: {
     if (tier) appliedDiscountRate = tier.discountRate;
   }
 
-  // 구간 할인율 적용 가격으로 정가 재산정
-  // regularUnitPrice는 개당 원가(할인 전). 구간할인율이 있으면 해당 구간 단가로 산정
   const effectiveUnitPrice = quantityDiscountTiers && quantityDiscountTiers.length > 0
     ? Math.round(regularUnitPrice * (1 - appliedDiscountRate / 100))
     : regularUnitPrice;
@@ -190,7 +214,14 @@ export function calculatePenalty(params: {
   const regularAmount = shippedQuantity * effectiveUnitPrice;
   const penaltyAmount = Math.max(0, regularAmount - paidAmount);
 
-  return { shippedQuantity, paidAmount, regularAmount, penaltyAmount, appliedDiscountRate };
+  return {
+    shippedQuantity,
+    paidAmount,
+    regularAmount,
+    penaltyAmount,
+    appliedDiscountRate,
+    isShipped: isCurrentRoundShipped,
+  };
 }
 
 // ─────────────────────────────────────────
@@ -476,6 +507,38 @@ export const subscriptionService = {
       .eq('order_id', orderId);
   },
 
+  async cancelSubscriptionDirectly(subscriptionId: string, orderId: string, reason: string = '1회차 결제 취소로 인한 구독 자동 취소'): Promise<void> {
+    await supabase
+      .from('subscriptions')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', subscriptionId);
+
+    await supabase
+      .from('subscription_shipments')
+      .update({ status: 'cancelled' })
+      .eq('order_id', orderId);
+  },
+
+  async cancelSubscriptionByOrderId(orderId: string, reason?: string): Promise<void> {
+    const sub = await this.getSubscriptionByOrderId(orderId);
+    if (sub) {
+      await this.cancelSubscriptionDirectly(sub.id, orderId, reason);
+    } else {
+      await supabase
+        .from('subscriptions')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .or(`id.eq.${orderId},original_order_id.eq.${orderId}`);
+
+      await supabase
+        .from('subscription_shipments')
+        .update({ status: 'cancelled' })
+        .eq('order_id', orderId);
+    }
+  },
+
   async cancelSubscriptionWithPenalty(params: {
     orderId: string;
     subscriptionId: string;
@@ -556,14 +619,13 @@ export const subscriptionService = {
     await supabase
       .from('subscription_shipments')
       .update({ status: 'cancelled' })
-      .eq('subscription_id', subscriptionId)
-      .in('status', ['pending', 'paused']);
+      .or(`subscription_id.eq.${subscriptionId},order_id.eq.${orderId}`);
   },
 
   // ──────────────────────────────
   // 위약금 계산 (해지 전 미리보기)
   // ──────────────────────────────
-  calculatePenaltyPreview(sub: SubscriptionRow): ReturnType<typeof calculatePenalty> {
+  calculatePenaltyPreview(sub: SubscriptionRow, isCurrentRoundShipped = true): ReturnType<typeof calculatePenalty> {
     return calculatePenalty({
       currentRound: sub.currentRound,
       qtyPerRound: sub.qtyPerRound,
@@ -572,6 +634,7 @@ export const subscriptionService = {
       unitPrice: sub.unitPrice,
       regularUnitPrice: sub.regularUnitPrice,
       quantityDiscountTiers: sub.quantityDiscountTiers,
+      isCurrentRoundShipped,
     });
   },
 

@@ -12,6 +12,7 @@ import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
 import { creditService } from '../services/creditService';
 import { paymentService } from '../services/paymentService';
+import { subscriptionService } from '../services/subscriptionService';
 import { PaymentMethod } from '../types';
 import { printReceipt } from '../utils/printUtils';
 
@@ -55,6 +56,13 @@ function ClaimModal({ orderId, type, paymentMethod, status, onClose, onSuccess }
       setIsSubmitting(true);
       const refundInfo = isManualRefund ? { bank: refundBank, account: refundAccount, holder: refundHolder } : undefined;
       await orderService.requestClaim(orderId, type, reason, refundInfo);
+      if (type === 'CANCEL') {
+        try {
+          await subscriptionService.cancelSubscriptionByOrderId(orderId, reason);
+        } catch (subErr) {
+          console.error('Failed to cancel connected subscription record:', subErr);
+        }
+      }
       onSuccess();
     } catch (e) {
       alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
@@ -753,7 +761,39 @@ export function OrdersPage() {
                         (i.product as any)?.is_subscription
                       );
 
-                    if (isSubOrder) return null;
+                    if (isSubOrder) {
+                      const roundNo = (order as any).roundNo || (order as any).currentRound || 1;
+                      const isFirstRound = roundNo === 1;
+
+                      // 1회차 정기공급 주문
+                      if (isFirstRound && !hasClaim) {
+                        // 상품준비중 전 (pending/paid): 즉시 [결제 취소]
+                        if (['pending', 'paid'].includes(order.status)) {
+                          return (
+                            <button
+                              onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod, status: order.status })}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              결제 취소
+                            </button>
+                          );
+                        }
+                        // 상품준비중 (processing): 즉시 취소 불가 ➔ [취소 신청] (주문취소요청)만 가능
+                        if (order.status === 'processing') {
+                          return (
+                            <button
+                              onClick={() => setClaimModal({ orderId: order.id, type: 'CANCEL', paymentMethod: order.paymentMethod, status: order.status })}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold border border-amber-300 transition-colors"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                              취소 신청
+                            </button>
+                          );
+                        }
+                      }
+                      return null;
+                    }
 
                     return (
                       <>

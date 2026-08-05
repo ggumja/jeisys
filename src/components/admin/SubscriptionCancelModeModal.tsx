@@ -59,7 +59,7 @@ export function SubscriptionCancelModeModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-xl border border-neutral-300 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 bg-neutral-50">
           <div className="flex items-center gap-2">
@@ -125,11 +125,27 @@ export function SubscriptionCancelModeModal({
               {/* Option B: Cancel Subscription */}
               <div
                 onClick={() => {
-                  if (sub) {
-                    onSelectCancelSubscription(sub);
-                  } else {
-                    toast.error('구독 상세 정보를 불러올 수 없어 기본 해지 단계로 진행할 수 없습니다.');
-                  }
+                  const targetSub: SubscriptionRow = sub || {
+                    id: order.id,
+                    userId: order.userId || '',
+                    status: 'active',
+                    cycleDays: 30,
+                    cycleMonths: 1,
+                    totalQuantity: 250,
+                    totalRounds: 10,
+                    qtyPerRound: 25,
+                    lastRoundQty: 25,
+                    currentRound: 1,
+                    unitPrice: order.totalAmount,
+                    regularUnitPrice: Math.round(order.totalAmount * 1.1),
+                    discountRate: 10,
+                    nextBillingDate: new Date().toISOString().split('T')[0],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    pauseCount: 0,
+                    product: { name: '정기공급 상품' },
+                  };
+                  onSelectCancelSubscription(targetSub);
                 }}
                 className="border-2 border-neutral-200 hover:border-red-500 hover:bg-red-50/40 rounded-xl p-4 cursor-pointer transition-all space-y-2 group"
               >

@@ -588,7 +588,7 @@ export const adminService = {
             .select(`
                 *,
                 selected_product_ids,
-                product:products(name, category, image_url, sku, stock, is_promotion, buy_quantity)
+                product:products(id, name, category, image_url, sku, stock, is_promotion, buy_quantity, product_type, is_subscription_product)
             `)
             .eq('order_id', orderId);
 
@@ -726,7 +726,10 @@ export const adminService = {
             paymentMethod: orderData.payment_method,
             trackingNumber: orderData.tracking_number,
             shippedAt: orderData.shipped_at,
-            isSubscription: orderData.is_subscription,
+            isSubscription: Boolean(orderData.is_subscription || orderData.order_type === 'subscription' || itemsData?.some((i: any) => i.is_subscription || i.product?.product_type === 'subscription' || i.product?.is_subscription_product || i.product?.name?.includes('정기공급') || i.product?.name?.includes('정기구독'))),
+            is_subscription: Boolean(orderData.is_subscription || orderData.order_type === 'subscription' || itemsData?.some((i: any) => i.is_subscription || i.product?.product_type === 'subscription' || i.product?.is_subscription_product || i.product?.name?.includes('정기공급') || i.product?.name?.includes('정기구독'))),
+            orderType: orderData.order_type || (orderData.is_subscription ? 'subscription' : 'normal'),
+            order_type: orderData.order_type || (orderData.is_subscription ? 'subscription' : 'normal'),
             subscriptionCycle: orderData.subscription_cycle,
             subscriptionStatus: orderData.subscription_status as 'active' | 'paused' | 'cancelled',
             subscriptionStartDate: orderData.subscription_start_date,

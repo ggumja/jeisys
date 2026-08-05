@@ -10,6 +10,7 @@ import { OrderCancelModal } from '../../components/admin/OrderCancelModal';
 import { OrderClaimModal } from '../../components/admin/OrderClaimModal';
 import { SubscriptionCancelModeModal } from '../../components/admin/SubscriptionCancelModeModal';
 import { SubscriptionPenaltySettlementModal } from '../../components/admin/SubscriptionPenaltySettlementModal';
+import { SubscriptionPauseModal } from '../../components/admin/SubscriptionPauseModal';
 import { subscriptionService, type SubscriptionRow } from '../../services/subscriptionService';
 import { ShipAddressPickerModal, SelectedShipAddress } from '../../components/admin/ShipAddressPickerModal';
 import { useModal } from '../../context/ModalContext';
@@ -145,7 +146,9 @@ export function OrderDetailPage() {
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showSubCancelModeModal, setShowSubCancelModeModal] = useState(false);
   const [showSubPenaltyModal, setShowSubPenaltyModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
   const [selectedSubForCancel, setSelectedSubForCancel] = useState<SubscriptionRow | null>(null);
+  const [subDetail, setSubDetail] = useState<SubscriptionRow | null>(null);
 
   const renderAddress = (shippingInfo: any) => {
     if (!shippingInfo) return '';
@@ -182,6 +185,16 @@ export function OrderDetailPage() {
       setLoading(true);
       const data = await adminService.getOrderById(id!) as any;
       setOrder(data);
+
+      try {
+        const sub = await subscriptionService.getSubscriptionByOrderId(id!);
+        setSubDetail(sub);
+        if (sub?.status) {
+          setSubscriptionStatus(sub.status as any);
+        }
+      } catch (err) {
+        console.error('Failed to load subscription detail:', err);
+      }
       
       // Load bundled sub-products if any
       if (data.orderItems) {
@@ -481,24 +494,88 @@ export function OrderDetailPage() {
   };
 
   const handlePauseSubscription = async () => {
-    if (await confirm('정기공급을 일시정지하시겠습니까?')) {
-      setSubscriptionStatus('paused');
-      await alert('정기공급이 일시정지되었습니다.');
+    if (!order) return;
+    let sub = subDetail || selectedSubForCancel;
+    if (!sub) {
+      sub = await subscriptionService.getSubscriptionByOrderId(order.id);
     }
+    if (!sub) {
+      const firstItem = order.orderItems?.[0];
+      sub = {
+        id: order.id,
+        userId: (order as any).userId || (order as any).user_id || '',
+        status: 'active',
+        cycleDays: 30,
+        cycleMonths: 1,
+        totalQuantity: firstItem?.quantity || 100,
+        totalRounds: 10,
+        qtyPerRound: Math.round((firstItem?.quantity || 100) / 10),
+        lastRoundQty: Math.round((firstItem?.quantity || 100) / 10),
+        currentRound: 1,
+        unitPrice: order.totalAmount,
+        regularUnitPrice: Math.round(order.totalAmount * 1.1),
+        discountRate: 10,
+        nextBillingDate: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        pauseCount: 0,
+        product: { name: firstItem?.productName || '정기공급 상품' },
+      };
+    }
+    setSelectedSubForCancel(sub);
+    setShowPauseModal(true);
   };
 
   const handleResumeSubscription = async () => {
-    if (await confirm('정기공급을 재개하시겠습니까?')) {
+    if (!order) return;
+    try {
+      let subId = subDetail?.id;
+      if (!subId) {
+        const sub = await subscriptionService.getSubscriptionByOrderId(order.id);
+        subId = sub?.id;
+      }
+      if (subId) {
+        await subscriptionService.resumeSubscription(subId);
+      }
       setSubscriptionStatus('active');
-      await alert('정기공급이 재개되었습니다.');
+      toast.success('정기공급이 성공적으로 재개되었습니다.');
+      loadOrder();
+    } catch (err: any) {
+      toast.error(err.message || '재개 처리 중 오류가 발생했습니다.');
     }
   };
 
   const handleCancelSubscription = async () => {
-    if (await confirm('정기공급을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      setSubscriptionStatus('cancelled');
-      await alert('정기공급이 취소되었습니다.');
+    if (!order) return;
+    let sub = subDetail || selectedSubForCancel;
+    if (!sub) {
+      sub = await subscriptionService.getSubscriptionByOrderId(order.id);
     }
+    if (!sub) {
+      const firstItem = order.orderItems?.[0];
+      sub = {
+        id: order.id,
+        userId: (order as any).userId || (order as any).user_id || '',
+        status: 'active',
+        cycleDays: 30,
+        cycleMonths: 1,
+        totalQuantity: firstItem?.quantity || 100,
+        totalRounds: 10,
+        qtyPerRound: Math.round((firstItem?.quantity || 100) / 10),
+        lastRoundQty: Math.round((firstItem?.quantity || 100) / 10),
+        currentRound: 1,
+        unitPrice: order.totalAmount,
+        regularUnitPrice: Math.round(order.totalAmount * 1.1),
+        discountRate: 10,
+        nextBillingDate: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        pauseCount: 0,
+        product: { name: firstItem?.productName || '정기공급 상품' },
+      };
+    }
+    setSelectedSubForCancel(sub);
+    setShowSubCancelModeModal(true);
   };
 
   return (
@@ -607,12 +684,43 @@ export function OrderDetailPage() {
                     Boolean((order as any).is_subscription) ||
                     (order as any).orderType === 'subscription' ||
                     (order as any).order_type === 'subscription' ||
-                    order.orderItems?.some((i: any) => i.isSubscription || i.product_type === 'subscription' || i.is_subscription_product);
+                    order.orderItems?.some((i: any) =>
+                      i.isSubscription ||
+                      i.product_type === 'subscription' ||
+                      i.is_subscription_product ||
+                      i.productName?.includes('정기공급') ||
+                      i.productName?.includes('정기구독') ||
+                      i.product?.name?.includes('정기공급') ||
+                      i.product?.name?.includes('정기구독')
+                    );
 
                   if (isSub) {
-                    const sub = await subscriptionService.getSubscriptionByOrderId(order.id);
+                    let sub = await subscriptionService.getSubscriptionByOrderId(order.id);
+                    if (!sub) {
+                      const firstItem = order.orderItems?.[0];
+                      sub = {
+                        id: order.id,
+                        userId: (order as any).userId || (order as any).user_id || '',
+                        status: 'active',
+                        cycleDays: 30,
+                        cycleMonths: 1,
+                        totalQuantity: firstItem?.quantity || 100,
+                        totalRounds: 10,
+                        qtyPerRound: Math.round((firstItem?.quantity || 100) / 10),
+                        lastRoundQty: Math.round((firstItem?.quantity || 100) / 10),
+                        currentRound: 1,
+                        unitPrice: order.totalAmount,
+                        regularUnitPrice: Math.round(order.totalAmount * 1.1),
+                        discountRate: 10,
+                        nextBillingDate: new Date().toISOString().split('T')[0],
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        pauseCount: 0,
+                        product: { name: firstItem?.productName || '정기공급 상품' },
+                      };
+                    }
                     setSelectedSubForCancel(sub);
-                    setShowSubCancelModeModal(true);
+                    setShowSubPenaltyModal(true);
                     return;
                   }
 
@@ -622,6 +730,21 @@ export function OrderDetailPage() {
                 <AlertTriangle className="w-4 h-4 mr-2" />
                 주문 취소
               </Button>
+
+              {order.status === 'processing' && (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await adminService.updateOrderStatus(order.id, 'paid');
+                    toast.success('주문 상태가 [결제완료]로 변경되었습니다.');
+                    loadOrder();
+                  }}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50 font-semibold"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2 text-blue-600" />
+                  결제완료 상태로 변경
+                </Button>
+              )}
 
               {(order.status === 'shipped' || order.status === 'delivered' || order.status === 'partially_shipped') && (
                 <Button
@@ -683,101 +806,78 @@ export function OrderDetailPage() {
       </div>
 
       {/* Subscription Info - 정기공급인 경우만 표시 */}
-      {order.isSubscription && (
-        <div className="bg-purple-50 border border-purple-200 p-6">
+      {(order.isSubscription || (order as any).is_subscription || (order as any).orderType === 'subscription' || (order as any).order_type === 'subscription' || Boolean(subDetail) || order.orderItems?.some((i: any) => i.productName?.includes('정기공급') || i.productName?.includes('정기구독') || i.product_type === 'subscription')) && (
+        <div className="bg-purple-50/90 border border-purple-200 p-6 rounded-xl shadow-sm">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
               <RefreshCw className="w-5 h-5 text-purple-700" />
-              <h4 className="text-lg font-medium text-purple-900">정기공급 정보</h4>
+              <h4 className="text-lg font-bold text-purple-900">정기공급 정보</h4>
             </div>
-            {getSubscriptionStatusBadge(subscriptionStatus as 'active' | 'paused' | 'cancelled')}
+            {getSubscriptionStatusBadge((subDetail?.status || subscriptionStatus || 'active') as 'active' | 'paused' | 'cancelled')}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <dt className="text-xs font-medium text-purple-700 mb-1">배송 주기</dt>
-              <dd className="text-sm font-medium text-purple-900">{order.subscriptionCycle}</dd>
+              <dd className="text-sm font-semibold text-purple-900">
+                {subDetail?.cycleMonths
+                  ? `${subDetail.cycleMonths}개월 (${subDetail.cycleDays || subDetail.cycleMonths * 30}일)`
+                  : order.subscriptionCycle || '1개월 (30일)'}
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-purple-700 mb-1">정기공급 시작일</dt>
-              <dd className="text-sm text-purple-900">{order.subscriptionStartDate}</dd>
+              <dd className="text-sm font-semibold text-purple-900">
+                {subDetail?.createdAt
+                  ? new Date(subDetail.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : order.subscriptionStartDate || order.orderDate}
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-purple-700 mb-1">다음 배송 예정일</dt>
-              <dd className="text-sm text-purple-900 flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                {order.nextDeliveryDate}
+              <dd className="text-sm font-semibold text-purple-900 flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-purple-600" />
+                {subDetail?.nextBillingDate
+                  ? new Date(subDetail.nextBillingDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : order.nextDeliveryDate || '스케줄 확정 대기'}
               </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-purple-700 mb-1">총 배송 횟수</dt>
-              <dd className="text-sm font-medium text-purple-900">{order.deliveryCount}회</dd>
+              <dd className="text-sm font-semibold text-purple-900">
+                {subDetail?.totalRounds || order.deliveryCount || 10}회
+                <span className="text-xs text-purple-600 font-normal ml-1">
+                  (현재 {subDetail?.currentRound || 1}회차 진행 중)
+                </span>
+              </dd>
             </div>
             <div>
               <dt className="text-xs font-medium text-purple-700 mb-1">회당 결제 금액</dt>
-              <dd className="text-sm font-medium text-purple-900">{order.totalAmount.toLocaleString()}원</dd>
+              <dd className="text-sm font-semibold text-purple-900">
+                {(subDetail?.unitPrice || order.totalAmount).toLocaleString()}원
+              </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">총 결제 금액</dt>
+              <dt className="text-xs font-medium text-purple-700 mb-1">총 약정 결제 금액</dt>
               <dd className="text-sm font-bold text-purple-900">
-                {(order.totalAmount * (order.deliveryCount || 0)).toLocaleString()}원
+                {((subDetail?.unitPrice || order.totalAmount) * (subDetail?.totalRounds || order.deliveryCount || 10)).toLocaleString()}원
               </dd>
             </div>
           </div>
 
-          {/* 정기공급 관리 버튼 */}
-          <div className="flex items-center gap-3 pt-4 border-t border-purple-200">
-            {subscriptionStatus === 'active' && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePauseSubscription}
-                  className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                >
-                  <Pause className="w-4 h-4 mr-1" />
-                  일시정지
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                >
-                  <Edit2 className="w-4 h-4 mr-1" />
-                  배송주기 변경
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-purple-300 text-purple-700 hover:bg-purple-100"
-                >
-                  <Edit2 className="w-4 h-4 mr-1" />
-                  배송지 변경
-                </Button>
-              </>
-            )}
-            {subscriptionStatus === 'paused' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResumeSubscription}
-                className="border-green-300 text-green-700 hover:bg-green-100"
-              >
-                <Play className="w-4 h-4 mr-1" />
-                재개
-              </Button>
-            )}
-            {subscriptionStatus !== 'cancelled' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelSubscription}
-                className="border-red-300 text-red-700 hover:bg-red-100 ml-auto"
-              >
-                <XCircle className="w-4 h-4 mr-1" />
-                정기공급 취소
-              </Button>
-            )}
+          {/* 정기공급 관리 안내 및 링크 */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-purple-200 text-xs">
+            <span className="text-purple-700">
+              * 정기공급 일시정지, 배송지 변경 및 구독 해지는 <strong>[정기공급 목록]</strong> 메뉴에서 관리하실 수 있습니다.
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/admin/subscriptions')}
+              className="border-purple-300 text-purple-700 hover:bg-purple-100 font-bold bg-white ml-auto"
+            >
+              정기공급 관리 이동 <ArrowLeft className="w-3.5 h-3.5 ml-1 rotate-180" />
+            </Button>
           </div>
         </div>
       )}
@@ -2020,6 +2120,18 @@ export function OrderDetailPage() {
             setShowSubCancelModeModal(true);
           }}
           onSuccess={loadOrder}
+        />
+      )}
+
+      {/* Subscription Pause Modal */}
+      {showPauseModal && order && selectedSubForCancel && (
+        <SubscriptionPauseModal
+          sub={selectedSubForCancel}
+          onClose={() => setShowPauseModal(false)}
+          onSuccess={() => {
+            setSubscriptionStatus('paused');
+            loadOrder();
+          }}
         />
       )}
     </div>
