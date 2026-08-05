@@ -39,6 +39,8 @@ export function SmsMessageSendPage() {
 
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [recipientView, setRecipientView] = useState<'list' | 'blocked'>('list');
+  const [directName, setDirectName] = useState('');
+  const [directPhone, setDirectPhone] = useState('');
 
   const KOREA_REGIONS = [
     '서울', '경기', '인천', '강원',
@@ -234,6 +236,52 @@ export function SmsMessageSendPage() {
     window.addEventListener('resize', updateBounds);
     return () => { clearTimeout(t); window.removeEventListener('resize', updateBounds); };
   }, []);
+
+  const formatPhoneNumber = (val: string) => {
+    const nums = val.replace(/[^0-9]/g, '');
+    if (nums.length <= 3) return nums;
+    if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+    if (nums.length <= 11) return `${nums.slice(0, 3)}-${nums.slice(3, nums.length - 4)}-${nums.slice(nums.length - 4)}`;
+    return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7, 11)}`;
+  };
+
+  const handlePhoneInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDirectPhone(formatPhoneNumber(e.target.value));
+  };
+
+  const handleAddDirectRecipient = () => {
+    const trimmedName = directName.trim();
+    const rawPhone = directPhone.replace(/[^0-9]/g, '');
+
+    if (!trimmedName) {
+      toast.error('이름을 입력해 주세요.');
+      return;
+    }
+
+    if (!rawPhone || rawPhone.length < 9) {
+      toast.error('유효한 전화번호를 입력해 주세요.');
+      return;
+    }
+
+    const formattedPhone = formatPhoneNumber(rawPhone);
+
+    const isDuplicate = recipients.some(r => r.phone.replace(/[^0-9]/g, '') === rawPhone);
+    if (isDuplicate) {
+      toast.warning('이미 수신자 목록에 존재하는 전화번호입니다.');
+    }
+
+    setRecipients(prev => [
+      ...prev,
+      {
+        name: trimmedName,
+        phone: formattedPhone
+      }
+    ]);
+
+    setDirectName('');
+    setDirectPhone('');
+    toast.success(`[${trimmedName}] 고객이 수신자 목록에 추가되었습니다.`);
+  };
 
   return (
     <>
@@ -639,14 +687,46 @@ export function SmsMessageSendPage() {
             )}
           </div>
 
-          {/* 전체 삭제 */}
-          {recipients.length > 0 && (
-            <div className="px-4 py-2 border-t border-neutral-100">
-              <button onClick={() => setRecipients([])} className="text-xs text-neutral-400 hover:text-red-500 transition-colors">
-                전체 삭제 ({recipients.length}명)
+          {/* 수신자 직접 입력 (이름, 전화번호) 영역 */}
+          <div className="p-3 border-t border-neutral-200 bg-neutral-50 shrink-0 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5 text-blue-600" /> 수신자 직접 추가
+              </span>
+              {recipients.length > 0 && (
+                <button onClick={() => setRecipients([])} className="text-[11px] text-neutral-400 hover:text-red-500 transition-colors">
+                  전체 삭제 ({recipients.length}명)
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                placeholder="이름"
+                value={directName}
+                onChange={e => setDirectName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddDirectRecipient(); }}
+                className="w-24 border border-neutral-200 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-medium text-neutral-800 placeholder:text-neutral-400 shrink-0"
+              />
+              <input
+                type="text"
+                placeholder="전화번호 (010-0000-0000)"
+                value={directPhone}
+                onChange={handlePhoneInputChange}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddDirectRecipient(); }}
+                className="flex-1 border border-neutral-200 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-mono text-neutral-800 placeholder:text-neutral-400 min-w-0"
+              />
+              <button
+                type="button"
+                onClick={handleAddDirectRecipient}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded transition-colors flex items-center justify-center shrink-0 gap-1 cursor-pointer shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>추가</span>
               </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
