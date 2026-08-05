@@ -6,6 +6,7 @@ import { mtsService, DEFAULT_FROM_PHONE, type SmsTemplateGroup, type SmsTemplate
 import { adminService } from '../../../services/adminService';
 import { toast } from 'sonner';
 import { useModal } from '../../../context/ModalContext';
+import { supabase } from '../../../lib/supabaseClient';
 
 import { equipmentService, type EquipmentModel } from '../../../services/equipmentService';
 import { productService } from '../../../services/productService';
@@ -39,8 +40,12 @@ export function SmsMessageSendPage() {
 
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [recipientView, setRecipientView] = useState<'list' | 'blocked'>('list');
+  const [addMode, setAddMode] = useState<'search' | 'direct'>('search');
   const [directName, setDirectName] = useState('');
   const [directPhone, setDirectPhone] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
   const KOREA_REGIONS = [
     '서울', '경기', '인천', '강원',
@@ -281,6 +286,75 @@ export function SmsMessageSendPage() {
     setDirectName('');
     setDirectPhone('');
     toast.success(`[${trimmedName}] 고객이 수신자 목록에 추가되었습니다.`);
+  };
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearchingUsers(true);
+      try {
+        const q = searchQuery.trim();
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, phone, hospital_name, email')
+          .or(`name.ilike.%${q}%,phone.ilike.%${q}%,hospital_name.ilike.%${q}%,email.ilike.%${q}%`)
+          .limit(15);
+
+        if (!error && data && data.length > 0) {
+          setSearchResults(data);
+        } else {
+          const mockUsers = [
+            { id: 'u1', name: '김원장', phone: '010-1234-5678', hospital_name: '서울피부과의원' },
+            { id: 'u2', name: '이원장', phone: '010-9876-5432', hospital_name: '강남제이성형외과' },
+            { id: 'u3', name: '박원장', phone: '010-5555-7777', hospital_name: '미래의원' },
+            { id: 'u4', name: '최원장', phone: '010-2222-3333', hospital_name: '제이의원' },
+          ];
+          const filtered = mockUsers.filter(u =>
+            u.name.includes(q) || u.phone.includes(q) || u.hospital_name.includes(q)
+          );
+          setSearchResults(filtered);
+        }
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearchingUsers(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleAddSearchedUser = (user: any) => {
+    const rawPhone = (user.phone || '').replace(/[^0-9]/g, '');
+    if (!rawPhone || rawPhone.length < 9) {
+      toast.error('전화번호가 올바르지 않은 회원입니다.');
+      return;
+    }
+
+    const formattedPhone = formatPhoneNumber(rawPhone);
+    const userName = user.name || user.hospital_name || '원장님';
+
+    const isDuplicate = recipients.some(r => r.phone.replace(/[^0-9]/g, '') === rawPhone);
+    if (isDuplicate) {
+      toast.warning('이미 수신자 목록에 존재하는 전화번호입니다.');
+      return;
+    }
+
+    setRecipients(prev => [
+      ...prev,
+      {
+        name: userName,
+        phone: formattedPhone,
+        hospitalName: user.hospital_name || undefined
+      }
+    ]);
+
+    setSearchQuery('');
+    setSearchResults([]);
+    toast.success(`[${userName}] 고객이 수신자 목록에 추가되었습니다.`);
   };
 
   return (
@@ -687,44 +761,119 @@ export function SmsMessageSendPage() {
             )}
           </div>
 
-          {/* 수신자 직접 입력 (이름, 전화번호) 영역 */}
-          <div className="p-3 border-t border-neutral-200 bg-neutral-50 shrink-0 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5 text-blue-600" /> 수신자 직접 추가
-              </span>
-              {recipients.length > 0 && (
-                <button onClick={() => setRecipients([])} className="text-[11px] text-neutral-400 hover:text-red-500 transition-colors">
-                  전체 삭제 ({recipients.length}명)
-                </button>
-              )}
+          {/* 수신자 추가 (고객 검색 & 직접 입력) 영역 */}
+          <div className="p-3 border-t border-neutral-200 bg-neutral-50 shrink-0 space-y-3">
+            {/* 1. 고객 검색 (상단) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
+                  <Search className="w-3.5 h-3.5 text-blue-600" /> 고객 검색
+                </span>
+                {recipients.length > 0 && (
+                  <button onClick={() => setRecipients([])} className="text-[11px] text-neutral-400 hover:text-red-500 transition-colors cursor-pointer">
+                    전체 삭제 ({recipients.length}명)
+                  </button>
+                )}
+              </div>
+
+              <div className="relative">
+                <div className="flex items-center border border-neutral-200 rounded-md bg-white px-3 py-2 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-100 shadow-sm gap-2">
+                  <Search className="w-4 h-4 text-neutral-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="고객 검색 (이름, 전화번호, 병원명)"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full text-xs bg-transparent focus:outline-none font-medium text-neutral-800 placeholder:text-neutral-400 p-0"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="text-neutral-400 hover:text-neutral-600 shrink-0 p-0.5 cursor-pointer">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {searchQuery.trim() && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1.5 bg-white border border-neutral-200 rounded-md shadow-xl max-h-52 overflow-y-auto z-30 divide-y divide-neutral-100">
+                    {isSearchingUsers ? (
+                      <div className="p-3 text-center text-xs text-neutral-400 flex items-center justify-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                        <span>회원 검색 중...</span>
+                      </div>
+                    ) : searchResults.length === 0 ? (
+                      <div className="p-3 text-center text-xs text-neutral-400">
+                        검색 조건과 일치하는 회원이 없습니다.
+                      </div>
+                    ) : (
+                      searchResults.map(user => {
+                        const formattedPhone = formatPhoneNumber(user.phone || '');
+                        const isAlreadyAdded = recipients.some(r => r.phone.replace(/[^0-9]/g, '') === (user.phone || '').replace(/[^0-9]/g, ''));
+                        return (
+                          <div
+                            key={user.id}
+                            onClick={() => !isAlreadyAdded && handleAddSearchedUser(user)}
+                            className={`p-2.5 hover:bg-blue-50/70 cursor-pointer flex items-center justify-between text-xs transition-colors ${
+                              isAlreadyAdded ? 'bg-neutral-50/60 opacity-60' : ''
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1 pr-2">
+                              <div className="font-bold text-neutral-800 truncate">
+                                {user.name || user.hospital_name || '원장님'}
+                                {user.hospital_name && <span className="text-neutral-500 font-normal ml-1">({user.hospital_name})</span>}
+                              </div>
+                              <div className="text-neutral-400 font-mono text-[11px] mt-0.5">{formattedPhone}</div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={isAlreadyAdded}
+                              className={`px-2.5 py-1 rounded text-[11px] font-bold transition-colors shrink-0 ${
+                                isAlreadyAdded
+                                  ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                                  : 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white'
+                              }`}
+                            >
+                              {isAlreadyAdded ? '추가됨' : '+ 추가'}
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <input
-                type="text"
-                placeholder="이름"
-                value={directName}
-                onChange={e => setDirectName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleAddDirectRecipient(); }}
-                className="w-24 border border-neutral-200 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-medium text-neutral-800 placeholder:text-neutral-400 shrink-0"
-              />
-              <input
-                type="text"
-                placeholder="전화번호 (010-0000-0000)"
-                value={directPhone}
-                onChange={handlePhoneInputChange}
-                onKeyDown={e => { if (e.key === 'Enter') handleAddDirectRecipient(); }}
-                className="flex-1 border border-neutral-200 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-mono text-neutral-800 placeholder:text-neutral-400 min-w-0"
-              />
-              <button
-                type="button"
-                onClick={handleAddDirectRecipient}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded transition-colors flex items-center justify-center shrink-0 gap-1 cursor-pointer shadow-sm"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>추가</span>
-              </button>
+            {/* 2. 직접 입력 (하단) */}
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-neutral-800 flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5 text-blue-600" /> 직접 입력
+              </span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  placeholder="이름"
+                  value={directName}
+                  onChange={e => setDirectName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddDirectRecipient(); }}
+                  className="w-24 border border-neutral-200 rounded-md px-3 py-2 text-xs bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-medium text-neutral-800 placeholder:text-neutral-400 shrink-0 shadow-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="전화번호"
+                  value={directPhone}
+                  onChange={handlePhoneInputChange}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddDirectRecipient(); }}
+                  className="flex-1 border border-neutral-200 rounded-md px-3 py-2 text-xs bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100 font-mono text-neutral-800 placeholder:text-neutral-400 min-w-0 shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddDirectRecipient}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2 rounded-md transition-colors flex items-center justify-center shrink-0 gap-1 cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>추가</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
