@@ -422,7 +422,7 @@ export function SubscriptionPenaltySettlementModal({
                   />
                   <div className="text-xs">
                     <div className="font-bold text-green-700">위약금 면제</div>
-                    <div className="text-[11px] opacity-90 font-mono mt-0.5">₩0 (관리자 재량)</div>
+                    <div className="text-[11px] opacity-90 font-mono mt-0.5">₩0</div>
                   </div>
                 </label>
               </div>
