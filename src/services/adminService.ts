@@ -726,10 +726,44 @@ export const adminService = {
             paymentMethod: orderData.payment_method,
             trackingNumber: orderData.tracking_number,
             shippedAt: orderData.shipped_at,
-            isSubscription: Boolean(orderData.is_subscription || orderData.order_type === 'subscription' || itemsData?.some((i: any) => i.is_subscription || i.product?.product_type === 'subscription' || i.product?.is_subscription_product || i.product?.name?.includes('정기공급') || i.product?.name?.includes('정기구독'))),
-            is_subscription: Boolean(orderData.is_subscription || orderData.order_type === 'subscription' || itemsData?.some((i: any) => i.is_subscription || i.product?.product_type === 'subscription' || i.product?.is_subscription_product || i.product?.name?.includes('정기공급') || i.product?.name?.includes('정기구독'))),
-            orderType: orderData.order_type || (orderData.is_subscription ? 'subscription' : 'normal'),
-            order_type: orderData.order_type || (orderData.is_subscription ? 'subscription' : 'normal'),
+            isSubscription: Boolean(
+                orderData.is_subscription ||
+                orderData.order_type === 'subscription' ||
+                orderData.subscription_id ||
+                (orderData.order_number && (orderData.order_number.startsWith('SUB') || orderData.order_number.includes('SUB'))) ||
+                (Array.isArray(itemsData) && itemsData.some((i: any) =>
+                    i.is_subscription ||
+                    i.product_type === 'subscription' ||
+                    i.product?.product_type === 'subscription' ||
+                    i.product?.is_subscription_product ||
+                    i.product?.name?.includes('정기공급') ||
+                    i.product?.name?.includes('정기구독') ||
+                    i.product_name?.includes('정기공급') ||
+                    i.product_name?.includes('정기구독') ||
+                    i.name?.includes('정기공급') ||
+                    i.name?.includes('정기구독')
+                ))
+            ),
+            is_subscription: Boolean(
+                orderData.is_subscription ||
+                orderData.order_type === 'subscription' ||
+                orderData.subscription_id ||
+                (orderData.order_number && (orderData.order_number.startsWith('SUB') || orderData.order_number.includes('SUB'))) ||
+                (Array.isArray(itemsData) && itemsData.some((i: any) =>
+                    i.is_subscription ||
+                    i.product_type === 'subscription' ||
+                    i.product?.product_type === 'subscription' ||
+                    i.product?.is_subscription_product ||
+                    i.product?.name?.includes('정기공급') ||
+                    i.product?.name?.includes('정기구독') ||
+                    i.product_name?.includes('정기공급') ||
+                    i.product_name?.includes('정기구독') ||
+                    i.name?.includes('정기공급') ||
+                    i.name?.includes('정기구독')
+                ))
+            ),
+            orderType: (orderData.is_subscription || orderData.order_type === 'subscription' || orderData.subscription_id) ? 'subscription' : (orderData.order_type || 'normal'),
+            order_type: (orderData.is_subscription || orderData.order_type === 'subscription' || orderData.subscription_id) ? 'subscription' : (orderData.order_type || 'normal'),
             subscriptionCycle: orderData.subscription_cycle,
             subscriptionStatus: orderData.subscription_status as 'active' | 'paused' | 'cancelled',
             subscriptionStartDate: orderData.subscription_start_date,

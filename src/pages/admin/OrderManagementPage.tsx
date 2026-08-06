@@ -465,8 +465,33 @@ export function OrderManagementPage() {
                     onClick={() => navigate(`/admin/orders/${order.id}`)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-neutral-900 group-hover:text-blue-600 transition-colors uppercase tracking-wider">{order.orderNumber}</div>
-                      <div className="text-xs text-neutral-500 mt-0.5 line-clamp-1">{order.itemsSummary}</div>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {order.isSubscription ||
+                        (order as any).is_subscription ||
+                        (order as any).orderType === 'subscription' ||
+                        (order as any).order_type === 'subscription' ||
+                        (order as any).subscriptionId ||
+                        (order as any).subscription_id ||
+                        (order.orderNumber && (order.orderNumber.startsWith('SUB') || order.orderNumber.includes('SUB'))) ||
+                        Boolean(
+                          [
+                            order.itemsSummary,
+                            order.productName,
+                            (order as any).product_name,
+                            ...(Array.isArray(order.orderItems) ? order.orderItems.map((i: any) => i?.productName || i?.product_name || i?.name || i?.product?.name) : []),
+                            ...(Array.isArray(order.items) ? order.items.map((i: any) => i?.productName || i?.product_name || i?.name || i?.product?.name) : []),
+                          ]
+                            .filter(Boolean)
+                            .join(' ')
+                            .match(/정기공급|정기구독|구독/i)
+                        ) ? (
+                          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">정기공급</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-neutral-100 text-neutral-600 border-neutral-200">일반</Badge>
+                        )}
+                        <span className="text-sm font-bold text-neutral-900 group-hover:text-blue-600 transition-colors uppercase tracking-wider">{order.orderNumber}</span>
+                      </div>
+                      <div className="text-xs text-neutral-500 line-clamp-1">{order.itemsSummary}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-neutral-900">{order.hospitalName}</div>
@@ -481,13 +506,6 @@ export function OrderManagementPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(order.status, order.paymentMethod)}
-                      <div className="mt-1 flex items-center gap-1">
-                        {order.isSubscription || (order as any).is_subscription || (order as any).orderType === 'subscription' || (order.orderNumber && order.orderNumber.startsWith('SUB')) ? (
-                          <Badge variant="secondary" className="text-[10px] bg-purple-50 text-purple-700 border-purple-200">정기공급</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px] bg-neutral-100 text-neutral-600 border-neutral-200">일반</Badge>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))
