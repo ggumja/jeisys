@@ -551,6 +551,101 @@ export const subscriptionService = {
     }
   },
 
+  async cancelOrderPaymentOnly(params: {
+    orderId: string;
+    subscriptionId: string;
+    reason: string;
+    cancelAmount?: number;
+    pgTid?: string;
+    currentRound?: number;
+  }): Promise<void> {
+    const { orderId, subscriptionId, reason, cancelAmount, pgTid, currentRound = 1 } = params;
+    if (pgTid && cancelAmount) {
+      try {
+        await paymentService.requestRefund({
+          tid: pgTid,
+          amount: cancelAmount,
+          reason: `[구독 해지 및 결제 취소] ${reason}`,
+        });
+      } catch (err) {
+        console.error('PG Refund error during cancel:', err);
+      }
+    }
+
+    await supabase
+      .from('orders')
+      .update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: `[구독 해지 및 결제 취소] ${reason}`,
+        refunded_amount: cancelAmount,
+      })
+      .eq('id', orderId);
+
+    if (currentRound > 1) {
+      await supabase
+        .from('subscription_shipments')
+        .update({ status: 'cancelled' })
+        .eq('subscription_id', subscriptionId)
+        .gte('round_no', currentRound);
+    } else {
+      await supabase
+        .from('subscription_shipments')
+        .update({ status: 'cancelled' })
+        .eq('subscription_id', subscriptionId);
+    }
+  },
+
+  async finalizeSubscriptionCancellation(params: {
+    subscriptionId: string;
+    userId: string;
+    reason: string;
+    penaltyAmount: number;
+    shippedQuantity: number;
+    paidAmount: number;
+    regularAmount: number;
+    adminAction: 'charge' | 'waive';
+    adminMemo?: string;
+  }): Promise<void> {
+    const {
+      subscriptionId,
+      userId,
+      reason,
+      penaltyAmount,
+      shippedQuantity,
+      paidAmount,
+      regularAmount,
+      adminAction,
+      adminMemo,
+    } = params;
+
+    await supabase
+      .from('subscription_cancellation_requests')
+      .insert({
+        subscription_id: subscriptionId,
+        user_id: userId,
+        cancel_reason: reason,
+        shipped_quantity: shippedQuantity,
+        paid_amount: paidAmount,
+        regular_amount: regularAmount,
+        penalty_amount: adminAction === 'waive' ? 0 : penaltyAmount,
+        status: 'processed',
+        admin_action: adminAction,
+        admin_memo: adminMemo || reason,
+        processed_at: new Date().toISOString(),
+      });
+
+    await supabase
+      .from('subscriptions')
+      .update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', subscriptionId);
+  },
+
   async cancelSubscriptionWithPenalty(params: {
     orderId: string;
     subscriptionId: string;
@@ -585,77 +680,33 @@ export const subscriptionService = {
     } = params;
 
     if (cancelLastPayment) {
-      if (pgTid && cancelAmount) {
-        try {
-          await paymentService.requestRefund({
-            tid: pgTid,
-            amount: cancelAmount,
-            reason: `[구독 해지 및 결제 취소] ${reason}`,
-          });
-        } catch (err) {
-          console.error('PG Refund error during cancel:', err);
-        }
-      }
-
-      await supabase
-        .from('orders')
-        .update({
-          status: 'cancelled',
-          cancelled_at: new Date().toISOString(),
-          cancel_reason: `[구독 해지 및 결제 취소] ${reason}`,
-          refunded_amount: cancelAmount,
-        })
-        .eq('id', orderId);
-    }
-
-    await supabase
-      .from('subscription_cancellation_requests')
-      .insert({
-        subscription_id: subscriptionId,
-        user_id: userId,
-        cancel_reason: reason,
-        shipped_quantity: shippedQuantity,
-        paid_amount: paidAmount,
-        regular_amount: regularAmount,
-        penalty_amount: adminAction === 'waive' ? 0 : penaltyAmount,
-        status: 'processed',
-        admin_action: adminAction,
-        admin_memo: adminMemo || reason,
-        processed_at: new Date().toISOString(),
+      await this.cancelOrderPaymentOnly({
+        orderId,
+        subscriptionId,
+        reason,
+        cancelAmount,
+        pgTid,
+        currentRound,
       });
-
-    await supabase
-      .from('subscriptions')
-      .update({
-        status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        cancel_reason: reason,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', subscriptionId);
-
-    if (cancelLastPayment) {
-      // 마지막 결제 회차 포함 이후 모든 스케줄 취소 (이전 회차는 결제/출고 유지)
-      if (currentRound > 1) {
-        await supabase
-          .from('subscription_shipments')
-          .update({ status: 'cancelled' })
-          .eq('subscription_id', subscriptionId)
-          .gte('round_no', currentRound);
-      } else {
-        await supabase
-          .from('subscription_shipments')
-          .update({ status: 'cancelled' })
-          .eq('subscription_id', subscriptionId);
-      }
     } else {
-      // 기존 결제는 유효하게 유지하고, 다음 회차(미출고/대기) 스케줄만 취소
       await supabase
         .from('subscription_shipments')
         .update({ status: 'cancelled' })
         .eq('subscription_id', subscriptionId)
         .in('status', ['pending', 'paused']);
     }
+
+    await this.finalizeSubscriptionCancellation({
+      subscriptionId,
+      userId,
+      reason,
+      penaltyAmount,
+      shippedQuantity,
+      paidAmount,
+      regularAmount,
+      adminAction,
+      adminMemo,
+    });
   },
 
   // ──────────────────────────────

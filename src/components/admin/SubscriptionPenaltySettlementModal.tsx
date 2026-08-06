@@ -31,7 +31,10 @@ export function SubscriptionPenaltySettlementModal({
   const [cancelReason, setCancelReason] = useState('');
   const [adminMemo, setAdminMemo] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // 2단계 승인 팝업 스테이트 ('none' | 'confirm_refund' | 'confirm_penalty')
+  const [confirmStep, setConfirmStep] = useState<'none' | 'confirm_refund' | 'confirm_penalty'>('none');
+  const [paymentRefundDone, setPaymentRefundDone] = useState(false);
 
   const isCurrentRoundShipped = ['shipped', 'delivered', 'partially_shipped'].includes((order as any).status || '');
 
@@ -66,56 +69,144 @@ export function SubscriptionPenaltySettlementModal({
     ];
   }, [sub.quantityDiscountTiers]);
 
+  // 메인 양클릭 제출 버튼
   const handleFormSubmit = () => {
     if (!cancelReason.trim()) {
       toast.error('해지 사유를 입력해 주세요.');
       return;
     }
 
-    const isPenaltyCharging = adminAction === 'charge' && penaltyInfo.penaltyAmount > 0;
-
-    if (cancelLastPayment || isPenaltyCharging) {
-      setShowConfirmModal(true);
+    if (cancelLastPayment) {
+      // 마지막 결제 취소 포함 건: 1단계 카드 승인 취소 팝업으로 이동
+      setConfirmStep('confirm_refund');
     } else {
-      handleExecuteCancel();
+      // 기결제 유지 건: 위약금 부과 시 위약금 결제 승인 팝업으로 이동, 면제 시 즉시 해지
+      if (adminAction === 'charge' && hasPenalty) {
+        setConfirmStep('confirm_penalty');
+      } else {
+        handleExecuteNoPenaltyCancel();
+      }
     }
   };
 
-  const handleExecuteCancel = async () => {
-    if (!cancelReason.trim()) {
-      toast.error('해지 사유를 입력해 주세요.');
-      return;
-    }
-
+  // 1단계: 마지막 결제 카드 승인 취소 실행
+  const handleExecutePaymentRefundStep = async () => {
     try {
       setLoading(true);
-      setShowConfirmModal(false);
+      await subscriptionService.cancelOrderPaymentOnly({
+        orderId: order.id,
+        subscriptionId: sub.id,
+        reason: cancelReason.trim(),
+        cancelAmount: order.totalAmount,
+        pgTid: order.pgTid,
+        currentRound: sub.currentRound,
+      });
+
+      setPaymentRefundDone(true);
+
+      // 위약금 부과건인 경우 -> 2단계: 위약금 결제 승인 팝업으로 이동
+      if (adminAction === 'charge' && hasPenalty) {
+        setConfirmStep('confirm_penalty');
+      } else {
+        // 1회차 또는 위약금 미부과인 경우 -> 즉시 최종 해지 완료
+        await subscriptionService.finalizeSubscriptionCancellation({
+          subscriptionId: sub.id,
+          userId: sub.userId || order.userId || '',
+          reason: cancelReason.trim(),
+          penaltyAmount: 0,
+          shippedQuantity: 0,
+          paidAmount: 0,
+          regularAmount: 0,
+          adminAction: 'waive',
+          adminMemo: adminMemo.trim() || undefined,
+        });
+
+        toast.success('마지막 결제 취소 및 구독 해지가 완료되었습니다.');
+        onSuccess();
+        onClose();
+      }
+    } catch (err: any) {
+      console.error('Payment refund step error:', err);
+      toast.error(err.message || '카드 승인 취소 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2단계: 위약금 결제 승인 & 최종 해지 처리
+  const handleExecutePenaltyChargeStep = async () => {
+    try {
+      setLoading(true);
+      if (!cancelLastPayment) {
+        // 기결제 유지 시 예정 회차 스케줄 취소
+        await subscriptionService.cancelSubscriptionWithPenalty({
+          orderId: order.id,
+          subscriptionId: sub.id,
+          userId: sub.userId || order.userId || '',
+          reason: cancelReason.trim(),
+          penaltyAmount: penaltyInfo.penaltyAmount,
+          shippedQuantity: penaltyInfo.shippedQuantity,
+          paidAmount: penaltyInfo.paidAmount,
+          regularAmount: penaltyInfo.regularAmount,
+          adminAction,
+          adminMemo: adminMemo.trim() || undefined,
+          cancelLastPayment: false,
+          currentRound: sub.currentRound,
+        });
+      } else {
+        // 승인 취소가 이미 완료된 상태에서 위약금 정산 및 구독 상태 해지
+        await subscriptionService.finalizeSubscriptionCancellation({
+          subscriptionId: sub.id,
+          userId: sub.userId || order.userId || '',
+          reason: cancelReason.trim(),
+          penaltyAmount: penaltyInfo.penaltyAmount,
+          shippedQuantity: penaltyInfo.shippedQuantity,
+          paidAmount: penaltyInfo.paidAmount,
+          regularAmount: penaltyInfo.regularAmount,
+          adminAction,
+          adminMemo: adminMemo.trim() || undefined,
+        });
+      }
+
+      toast.success(
+        cancelLastPayment
+          ? `마지막 결제 취소 및 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 승인이 완료되었습니다.`
+          : `위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 승인 및 구독 해지가 완료되었습니다.`
+      );
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      console.error('Penalty charge step error:', err);
+      toast.error(err.message || '위약금 결제 승인 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 위약금 미부과 & 기결제 유지 시 즉시 해지
+  const handleExecuteNoPenaltyCancel = async () => {
+    try {
+      setLoading(true);
       await subscriptionService.cancelSubscriptionWithPenalty({
         orderId: order.id,
         subscriptionId: sub.id,
         userId: sub.userId || order.userId || '',
         reason: cancelReason.trim(),
-        penaltyAmount: penaltyInfo.penaltyAmount,
+        penaltyAmount: 0,
         shippedQuantity: penaltyInfo.shippedQuantity,
         paidAmount: penaltyInfo.paidAmount,
         regularAmount: penaltyInfo.regularAmount,
-        adminAction,
+        adminAction: 'waive',
         adminMemo: adminMemo.trim() || undefined,
-        cancelAmount: order.totalAmount,
-        pgTid: order.pgTid,
-        cancelLastPayment,
+        cancelLastPayment: false,
         currentRound: sub.currentRound,
       });
 
-      toast.success(
-        adminAction === 'waive'
-          ? (cancelLastPayment ? '마지막 결제 취소, 위약금 면제 및 구독 해지가 완료되었습니다.' : '위약금 면제 및 구독 해지가 완료되었습니다.')
-          : `위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 등록 및 구독 해지가 완료되었습니다.`
-      );
+      toast.success('위약금 면제 및 구독 해지가 완료되었습니다.');
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Subscription cancel error:', err);
+      console.error('Cancel error:', err);
       toast.error(err.message || '구독 해지 처리 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
@@ -137,7 +228,7 @@ export function SubscriptionPenaltySettlementModal({
             </button>
             <ShieldAlert className="w-5 h-5 text-red-600" />
             <h3 className="text-base font-bold text-neutral-900">
-              {cancelLastPayment ? '마지막 결제 취소 & 정기구독 해지' : '정기구독 해지 및 위약금 정산'}
+              {cancelLastPayment ? '마지막 결제 취소 & 정기공급 해지' : '정기공급 해지 및 위약금 정산'}
             </h3>
           </div>
           <button
@@ -371,10 +462,10 @@ export function SubscriptionPenaltySettlementModal({
           <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
             <button
               type="button"
-              onClick={onBack}
+              onClick={onBack || onClose}
               className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
             >
-              이전 단계
+              취소
             </button>
             <button
               type="button"
@@ -394,84 +485,120 @@ export function SubscriptionPenaltySettlementModal({
         </div>
       </div>
 
-      {/* ⚠️ 위약금 결제 승인 / 결제 승인 취소 2차 재확인 팝업 */}
-      {showConfirmModal && (
+      {/* ⚠️ 1단계: 마지막 결제 카드 승인 취소 확인 팝업 */}
+      {confirmStep === 'confirm_refund' && (
         <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl border border-red-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4">
             <div className="flex items-center gap-2 text-red-600">
               <ShieldAlert className="w-6 h-6 shrink-0" />
               <h4 className="text-base font-bold text-neutral-900">
-                {cancelLastPayment && adminAction === 'charge' && hasPenalty
-                  ? '결제 승인 취소 및 위약금 승인'
-                  : cancelLastPayment
-                    ? '마지막 결제 승인 취소 확인'
-                    : '위약금 결제/청구 승인 확인'}
+                마지막 결제 카드 승인 취소 확인
+                {adminAction === 'charge' && hasPenalty && <span className="text-xs text-neutral-500 font-normal ml-2">(1/2 단계)</span>}
               </h4>
             </div>
 
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-2 text-red-900">
-              <p className="font-bold">
-                {cancelLastPayment && adminAction === 'charge' && hasPenalty
-                  ? '⚠️ 카드 승인 취소 및 위약금 청구가 진행됩니다'
-                  : cancelLastPayment
-                    ? '⚠️ 카드 승인 취소 및 환불이 진행됩니다'
-                    : '💳 위약금 결제/청구 승인이 진행됩니다'}
-              </p>
+              <p className="font-bold">⚠️ 전자결제(PG) 카드 승인 취소 대상</p>
               <div className="space-y-1.5 text-neutral-700 font-medium pt-1">
-                {cancelLastPayment && (
-                  <>
-                    <div className="flex justify-between">
-                      <span>취소 대상:</span>
-                      <span className="font-bold text-neutral-900">{sub.currentRound || 1}회차 결제건</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>승인 취소(환불) 금액:</span>
-                      <span className="font-bold text-red-600">₩{order.totalAmount.toLocaleString()}원</span>
-                    </div>
-                  </>
-                )}
                 <div className="flex justify-between">
-                  <span>위약금 정산 금액:</span>
-                  <span className="font-bold text-red-700">
-                    {adminAction === 'waive' || !hasPenalty
-                      ? '면제 (₩0원)'
-                      : `₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과`}
-                  </span>
+                  <span>취소 회차:</span>
+                  <span className="font-bold text-neutral-900">{sub.currentRound || 1}회차 결제건</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>기출고 정산 수량:</span>
-                  <span className="font-bold text-neutral-900">{penaltyInfo.shippedQuantity}개</span>
+                  <span>승인 취소(환불) 금액:</span>
+                  <span className="font-bold text-red-600">₩{order.totalAmount.toLocaleString()}원</span>
                 </div>
               </div>
             </div>
 
             <p className="text-xs text-neutral-600 leading-relaxed">
-              {cancelLastPayment && adminAction === 'charge' && hasPenalty
-                ? `마지막 결제 금액(₩${order.totalAmount.toLocaleString()}원) 승인 취소 및 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산을 최종 승인하시겠습니까?`
-                : cancelLastPayment
-                  ? `회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인이 즉시 취소되며, 복구할 수 없습니다. 승인 취소 및 구독 해지를 진행하시겠습니까?`
-                  : `중도 해지에 따른 약정 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 구독 해지를 최종 승인하시겠습니까?`}
+              {adminAction === 'charge' && hasPenalty
+                ? `회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인을 먼저 취소 처리합니다. 취소 후 2단계 위약금 결제 승인 팝업으로 이동합니다.`
+                : `회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인이 즉시 취소되며, 복구할 수 없습니다. 승인 취소 및 정기공급 해지를 진행하시겠습니까?`}
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
               <button
                 type="button"
-                onClick={() => setShowConfirmModal(false)}
+                onClick={() => setConfirmStep('none')}
                 disabled={loading}
                 className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
               >
-                돌아가기
+                취소
               </button>
               <button
                 type="button"
-                onClick={handleExecuteCancel}
+                onClick={handleExecutePaymentRefundStep}
                 disabled={loading}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>
-                  {adminAction === 'charge' && hasPenalty ? '위약금 결제 승인 & 해지' : '승인 취소 & 해지 확정'}
+                  {adminAction === 'charge' && hasPenalty ? '카드 승인 취소 (다음: 위약금 승인)' : '카드 승인 취소 & 해지 확정'}
                 </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💳 2단계: 위약금 결제/청구 승인 팝업 */}
+      {confirmStep === 'confirm_penalty' && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-red-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4">
+            <div className="flex items-center gap-2 text-red-600">
+              <ShieldAlert className="w-6 h-6 shrink-0" />
+              <h4 className="text-base font-bold text-neutral-900">
+                위약금 결제/청구 승인
+                {cancelLastPayment && <span className="text-xs text-neutral-500 font-normal ml-2">(2/2 단계)</span>}
+              </h4>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-2 text-red-900">
+              <p className="font-bold">💳 위약금 결제/청구 정산 내역</p>
+              <div className="space-y-1.5 text-neutral-700 font-medium pt-1">
+                {cancelLastPayment && paymentRefundDone && (
+                  <div className="flex justify-between text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                    <span>마지막 회차 결제 상태:</span>
+                    <span>✅ 카드 승인 취소 완료</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>기출고 정산 수량:</span>
+                  <span className="font-bold text-neutral-900">{penaltyInfo.shippedQuantity}개</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>부과 위약금 금액:</span>
+                  <span className="font-bold text-red-700 text-sm">₩{penaltyInfo.penaltyAmount.toLocaleString()}원</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-neutral-600 leading-relaxed">
+              {cancelLastPayment
+                ? `마지막 결제 카드 승인 취소가 완료되었습니다. 약정 미달 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 정기공급 해지를 최종 승인합니다.`
+                : `정기공급 중도 해지에 따른 약정 미달 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 정기공급 해지를 최종 승인합니다.`}
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+              {!cancelLastPayment && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmStep('none')}
+                  disabled={loading}
+                  className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  취소
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleExecutePenaltyChargeStep}
+                disabled={loading}
+                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>위약금 결제 승인 & 해지 최종 완료</span>
               </button>
             </div>
           </div>

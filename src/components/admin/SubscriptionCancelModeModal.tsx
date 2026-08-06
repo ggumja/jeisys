@@ -64,7 +64,7 @@ export function SubscriptionCancelModeModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 bg-neutral-50">
           <div className="flex items-center gap-2">
             <RefreshCw className="w-5 h-5 text-blue-600" />
-            <h3 className="text-base font-bold text-neutral-900">정기구독 주문 취소 방식 선택</h3>
+            <h3 className="text-base font-bold text-neutral-900">정기공급 주문 취소 방식 선택</h3>
           </div>
           <button
             onClick={onClose}
@@ -97,7 +97,7 @@ export function SubscriptionCancelModeModal({
           {!showPauseConfirm ? (
             <div className="space-y-3">
               <p className="text-xs text-neutral-600 font-medium">
-                취소 후 정기구독 계약을 어떻게 처리할지 선택해 주세요.
+                취소 후 정기공급 계약을 어떻게 처리할지 선택해 주세요.
               </p>
 
               {/* Option A: Pause */}
@@ -111,13 +111,13 @@ export function SubscriptionCancelModeModal({
                       <PauseCircle className="w-5 h-5" />
                     </div>
                     <span className="text-sm font-bold text-neutral-900 group-hover:text-blue-600">
-                      옵션 1. 구독 일시정지 (Pause & Hold)
+                      옵션 1. 정기공급 일시정지 (Pause & Hold)
                     </span>
                   </div>
                   <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-blue-600 transition-colors" />
                 </div>
                 <p className="text-xs text-neutral-500 leading-relaxed pl-10">
-                  해당 회차 결제만 취소하고 구독을 <strong>일시정지(Paused)</strong> 상태로 만듭니다.<br />
+                  해당 회차 결제만 취소하고 정기공급을 <strong>일시정지(Paused)</strong> 상태로 만듭니다.<br />
                   카드 승인 실패, 단순 오결제 시 유용하며 추후 해당 회차부터 다시 재결제가 가능합니다.
                 </p>
               </div>
@@ -155,13 +155,13 @@ export function SubscriptionCancelModeModal({
                       <AlertTriangle className="w-5 h-5" />
                     </div>
                     <span className="text-sm font-bold text-neutral-900 group-hover:text-red-600">
-                      옵션 2. 구독 완전 해지 & 위약금 정산
+                      옵션 2. 정기공급 완전 해지 & 위약금 정산
                     </span>
                   </div>
                   <ArrowRight className="w-4 h-4 text-neutral-400 group-hover:text-red-600 transition-colors" />
                 </div>
                 <p className="text-xs text-neutral-500 leading-relaxed pl-10">
-                  해당 회차 결제 취소와 함께 <strong>전체 정기구독 계약을 중단/해지</strong>합니다.<br />
+                  해당 회차 결제 취소와 함께 <strong>전체 정기공급 계약을 중단/해지</strong>합니다.<br />
                   이후 모든 잔여 회차가 취소되며, 기출고 수량에 따른 위약금 정산 단계로 이동합니다.
                 </p>
               </div>
@@ -172,9 +172,9 @@ export function SubscriptionCancelModeModal({
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2 text-xs text-amber-800">
                 <PauseCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold">구독 일시정지 처리 안내</p>
+                  <p className="font-bold">정기공급 일시정지 처리 안내</p>
                   <p className="mt-0.5">
-                    해당 회차 결제건(₩{order.totalAmount.toLocaleString()})을 환불하고, 구독 상태를 <strong>일시정지</strong>로 변경합니다.
+                    해당 회차 결제건(₩{order.totalAmount.toLocaleString()})을 환불하고, 정기공급 상태를 <strong>일시정지</strong>로 변경합니다.
                   </p>
                 </div>
               </div>
