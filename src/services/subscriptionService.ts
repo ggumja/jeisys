@@ -487,15 +487,22 @@ export const subscriptionService = {
       }
     }
 
-    await supabase
-      .from('orders')
-      .update({
+    const isOrderUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    if (isOrderUuid) {
+      await supabase.from('orders').update({
         status: 'cancelled',
         cancelled_at: new Date().toISOString(),
         cancel_reason: `[구독 일시정지] ${reason}`,
         refunded_amount: cancelAmount,
-      })
-      .eq('id', orderId);
+      }).eq('id', orderId);
+    } else {
+      await supabase.from('orders').update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: `[구독 일시정지] ${reason}`,
+        refunded_amount: cancelAmount,
+      }).eq('order_number', orderId);
+    }
 
     const { data: sub } = await supabase
       .from('subscriptions')
@@ -572,15 +579,22 @@ export const subscriptionService = {
       }
     }
 
-    await supabase
-      .from('orders')
-      .update({
+    const isOrderUuid2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+    if (isOrderUuid2) {
+      await supabase.from('orders').update({
         status: 'cancelled',
         cancelled_at: new Date().toISOString(),
         cancel_reason: `[구독 해지 및 결제 취소] ${reason}`,
         refunded_amount: cancelAmount,
-      })
-      .eq('id', orderId);
+      }).eq('id', orderId);
+    } else {
+      await supabase.from('orders').update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: `[구독 해지 및 결제 취소] ${reason}`,
+        refunded_amount: cancelAmount,
+      }).eq('order_number', orderId);
+    }
 
     if (currentRound > 1) {
       await supabase
@@ -949,6 +963,19 @@ export const subscriptionService = {
 
     if (error) throw error;
     return (data ?? []).map(mapCancellationRow);
+  },
+
+  async getCancellationRequestBySubId(subscriptionId: string): Promise<CancellationRequest | null> {
+    const { data, error } = await supabase
+      .from('subscription_cancellation_requests')
+      .select('*')
+      .eq('subscription_id', subscriptionId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return mapCancellationRow(data);
   },
 
   // ──────────────────────────────

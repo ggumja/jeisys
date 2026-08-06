@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import {
   Search, RefreshCw, Play, Pause, XCircle, CheckCircle,
   Loader2, AlertTriangle, ChevronDown, ChevronUp, Package,
-  Calendar, Edit2,
+  Calendar, Edit2, ShieldAlert, History,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -16,6 +16,7 @@ import {
 import { SubscriptionCancelModeModal } from '../../components/admin/SubscriptionCancelModeModal';
 import { SubscriptionPenaltySettlementModal } from '../../components/admin/SubscriptionPenaltySettlementModal';
 import { SubscriptionPauseModal } from '../../components/admin/SubscriptionPauseModal';
+import { SubscriptionHistoryModal } from '../../components/SubscriptionHistoryModal';
 
 // ─────────────────────────────────────────
 // 유틸
@@ -57,6 +58,7 @@ function SubscriptionRow_({
   onOpenCancelModal,
   onOpenCancelLastPaymentModal,
   onOpenPauseModal,
+  onOpenHistoryModal,
 }: {
   sub: SubscriptionRow;
   isOpen: boolean;
@@ -67,6 +69,7 @@ function SubscriptionRow_({
   onOpenCancelModal?: (sub: SubscriptionRow) => void;
   onOpenCancelLastPaymentModal?: (sub: SubscriptionRow) => void;
   onOpenPauseModal?: (sub: SubscriptionRow) => void;
+  onOpenHistoryModal?: (sub: SubscriptionRow) => void;
 }) {
   const [retryingRound, setRetryingRound] = useState<number | null>(null);
 
@@ -158,79 +161,91 @@ function SubscriptionRow_({
         <tr>
           <td colSpan={9} className="px-6 py-5 bg-neutral-50 border-t border-neutral-200">
             <div className="space-y-6">
-              {/* 보라색 정기공급 정보 카드 */}
-              <div className="bg-purple-50/90 border border-purple-200 p-6 rounded-xl shadow-sm text-left">
+              {/* 정기공급 정보 카드 (모던 그레이 톤) */}
+              <div className="bg-white border border-neutral-200 p-6 rounded-xl shadow-2xs text-left">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="w-5 h-5 text-purple-700" />
-                    <h4 className="text-lg font-bold text-purple-900">정기공급 정보</h4>
+                    <RefreshCw className="w-5 h-5 text-neutral-700" />
+                    <h4 className="text-lg font-bold text-neutral-900">정기공급 정보</h4>
                   </div>
                   {getStatusBadge(sub.status)}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div>
-                    <dt className="text-xs font-medium text-purple-700 mb-1">배송 주기</dt>
-                    <dd className="text-sm font-semibold text-purple-900">
+                    <dt className="text-xs font-medium text-neutral-500 mb-1">배송 주기</dt>
+                    <dd className="text-sm font-semibold text-neutral-900">
                       {sub.cycleMonths ? `${sub.cycleMonths}개월 (${sub.cycleDays || sub.cycleMonths * 30}일)` : '1개월 (30일)'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-purple-700 mb-1">정기공급 시작일</dt>
-                    <dd className="text-sm font-semibold text-purple-900">
+                    <dt className="text-xs font-medium text-neutral-500 mb-1">정기공급 시작일</dt>
+                    <dd className="text-sm font-semibold text-neutral-900">
                       {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-purple-700 mb-1">다음 배송 예정일</dt>
-                    <dd className="text-sm font-semibold text-purple-900 flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-purple-600" />
+                    <dt className="text-xs font-medium text-neutral-500 mb-1">다음 배송 예정일</dt>
+                    <dd className="text-sm font-semibold text-neutral-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-neutral-500" />
                       {sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '스케줄 확정 대기'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-purple-700 mb-1">총 배송 횟수</dt>
-                    <dd className="text-sm font-semibold text-purple-900">
+                    <dt className="text-xs font-medium text-neutral-500 mb-1">총 배송 횟수</dt>
+                    <dd className="text-sm font-semibold text-neutral-900">
                       {sub.totalRounds}회
-                      <span className="text-xs text-purple-600 font-normal ml-1">
+                      <span className="text-xs text-neutral-500 font-normal ml-1">
                         (현재 {sub.currentRound}회차 진행 중)
                       </span>
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-purple-700 mb-1">회당 결제 금액</dt>
-                    <dd className="text-sm font-semibold text-purple-900">
+                    <dt className="text-xs font-medium text-neutral-500 mb-1">회당 결제 금액</dt>
+                    <dd className="text-sm font-semibold text-neutral-900">
                       {sub.unitPrice.toLocaleString()}원
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-purple-700 mb-1">총 약정 결제 금액</dt>
-                    <dd className="text-sm font-bold text-purple-900">
+                    <dt className="text-xs font-medium text-neutral-500 mb-1">총 약정 결제 금액</dt>
+                    <dd className="text-sm font-bold text-neutral-900">
                       {totalContractAmount.toLocaleString()}원
                     </dd>
                   </div>
                 </div>
 
                 {/* 정기공급 관리 버튼 */}
-                <div className="flex items-center gap-3 pt-4 border-t border-purple-200" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3 pt-4 border-t border-neutral-200" onClick={e => e.stopPropagation()}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenHistoryModal?.(sub);
+                    }}
+                    className="border-neutral-300 text-neutral-800 hover:bg-neutral-100 font-bold bg-white"
+                  >
+                    <History className="w-4 h-4 mr-1 text-neutral-700" />
+                    정기공급 히스토리
+                  </Button>
                   {sub.status === 'active' && (
                     <>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={handlePause}
-                        className="border-purple-300 text-purple-700 hover:bg-purple-100 font-bold"
+                        className="border-neutral-300 text-neutral-800 hover:bg-neutral-100 font-bold bg-white"
                       >
-                        <Pause className="w-4 h-4 mr-1" />
+                        <Pause className="w-4 h-4 mr-1 text-neutral-700" />
                         일시정지
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => toast.info('배송지 변경 기능이 곧 지원될 예정입니다.')}
-                        className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                        className="border-neutral-300 text-neutral-800 hover:bg-neutral-100 font-bold bg-white"
                       >
-                        <Edit2 className="w-4 h-4 mr-1" />
+                        <Edit2 className="w-4 h-4 mr-1 text-neutral-700" />
                         배송지 변경
                       </Button>
                     </>
@@ -246,33 +261,35 @@ function SubscriptionRow_({
                       재개
                     </Button>
                   )}
-                  {sub.status !== 'cancelled' && (
-                    <div className="flex items-center gap-2 ml-auto">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onOpenCancelLastPaymentModal) {
-                            onOpenCancelLastPaymentModal(sub);
-                          }
-                        }}
-                        className="border-red-400 text-red-700 bg-red-50 hover:bg-red-100 font-bold"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        마지막 결제 취소 & 해지
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCancelClick}
-                        className="border-red-300 text-red-700 hover:bg-red-100 font-bold"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        정기공급 해지
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2 ml-auto">
+                    {sub.status !== 'cancelled' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenCancelLastPaymentModal) {
+                              onOpenCancelLastPaymentModal(sub);
+                            }
+                          }}
+                          className="border-red-400 text-red-700 bg-red-50 hover:bg-red-100 font-bold"
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          마지막 결제 취소 & 해지
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCancelClick}
+                          className="border-red-300 text-red-700 hover:bg-red-100 font-bold"
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          정기공급 해지
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -432,6 +449,9 @@ export function SubscriptionListPage() {
   // 구독 일시정지 모달 상태
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [selectedSubForPause, setSelectedSubForPause] = useState<SubscriptionRow | null>(null);
+
+  // 정기공급 히스토리 모달 상태
+  const [historyModalSub, setHistoryModalSub] = useState<SubscriptionRow | null>(null);
 
   // ── 로드 ──
   const load = useCallback(async () => {
@@ -597,6 +617,9 @@ export function SubscriptionListPage() {
                       setSelectedSubForPause(targetSub);
                       setShowPauseModal(true);
                     }}
+                    onOpenHistoryModal={(targetSub) => {
+                      setHistoryModalSub(targetSub);
+                    }}
                     onOpenCancelModal={(targetSub) => {
                       setSelectedSubForCancel(targetSub);
                       setCancelLastPaymentMode(false);
@@ -624,6 +647,14 @@ export function SubscriptionListPage() {
         <div className="text-right text-xs text-neutral-500">
           총 {filtered.length}건 표시 중 (전체 {subscriptions.length}건)
         </div>
+      )}
+
+      {/* 정기공급 히스토리 모달 */}
+      {historyModalSub && (
+        <SubscriptionHistoryModal
+          sub={historyModalSub}
+          onClose={() => setHistoryModalSub(null)}
+        />
       )}
 
       {/* 구독 일시정지 모달 */}

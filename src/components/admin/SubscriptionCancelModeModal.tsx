@@ -198,7 +198,7 @@ export function SubscriptionCancelModeModal({
                   onClick={() => setShowPauseConfirm(false)}
                   className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
-                  이전
+                  취소
                 </button>
                 <button
                   type="button"

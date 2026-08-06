@@ -15,6 +15,7 @@ import { paymentService } from '../services/paymentService';
 import { subscriptionService } from '../services/subscriptionService';
 import { PaymentMethod } from '../types';
 import { printReceipt } from '../utils/printUtils';
+import { SubscriptionHistoryModal } from '../components/SubscriptionHistoryModal';
 
 import { toast } from 'sonner';
 
@@ -281,7 +282,7 @@ function RemainingPaymentModal({ orderId, remainingAmount, onClose, onSuccess }:
 }
 
 // ─── 영수증 모달 ──────────────────────────────────────────────────────────────
-interface ReceiptModalProps {
+export interface ReceiptModalProps {
   order: Order;
   userProfile: User | null;
   creditUsed?: number;
@@ -290,7 +291,10 @@ interface ReceiptModalProps {
   onClose: () => void;
 }
 
-function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shopSettings, onClose }: ReceiptModalProps) {
+export function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shopSettings, onClose }: ReceiptModalProps) {
+  const isOrderCancelled = ['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status) || Boolean((order as any).cancelledAt || (order as any).cancel_info || (order as any).claimInfo?.claimType === 'cancel');
+  const [receiptTab, setReceiptTab] = useState<'payment' | 'cancellation'>(isOrderCancelled ? 'cancellation' : 'payment');
+
   const companyName = shopSettings?.company_name || '(주)제이시스메디칼';
   const businessNumber = shopSettings?.business_number || '424-87-00852';
   const ceoName = shopSettings?.ceo_name || '이라미';
@@ -298,7 +302,7 @@ function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shop
   const companyAddress = shopSettings?.company_address || '서울특별시 금천구 가마산로 96';
 
   let paidTotal = 0;
-  order.items.forEach(it => {
+  (order.items || []).forEach(it => {
     const isBundle = (it.selectedProductIds || []).length > 0;
     if (isBundle) {
       const buyQty = it.product?.buyQuantity ?? 0;
@@ -331,7 +335,10 @@ function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shop
   const taxable = finalTotal - vat;
 
   const isCard = ['credit', 'split', 'partial_card'].includes(order.paymentMethod);
-  const receiptTypeTitle = isCard ? '신용카드 매출전표' : '영 수 증';
+  const showCancellation = isOrderCancelled && receiptTab === 'cancellation';
+  const receiptTypeTitle = showCancellation
+    ? (isCard ? '신용카드 승인 취소 매출전표' : '결제 취소 영수증')
+    : (isCard ? '신용카드 매출전표' : '영 수 증');
 
   const paymentMethodMap: Record<string, string> = {
     virtual: '가상계좌',
@@ -345,28 +352,66 @@ function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shop
   const paymentMethodText = paymentMethodMap[order.paymentMethod] || order.paymentMethod;
 
   const handlePrint = () => {
-    printReceipt(order, userProfile, creditUsed, subProductsMap, shopSettings);
+    printReceipt(order, userProfile, creditUsed, subProductsMap, shopSettings, showCancellation);
   };
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white w-[400px] max-w-[400px] max-h-[92vh] flex flex-col shadow-2xl border-t-4 border-[#21358D]">
+      <div className={`bg-white w-[400px] max-w-[400px] max-h-[92vh] flex flex-col shadow-2xl border-t-4 ${showCancellation ? 'border-red-600' : 'border-[#21358D]'}`}>
         {/* Header toolbar */}
-        <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between bg-neutral-900 text-white">
+        <div className="px-4 py-3 border-b border-neutral-200 text-white flex items-center justify-between" style={{ backgroundColor: '#171717', color: '#ffffff' }}>
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-bold tracking-tight">영수증</h3>
+            <h3 className="text-sm font-bold tracking-tight">영수증 확인</h3>
           </div>
-          <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors text-xl leading-none">&times;</button>
+          <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors text-xl leading-none cursor-pointer">&times;</button>
         </div>
+
+        {/* HIGH CONTRAST TAB BAR - 취소/환불 이력이 있는 주문에서만 탭 노출 */}
+        {isOrderCancelled && (
+          <div className="p-3 border-b border-neutral-200" style={{ backgroundColor: '#f3f4f6' }}>
+            <div className="flex gap-2 text-xs">
+              <button
+                onClick={() => setReceiptTab('payment')}
+                className="flex-1 py-2.5 px-3 rounded-lg text-center font-bold transition-all shadow-sm cursor-pointer border"
+                style={
+                  receiptTab === 'payment'
+                    ? { backgroundColor: '#21358D', color: '#ffffff', borderColor: '#21358D' }
+                    : { backgroundColor: '#ffffff', color: '#374151', borderColor: '#d1d5db' }
+                }
+              >
+                📄 결제 영수증
+              </button>
+              <button
+                onClick={() => setReceiptTab('cancellation')}
+                className="flex-1 py-2.5 px-3 rounded-lg text-center font-bold transition-all shadow-sm cursor-pointer border"
+                style={
+                  receiptTab === 'cancellation'
+                    ? { backgroundColor: '#dc2626', color: '#ffffff', borderColor: '#dc2626' }
+                    : { backgroundColor: '#ffffff', color: '#dc2626', borderColor: '#fca5a5' }
+                }
+              >
+                ⚠️ 취소 영수증 (환불완료)
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Receipt Thermal Strip Content */}
         <div className="p-5 overflow-y-auto flex-1 font-mono text-[11px] leading-relaxed text-neutral-900 bg-white">
           <div className="text-center mb-3">
-            <h2 className="text-base font-black tracking-tight">[ {receiptTypeTitle} ]</h2>
+            <h2 className={`text-base font-black tracking-tight ${showCancellation ? 'text-red-600' : 'text-neutral-900'}`}>
+              [ {receiptTypeTitle} ]
+            </h2>
             <p className="text-[10px] text-neutral-500">(고객 보관용)</p>
-            <p className="text-xs font-black text-[#21358D] mt-1">{companyName}</p>
+            <p className={`text-xs font-black mt-1 ${showCancellation ? 'text-red-600' : 'text-[#21358D]'}`}>{companyName}</p>
           </div>
+
+          {showCancellation && (
+            <div className="border border-red-200 text-center font-bold py-1.5 px-2 rounded mb-2.5 text-xs" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>
+              ⚠️ 카드 승인 취소 완료 (전액 환불)
+            </div>
+          )}
 
           <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
 
@@ -381,21 +426,24 @@ function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shop
 
           <div className="space-y-0.5 text-neutral-700">
             <div className="flex justify-between"><span className="text-neutral-500">주문번호:</span> <span className="font-bold">{order.orderNumber}</span></div>
-            <div className="flex justify-between"><span className="text-neutral-500">거래일시:</span> <span className="font-bold">{order.date}</span></div>
+            <div className="flex justify-between"><span className="text-neutral-500">원 거래일시:</span> <span className="font-bold">{order.date}</span></div>
+            {showCancellation && (
+              <div className="flex justify-between"><span className="text-neutral-500">취소 처리일시:</span> <span className="font-bold text-red-600">{(order as any).cancelledAt || order.date}</span></div>
+            )}
             <div className="flex justify-between"><span className="text-neutral-500">구매자/병원:</span> <span className="font-bold">{userProfile?.hospitalName || userProfile?.name || '회원'}</span></div>
             <div className="flex justify-between"><span className="text-neutral-500">결제수단:</span> <span className="font-bold">{paymentMethodText}</span></div>
             {isCard && (
               <>
                 <div className="flex justify-between"><span className="text-neutral-500">카드종류:</span> <span className="font-bold">국민카드 (체크/신용)</span></div>
                 <div className="flex justify-between"><span className="text-neutral-500">카드번호:</span> <span className="font-bold">9410-****-****-1234</span></div>
-                <div className="flex justify-between"><span className="text-neutral-500">승인번호:</span> <span className="font-bold">30094182 (일시불)</span></div>
+                <div className="flex justify-between"><span className="text-neutral-500">승인번호:</span> <span className={`font-bold ${showCancellation ? 'text-red-600' : ''}`}>30094182 {showCancellation ? '(승인취소)' : '(일시불)'}</span></div>
               </>
             )}
           </div>
 
           <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
 
-          <p className="font-bold mb-1.5 text-neutral-900">[ 구매 상품 내역 ]</p>
+          <p className="font-bold mb-1.5 text-neutral-900">[ {showCancellation ? '취소 상품 내역' : '구매 상품 내역'} ]</p>
           <div className="space-y-2">
             {order.items.map((it, idx) => {
               const unitPrice = it.price ?? it.product?.price ?? 0;
@@ -405,7 +453,9 @@ function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shop
                   <p className="font-bold text-neutral-900 leading-tight">{it.product?.name || '상품 정보 없음'}{it.optionName ? ` (${it.optionName})` : ''}</p>
                   <div className="flex justify-between text-neutral-600">
                     <span>{it.quantity} x ₩{Math.round(unitPrice).toLocaleString()}</span>
-                    <span className="font-bold text-neutral-900">₩{Math.round(itemTotal).toLocaleString()}</span>
+                    <span className={`font-bold ${showCancellation ? 'text-red-600' : 'text-neutral-900'}`}>
+                      {showCancellation ? `[취소] -₩${Math.round(itemTotal).toLocaleString()}` : `₩${Math.round(itemTotal).toLocaleString()}`}
+                    </span>
                   </div>
                 </div>
               );
@@ -414,61 +464,76 @@ function ReceiptModal({ order, userProfile, creditUsed = 0, subProductsMap, shop
 
           <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
 
-          <div className="space-y-0.5 text-neutral-700">
-            <div className="flex justify-between"><span>주문 소계</span><span>₩{Math.round(paidTotal).toLocaleString()}</span></div>
-            {creditUsed > 0 && (
-              <div className="flex justify-between text-emerald-600 font-bold">
-                <span>크레딧 차감</span>
-                <span>-₩{creditUsed.toLocaleString()}</span>
+          {showCancellation ? (
+            <div className="space-y-0.5 text-neutral-700">
+              <div className="flex justify-between"><span>원 결제 금액</span><span>₩{Math.round(paidTotal).toLocaleString()}</span></div>
+              <div className="flex justify-between text-red-600 font-bold">
+                <span>승인 취소 환불금액</span>
+                <span>-₩{finalTotal.toLocaleString()}</span>
               </div>
-            )}
-            {pointsUsed > 0 && (
-              <div className="flex justify-between text-amber-600 font-bold">
-                <span>포인트 차감</span>
-                <span>-{pointsUsed.toLocaleString()} P</span>
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="space-y-0.5 text-neutral-700">
+              <div className="flex justify-between"><span>주문 소계</span><span>₩{Math.round(paidTotal).toLocaleString()}</span></div>
+              {creditUsed > 0 && (
+                <div className="flex justify-between text-emerald-600 font-bold">
+                  <span>크레딧 차감</span>
+                  <span>-₩{creditUsed.toLocaleString()}</span>
+                </div>
+              )}
+              {pointsUsed > 0 && (
+                <div className="flex justify-between text-amber-600 font-bold">
+                  <span>포인트 차감</span>
+                  <span>-{pointsUsed.toLocaleString()} P</span>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="border-t border-dashed border-neutral-400 my-2.5"></div>
 
           <div className="space-y-0.5 text-neutral-600">
-            <div className="flex justify-between"><span>과세 물품 가액</span><span>₩{taxable.toLocaleString()}</span></div>
-            <div className="flex justify-between"><span>부 가 세 (VAT 10%)</span><span>₩{vat.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span>과세 물품 가액</span><span>₩{showCancellation ? 0 : taxable.toLocaleString()}</span></div>
+            <div className="flex justify-between"><span>부 가 세 (VAT 10%)</span><span>₩{showCancellation ? 0 : vat.toLocaleString()}</span></div>
           </div>
 
           <div className="border-t-2 border-neutral-900 my-2.5"></div>
 
-          <div className="flex justify-between items-center text-sm font-black text-[#21358D]">
-            <span>합계 금액</span>
-            <span className="text-base">₩{finalTotal.toLocaleString()}</span>
+          <div className={`flex justify-between items-center text-sm font-black ${showCancellation ? 'text-red-600' : 'text-[#21358D]'}`}>
+            <span>{showCancellation ? '최종 결제 금액' : '합계 금액'}</span>
+            <span className="text-base">₩{showCancellation ? 0 : finalTotal.toLocaleString()}</span>
           </div>
 
           <div className="border-t-2 border-neutral-900 my-2.5"></div>
 
           <div className="text-center text-[10px] text-neutral-500 leading-relaxed mt-3 space-y-0.5">
-            <p>* 전자상거래 신용카드 매출전표</p>
+            <p>* 전자상거래 신용카드 {showCancellation ? '승인 취소 매출전표' : '매출전표'}</p>
             <p>* 부가가치세법 시행령 제57조에 의거 세금계산서의 효력을 가집니다.</p>
             <p className="font-bold text-neutral-800 mt-1">[ 서명: 본인서명 생략 ]</p>
-            <p className="font-bold text-[#21358D] mt-1">감사합니다. {companyName}</p>
+            <p className={`font-bold mt-1 ${showCancellation ? 'text-red-600' : 'text-[#21358D]'}`}>감사합니다. {companyName}</p>
           </div>
         </div>
 
-        {/* Footer buttons */}
-        <div className="px-4 py-3 border-t border-neutral-200 bg-neutral-50 flex gap-2">
+        {/* Single Clean Footer buttons */}
+        <div className="px-4 py-3 border-t border-neutral-200 flex gap-2" style={{ backgroundColor: '#f9fafb' }}>
           <button
             onClick={onClose}
-            className="flex-1 py-2 border border-neutral-300 text-neutral-700 text-xs font-semibold hover:bg-neutral-100 transition-colors"
+            className="flex-1 py-2.5 border text-neutral-700 text-xs font-semibold hover:bg-neutral-100 transition-colors cursor-pointer rounded"
+            style={{ backgroundColor: '#ffffff', borderColor: '#d1d5db', color: '#374151' }}
           >
             닫기
           </button>
           <button
             onClick={handlePrint}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-white text-xs font-bold transition-opacity hover:opacity-90 shadow-sm"
-            style={{ backgroundColor: '#21358D' }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-white text-xs font-bold transition-opacity hover:opacity-90 shadow-sm cursor-pointer rounded"
+            style={
+              showCancellation
+                ? { backgroundColor: '#dc2626', color: '#ffffff', border: '1px solid #dc2626' }
+                : { backgroundColor: '#21358D', color: '#ffffff', border: '1px solid #21358D' }
+            }
           >
             <Printer className="w-3.5 h-3.5 text-white" />
-            영수증 인쇄
+            {showCancellation ? '취소 영수증 인쇄' : '영수증 인쇄'}
           </button>
         </div>
       </div>
@@ -746,10 +811,10 @@ export function OrdersPage() {
               <div className="px-6 py-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                    <span className={`text-[10px] px-1.5 py-0.5 leading-none font-semibold rounded border ${
                       isSubOrder
-                        ? 'bg-purple-100 text-purple-800 border-purple-200'
-                        : 'bg-neutral-100 text-neutral-700 border-neutral-200'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : 'bg-neutral-50 text-neutral-600 border-neutral-200'
                     }`}>
                       {isSubOrder ? '정기공급' : '일반'}
                     </span>
@@ -759,13 +824,17 @@ export function OrdersPage() {
                   <p className="text-sm text-neutral-500">{order.date}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {/* 영수증 출력 버튼 */}
+                  {/* 영수증 / 취소 영수증 출력 버튼 */}
                   <button
                     onClick={() => setReceiptModalOrder(order)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-neutral-50 text-neutral-800 text-xs font-semibold border border-neutral-300 transition-colors shadow-sm"
+                    className={`flex items-center gap-1.5 px-3 py-2 bg-white text-xs font-bold border transition-colors shadow-sm cursor-pointer ${
+                      ['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status)
+                        ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
+                        : 'border-neutral-300 text-neutral-800 hover:bg-neutral-50'
+                    }`}
                   >
-                    <FileText className="w-3.5 h-3.5 text-neutral-600" />
-                    영수증
+                    <FileText className={`w-3.5 h-3.5 ${['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status) ? 'text-red-600' : 'text-neutral-600'}`} />
+                    {['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status) ? '취소 영수증' : '영수증'}
                   </button>
                   {(() => {
                     const isPartialCardPending = order.paymentMethod === 'partial_card' && order.status === 'pending';

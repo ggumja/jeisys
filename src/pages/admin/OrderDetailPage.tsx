@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText, AlertTriangle, CreditCard } from 'lucide-react';
+import { ArrowLeft, Package, User, Truck, Mail, Clock, CheckCircle, XCircle, RefreshCw, Calendar, Play, Pause, Edit2, Loader2, Save, Printer, FileText, AlertTriangle, CreditCard, History } from 'lucide-react';
 import { printInvoice, printPackingList } from '../../utils/printUtils';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -16,6 +16,8 @@ import { ShipAddressPickerModal, SelectedShipAddress } from '../../components/ad
 import { useModal } from '../../context/ModalContext';
 import { Product } from '../../types';
 import { productService } from '../../services/productService';
+import { ReceiptModal } from '../OrdersPage';
+import { SubscriptionHistoryModal } from '../../components/SubscriptionHistoryModal';
 
 interface OrderItem {
   id: string;
@@ -147,6 +149,8 @@ export function OrderDetailPage() {
   const [showSubCancelModeModal, setShowSubCancelModeModal] = useState(false);
   const [showSubPenaltyModal, setShowSubPenaltyModal] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedSubForCancel, setSelectedSubForCancel] = useState<SubscriptionRow | null>(null);
   const [subDetail, setSubDetail] = useState<SubscriptionRow | null>(null);
 
@@ -802,85 +806,110 @@ export function OrderDetailPage() {
               배송 완료 처리
             </Button>
           )}
+
+          {/* 영수증 / 취소 영수증 확인 버튼 */}
+          <Button
+            variant="outline"
+            className={`font-bold transition-all shadow-sm ${
+              ['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status)
+                ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100'
+                : 'border-neutral-300 text-neutral-800 bg-white hover:bg-neutral-50'
+            }`}
+            onClick={() => setShowReceiptModal(true)}
+          >
+            <FileText className={`w-4 h-4 mr-1.5 ${['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status) ? 'text-red-600' : 'text-blue-600'}`} />
+            {['cancelled', 'cancel_completed', 'refunded', 'canceled', '취소', '취소완료'].includes(order.status) ? '취소 영수증 확인' : '영수증 확인'}
+          </Button>
         </div>
       </div>
 
-      {/* Subscription Info - 정기공급인 경우만 표시 */}
+      {/* Subscription Info - 정기공급인 경우만 표시 (그레이 톤) */}
       {(order.isSubscription || (order as any).is_subscription || (order as any).orderType === 'subscription' || (order as any).order_type === 'subscription' || Boolean(subDetail) || order.orderItems?.some((i: any) => i.productName?.includes('정기공급') || i.productName?.includes('정기구독') || i.product_type === 'subscription')) && (
-        <div className="bg-purple-50/90 border border-purple-200 p-6 rounded-xl shadow-sm">
+        <div className="bg-white border border-neutral-200 p-6 rounded-xl shadow-2xs">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-purple-700" />
-              <h4 className="text-lg font-bold text-purple-900">정기공급 정보</h4>
+              <RefreshCw className="w-5 h-5 text-neutral-700" />
+              <h4 className="text-lg font-bold text-neutral-900">정기공급 정보</h4>
             </div>
             {getSubscriptionStatusBadge((subDetail?.status || subscriptionStatus || 'active') as 'active' | 'paused' | 'cancelled')}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">배송 주기</dt>
-              <dd className="text-sm font-semibold text-purple-900">
+              <dt className="text-xs font-medium text-neutral-500 mb-1">배송 주기</dt>
+              <dd className="text-sm font-semibold text-neutral-900">
                 {subDetail?.cycleMonths
                   ? `${subDetail.cycleMonths}개월 (${subDetail.cycleDays || subDetail.cycleMonths * 30}일)`
                   : order.subscriptionCycle || '1개월 (30일)'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">정기공급 시작일</dt>
-              <dd className="text-sm font-semibold text-purple-900">
+              <dt className="text-xs font-medium text-neutral-500 mb-1">정기공급 시작일</dt>
+              <dd className="text-sm font-semibold text-neutral-900">
                 {subDetail?.createdAt
                   ? new Date(subDetail.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
                   : order.subscriptionStartDate || order.orderDate}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">다음 배송 예정일</dt>
-              <dd className="text-sm font-semibold text-purple-900 flex items-center gap-1">
-                <Calendar className="w-4 h-4 text-purple-600" />
+              <dt className="text-xs font-medium text-neutral-500 mb-1">다음 배송 예정일</dt>
+              <dd className="text-sm font-semibold text-neutral-900 flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-neutral-500" />
                 {subDetail?.nextBillingDate
                   ? new Date(subDetail.nextBillingDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
                   : order.nextDeliveryDate || '스케줄 확정 대기'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">총 배송 횟수</dt>
-              <dd className="text-sm font-semibold text-purple-900">
+              <dt className="text-xs font-medium text-neutral-500 mb-1">총 배송 횟수</dt>
+              <dd className="text-sm font-semibold text-neutral-900">
                 {subDetail?.totalRounds || order.deliveryCount || 10}회
-                <span className="text-xs text-purple-600 font-normal ml-1">
+                <span className="text-xs text-neutral-500 font-normal ml-1">
                   (현재 {subDetail?.currentRound || 1}회차 진행 중)
                 </span>
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">회당 결제 금액</dt>
-              <dd className="text-sm font-semibold text-purple-900">
+              <dt className="text-xs font-medium text-neutral-500 mb-1">회당 결제 금액</dt>
+              <dd className="text-sm font-semibold text-neutral-900">
                 {(subDetail?.unitPrice || order.totalAmount).toLocaleString()}원
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-purple-700 mb-1">총 약정 결제 금액</dt>
-              <dd className="text-sm font-bold text-purple-900">
+              <dt className="text-xs font-medium text-neutral-500 mb-1">총 약정 결제 금액</dt>
+              <dd className="text-sm font-bold text-neutral-900">
                 {((subDetail?.unitPrice || order.totalAmount) * (subDetail?.totalRounds || order.deliveryCount || 10)).toLocaleString()}원
               </dd>
             </div>
           </div>
 
           {/* 정기공급 관리 안내 및 링크 */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-purple-200 text-xs">
-            <span className="text-purple-700">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-neutral-200 text-xs">
+            <span className="text-neutral-600">
               * 정기공급 일시정지, 배송지 변경 및 구독 해지는 <strong>[정기공급 목록]</strong> 메뉴에서 관리하실 수 있습니다.
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const targetId = subDetail?.subscriptionNo || subDetail?.id || (order as any).subscriptionId || (order as any).subscription_id || order.orderNumber || order.id;
-                navigate(`/admin/subscriptions?search=${encodeURIComponent(targetId)}`);
-              }}
-              className="border-purple-300 text-purple-700 hover:bg-purple-100 font-bold bg-white ml-auto cursor-pointer"
-            >
-              정기공급 관리 이동 <ArrowLeft className="w-3.5 h-3.5 ml-1 rotate-180" />
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHistoryModal(true)}
+                className="border-neutral-300 text-neutral-800 hover:bg-neutral-100 font-bold bg-white cursor-pointer"
+              >
+                <History className="w-3.5 h-3.5 mr-1 text-neutral-700" />
+                정기공급 히스토리
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const targetId = subDetail?.subscriptionNo || subDetail?.id || (order as any).subscriptionId || (order as any).subscription_id || order.orderNumber || order.id;
+                  navigate(`/admin/subscriptions?search=${encodeURIComponent(targetId)}`);
+                }}
+                className="border-neutral-300 text-neutral-800 hover:bg-neutral-100 font-bold bg-white cursor-pointer"
+              >
+                정기공급 관리 이동 <ArrowLeft className="w-3.5 h-3.5 ml-1 rotate-180" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -2135,6 +2164,56 @@ export function OrderDetailPage() {
             setSubscriptionStatus('paused');
             loadOrder();
           }}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && order && (
+        <ReceiptModal
+          order={{
+            id: order.id,
+            orderNumber: order.orderNumber,
+            date: order.date,
+            totalAmount: order.totalAmount,
+            status: order.status,
+            items: (order.orderItems || []).map((it: any) => ({
+              id: it.id,
+              quantity: it.quantity,
+              price: it.price,
+              selectedProductIds: it.selected_product_ids || it.selectedProductIds || [],
+              product: {
+                id: it.productId || '',
+                name: it.productName,
+                price: it.price,
+                buyQuantity: it.buyQuantity ?? 0,
+              },
+            })),
+            shippingAddress: {
+              recipientName: order.shippingInfo?.recipient || '',
+              phone: order.shippingInfo?.phone || '',
+              address: renderAddress(order.shippingInfo),
+              zipCode: order.shippingInfo?.zipCode || '',
+            },
+            paymentMethod: order.paymentMethod || 'credit',
+            pointsUsed: (order as any).pointsUsed || 0,
+            cancelledAt: (order as any).cancelledAt,
+          } as any}
+          userProfile={{
+            name: order.customerName || '',
+            hospitalName: order.hospitalName || '',
+          } as any}
+          subProductsMap={subProductsMap}
+          onClose={() => setShowReceiptModal(false)}
+        />
+      )}
+
+      {/* 정기공급 히스토리 팝업 모달 */}
+      {showHistoryModal && (
+        <SubscriptionHistoryModal
+          order={order}
+          sub={subDetail || undefined}
+          subProductsMap={subProductsMap}
+          onClose={() => setShowHistoryModal(false)}
         />
       )}
     </div>

@@ -76,12 +76,17 @@ export function SubscriptionPenaltySettlementModal({
       return;
     }
 
-    if (cancelLastPayment) {
-      // 마지막 결제 취소 포함 건: 1단계 카드 승인 취소 팝업으로 이동
+    const isOrderAlreadyCancelled = (order as any).status === 'cancelled';
+
+    if (cancelLastPayment && !isOrderAlreadyCancelled && !paymentRefundDone) {
+      // 마지막 결제 취소 미완료 건: 1단계 카드 승인 취소 팝업으로 이동
       setConfirmStep('confirm_refund');
     } else {
-      // 기결제 유지 건: 위약금 부과 시 위약금 결제 승인 팝업으로 이동, 면제 시 즉시 해지
+      // 기결제 유지 또는 이미 카드 취소가 완료된 건: 위약금 부과 시 2단계 위약금 결제 승인 팝업으로 이동
       if (adminAction === 'charge' && hasPenalty) {
+        if (isOrderAlreadyCancelled) {
+          setPaymentRefundDone(true);
+        }
         setConfirmStep('confirm_penalty');
       } else {
         handleExecuteNoPenaltyCancel();
@@ -219,13 +224,6 @@ export function SubscriptionPenaltySettlementModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 bg-neutral-50">
           <div className="flex items-center gap-2">
-            <button
-              onClick={onBack}
-              className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors mr-1"
-              title="이전 단계로"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
             <ShieldAlert className="w-5 h-5 text-red-600" />
             <h3 className="text-base font-bold text-neutral-900">
               {cancelLastPayment ? '마지막 결제 취소 & 정기공급 해지' : '정기공급 해지 및 위약금 정산'}
@@ -477,8 +475,8 @@ export function SubscriptionPenaltySettlementModal({
                 {loading
                   ? '처리 중...'
                   : cancelLastPayment
-                    ? '마지막 결제 취소 & 구독 해지'
-                    : '기결제 유지 & 구독 해지'}
+                    ? '마지막 결제 취소 & 정기공급 해지'
+                    : '기결제 유지 & 정기공급 해지'}
               </span>
             </button>
           </div>

@@ -26,6 +26,7 @@ import { paymentService } from '../services/paymentService';
 import { addressService } from '../services/addressService';
 import { shopSettingsService } from '../services/shopSettingsService';
 import { PaymentMethod, ShippingAddress } from '../types';
+import { SubscriptionHistoryModal } from '../components/SubscriptionHistoryModal';
 
 // ─────────────────────────────────────────
 // 유틸
@@ -894,9 +895,10 @@ interface SubscriptionCardProps {
   onUpdatePayment: (sub: SubscriptionRow) => void;
   onChangeAddress: (sub: SubscriptionRow) => void;
   onRetryPayment: (sub: SubscriptionRow) => void;
+  onShowHistory: (sub: SubscriptionRow) => void;
 }
 
-function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDays, onPause, onResume, onCancel, onUpdatePayment, onChangeAddress, onRetryPayment }: SubscriptionCardProps) {
+function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDays, onPause, onResume, onCancel, onUpdatePayment, onChangeAddress, onRetryPayment, onShowHistory }: SubscriptionCardProps) {
   const isActive = sub.status === 'active';
   const isPaused = sub.status === 'paused';
   const isCancelled = sub.status === 'cancelled' || sub.status === 'expired';
@@ -938,11 +940,22 @@ function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDay
             </p>
           )}
         </div>
-        <div className="text-right">
-          <p className="text-sm text-neutral-500">회차별 결제금액</p>
-          <p className="text-base font-semibold text-neutral-900">
-            {sub.unitPrice.toLocaleString()}원
-          </p>
+        <div className="flex flex-col items-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-neutral-300 text-neutral-800 bg-white hover:bg-neutral-100 font-bold text-xs shadow-2xs cursor-pointer"
+            onClick={() => onShowHistory(sub)}
+          >
+            <History className="w-3.5 h-3.5 mr-1 text-neutral-700" />
+            정기공급 이력보기
+          </Button>
+          <div className="text-right">
+            <p className="text-xs text-neutral-500">회차별 결제금액</p>
+            <p className="text-base font-semibold text-neutral-900">
+              {sub.unitPrice.toLocaleString()}원
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1034,47 +1047,70 @@ function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDay
         </div>
       )}
 
-      {/* 추가정산 안내 */}
-      {isCancelled && cancellationRequest && (
-        <div className={`p-4 rounded border space-y-3 ${
+      {/* 위약금 결제 & 카드 승인 취소 정산 이력 */}
+      {cancellationRequest && (
+        <div className={`p-4 rounded-lg border space-y-3 ${
           cancellationRequest.status === 'pending'
             ? 'bg-amber-50 border-amber-200'
             : cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0
             ? 'bg-red-50 border-red-200'
             : 'bg-green-50 border-green-200'
         }`}>
-          <p className={`text-sm font-medium flex items-center gap-1.5 ${
-            cancellationRequest.status === 'pending'
-              ? 'text-amber-700'
-              : cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0
-              ? 'text-red-700'
-              : 'text-green-700'
-          }`}>
-            {cancellationRequest.status === 'pending' && (
-              <><AlertTriangle className="w-4 h-4" />추가정산 검토 중</>)}
-            {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0 && (
-              <><AlertTriangle className="w-4 h-4" />추가정산 청구됨</>)}
-            {cancellationRequest.status === 'processed' && (cancellationRequest.adminAction === 'waive' || cancellationRequest.penaltyAmount <= 0) && (
-              <><CheckCircle className="w-4 h-4" />추가정산 없음</>)}
-          </p>
+          <div className="flex items-center justify-between">
+            <p className={`text-sm font-bold flex items-center gap-1.5 ${
+              cancellationRequest.status === 'pending'
+                ? 'text-amber-700'
+                : cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0
+                ? 'text-red-700'
+                : 'text-green-700'
+            }`}>
+              {cancellationRequest.status === 'pending' && (
+                <><AlertTriangle className="w-4 h-4" />추가정산 (위약금) 검토 중</>)}
+              {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'charge' && cancellationRequest.penaltyAmount > 0 && (
+                <><AlertTriangle className="w-4 h-4" />위약금 결제 / 청구 승인 완료</>)}
+              {cancellationRequest.status === 'processed' && (cancellationRequest.adminAction === 'waive' || cancellationRequest.penaltyAmount <= 0) && (
+                <><CheckCircle className="w-4 h-4" />위약금 면제 및 정산 완료</>)}
+            </p>
+            {cancellationRequest.processedAt && (
+              <span className="text-xs text-neutral-500 font-medium">
+                처리일자: {formatDate(cancellationRequest.processedAt.split('T')[0])}
+              </span>
+            )}
+          </div>
+
+          {/* 사유 및 관리자 메모 */}
+          {(cancellationRequest.reason || cancellationRequest.adminMemo) && (
+            <div className="text-xs space-y-1 bg-white/80 p-2.5 rounded border border-neutral-200">
+              {cancellationRequest.reason && (
+                <p className="text-neutral-700">
+                  <strong className="font-semibold text-neutral-900">해지 사유:</strong> {cancellationRequest.reason}
+                </p>
+              )}
+              {cancellationRequest.adminMemo && (
+                <p className="text-neutral-700">
+                  <strong className="font-semibold text-neutral-900">관리자 정산 메모:</strong> {cancellationRequest.adminMemo}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* 산출 근거 */}
           <div className="space-y-1.5 text-xs text-neutral-600">
             <div className="flex justify-between">
-              <span>기출고 수량</span>
+              <span>기출고 정산 수량</span>
               <span className="font-medium">{cancellationRequest.shippedQuantity}개</span>
             </div>
             <div className="flex justify-between">
-              <span>실제 납부금액</span>
+              <span>실제 납부금액 (할인적용)</span>
               <span className="font-medium">{cancellationRequest.paidAmount.toLocaleString()}원</span>
             </div>
             <div className="flex justify-between">
-              <span>단가 재산정액</span>
+              <span>단가 재산정 정상금액</span>
               <span className="font-medium">{cancellationRequest.regularAmount.toLocaleString()}원</span>
             </div>
             {cancellationRequest.penaltyAmount > 0 && (
               <div className="flex justify-between pt-1.5 border-t border-current border-opacity-20">
-                <span className="font-medium">추가정산 금액</span>
+                <span className="font-medium">부과 위약금 금액</span>
                 <span className="font-semibold text-red-600">
                   {cancellationRequest.penaltyAmount.toLocaleString()}원
                 </span>
@@ -1082,52 +1118,68 @@ function SubscriptionCard({ sub, cancellationRequest, pauseMaxCount, pauseMaxDay
             )}
           </div>
 
-          {/* 결제 스케줄 */}
-          {cancellationRequest.penaltyAmount > 0 && (
-            <div className="border-t border-current border-opacity-20 pt-3">
-              <p className="text-xs font-medium text-neutral-600 mb-2">추가정산 결제 내역</p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-neutral-500">
-                    <th className="text-left font-medium py-1 pr-3">구분</th>
-                    <th className="text-left font-medium py-1 pr-3">일자</th>
-                    <th className="text-right font-medium py-1 pr-3">금액</th>
-                    <th className="text-center font-medium py-1">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
+          {/* 추가정산 & 승인 취소 결제 내역 테이블 */}
+          <div className="border-t border-current border-opacity-20 pt-3">
+            <p className="text-xs font-bold text-neutral-800 mb-2">위약금 결제 & 카드 승인 취소 이력 상세</p>
+            <table className="w-full text-xs bg-white rounded border border-neutral-200 divide-y divide-neutral-100 overflow-hidden">
+              <thead className="bg-neutral-50 text-neutral-600 font-medium">
+                <tr>
+                  <th className="text-left py-1.5 px-3">구분</th>
+                  <th className="text-left py-1.5 px-3">일자</th>
+                  <th className="text-right py-1.5 px-3">금액</th>
+                  <th className="text-center py-1.5 px-3">상태</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {cancellationRequest.penaltyAmount > 0 && (
                   <tr>
-                    <td className="py-1.5 pr-3 text-neutral-700">추가정산</td>
-                    <td className="py-1.5 pr-3 text-neutral-600">
-                      {cancellationRequest.status === 'processed' && cancellationRequest.processedAt
+                    <td className="py-2 px-3 text-neutral-800 font-medium">위약금 정산 결제</td>
+                    <td className="py-2 px-3 text-neutral-600">
+                      {cancellationRequest.processedAt
                         ? formatDate(cancellationRequest.processedAt.split('T')[0])
                         : formatDate(cancellationRequest.createdAt.split('T')[0])}
                     </td>
-                    <td className="py-1.5 pr-3 text-right font-medium text-red-600">
+                    <td className="py-2 px-3 text-right font-bold text-red-600">
                       {cancellationRequest.penaltyAmount.toLocaleString()}원
                     </td>
-                    <td className="py-1.5 text-center">
+                    <td className="py-2 px-3 text-center">
                       {cancellationRequest.status === 'pending' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
                           청구예정
                         </span>
                       )}
                       {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'charge' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700">
-                          결제완료
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">
+                          결제/승인완료
                         </span>
                       )}
                       {cancellationRequest.status === 'processed' && cancellationRequest.adminAction === 'waive' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">
                           면제
                         </span>
                       )}
                     </td>
                   </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
+                )}
+                {cancellationRequest.adminAction === 'waive' && cancellationRequest.penaltyAmount <= 0 && (
+                  <tr>
+                    <td className="py-2 px-3 text-neutral-800 font-medium">위약금 정산 (면제)</td>
+                    <td className="py-2 px-3 text-neutral-600">
+                      {cancellationRequest.processedAt
+                        ? formatDate(cancellationRequest.processedAt.split('T')[0])
+                        : formatDate(cancellationRequest.createdAt.split('T')[0])}
+                    </td>
+                    <td className="py-2 px-3 text-right font-bold text-green-600">0원</td>
+                    <td className="py-2 px-3 text-center">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">
+                        면제완료
+                      </span>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {cancellationRequest.status === 'pending' && (
             <p className="text-xs text-amber-600">
@@ -1272,6 +1324,9 @@ export function MySubscriptionsPage() {
   // 주소지 변경 모달
   const [updateAddressTarget, setUpdateAddressTarget] = useState<SubscriptionRow | null>(null);
   const [retryingSubId, setRetryingSubId] = useState<string | null>(null);
+
+  // 정기공급 회차별 이력 모달
+  const [historyModalSub, setHistoryModalSub] = useState<SubscriptionRow | null>(null);
 
   // ── 데이터 로드 ──
   const loadSubscriptions = useCallback(async () => {
@@ -1490,9 +1545,18 @@ export function MySubscriptionsPage() {
               onUpdatePayment={setUpdatePaymentTarget}
               onChangeAddress={setUpdateAddressTarget}
               onRetryPayment={handleRetryPayment}
+              onShowHistory={setHistoryModalSub}
             />
           ))}
         </div>
+      )}
+
+      {/* 정기공급 회차별 전체 이력 모달 */}
+      {historyModalSub && (
+        <SubscriptionHistoryModal
+          sub={historyModalSub}
+          onClose={() => setHistoryModalSub(null)}
+        />
       )}
 
       {/* 일시정지 확인 모달 */}

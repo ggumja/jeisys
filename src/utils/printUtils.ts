@@ -443,13 +443,17 @@ export const printReceipt = (
   userProfile?: any,
   creditUsed: number = 0,
   subProductsMap: Record<string, any> = {},
-  shopSettings?: Record<string, string>
+  shopSettings?: Record<string, string>,
+  isCancellationReceipt?: boolean
 ) => {
   try {
     if (!order) {
       alert('오류: 주문 데이터가 없습니다.');
       return;
     }
+
+    const isOrderCancelled = ['cancelled', 'cancel_completed', 'refunded'].includes(order.status);
+    const showCancellation = isCancellationReceipt ?? isOrderCancelled;
 
     const companyName = shopSettings?.company_name || '(주)제이시스메디칼';
     const businessNumber = shopSettings?.business_number || '424-87-00852';
@@ -492,7 +496,9 @@ export const printReceipt = (
           <div style="font-weight: bold; font-size: 11px; word-break: break-all;">${productName}${it.optionName ? ` (${it.optionName})` : ''}</div>
           <div style="display: flex; justify-content: space-between; font-size: 11px; color: #444;">
             <span>${it.quantity} x ₩${Math.round(unitPrice).toLocaleString()}</span>
-            <span style="font-weight: bold; color: #000;">₩${Math.round(effectiveTotal).toLocaleString()}</span>
+            <span style="font-weight: bold; color: ${showCancellation ? '#dc2626' : '#000'};">
+              ${showCancellation ? `[취소] -₩${Math.round(effectiveTotal).toLocaleString()}` : `₩${Math.round(effectiveTotal).toLocaleString()}`}
+            </span>
           </div>
         </div>
       `;
@@ -516,17 +522,24 @@ export const printReceipt = (
     const paymentMethodText = paymentMethodMap[order.paymentMethod] || order.paymentMethod;
 
     const isCard = ['credit', 'split', 'partial_card'].includes(order.paymentMethod);
-    const receiptTypeTitle = isCard ? '신용카드 매출전표' : '영 수 증';
+    const receiptTypeTitle = showCancellation
+      ? (isCard ? '신용카드 승인 취소 매출전표' : '결제 취소 영수증')
+      : (isCard ? '신용카드 매출전표' : '영 수 증');
 
     const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>영수증 - ${order.orderNumber}</title>
+          <title>${receiptTypeTitle} - ${order.orderNumber}</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
             
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
             body {
               font-family: 'Noto Sans KR', 'Courier New', monospace;
               margin: 0;
@@ -543,7 +556,7 @@ export const printReceipt = (
               padding: 20px 18px;
               box-shadow: 0 4px 12px rgba(0,0,0,0.1);
               box-sizing: border-box;
-              border-top: 4px solid #21358D;
+              border-top: 4px solid ${showCancellation ? '#dc2626' : '#21358D'};
             }
             .pos-header {
               text-align: center;
@@ -554,6 +567,7 @@ export const printReceipt = (
               font-weight: 900;
               letter-spacing: 0.5px;
               margin-bottom: 2px;
+              color: ${showCancellation ? '#dc2626' : '#000'};
             }
             .pos-subtitle {
               font-size: 10px;
@@ -563,7 +577,7 @@ export const printReceipt = (
             .pos-store {
               font-size: 13px;
               font-weight: 900;
-              color: #21358D;
+              color: ${showCancellation ? '#dc2626' : '#21358D'};
             }
             .divider {
               border-top: 1px dashed #555;
@@ -592,7 +606,7 @@ export const printReceipt = (
               justify-content: space-between;
               font-size: 15px;
               font-weight: 900;
-              color: #21358D;
+              color: ${showCancellation ? '#dc2626' : '#21358D'};
               margin-top: 4px;
             }
             .pos-footer {
@@ -608,7 +622,7 @@ export const printReceipt = (
               max-width: 400px;
               margin: 15px auto 0;
               padding: 10px 0;
-              background-color: #21358D !important;
+              background-color: ${showCancellation ? '#dc2626' : '#21358D'} !important;
               color: #ffffff !important;
               border: none;
               font-size: 13px;
@@ -617,8 +631,13 @@ export const printReceipt = (
               text-align: center;
             }
             @media print {
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
               body { background: #fff; padding: 0; }
-              .pos-card { width: 100%; max-width: 80mm; box-shadow: none; border-top: none; padding: 0; }
+              .pos-card { width: 100%; max-width: 80mm; box-shadow: none; border-top: 4px solid ${showCancellation ? '#dc2626' : '#21358D'} !important; padding: 0; }
               .btn-print { display: none; }
             }
           </style>
@@ -631,6 +650,12 @@ export const printReceipt = (
               <div class="pos-store">${companyName}</div>
             </div>
 
+            ${showCancellation ? `
+            <div style="background-color: #fef2f2; border: 1px dashed #f87171; color: #dc2626; padding: 6px 8px; text-align: center; font-weight: bold; font-size: 11px; margin-bottom: 8px; border-radius: 4px;">
+              ⚠️ 카드 승인 취소 완료 (전액 환불)
+            </div>
+            ` : ''}
+
             <div class="divider"></div>
 
             <div class="info-row"><span class="info-label">사업자번호:</span><span class="info-val">${businessNumber}</span></div>
@@ -641,46 +666,53 @@ export const printReceipt = (
             <div class="divider"></div>
 
             <div class="info-row"><span class="info-label">주문번호:</span><span class="info-val">${order.orderNumber}</span></div>
-            <div class="info-row"><span class="info-label">거래일시:</span><span class="info-val">${order.date}</span></div>
+            <div class="info-row"><span class="info-label">원 거래일시:</span><span class="info-val">${order.date}</span></div>
+            ${showCancellation ? `
+            <div class="info-row"><span class="info-label">취소 처리일시:</span><span class="info-val" style="color: #dc2626;">${order.cancelledAt || order.date}</span></div>
+            ` : ''}
             <div class="info-row"><span class="info-label">구매자/병원:</span><span class="info-val">${userProfile?.hospitalName || userProfile?.name || '회원'}</span></div>
             <div class="info-row"><span class="info-label">결제수단:</span><span class="info-val">${paymentMethodText}</span></div>
             ${isCard ? `
             <div class="info-row"><span class="info-label">카드종류:</span><span class="info-val">국민카드 (체크/신용)</span></div>
             <div class="info-row"><span class="info-label">카드번호:</span><span class="info-val">9410-****-****-1234</span></div>
-            <div class="info-row"><span class="info-label">승인번호:</span><span class="info-val">30094182 (일시불)</span></div>
+            <div class="info-row"><span class="info-label">승인번호:</span><span class="info-val">30094182 ${showCancellation ? '(승인취소)' : '(일시불)'}</span></div>
             ` : ''}
 
             <div class="divider"></div>
 
-            <div style="font-weight: bold; margin-bottom: 6px;">[ 구매 상품 내역 ]</div>
+            <div style="font-weight: bold; margin-bottom: 6px;">[ ${showCancellation ? '취소 상품 내역' : '구매 상품 내역'} ]</div>
             ${itemRowsHtml}
 
             <div class="divider"></div>
 
+            ${showCancellation ? `
+            <div class="calc-row"><span>원 결제 금액</span><span>₩${Math.round(paidTotal).toLocaleString()}</span></div>
+            <div class="calc-row" style="color: #dc2626; font-weight: bold;"><span>승인 취소 환불금액</span><span>-₩${finalTotal.toLocaleString()}</span></div>
+            ` : `
             <div class="calc-row"><span>주문 소계</span><span>₩${Math.round(paidTotal).toLocaleString()}</span></div>
             ${creditUsed > 0 ? `<div class="calc-row" style="color:#059669;"><span>크레딧 차감</span><span>-₩${creditUsed.toLocaleString()}</span></div>` : ''}
             ${pointsUsed > 0 ? `<div class="calc-row" style="color:#d97706;"><span>포인트 차감</span><span>-${pointsUsed.toLocaleString()} P</span></div>` : ''}
+            `}
 
             <div class="divider"></div>
 
-            <div class="calc-row"><span class="info-label">과세 물품 가액</span><span>₩${taxable.toLocaleString()}</span></div>
-            <div class="calc-row"><span class="info-label">부 가 세 (VAT 10%)</span><span>₩${vat.toLocaleString()}</span></div>
+            <div class="calc-row"><span class="info-label">과세 물품 가액</span><span>₩${showCancellation ? 0 : taxable.toLocaleString()}</span></div>
+            <div class="calc-row"><span class="info-label">부 가 세 (VAT 10%)</span><span>₩${showCancellation ? 0 : vat.toLocaleString()}</span></div>
 
             <div class="double-divider"></div>
 
-            <div class="total-row"><span>합계 금액</span><span>₩${finalTotal.toLocaleString()}</span></div>
+            <div class="total-row"><span>${showCancellation ? '최종 결제 금액' : '합계 금액'}</span><span>₩${showCancellation ? 0 : finalTotal.toLocaleString()}</span></div>
 
             <div class="double-divider"></div>
 
             <div class="pos-footer">
-              <div>* 전자상거래 신용카드 매출전표</div>
+              <div>* 전자상거래 신용카드 ${showCancellation ? '승인 취소 매출전표' : '매출전표'}</div>
               <div>* 부가가치세법 시행령 제57조에 의거 세금계산서의 효력을 가집니다.</div>
               <div style="margin-top:4px; font-weight:bold;">[ 서명: 본인서명 생략 ]</div>
-              <div style="margin-top:6px; color:#21358D; font-weight:bold;">감사합니다. ${companyName}</div>
+              <div style="margin-top:6px; color:${showCancellation ? '#dc2626' : '#21358D'}; font-weight:bold;">감사합니다. ${companyName}</div>
             </div>
           </div>
-
-          <button class="btn-print" onclick="window.print()">영수증 인쇄</button>
+          <button class="btn-print" onclick="window.print()">${showCancellation ? '취소 영수증 인쇄' : '영수증 인쇄'}</button>
         </body>
       </html>
     `;
