@@ -405,7 +405,7 @@ export function OrderDetailPage() {
         );
       case 'shipped':
         return (
-          <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
+          <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
             <Package className="w-3 h-3 mr-1" />
             배송중
           </Badge>
@@ -609,8 +609,8 @@ export function OrderDetailPage() {
                 {order.isSubscription ? '정기공급 주문 상세정보' : '주문 상세정보'}
               </h2>
               {order.isSubscription && (
-                <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
-                  <RefreshCw className="w-3 h-3 mr-1" />
+                <Badge variant="outline" className="bg-neutral-100 text-neutral-800 border-neutral-200">
+                  <RefreshCw className="w-3.5 h-3.5 mr-1 text-neutral-700" />
                   정기공급
                 </Badge>
               )}
@@ -1015,7 +1015,7 @@ export function OrderDetailPage() {
             {order.isSubscription && (
               <div className="flex justify-between text-sm">
                 <dt className="text-neutral-600">주문 유형</dt>
-                <dd className="font-medium text-purple-700">정기공급</dd>
+                <dd className="font-medium text-neutral-800">정기공급</dd>
               </div>
             )}
           </dl>
@@ -1208,7 +1208,7 @@ export function OrderDetailPage() {
                             </span>
                           )}
                           {isBundle && shippedQty > 0 && (
-                            <span className="text-xs text-purple-600 font-normal mt-0.5">
+                            <span className="text-xs text-neutral-500 font-normal mt-0.5">
                               {(() => {
                                 const totalPossible = item.selected_product_ids.length;
                                 return shippedQty >= totalPossible ? '(전체 발송완료)' : `(${shippedQty}개 발송완료)`;
