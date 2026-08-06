@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   Search, RefreshCw, Play, Pause, XCircle, CheckCircle,
   Loader2, AlertTriangle, ChevronDown, ChevronUp, Package,
@@ -49,6 +49,8 @@ function formatDate(s?: string) {
 
 function SubscriptionRow_({
   sub,
+  isOpen,
+  onToggle,
   hasPendingCancel,
   onRetryPayment,
   onReload,
@@ -57,6 +59,8 @@ function SubscriptionRow_({
   onOpenPauseModal,
 }: {
   sub: SubscriptionRow;
+  isOpen: boolean;
+  onToggle: () => void;
   hasPendingCancel?: boolean;
   onRetryPayment?: (subId: string, roundNo: number) => void;
   onReload?: () => void;
@@ -64,7 +68,6 @@ function SubscriptionRow_({
   onOpenCancelLastPaymentModal?: (sub: SubscriptionRow) => void;
   onOpenPauseModal?: (sub: SubscriptionRow) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [retryingRound, setRetryingRound] = useState<number | null>(null);
 
   const handleRetry = async (e: React.MouseEvent, roundNo: number) => {
@@ -111,10 +114,10 @@ function SubscriptionRow_({
 
   return (
     <>
-      <tr className="hover:bg-neutral-50 transition-colors cursor-pointer" onClick={() => setOpen(v => !v)}>
+      <tr className="hover:bg-neutral-50 transition-colors cursor-pointer" onClick={onToggle}>
         <td className="px-4 py-3 text-sm">
           <div className="flex items-center gap-1">
-            {open ? <ChevronUp className="w-3.5 h-3.5 text-neutral-400" /> : <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />}
+            {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-neutral-400" /> : <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />}
             <span className="font-mono text-xs text-neutral-500">
               {sub.subscriptionNo ?? sub.id.slice(0, 8)}
             </span>
@@ -151,7 +154,7 @@ function SubscriptionRow_({
       </tr>
 
       {/* 구독 상세 정보 (정기공급 정보 카드 + 회차 상세 스케줄) */}
-      {open && (
+      {isOpen && (
         <tr>
           <td colSpan={9} className="px-6 py-5 bg-neutral-50 border-t border-neutral-200">
             <div className="space-y-6">
@@ -388,12 +391,37 @@ function SubscriptionRow_({
 
 export function SubscriptionListPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search') || searchParams.get('subId') || searchParams.get('orderId') || '';
 
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [pendingCancelIds, setPendingCancelIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused' | 'failed' | 'completed' | 'cancelled' | 'pending_cancel'>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [expandedSubId, setExpandedSubId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = searchParams.get('search') || searchParams.get('subId') || searchParams.get('orderId');
+    if (q) {
+      setSearchTerm(q);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchTerm.trim() && subscriptions.length > 0) {
+      const term = searchTerm.toLowerCase().trim();
+      const matched = subscriptions.find(sub =>
+        sub.id.toLowerCase().includes(term) ||
+        (sub.subscriptionNo && sub.subscriptionNo.toLowerCase().includes(term)) ||
+        (sub.originalOrderId && sub.originalOrderId.toLowerCase().includes(term)) ||
+        sub.shipments?.some(sh => sh.orderId?.toLowerCase().includes(term))
+      );
+      if (matched) {
+        setExpandedSubId(matched.id);
+      }
+    }
+  }, [searchTerm, subscriptions]);
 
   // 2단계 구독 취소 모달 상태
   const [showSubCancelModeModal, setShowSubCancelModeModal] = useState(false);
@@ -439,12 +467,15 @@ export function SubscriptionListPage() {
       statusFilter === 'completed' ? (s.status === 'completed' || s.status === 'expired') :
       statusFilter === 'cancelled' ? (s.status === 'cancelled' && !pendingCancelIds.has(s.id)) :
       s.status === statusFilter;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().trim();
     const matchSearch = !term ||
       (s as any).user?.name?.toLowerCase().includes(term) ||
       (s as any).user?.hospitalName?.toLowerCase().includes(term) ||
       s.product?.name?.toLowerCase().includes(term) ||
-      s.id.toLowerCase().includes(term);
+      s.id.toLowerCase().includes(term) ||
+      (s.subscriptionNo && s.subscriptionNo.toLowerCase().includes(term)) ||
+      (s.originalOrderId && s.originalOrderId.toLowerCase().includes(term)) ||
+      s.shipments?.some(sh => sh.orderId?.toLowerCase().includes(term));
     return matchStatus && matchSearch;
   });
 
@@ -558,6 +589,8 @@ export function SubscriptionListPage() {
                   <SubscriptionRow_
                     key={sub.id}
                     sub={sub}
+                    isOpen={expandedSubId === sub.id}
+                    onToggle={() => setExpandedSubId(prev => prev === sub.id ? null : sub.id)}
                     hasPendingCancel={pendingCancelIds.has(sub.id)}
                     onReload={load}
                     onOpenPauseModal={(targetSub) => {

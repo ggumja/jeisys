@@ -873,8 +873,11 @@ export function OrderDetailPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate('/admin/subscriptions')}
-              className="border-purple-300 text-purple-700 hover:bg-purple-100 font-bold bg-white ml-auto"
+              onClick={() => {
+                const targetId = subDetail?.subscriptionNo || subDetail?.id || (order as any).subscriptionId || (order as any).subscription_id || order.orderNumber || order.id;
+                navigate(`/admin/subscriptions?search=${encodeURIComponent(targetId)}`);
+              }}
+              className="border-purple-300 text-purple-700 hover:bg-purple-100 font-bold bg-white ml-auto cursor-pointer"
             >
               정기공급 관리 이동 <ArrowLeft className="w-3.5 h-3.5 ml-1 rotate-180" />
             </Button>
