@@ -32,9 +32,9 @@ export function SubscriptionPenaltySettlementModal({
   const [adminMemo, setAdminMemo] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 2단계 승인 팝업 스테이트 ('none' | 'confirm_refund' | 'confirm_penalty')
-  const [confirmStep, setConfirmStep] = useState<'none' | 'confirm_refund' | 'confirm_penalty'>('none');
-  const [paymentRefundDone, setPaymentRefundDone] = useState(false);
+  // 2단계 승인 팝업 스테이트 ('none' | 'confirm_penalty' | 'confirm_refund')
+  const [confirmStep, setConfirmStep] = useState<'none' | 'confirm_penalty' | 'confirm_refund'>('none');
+  const [penaltySettlementDone, setPenaltySettlementDone] = useState(false);
 
   const isCurrentRoundShipped = ['shipped', 'delivered', 'partially_shipped'].includes((order as any).status || '');
 
@@ -78,72 +78,29 @@ export function SubscriptionPenaltySettlementModal({
 
     const isOrderAlreadyCancelled = (order as any).status === 'cancelled';
 
-    if (cancelLastPayment && !isOrderAlreadyCancelled && !paymentRefundDone) {
-      // 마지막 결제 취소 미완료 건: 1단계 카드 승인 취소 팝업으로 이동
+    // 2회차 분 이상 취소건으로 위약금 부과 대상인 경우: 1단계 [위약금 결제/청구 승인] 팝업 먼저 노출
+    if (adminAction === 'charge' && hasPenalty) {
+      setConfirmStep('confirm_penalty');
+    } else if (cancelLastPayment && !isOrderAlreadyCancelled) {
+      // 1회차 또는 위약금 면제건으로 마지막 결제 취소만 있는 경우: [카드 승인 취소] 팝업 노출
       setConfirmStep('confirm_refund');
     } else {
-      // 기결제 유지 또는 이미 카드 취소가 완료된 건: 위약금 부과 시 2단계 위약금 결제 승인 팝업으로 이동
-      if (adminAction === 'charge' && hasPenalty) {
-        if (isOrderAlreadyCancelled) {
-          setPaymentRefundDone(true);
-        }
-        setConfirmStep('confirm_penalty');
-      } else {
-        handleExecuteNoPenaltyCancel();
-      }
+      // 기결제 유지 및 위약금 면제건: 즉시 해지
+      handleExecuteNoPenaltyCancel();
     }
   };
 
-  // 1단계: 마지막 결제 카드 승인 취소 실행
-  const handleExecutePaymentRefundStep = async () => {
-    try {
-      setLoading(true);
-      await subscriptionService.cancelOrderPaymentOnly({
-        orderId: order.id,
-        subscriptionId: sub.id,
-        reason: cancelReason.trim(),
-        cancelAmount: order.totalAmount,
-        pgTid: order.pgTid,
-        currentRound: sub.currentRound,
-      });
-
-      setPaymentRefundDone(true);
-
-      // 위약금 부과건인 경우 -> 2단계: 위약금 결제 승인 팝업으로 이동
-      if (adminAction === 'charge' && hasPenalty) {
-        setConfirmStep('confirm_penalty');
-      } else {
-        // 1회차 또는 위약금 미부과인 경우 -> 즉시 최종 해지 완료
-        await subscriptionService.finalizeSubscriptionCancellation({
-          subscriptionId: sub.id,
-          userId: sub.userId || order.userId || '',
-          reason: cancelReason.trim(),
-          penaltyAmount: 0,
-          shippedQuantity: 0,
-          paidAmount: 0,
-          regularAmount: 0,
-          adminAction: 'waive',
-          adminMemo: adminMemo.trim() || undefined,
-        });
-
-        toast.success('마지막 결제 취소 및 구독 해지가 완료되었습니다.');
-        onSuccess();
-        onClose();
-      }
-    } catch (err: any) {
-      console.error('Payment refund step error:', err);
-      toast.error(err.message || '카드 승인 취소 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 2단계: 위약금 결제 승인 & 최종 해지 처리
+  // 1단계 (위약금 부과 시): 위약금 결제/청구 승인 실행
   const handleExecutePenaltyChargeStep = async () => {
     try {
       setLoading(true);
-      if (!cancelLastPayment) {
-        // 기결제 유지 시 예정 회차 스케줄 취소
+
+      if (cancelLastPayment && (order as any).status !== 'cancelled') {
+        // 2회차 이상 취소건: 1단계 위약금 청구 승인 완료 처리 후 -> 2단계 [마지막 결제 카드 승인 취소] 팝업으로 이동
+        setPenaltySettlementDone(true);
+        setConfirmStep('confirm_refund');
+      } else {
+        // 기결제 유지 또는 이미 카드 취소가 완료된 건: 즉시 위약금 결제 승인 & 해지 완결
         await subscriptionService.cancelSubscriptionWithPenalty({
           orderId: order.id,
           subscriptionId: sub.id,
@@ -158,31 +115,57 @@ export function SubscriptionPenaltySettlementModal({
           cancelLastPayment: false,
           currentRound: sub.currentRound,
         });
-      } else {
-        // 승인 취소가 이미 완료된 상태에서 위약금 정산 및 구독 상태 해지
-        await subscriptionService.finalizeSubscriptionCancellation({
-          subscriptionId: sub.id,
-          userId: sub.userId || order.userId || '',
-          reason: cancelReason.trim(),
-          penaltyAmount: penaltyInfo.penaltyAmount,
-          shippedQuantity: penaltyInfo.shippedQuantity,
-          paidAmount: penaltyInfo.paidAmount,
-          regularAmount: penaltyInfo.regularAmount,
-          adminAction,
-          adminMemo: adminMemo.trim() || undefined,
-        });
+
+        toast.success(`위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 승인 및 구독 해지가 완료되었습니다.`);
+        onSuccess();
+        onClose();
       }
+    } catch (err: any) {
+      console.error('Penalty charge step error:', err);
+      toast.error(err.message || '위약금 결제 승인 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2단계 (위약금 부과 후) 또는 1단계 (위약금 미부과 시): 마지막 결제 카드 승인 취소 실행 및 최종 완결
+  const handleExecutePaymentRefundStep = async () => {
+    try {
+      setLoading(true);
+
+      // 1. 카드 승인 취소 실행
+      await subscriptionService.cancelOrderPaymentOnly({
+        orderId: order.id,
+        subscriptionId: sub.id,
+        reason: cancelReason.trim(),
+        cancelAmount: order.totalAmount,
+        pgTid: order.pgTid,
+        currentRound: sub.currentRound,
+      });
+
+      // 2. 최종 구독 해지 및 위약금 이력 저장
+      await subscriptionService.finalizeSubscriptionCancellation({
+        subscriptionId: sub.id,
+        userId: sub.userId || order.userId || '',
+        reason: cancelReason.trim(),
+        penaltyAmount: adminAction === 'charge' && hasPenalty ? penaltyInfo.penaltyAmount : 0,
+        shippedQuantity: penaltyInfo.shippedQuantity,
+        paidAmount: penaltyInfo.paidAmount,
+        regularAmount: penaltyInfo.regularAmount,
+        adminAction: hasPenalty ? adminAction : 'waive',
+        adminMemo: adminMemo.trim() || undefined,
+      });
 
       toast.success(
-        cancelLastPayment
-          ? `마지막 결제 취소 및 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 승인이 완료되었습니다.`
-          : `위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 승인 및 구독 해지가 완료되었습니다.`
+        adminAction === 'charge' && hasPenalty
+          ? `위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 청구 승인 및 마지막 결제 카드 취소가 완결되었습니다.`
+          : '마지막 결제 카드 승인 취소 및 구독 해지가 완료되었습니다.'
       );
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Penalty charge step error:', err);
-      toast.error(err.message || '위약금 결제 승인 중 오류가 발생했습니다.');
+      console.error('Payment refund step error:', err);
+      toast.error(err.message || '카드 승인 취소 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -219,348 +202,254 @@ export function SubscriptionPenaltySettlementModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl border border-neutral-300 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 bg-neutral-50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Modal Header */}
+        <div className="bg-neutral-900 text-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-red-600" />
-            <h3 className="text-base font-bold text-neutral-900">
+            <ShieldAlert className="w-5 h-5 text-red-400" />
+            <h3 className="font-bold text-base tracking-tight">
               {cancelLastPayment ? '마지막 결제 취소 & 정기공급 해지' : '정기공급 해지 및 위약금 정산'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600 p-1 rounded hover:bg-neutral-100 transition-colors"
+            className="text-neutral-400 hover:text-white transition-colors cursor-pointer text-xl leading-none"
           >
-            <X className="w-5 h-5" />
+            &times;
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
-          {/* 📦 1회차 결제 취소 (위약금 0원) 안내 메세지 */}
-          {penaltyInfo.shippedQuantity === 0 ? (
-            <div className="bg-amber-50 border border-amber-200 rounded p-4 text-xs text-amber-900 flex items-start gap-2.5 shadow-sm">
-              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">📦 1회차 상품 결제 취소 (전액 100% 환불 대상)</p>
-                <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
-                  아직 상품이 출고 전이거나 1회차 결제가 취소되므로 중도해지 위약금이 발생하지 않습니다. 승인 시 회차 결제 금액({order.totalAmount.toLocaleString()}원)이 100% 전액 취소 환불 처리됩니다.
-                </p>
-              </div>
-            </div>
-          ) : (
-            /* 🟥 MyPage PenaltyModal Style Container */
-            <div className={`rounded border p-4 ${hasPenalty ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
-              <p className={`text-sm font-medium mb-3 ${hasPenalty ? 'text-red-700' : 'text-green-700'}`}>
-                {hasPenalty ? '⚠️ 중도 해지시 추가정산이 필요합니다' : '✅ 추가정산이 없습니다'}
-              </p>
-
-              {/* 요약 */}
-              <div className="space-y-1 text-sm mb-3">
-                <div className="flex justify-between text-neutral-700">
-                  <span>기출고 수량</span>
-                  <span className="font-medium">{penaltyInfo.shippedQuantity}개</span>
-                </div>
-                <div className="flex justify-between text-neutral-700">
-                  <span>기납부 총액</span>
-                  <span className="font-medium">{penaltyInfo.paidAmount.toLocaleString()}원</span>
-                </div>
-                <div className="flex justify-between text-neutral-700">
-                  <span>
-                    단가 재산정액 ({penaltyInfo.shippedQuantity}개 기준, 단가 {effectiveRegularUnitPrice.toLocaleString()}원)
-                  </span>
-                  <span className="font-medium">{penaltyInfo.regularAmount.toLocaleString()}원</span>
-                </div>
-                <div className={`flex justify-between font-semibold border-t pt-1 mt-1 ${hasPenalty ? 'text-red-700' : 'text-green-700'}`}>
-                  <span>추가정산금액</span>
-                  <span>{hasPenalty ? `${penaltyInfo.penaltyAmount.toLocaleString()}원` : '없음'}</span>
-                </div>
-              </div>
-
-              {/* 📊 구간별 단가표 */}
-              {discountTiers && discountTiers.length > 0 && (
-                <div className="mt-3 p-3 bg-white border border-neutral-200 rounded">
-                  <p className="text-xs font-semibold text-neutral-700 mb-2">📊 구간별 단가표</p>
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-neutral-50">
-                        <th className="px-2 py-1.5 text-left font-medium text-neutral-500 border-b border-neutral-100">수량 구간</th>
-                        <th className="px-2 py-1.5 text-right font-medium text-neutral-500 border-b border-neutral-100">단가 (개당)</th>
-                        <th className="px-2 py-1.5 text-right font-medium text-neutral-500 border-b border-neutral-100">적용 구간</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-50">
-                      {discountTiers.map((tier, idx) => {
-                        const targetQtyForTier = penaltyInfo.shippedQuantity;
-                        const isApplied = targetQtyForTier >= tier.minQty && targetQtyForTier <= tier.maxQty;
-                        const baseUnitPrice = sub.regularUnitPrice || (sub.qtyPerRound ? Math.round(order.totalAmount / sub.qtyPerRound) : 770000);
-                        const tierUnitPrice = Math.round(baseUnitPrice * (1 - tier.discountRate / 100));
-
-                        return (
-                          <tr key={idx} className={isApplied ? 'bg-blue-50' : ''}>
-                            <td className={`px-2 py-1.5 ${isApplied ? 'font-semibold text-blue-800' : 'text-neutral-600'}`}>
-                              {tier.minQty} ~ {tier.maxQty}개
-                            </td>
-                            <td className={`px-2 py-1.5 text-right font-medium ${isApplied ? 'text-blue-800' : 'text-neutral-600'}`}>
-                              {tierUnitPrice.toLocaleString()}원
-                            </td>
-                            <td className="px-2 py-1.5 text-right">
-                              {isApplied ? (
-                                <span className="text-blue-700 text-[11px] font-semibold">적용구간</span>
-                              ) : (
-                                <span className="text-neutral-300">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                  {penaltyInfo.shippedQuantity > 0 && (
-                    <p className="text-xs text-red-600 mt-2">
-                      ※ 기출고 {penaltyInfo.shippedQuantity}개 → {penaltyInfo.appliedDiscountRate > 0 ? `${penaltyInfo.appliedDiscountRate}% 할인 구간 (${effectiveRegularUnitPrice.toLocaleString()}원/개)` : `기본 단가 (${effectiveRegularUnitPrice.toLocaleString()}원/개)`} 적용
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* 📐 추가정산 계산식 */}
-              {hasPenalty && (
-                <div className="mt-3 p-3 bg-white border border-red-100 rounded text-xs text-neutral-600 space-y-2">
-                  <p className="font-semibold text-neutral-700 mb-2">📐 추가정산 계산식</p>
-
-                  {/* ① 실제 납부금액 */}
-                  <div>
-                    <p className="text-neutral-500 mb-0.5">① 실제 납부금액 (단가 {paidUnitPrice.toLocaleString()}원)</p>
-                    <div className="flex items-center justify-between pl-2">
-                      <span className="text-neutral-400">
-                        {penaltyInfo.shippedQuantity}개 × {paidUnitPrice.toLocaleString()}원
-                      </span>
-                      <span className="font-medium text-neutral-800">{penaltyInfo.paidAmount.toLocaleString()}원</span>
-                    </div>
-                  </div>
-
-                  {/* ② 단가 재산정액 */}
-                  <div>
-                    <p className="text-neutral-500 mb-0.5">
-                      ② 단가 재산정액 ({penaltyInfo.shippedQuantity}개 기준 단가 {effectiveRegularUnitPrice.toLocaleString()}원)
-                    </p>
-                    <div className="flex items-center justify-between pl-2">
-                      <span className="text-neutral-400">
-                        {penaltyInfo.shippedQuantity}개 × {effectiveRegularUnitPrice.toLocaleString()}원
-                      </span>
-                      <span className="font-medium text-neutral-800">{penaltyInfo.regularAmount.toLocaleString()}원</span>
-                    </div>
-                  </div>
-
-                  {/* 추가정산 */}
-                  <div className="border-t border-dashed border-red-200 pt-1.5 flex items-center justify-between font-semibold">
-                    <span className="text-red-700">추가정산금액 (② − ①)</span>
-                    <span className="text-red-700">{penaltyInfo.penaltyAmount.toLocaleString()}원</span>
-                  </div>
-
-                  <p className="text-[11px] text-neutral-400 pt-0.5">
-                    * 정기공급으로 적용된 단가를 기존 구간별 단가로 재 정산한 차액
-                  </p>
-                </div>
-              )}
-
-              {hasPenalty && (
-                <p className="text-xs text-red-600 mt-2">
-                  * 추가 정산 금액은 해지 신청 승인 시 청구될 수 있습니다.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Admin Action Selection (결제 유지 회차가 있는 경우 노출) */}
-          {penaltyInfo.shippedQuantity > 0 && (
-            <div className="space-y-2 pt-1">
-              <label className="block text-xs font-bold text-neutral-800">
-                관리자 위약금 정산 선택
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label
-                  className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    adminAction === 'charge'
-                      ? 'border-red-500 bg-red-50/50 text-red-900 font-bold'
-                      : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="adminAction"
-                    checked={adminAction === 'charge'}
-                    onChange={() => setAdminAction('charge')}
-                    className="accent-red-600"
-                  />
-                  <div className="text-xs">
-                    <div className="font-bold text-red-700">위약금 부과</div>
-                    <div className="text-[11px] opacity-90 font-mono mt-0.5">
-                      ₩{penaltyInfo.penaltyAmount.toLocaleString()} 청구
-                    </div>
-                  </div>
-                </label>
-
-                <label
-                  className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    adminAction === 'waive'
-                      ? 'border-green-600 bg-green-50/50 text-green-900 font-bold'
-                      : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="adminAction"
-                    checked={adminAction === 'waive'}
-                    onChange={() => setAdminAction('waive')}
-                    className="accent-green-600"
-                  />
-                  <div className="text-xs">
-                    <div className="font-bold text-green-700">위약금 면제</div>
-                    <div className="text-[11px] opacity-90 font-mono mt-0.5">₩0</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* Form Fields */}
-          <div className="space-y-3">
+        {/* Modal Content */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-left text-neutral-800 text-xs">
+          {/* 계약 기본 정보 요약 */}
+          <div className="bg-neutral-50 rounded-xl p-4 border border-neutral-200 grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">
-                해지 및 취소 사유 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={cancelReason}
-                onChange={e => setCancelReason(e.target.value)}
-                placeholder="예: 고객 요청에 의한 중도 해지, 상품 이용 만족"
-                className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-100 placeholder:text-neutral-400"
-              />
+              <span className="text-neutral-500 block mb-1">구독 번호</span>
+              <span className="font-bold text-neutral-900">{sub.subscriptionNo || order.orderNumber}</span>
             </div>
-
             <div>
-              <label className="block text-xs font-bold text-neutral-700 mb-1">
-                관리자 정산 메모 (선택)
-              </label>
-              <textarea
-                rows={2}
-                value={adminMemo}
-                onChange={e => setAdminMemo(e.target.value)}
-                placeholder="예: 고객 불만으로 위약금 면제 승인 처리함"
-                className="w-full border border-neutral-300 rounded-lg p-2.5 text-xs focus:outline-none focus:border-neutral-400 placeholder:text-neutral-400"
-              />
+              <span className="text-neutral-500 block mb-1">상품명</span>
+              <span className="font-semibold text-neutral-900 truncate block">{sub.product?.name || '정기공급 상품'}</span>
+            </div>
+            <div>
+              <span className="text-neutral-500 block mb-1">진행 회차</span>
+              <span className="font-semibold text-neutral-900">{sub.currentRound || 1} / {sub.totalRounds}회차</span>
+            </div>
+            <div>
+              <span className="text-neutral-500 block mb-1">회당 결제 금액</span>
+              <span className="font-semibold text-neutral-900">₩{(sub.unitPrice || order.totalAmount).toLocaleString()}원</span>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-3 border-t border-neutral-100">
+          {/* 약정 정산 내역 및 위약금 계산 표 */}
+          <div className="border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">
+            <div className="bg-neutral-100 px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-bold text-neutral-900 text-xs">
+                <Calculator className="w-4 h-4 text-neutral-700" />
+                <span>위약금 및 차액 정산 상세</span>
+              </div>
+              <span className="text-[11px] text-neutral-500 font-medium">
+                {cancelLastPayment ? '* 마지막 회차 결제 취소 반영' : '* 기결제 유지 기준'}
+              </span>
+            </div>
+
+            <div className="p-4 space-y-3 bg-white">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-200">
+                  <span className="text-neutral-500 block mb-1">실출고 수량 (정산 대상)</span>
+                  <span className="text-sm font-bold text-neutral-900">{penaltyInfo.shippedQuantity}개</span>
+                  <span className="text-[11px] text-neutral-500 block mt-0.5">
+                    (회당 {sub.qtyPerRound || penaltyInfo.shippedQuantity}개 출고)
+                  </span>
+                </div>
+                <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-200">
+                  <span className="text-neutral-500 block mb-1">고객 실제 지불 총액</span>
+                  <span className="text-sm font-bold text-neutral-900">₩{penaltyInfo.paidAmount.toLocaleString()}원</span>
+                  <span className="text-[11px] text-neutral-500 block mt-0.5">
+                    (개당 평균 ₩{paidUnitPrice.toLocaleString()}원 지불)
+                  </span>
+                </div>
+              </div>
+
+              {/* 정가 대비 차액 계산 요약 표 */}
+              <table className="w-full text-xs text-left border-collapse mt-2">
+                <thead>
+                  <tr className="bg-neutral-100 border-y border-neutral-200 text-neutral-600 font-bold text-[11px]">
+                    <th className="py-2 px-3">항목</th>
+                    <th className="py-2 px-3 text-right">수량/단가</th>
+                    <th className="py-2 px-3 text-right">총 금액</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  <tr>
+                    <td className="py-2.5 px-3 font-medium text-neutral-700">① 정가 기준 정산금액</td>
+                    <td className="py-2.5 px-3 text-right text-neutral-600">{penaltyInfo.shippedQuantity}개 × ₩{effectiveRegularUnitPrice.toLocaleString()}원</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-neutral-900">₩{penaltyInfo.regularAmount.toLocaleString()}원</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-medium text-neutral-700">② 고객 실결제 총액</td>
+                    <td className="py-2.5 px-3 text-right text-neutral-600">할인가 적용</td>
+                    <td className="py-2.5 px-3 text-right font-bold text-neutral-900">₩{penaltyInfo.paidAmount.toLocaleString()}원</td>
+                  </tr>
+                  <tr className="bg-red-50/70 font-bold">
+                    <td className="py-3 px-3 text-red-900 flex items-center gap-1">
+                      <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                      <span>산출 위약금 (① - ②)</span>
+                    </td>
+                    <td className="py-3 px-3 text-right text-red-700" colSpan={2}>
+                      <span className="text-sm text-red-600">₩{penaltyInfo.penaltyAmount.toLocaleString()}원</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* 구간별 할인 혜택 안내 */}
+              <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-3 text-[11px] text-amber-900 space-y-1">
+                <div className="flex items-center gap-1 font-bold">
+                  <Info className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span>수량 구간별 할인 혜택 요약</span>
+                </div>
+                <p className="text-amber-800 leading-relaxed">
+                  * 계약 시 수량 약정에 따라 구간 할인이 적용되었으나, 중도 해지 시 기출고 수량({penaltyInfo.shippedQuantity}개)에 대한 정가 차액이 위약금으로 산출됩니다.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* 위약금 부과 / 면제 선택 옵션 */}
+          <div className="space-y-3">
+            <label className="font-bold text-neutral-900 block">위약금 처리 방식 선택</label>
+            <div className="grid grid-cols-2 gap-3">
+              <label
+                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                  adminAction === 'charge'
+                    ? 'border-red-500 bg-red-50/50 text-red-900 font-bold shadow-2xs'
+                    : 'border-neutral-200 hover:bg-neutral-50 text-neutral-700'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="adminAction"
+                  value="charge"
+                  checked={adminAction === 'charge'}
+                  onChange={() => setAdminAction('charge')}
+                  className="accent-red-600"
+                />
+                <div>
+                  <span className="block text-xs">위약금 부과 (정산 청구)</span>
+                  <span className="text-[11px] font-normal text-neutral-500 block">
+                    차액 ₩{penaltyInfo.penaltyAmount.toLocaleString()}원 추가 결제/청구
+                  </span>
+                </div>
+              </label>
+
+              <label
+                className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                  adminAction === 'waive'
+                    ? 'border-neutral-800 bg-neutral-900 text-white font-bold shadow-2xs'
+                    : 'border-neutral-200 hover:bg-neutral-50 text-neutral-700'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="adminAction"
+                  value="waive"
+                  checked={adminAction === 'waive'}
+                  onChange={() => setAdminAction('waive')}
+                  className="accent-neutral-900"
+                />
+                <div>
+                  <span className="block text-xs">위약금 면제</span>
+                  <span className="text-[11px] font-normal opacity-80 block">
+                    위약금 ₩0원 (고객 사정 감안 면제)
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* 해지 사유 입력 */}
+          <div className="space-y-1.5">
+            <label className="font-bold text-neutral-900 block">
+              해지 사유 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="예: 고객 요청, 제품 사용 종료, 수량 부담 등"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-neutral-800"
+            />
+          </div>
+
+          {/* 관리자 메모 */}
+          <div className="space-y-1.5">
+            <label className="font-bold text-neutral-900 block">관리자 처리 메모 (선택)</label>
+            <textarea
+              value={adminMemo}
+              onChange={(e) => setAdminMemo(e.target.value)}
+              rows={2}
+              placeholder="내부 관리용 메모를 입력하세요."
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-neutral-800 resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Modal Footer Buttons */}
+        <div className="bg-neutral-50 border-t border-neutral-200 px-6 py-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1 text-neutral-600 hover:text-neutral-900 text-xs font-bold transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>뒤로가기</span>
+          </button>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onBack || onClose}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
+              onClick={onClose}
+              className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
             >
               취소
             </button>
+
             <button
               type="button"
               onClick={handleFormSubmit}
-              disabled={loading || !cancelReason.trim()}
-              className="px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+              disabled={loading}
+              className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>
-                {loading
-                  ? '처리 중...'
+                {adminAction === 'charge' && hasPenalty
+                  ? '해지 및 위약금 승인 팝업으로 이동'
                   : cancelLastPayment
-                    ? '마지막 결제 취소 & 정기공급 해지'
-                    : '기결제 유지 & 정기공급 해지'}
+                  ? '마지막 결제 취소 & 해지 실행'
+                  : '정기공급 해지 실행'}
               </span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* ⚠️ 1단계: 마지막 결제 카드 승인 취소 확인 팝업 */}
-      {confirmStep === 'confirm_refund' && (
-        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-red-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4">
-            <div className="flex items-center gap-2 text-red-600">
-              <ShieldAlert className="w-6 h-6 shrink-0" />
-              <h4 className="text-base font-bold text-neutral-900">
-                마지막 결제 카드 승인 취소 확인
-                {adminAction === 'charge' && hasPenalty && <span className="text-xs text-neutral-500 font-normal ml-2">(1/2 단계)</span>}
-              </h4>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-2 text-red-900">
-              <p className="font-bold">⚠️ 전자결제(PG) 카드 승인 취소 대상</p>
-              <div className="space-y-1.5 text-neutral-700 font-medium pt-1">
-                <div className="flex justify-between">
-                  <span>취소 회차:</span>
-                  <span className="font-bold text-neutral-900">{sub.currentRound || 1}회차 결제건</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>승인 취소(환불) 금액:</span>
-                  <span className="font-bold text-red-600">₩{order.totalAmount.toLocaleString()}원</span>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs text-neutral-600 leading-relaxed">
-              {adminAction === 'charge' && hasPenalty
-                ? `회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인을 먼저 취소 처리합니다. 취소 후 2단계 위약금 결제 승인 팝업으로 이동합니다.`
-                : `회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인이 즉시 취소되며, 복구할 수 없습니다. 승인 취소 및 정기공급 해지를 진행하시겠습니까?`}
-            </p>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
-              <button
-                type="button"
-                onClick={() => setConfirmStep('none')}
-                disabled={loading}
-                className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleExecutePaymentRefundStep}
-                disabled={loading}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
-              >
-                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>
-                  {adminAction === 'charge' && hasPenalty ? '카드 승인 취소 (다음: 위약금 승인)' : '카드 승인 취소 & 해지 확정'}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 💳 2단계: 위약금 결제/청구 승인 팝업 */}
+      {/* 💳 1단계 (2회차 이상 부과 시): 위약금 결제/청구 승인 팝업 */}
       {confirmStep === 'confirm_penalty' && (
         <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-red-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4">
+          <div className="bg-white rounded-xl border border-red-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4 text-left">
             <div className="flex items-center gap-2 text-red-600">
               <ShieldAlert className="w-6 h-6 shrink-0" />
               <h4 className="text-base font-bold text-neutral-900">
                 위약금 결제/청구 승인
-                {cancelLastPayment && <span className="text-xs text-neutral-500 font-normal ml-2">(2/2 단계)</span>}
+                {cancelLastPayment && <span className="text-xs text-neutral-500 font-normal ml-2">(1/2 단계)</span>}
               </h4>
             </div>
 
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-2 text-red-900">
               <p className="font-bold">💳 위약금 결제/청구 정산 내역</p>
               <div className="space-y-1.5 text-neutral-700 font-medium pt-1">
-                {cancelLastPayment && paymentRefundDone && (
-                  <div className="flex justify-between text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
-                    <span>마지막 회차 결제 상태:</span>
-                    <span>✅ 카드 승인 취소 완료</span>
-                  </div>
-                )}
                 <div className="flex justify-between">
                   <span>기출고 정산 수량:</span>
                   <span className="font-bold text-neutral-900">{penaltyInfo.shippedQuantity}개</span>
@@ -574,29 +463,92 @@ export function SubscriptionPenaltySettlementModal({
 
             <p className="text-xs text-neutral-600 leading-relaxed">
               {cancelLastPayment
-                ? `마지막 결제 카드 승인 취소가 완료되었습니다. 약정 미달 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 정기공급 해지를 최종 승인합니다.`
-                : `정기공급 중도 해지에 따른 약정 미달 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 정기공급 해지를 최종 승인합니다.`}
+                ? `정기공급 중도 해지에 따른 약정 미달 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 청구 승인을 먼저 실행합니다. (다음 단계: 마지막 결제 카드 승인 취소)`
+                : `정기공급 중도 해지에 따른 약정 미달 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 부과 정산 및 구독 해지를 최종 승인합니다.`}
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
-              {!cancelLastPayment && (
-                <button
-                  type="button"
-                  onClick={() => setConfirmStep('none')}
-                  disabled={loading}
-                  className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
-                >
-                  취소
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setConfirmStep('none')}
+                disabled={loading}
+                className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                취소
+              </button>
               <button
                 type="button"
                 onClick={handleExecutePenaltyChargeStep}
                 disabled={loading}
-                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                className="px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
               >
                 {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>위약금 결제 승인 & 해지 최종 완료</span>
+                <span>
+                  {cancelLastPayment ? '위약금 결제 승인 (다음: 카드 승인 취소)' : '위약금 결제 승인 & 해지 최종 완료'}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💳 2단계 (2회차 이상 부과 후) 또는 1단계 (미부과 시): 마지막 결제 카드 승인 취소 팝업 */}
+      {confirmStep === 'confirm_refund' && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-red-200 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150 p-6 space-y-4 text-left">
+            <div className="flex items-center gap-2 text-red-600">
+              <ShieldAlert className="w-6 h-6 shrink-0" />
+              <h4 className="text-base font-bold text-neutral-900">
+                마지막 결제 카드 승인 취소
+                {adminAction === 'charge' && hasPenalty && <span className="text-xs text-neutral-500 font-normal ml-2">(2/2 단계)</span>}
+              </h4>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs space-y-2 text-red-900">
+              <p className="font-bold">🚨 카드 승인 취소 내역</p>
+              <div className="space-y-1.5 text-neutral-700 font-medium pt-1">
+                {adminAction === 'charge' && hasPenalty && penaltySettlementDone && (
+                  <div className="flex justify-between text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                    <span>1단계 위약금 청구 승인:</span>
+                    <span>✅ 결제 승인 완료 (₩{penaltyInfo.penaltyAmount.toLocaleString()}원)</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>취소 회차:</span>
+                  <span className="font-bold text-neutral-900">{sub.currentRound || 1}회차 결제건</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>승인 취소(환불) 금액:</span>
+                  <span className="font-bold text-red-600">₩{order.totalAmount.toLocaleString()}원</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-neutral-600 leading-relaxed">
+              {adminAction === 'charge' && hasPenalty
+                ? `1단계 위약금 ₩${penaltyInfo.penaltyAmount.toLocaleString()}원 결제 승인이 완료되었습니다. 회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인을 취소하고 정기공급 해지를 최종 완결합니다.`
+                : `회차 결제 금액(₩${order.totalAmount.toLocaleString()}원)의 카드 승인이 즉시 취소되며, 복구할 수 없습니다. 승인 취소 및 정기공급 해지를 진행하시겠습니까?`}
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => setConfirmStep('none')}
+                disabled={loading}
+                className="px-4 py-2 border border-neutral-300 rounded-lg text-xs font-bold text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleExecutePaymentRefundStep}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>
+                  {adminAction === 'charge' && hasPenalty ? '카드 승인 취소 & 해지 최종 완료' : '카드 승인 취소 & 해지 확정'}
+                </span>
               </button>
             </div>
           </div>

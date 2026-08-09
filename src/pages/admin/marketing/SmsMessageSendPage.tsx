@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Send, Plus, Trash2, Edit2, Check, X, ChevronRight, Users, Upload, Smartphone, AlertCircle, Clock, Loader2, Mail, RefreshCw, Sliders, History, Folder, AlertTriangle, Save, Search } from 'lucide-react';
+import { Send, Plus, Trash2, Edit2, Check, X, ChevronRight, Users, Upload, Smartphone, AlertCircle, Clock, Loader2, Mail, RefreshCw, Sliders, History, Folder, AlertTriangle, Save, Search, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { mtsService, DEFAULT_FROM_PHONE, type SmsTemplateGroup, type SmsTemplate } from '../../../services/mtsService';
 import { adminService } from '../../../services/adminService';
@@ -75,7 +75,10 @@ export function SmsMessageSendPage() {
   const [storeId] = useState('70000');
   const [fromPhone] = useState(DEFAULT_FROM_PHONE);
 
-  const msgType = mtsService.getMessageType(message, subject);
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const msgType = mtsService.getMessageType(message, subject, attachedImages);
   const byteSize = mtsService.getByteSize(message);
   const maxBytes = mtsService.getMaxBytes(msgType === 'MMS' ? 'LMS' : msgType);
   const isOverLimit = byteSize > maxBytes;
@@ -177,7 +180,64 @@ export function SmsMessageSendPage() {
     } catch { toast.error('템플릿 저장에 실패했습니다.'); }
   };
 
-  const handleReset = () => { setMessage(''); setSubject(''); setPrefixAd(false); setRecipients([]); setSelectedTemplate(null); toast.info('전송 폼이 초기화되었습니다.'); };
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (attachedImages.length + files.length > 3) {
+      toast.warning('MMS 이미지 첨부는 최대 3장까지 가능합니다.');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const newUrls: string[] = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.size > 2 * 1024 * 1024) {
+          toast.error(`[${file.name}] 용량이 2MB를 초과합니다. 300KB 이하 첨부를 권장합니다.`);
+          continue;
+        }
+
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `mms/img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
+
+        const { error } = await supabase.storage
+          .from('marketing')
+          .upload(path, file, { upsert: true });
+
+        if (error) {
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          newUrls.push(dataUrl);
+        } else {
+          const { data: { publicUrl } } = supabase.storage.from('marketing').getPublicUrl(path);
+          newUrls.push(publicUrl);
+        }
+      }
+
+      if (newUrls.length > 0) {
+        setAttachedImages(prev => [...prev, ...newUrls]);
+        toast.success(`MMS 이미지 ${newUrls.length}장이 첨부되었습니다.`);
+      }
+    } catch {
+      toast.error('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+    toast.info('첨부 이미지가 삭제되었습니다.');
+  };
+
+  const handleReset = () => { setMessage(''); setSubject(''); setPrefixAd(false); setRecipients([]); setSelectedTemplate(null); setAttachedImages([]); toast.info('전송 폼이 초기화되었습니다.'); };
 
   const handleSend = async () => {
     if (!recipients.length) { toast.error('수신 대상을 추가하세요.'); return; }
@@ -214,7 +274,8 @@ export function SmsMessageSendPage() {
         purpose: 'mkt',
         recipients,
         storeId,
-        reservedAt: reservedAtStr
+        reservedAt: reservedAtStr,
+        attachedUrls: attachedImages.length > 0 ? attachedImages : undefined
       });
 
       if (sendMode === 'reserved') {
@@ -600,6 +661,35 @@ export function SmsMessageSendPage() {
             className="w-full border-b border-neutral-200 px-4 py-2.5 text-sm text-neutral-700 focus:outline-none placeholder:text-neutral-400 placeholder:text-xs shrink-0"
           />
           <div className="flex-1 flex flex-col min-h-0 relative bg-blue-500/5">
+            {attachedImages.length > 0 && (
+              <div className="p-3 bg-emerald-50/80 border-b border-emerald-200 shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                    첨부된 이미지 ({attachedImages.length}/3장)
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                    MMS 발송 모드
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {attachedImages.map((imgUrl, idx) => (
+                    <div key={idx} className="relative group shrink-0 w-16 h-16 rounded border border-emerald-300 overflow-hidden bg-white shadow-sm">
+                      <img src={imgUrl} alt={`attached-${idx}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute top-0.5 right-0.5 bg-neutral-900/70 hover:bg-red-600 text-white rounded-full p-0.5 transition-colors cursor-pointer"
+                        title="이미지 삭제"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               value={message}
@@ -609,12 +699,31 @@ export function SmsMessageSendPage() {
             />
           </div>
           <div className="flex items-center justify-between px-4 py-2 bg-white border-t border-neutral-200 shrink-0">
-            <span className="text-blue-500 text-xs font-medium">미리보기</span>
+            <div className="flex items-center gap-2">
+              <span className="text-blue-500 text-xs font-medium">미리보기</span>
+              <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded ${
+                msgType === 'MMS' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : msgType === 'LMS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {msgType}
+              </span>
+            </div>
             <span className={`text-xs font-mono ${isOverLimit ? 'text-red-500 font-bold' : 'text-neutral-400'}`}>({byteSize}/{maxBytes})</span>
           </div>
-          <div className="grid grid-cols-2 gap-0 border-t border-neutral-200 shrink-0 bg-neutral-50">
+          <div className="grid grid-cols-3 gap-0 border-t border-neutral-200 shrink-0 bg-neutral-50">
             <button onClick={() => insertPlaceholder('{고객명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center">+ 고객명</button>
-            <button onClick={() => insertPlaceholder('{병원명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center">+ 병원명</button>
+            <button onClick={() => insertPlaceholder('{병원명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center border-r border-neutral-200">+ 병원명</button>
+            <label className="py-2 text-xs font-bold bg-white text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-center cursor-pointer gap-1">
+              {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
+              <span>이미지 첨부</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif"
+                multiple
+                className="hidden"
+                onChange={handleImageUpload}
+                disabled={isUploadingImage || attachedImages.length >= 3}
+              />
+            </label>
           </div>
           <div className="px-4 py-3 bg-white border-t border-neutral-200 shrink-0">
             <div className="flex items-center justify-between mb-2">

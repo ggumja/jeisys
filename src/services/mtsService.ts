@@ -490,7 +490,8 @@ export const mtsService = {
 
   // ── 헬퍼: 메시지 타입/바이트 ─────────────────────────────
 
-  getMessageType(message: string, subject?: string): 'SMS' | 'LMS' | 'MMS' {
+  getMessageType(message: string, subject?: string, attachedUrls?: string[]): 'SMS' | 'LMS' | 'MMS' {
+    if (attachedUrls && attachedUrls.length > 0) return 'MMS';
     const fullText = subject ? subject + message : message;
     if (fullText.length > 90) return 'LMS';
     return 'SMS';
