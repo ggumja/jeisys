@@ -709,8 +709,9 @@ export function SmsMessageSendPage() {
             </div>
             <span className={`text-xs font-mono ${isOverLimit ? 'text-red-500 font-bold' : 'text-neutral-400'}`}>({byteSize}/{maxBytes})</span>
           </div>
-          <div className="grid grid-cols-3 gap-0 border-t border-neutral-200 shrink-0 bg-neutral-50">
-            <button onClick={() => insertPlaceholder('{고객명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center">+ 고객명</button>
+          <div className="grid grid-cols-4 gap-0 border-t border-neutral-200 shrink-0 bg-neutral-50">
+            <button onClick={() => insertPlaceholder('(광고)\n')} className="py-2 text-xs font-bold bg-white text-amber-600 hover:bg-amber-50 transition-colors border-r border-neutral-200 flex items-center justify-center">+ (광고)</button>
+            <button onClick={() => insertPlaceholder('{고객명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center border-r border-neutral-200">+ 고객명</button>
             <button onClick={() => insertPlaceholder('{병원명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center border-r border-neutral-200">+ 병원명</button>
             <label className="py-2 text-xs font-bold bg-white text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-center cursor-pointer gap-1">
               {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
