@@ -180,43 +180,86 @@ export function SmsMessageSendPage() {
     } catch { toast.error('템플릿 저장에 실패했습니다.'); }
   };
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif'];
+
+  const validateAndUploadFile = async (file: File): Promise<string | null> => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+    // 1. 파일 확장자 및 포맷 검증
+    const isValidType = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isValidExt = ALLOWED_EXTENSIONS.includes(ext);
+
+    if (!isValidType && !isValidExt) {
+      toast.error(`[${file.name}] 지원되지 않는 파일 포맷입니다.\nMMS 첨부는 JPG, JPEG, PNG, GIF 이미지 형식만 지원합니다.`);
+      return null;
+    }
+
+    // 2. 파일 용량 검증 (최대 2MB 제한, 300KB 초과시 경고)
+    if (file.size > 2 * 1024 * 1024) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      toast.error(`[${file.name}] 파일 용량 초과 (${sizeMB}MB)\nMMS 첨부 가능한 최대 이미지 용량은 2MB입니다. (300KB 이하 권장)`);
+      return null;
+    }
+
+    if (file.size > 300 * 1024) {
+      const sizeKB = (file.size / 1024).toFixed(0);
+      toast.warning(`[${file.name}] 용량이 300KB를 초과합니다. (${sizeKB}KB)\n수신 통신사 단말기 환경에 따라 이미지 수신이 지연될 수 있습니다.`);
+    }
+
+    // 3. Supabase Storage 업로드
+    const path = `mms/img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext || 'jpg'}`;
+
+    const { error } = await supabase.storage
+      .from('marketing')
+      .upload(path, file, { upsert: true });
+
+    if (error) {
+      console.error('[MMS Image Upload Error]', error);
+      // 스토리지 에러 시 DataURL 폴백
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('파일 읽기 실패'));
+          reader.readAsDataURL(file);
+        });
+        toast.info(`[${file.name}] 로컬 임시 이미지로 첨부되었습니다.`);
+        return dataUrl;
+      } catch {
+        toast.error(`[${file.name}] 파일 업로드에 실패했습니다.`);
+        return null;
+      }
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('marketing').getPublicUrl(path);
+    return publicUrl;
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    if (attachedImages.length + files.length > 3) {
-      toast.warning('MMS 이미지 첨부는 최대 3장까지 가능합니다.');
+    if (attachedImages.length >= 3) {
+      toast.warning('MMS 이미지는 최대 3장까지만 첨부할 수 있습니다.');
+      e.target.value = '';
       return;
+    }
+
+    const availableSlots = 3 - attachedImages.length;
+    if (files.length > availableSlots) {
+      toast.warning(`MMS 이미지는 최대 3장까지 첨부 가능하므로 상위 ${availableSlots}장만 첨부됩니다.`);
     }
 
     setIsUploadingImage(true);
     const newUrls: string[] = [];
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file.size > 2 * 1024 * 1024) {
-          toast.error(`[${file.name}] 용량이 2MB를 초과합니다. 300KB 이하 첨부를 권장합니다.`);
-          continue;
-        }
-
-        const ext = file.name.split('.').pop() || 'jpg';
-        const path = `mms/img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${ext}`;
-
-        const { error } = await supabase.storage
-          .from('marketing')
-          .upload(path, file, { upsert: true });
-
-        if (error) {
-          const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          });
-          newUrls.push(dataUrl);
-        } else {
-          const { data: { publicUrl } } = supabase.storage.from('marketing').getPublicUrl(path);
-          newUrls.push(publicUrl);
+      const filesToProcess = Array.from(files).slice(0, availableSlots);
+      for (const file of filesToProcess) {
+        const uploadedUrl = await validateAndUploadFile(file);
+        if (uploadedUrl) {
+          newUrls.push(uploadedUrl);
         }
       }
 
@@ -225,7 +268,7 @@ export function SmsMessageSendPage() {
         toast.success(`MMS 이미지 ${newUrls.length}장이 첨부되었습니다.`);
       }
     } catch {
-      toast.error('이미지 업로드 중 오류가 발생했습니다.');
+      toast.error('이미지 첨부 중 예기치 못한 오류가 발생했습니다.');
     } finally {
       setIsUploadingImage(false);
       e.target.value = '';
@@ -713,7 +756,18 @@ export function SmsMessageSendPage() {
             <button onClick={() => insertPlaceholder('(광고)\n')} className="py-2 text-xs font-bold bg-white text-amber-600 hover:bg-amber-50 transition-colors border-r border-neutral-200 flex items-center justify-center">+ (광고)</button>
             <button onClick={() => insertPlaceholder('{고객명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center border-r border-neutral-200">+ 고객명</button>
             <button onClick={() => insertPlaceholder('{병원명}')} className="py-2 text-xs font-bold bg-white text-blue-600 hover:bg-blue-50 transition-colors border-r border-neutral-200 flex items-center justify-center border-r border-neutral-200">+ 병원명</button>
-            <label className="py-2 text-xs font-bold bg-white text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-center cursor-pointer gap-1">
+            <label
+              onClick={(e) => {
+                if (attachedImages.length >= 3) {
+                  e.preventDefault();
+                  toast.warning('MMS 이미지는 최대 3장까지만 첨부할 수 있습니다.');
+                } else if (isUploadingImage) {
+                  e.preventDefault();
+                  toast.info('이미지 업로드가 진행 중입니다. 잠시만 기다려 주세요.');
+                }
+              }}
+              className="py-2 text-xs font-bold bg-white text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-center cursor-pointer gap-1"
+            >
               {isUploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
               <span>이미지 첨부</span>
               <input
@@ -722,7 +776,6 @@ export function SmsMessageSendPage() {
                 multiple
                 className="hidden"
                 onChange={handleImageUpload}
-                disabled={isUploadingImage || attachedImages.length >= 3}
               />
             </label>
           </div>
